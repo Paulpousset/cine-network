@@ -1,3 +1,4 @@
+import { JOB_TITLES } from "@/utils/roles";
 import React, { useState } from "react";
 import {
   ActivityIndicator,
@@ -11,7 +12,6 @@ import {
   View,
 } from "react-native";
 import { supabase } from "../lib/supabase";
-import { JOB_TITLES } from "./utils/roles";
 
 const ROLES = Object.keys(JOB_TITLES);
 
