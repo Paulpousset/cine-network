@@ -1,0 +1,1042 @@
+import { useUserMode } from "@/hooks/useUserMode";
+import { supabase } from "@/lib/supabase";
+import { Ionicons } from "@expo/vector-icons";
+import * as DocumentPicker from "expo-document-picker";
+import * as ImagePicker from "expo-image-picker";
+import { Stack, useRouter } from "expo-router";
+import React, { useEffect, useState } from "react";
+import {
+  ActivityIndicator,
+  Alert,
+  Button,
+  Image,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
+
+// --- CONSTANTS ---
+const HAIR_COLORS = [
+  "Brun",
+  "Châtain",
+  "Blond",
+  "Roux",
+  "Noir",
+  "Gris",
+  "Blanc",
+  "Autre",
+];
+const EYE_COLORS = ["Marron", "Bleu", "Vert", "Noisette", "Gris", "Vairons"];
+
+const ROLES = [
+  { label: "Acteur", value: "acteur" },
+  { label: "Modèle", value: "modele" },
+  { label: "Figurant", value: "figurant" },
+  { label: "Réalisateur", value: "realisateur" },
+  { label: "Technicien", value: "technicien" },
+  { label: "HMC (Maq/Costume)", value: "hmc" },
+  { label: "Scénariste", value: "scenariste" },
+  { label: "Production", value: "production" },
+];
+
+export default function Account() {
+  const router = useRouter();
+  const { mode } = useUserMode(); // Mode is mostly visual/role based
+  const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
+
+  // --- FORM STATE ---
+  const [profile, setProfile] = useState<any>({});
+
+  // Basic Info
+  const [full_name, setFullName] = useState("");
+  const [username, setUsername] = useState("");
+  const [city, setCity] = useState("");
+  const [website, setWebsite] = useState("");
+  const [bio, setBio] = useState("");
+  const [role, setRole] = useState(""); // Main "titre" (e.g. Acteur, Réa...)
+
+  // Contact
+  const [email_public, setEmailPublic] = useState("");
+  const [phone, setPhone] = useState("");
+
+  // Physique (Actor specific mostly)
+  const [height, setHeight] = useState("");
+  const [hair_color, setHairColor] = useState("");
+  const [eye_color, setEyeColor] = useState("");
+
+  // Technical / HMC
+  const [equipment, setEquipment] = useState("");
+  const [software, setSoftware] = useState("");
+  const [specialties, setSpecialties] = useState("");
+
+  // Skills
+  const [skillsInput, setSkillsInput] = useState("");
+  const [skills, setSkills] = useState<string[]>([]);
+
+  // Documents
+  const [cv_url, setCvUrl] = useState<string | null>(null);
+  const [book_urls, setBookUrls] = useState<string[]>([]);
+  const [showreel_url, setShowreelUrl] = useState("");
+
+  // Visibility settings
+  const [hiddenProjectIds, setHiddenProjectIds] = useState<string[]>([]);
+  const [isContactVisible, setIsContactVisible] = useState(true);
+
+  // Projects management
+  const [myProjects, setMyProjects] = useState<any[]>([]);
+  const [myParticipations, setMyParticipations] = useState<any[]>([]);
+
+  // Avatar
+  const [avatar_url, setAvatarUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchProfile();
+  }, []);
+
+  async function fetchProfile() {
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", session.user.id)
+        .single();
+
+      if (error) throw error;
+
+      if (data) {
+        setProfile(data);
+        setFullName(data.full_name || "");
+        setUsername(data.username || "");
+        setCity(data.ville || "");
+        setWebsite(data.website || "");
+        setRole(data.role || "");
+        setAvatarUrl(data.avatar_url);
+
+        // Nouveaux champs (si existants)
+        setBio(data.bio || "");
+        setEmailPublic(data.email_public || "");
+        setPhone(data.phone || "");
+        setHeight(data.height ? data.height.toString() : "");
+        setHairColor(data.hair_color || "");
+        setEyeColor(data.eye_color || "");
+        setEquipment(data.equipment || "");
+        setSoftware(data.software || "");
+        setSpecialties(data.specialties || "");
+        setSkills(data.skills || []);
+        setCvUrl(data.cv_url || null);
+        setBookUrls(data.book_urls || []);
+        setShowreelUrl(data.showreel_url || "");
+      }
+
+      // Fetch visibility settings
+      const { data: settings, error: settingsError } = await supabase
+        .from("public_profile_settings")
+        .select("*")
+        .eq("id", session.user.id)
+        .single();
+
+      if (!settingsError && settings) {
+        setHiddenProjectIds(settings.hidden_project_ids || []);
+        setIsContactVisible(settings.is_contact_visible ?? true);
+      }
+
+      // Fetch user's projects for visibility management
+      const { data: projects } = await supabase
+        .from("tournages")
+        .select("id, title, type, created_at")
+        .eq("owner_id", session.user.id)
+        .order("created_at", { ascending: false });
+
+      if (projects) {
+        setMyProjects(projects);
+      }
+
+      // Fetch participations
+      const { data: parts } = await supabase
+        .from("project_roles")
+        .select(
+          `
+          id,
+          title,
+          status,
+          tournages (
+            id,
+            title,
+            type,
+            created_at,
+            is_public
+          )
+        `,
+        )
+        .eq("assigned_profile_id", session.user.id);
+
+      if (parts) {
+        // Flatten structure
+        const formattedParts = parts
+          .map((p: any) => ({
+            id: p.id,
+            roleTitle: p.title,
+            projectId: p.tournages?.id,
+            projectTime: p.tournages?.created_at,
+            projectTitle: p.tournages?.title,
+            projectType: p.tournages?.type,
+            projectPublic: p.tournages?.is_public,
+          }))
+          .filter((p: any) => p.projectTitle);
+        setMyParticipations(formattedParts);
+      }
+    } catch (e) {
+      console.log("Erreur fetch:", e);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // --- UPLOAD HELPERS ---
+
+  async function uploadImage(isAvatar: boolean = false) {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        quality: 0.8,
+        base64: true,
+      });
+
+      if (result.canceled || !result.assets || result.assets.length === 0)
+        return;
+
+      setUploading(true);
+      const image = result.assets[0];
+      const fileExt = image.uri.split(".").pop();
+      const fileName = `${Date.now()}.${fileExt}`;
+      const filePath = isAvatar ? `avatars/${fileName}` : `book/${fileName}`;
+
+      const arrayBuffer = await fetch(image.uri).then((res) =>
+        res.arrayBuffer(),
+      );
+
+      const { error: uploadError } = await supabase.storage
+        .from("user_content") // We'll need this bucket
+        .upload(filePath, arrayBuffer, {
+          contentType: image.mimeType || "image/jpeg",
+          upsert: false,
+        });
+
+      if (uploadError) throw uploadError;
+
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from("user_content").getPublicUrl(filePath);
+
+      if (isAvatar) {
+        setAvatarUrl(publicUrl);
+      } else {
+        setBookUrls([...book_urls, publicUrl]);
+      }
+    } catch (e) {
+      Alert.alert("Erreur upload", (e as Error).message);
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function uploadCV() {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: "application/pdf",
+      });
+
+      if (result.canceled || !result.assets) return;
+      setUploading(true);
+
+      const file = result.assets[0];
+      const fileName = `cvs/${Date.now()}_${file.name}`;
+
+      const arrayBuffer = await fetch(file.uri).then((res) =>
+        res.arrayBuffer(),
+      );
+
+      const { error } = await supabase.storage
+        .from("user_content")
+        .upload(fileName, arrayBuffer, {
+          contentType: "application/pdf",
+        });
+
+      if (error) throw error;
+
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from("user_content").getPublicUrl(fileName);
+
+      setCvUrl(publicUrl);
+    } catch (e) {
+      Alert.alert("Erreur upload CV", (e as Error).message);
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function toggleContactVisibility(value: boolean) {
+    try {
+      setIsContactVisible(value); // Optimistic
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const { error } = await supabase
+        .from("public_profile_settings")
+        .upsert({ id: session.user.id, is_contact_visible: value });
+
+      if (error) throw error;
+    } catch (e) {
+      Alert.alert("Erreur", "Impossible de changer la visibilité du contact");
+      setIsContactVisible(!value); // Revert
+    }
+  }
+
+  async function toggleProjectVisibility(
+    projectId: string,
+    isVisible: boolean,
+  ) {
+    try {
+      let newHiddenIds = [...hiddenProjectIds];
+      if (isVisible) {
+        newHiddenIds = newHiddenIds.filter((id) => id !== projectId);
+      } else {
+        if (!newHiddenIds.includes(projectId)) {
+          newHiddenIds.push(projectId);
+        }
+      }
+
+      setHiddenProjectIds(newHiddenIds); // Optimistic
+
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const { error } = await supabase.from("public_profile_settings").upsert({
+        id: session.user.id,
+        hidden_project_ids: newHiddenIds,
+      });
+
+      if (error) throw error;
+    } catch (e) {
+      Alert.alert("Erreur", "Impossible de changer la visibilité du projet");
+    }
+  }
+
+  // --- SAVE ---
+
+  async function saveProfile() {
+    try {
+      setLoading(true);
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const updates = {
+        full_name,
+        username,
+        ville: city,
+        website,
+        role,
+        // Nouveaux champs
+        bio,
+        email_public,
+        phone,
+        height: height ? parseInt(height) : null,
+        hair_color,
+        eye_color,
+        equipment,
+        software,
+        specialties,
+        skills,
+        cv_url,
+        book_urls,
+        showreel_url,
+        avatar_url,
+        updated_at: new Date().toISOString(),
+      };
+
+      const { error } = await supabase
+        .from("profiles")
+        .update(updates)
+        .eq("id", session.user.id);
+
+      if (error) throw error;
+      Alert.alert("Succès", "Votre profil a été mis à jour !");
+    } catch (e) {
+      Alert.alert(
+        "Erreur de sauvegarde",
+        "Vérifiez que vous avez bien mis à jour la base de données (SQL).\n" +
+          (e as Error).message,
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // --- RENDER HELPERS ---
+
+  const SectionTitle = ({ title }: { title: string }) => (
+    <Text style={styles.sectionTitle}>{title}</Text>
+  );
+
+  if (loading && !profile.id)
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator />
+      </View>
+    );
+
+  return (
+    <View style={styles.container}>
+      <Stack.Screen options={{ headerShown: false }} />
+      {/* HEADER */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()} style={{ padding: 5 }}>
+          <Ionicons name="arrow-back" size={24} color="#333" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Mon Profil</Text>
+        <TouchableOpacity
+          onPress={saveProfile}
+          disabled={loading || uploading}
+          style={{ padding: 5 }}
+        >
+          {loading || uploading ? (
+            <ActivityIndicator size="small" color="#841584" />
+          ) : (
+            <Text style={{ color: "#841584", fontWeight: "bold" }}>Sauver</Text>
+          )}
+        </TouchableOpacity>
+      </View>
+
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        {/* AVATAR */}
+        <View style={{ alignItems: "center", marginBottom: 20 }}>
+          <TouchableOpacity onPress={() => uploadImage(true)}>
+            {avatar_url ? (
+              <Image source={{ uri: avatar_url }} style={styles.avatar} />
+            ) : (
+              <View style={[styles.avatar, styles.avatarPlaceholder]}>
+                <Ionicons name="camera" size={30} color="#999" />
+              </View>
+            )}
+            <View style={styles.editBadge}>
+              <Ionicons name="pencil" size={12} color="white" />
+            </View>
+          </TouchableOpacity>
+          <Text style={{ marginTop: 10, color: "#666" }}>
+            Photo de profil principale
+          </Text>
+        </View>
+
+        {/* 1. INFOS GENERALES */}
+        <SectionTitle title="Informations Générales" />
+        <View style={styles.card}>
+          <Text style={styles.label}>Nom complet</Text>
+          <TextInput
+            style={styles.input}
+            value={full_name}
+            onChangeText={setFullName}
+            placeholder="Prénom Nom"
+          />
+
+          <Text style={styles.label}>Nom d'utilisateur (Pseudo)</Text>
+          <TextInput
+            style={styles.input}
+            value={username}
+            onChangeText={setUsername}
+            placeholder="pseudo"
+            autoCapitalize="none"
+          />
+
+          <Text style={styles.label}>Rôle Principal</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={{ marginBottom: 15 }}
+          >
+            {ROLES.map((r) => (
+              <TouchableOpacity
+                key={r.value}
+                onPress={() => setRole(r.value)}
+                style={[
+                  styles.tag,
+                  role === r.value && styles.tagSelected,
+                  { marginRight: 8 },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.tagText,
+                    role === r.value && styles.tagTextSelected,
+                  ]}
+                >
+                  {r.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+
+          <Text style={styles.label}>Ville de résidence</Text>
+          <TextInput
+            style={styles.input}
+            value={city}
+            onChangeText={setCity}
+            placeholder="Paris, France"
+          />
+
+          <Text style={styles.label}>Bio / Présentation</Text>
+          <TextInput
+            style={[styles.input, styles.textArea]}
+            value={bio}
+            onChangeText={setBio}
+            placeholder="Décrivez votre parcours en quelques lignes..."
+            multiline
+          />
+        </View>
+
+        {/* 2. CONTACT PUBLIC */}
+        <SectionTitle title="Contact & Pro" />
+        <View style={styles.card}>
+          <Text style={styles.label}>Site web / Portfolio URL</Text>
+          <TextInput
+            style={styles.input}
+            value={website}
+            onChangeText={setWebsite}
+            placeholder="https://..."
+            autoCapitalize="none"
+          />
+
+          <Text style={styles.label}>Email Pro (Public)</Text>
+          <TextInput
+            style={styles.input}
+            value={email_public}
+            onChangeText={setEmailPublic}
+            placeholder="contact@exemple.com"
+            keyboardType="email-address"
+            autoCapitalize="none"
+          />
+
+          <Text style={styles.label}>Téléphone (Optionnel)</Text>
+          <TextInput
+            style={styles.input}
+            value={phone}
+            onChangeText={setPhone}
+            placeholder="+33 6..."
+            keyboardType="phone-pad"
+          />
+
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+              marginTop: 10,
+              paddingTop: 10,
+              borderTopWidth: 1,
+              borderColor: "#eee",
+            }}
+          >
+            <Text style={{ fontSize: 14, color: "#333", flex: 1 }}>
+              Afficher mes contacts sur mon profil public ?
+            </Text>
+            <Switch
+              value={isContactVisible}
+              onValueChange={toggleContactVisibility}
+              trackColor={{ false: "#767577", true: "#E1BEE7" }}
+              thumbColor={isContactVisible ? "#841584" : "#f4f3f4"}
+            />
+          </View>
+        </View>
+
+        {/* 3. CATEGORY SPECIFIC FIELDS */}
+
+        {/* PHYSICAL (Actors/Models) */}
+        {["acteur", "modele", "figurant"].includes(role) && (
+          <>
+            <SectionTitle title="Apparence & Caractéristiques" />
+            <View style={styles.card}>
+              <View style={{ flexDirection: "row", gap: 10 }}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.label}>Taille (cm)</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={height}
+                    onChangeText={setHeight}
+                    placeholder="175"
+                    keyboardType="numeric"
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.label}>Yeux</Text>
+                  <View style={styles.tagsContainer}>
+                    {EYE_COLORS.map((ec) => (
+                      <TouchableOpacity
+                        key={ec}
+                        onPress={() => setEyeColor(ec)}
+                        style={[
+                          styles.tag,
+                          eye_color === ec && styles.tagSelected,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.tagText,
+                            eye_color === ec && styles.tagTextSelected,
+                          ]}
+                        >
+                          {ec}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              </View>
+              <View style={{ marginTop: 10 }}>
+                <Text style={styles.label}>Cheveux</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                  {HAIR_COLORS.map((hc) => (
+                    <TouchableOpacity
+                      key={hc}
+                      onPress={() => setHairColor(hc)}
+                      style={[
+                        styles.tag,
+                        hair_color === hc && styles.tagSelected,
+                        { marginRight: 8 },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.tagText,
+                          hair_color === hc && styles.tagTextSelected,
+                        ]}
+                      >
+                        {hc}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            </View>
+          </>
+        )}
+
+        {/* TECH (Equipment/Software) */}
+        {["technicien", "realisateur", "production", "scenariste"].includes(
+          role,
+        ) && (
+          <>
+            <SectionTitle title="Matériel & Outils" />
+            <View style={styles.card}>
+              <Text style={styles.label}>
+                Matériel (Caméra, Son, Lumière...)
+              </Text>
+              <TextInput
+                style={styles.input}
+                value={equipment}
+                onChangeText={setEquipment}
+                placeholder="Ex: Sony A7S III, Micro Zoom H6..."
+              />
+              <Text style={styles.label}>Logiciels & Outils</Text>
+              <TextInput
+                style={styles.input}
+                value={software}
+                onChangeText={setSoftware}
+                placeholder="Premiere Pro, DaVinci, Final Draft..."
+              />
+            </View>
+          </>
+        )}
+
+        {/* HMC (Specialties) */}
+        {role === "hmc" && (
+          <>
+            <SectionTitle title="Spécialités HMC" />
+            <View style={styles.card}>
+              <Text style={styles.label}>Spécialités</Text>
+              <TextInput
+                style={styles.input}
+                value={specialties}
+                onChangeText={setSpecialties}
+                placeholder="Maquillage SFX, Coiffure époque..."
+              />
+            </View>
+          </>
+        )}
+
+        {/* 4. SKILLS */}
+        <SectionTitle title="Compétences & Tags" />
+        <View style={styles.card}>
+          <View style={{ flexDirection: "row", gap: 5 }}>
+            <TextInput
+              style={[styles.input, { flex: 1, marginBottom: 0 }]}
+              value={skillsInput}
+              onChangeText={setSkillsInput}
+              placeholder="Ajouter (ex: Piano, Permis B, Montage...)"
+              onSubmitEditing={() => {
+                if (skillsInput.trim()) {
+                  setSkills([...skills, skillsInput.trim()]);
+                  setSkillsInput("");
+                }
+              }}
+            />
+            <TouchableOpacity
+              onPress={() => {
+                if (skillsInput.trim()) {
+                  setSkills([...skills, skillsInput.trim()]);
+                  setSkillsInput("");
+                }
+              }}
+              style={styles.addButton}
+            >
+              <Ionicons name="add" size={24} color="white" />
+            </TouchableOpacity>
+          </View>
+          <View style={[styles.tagsContainer, { marginTop: 10 }]}>
+            {skills.map((s, i) => (
+              <View key={i} style={styles.skillTag}>
+                <Text style={{ color: "#333", marginRight: 5 }}>{s}</Text>
+                <TouchableOpacity
+                  onPress={() =>
+                    setSkills(skills.filter((_, idx) => idx !== i))
+                  }
+                >
+                  <Ionicons name="close-circle" size={16} color="#666" />
+                </TouchableOpacity>
+              </View>
+            ))}
+          </View>
+        </View>
+
+        {/* 5. DOCUMENTS & MEDIAS */}
+        <SectionTitle title="Documents & Médias" />
+        <View style={styles.card}>
+          {/* CV */}
+          <Text style={styles.label}>CV (PDF)</Text>
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              marginBottom: 15,
+            }}
+          >
+            {cv_url ? (
+              <TouchableOpacity
+                style={styles.fileButton}
+                onPress={() => Alert.alert("CV", "Fichier déjà uploadé")}
+              >
+                <Ionicons name="document-text" size={24} color="#841584" />
+                <Text
+                  style={{
+                    marginLeft: 10,
+                    color: "#841584",
+                    fontWeight: "600",
+                  }}
+                >
+                  CV Uploadé
+                </Text>
+              </TouchableOpacity>
+            ) : null}
+            <TouchableOpacity
+              onPress={uploadCV}
+              style={[
+                styles.fileButton,
+                { backgroundColor: "#f0f0f0", marginLeft: cv_url ? 10 : 0 },
+              ]}
+            >
+              <Text>
+                {uploading
+                  ? "..."
+                  : cv_url
+                    ? "Mettre à jour"
+                    : "Générer / Uploader"}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* BOOK */}
+          <Text style={styles.label}>Book Photos (Max 6)</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            {book_urls.map((url, i) => (
+              <View key={i} style={{ marginRight: 10, position: "relative" }}>
+                <Image
+                  source={{ uri: url }}
+                  style={{ width: 80, height: 80, borderRadius: 8 }}
+                />
+                <TouchableOpacity
+                  onPress={() =>
+                    setBookUrls(book_urls.filter((_, idx) => idx !== i))
+                  }
+                  style={{
+                    position: "absolute",
+                    top: -5,
+                    right: -5,
+                    backgroundColor: "white",
+                    borderRadius: 10,
+                  }}
+                >
+                  <Ionicons name="close-circle" size={20} color="red" />
+                </TouchableOpacity>
+              </View>
+            ))}
+            {book_urls.length < 6 && (
+              <TouchableOpacity
+                onPress={() => uploadImage(false)}
+                style={{
+                  width: 80,
+                  height: 80,
+                  backgroundColor: "#f0f0f0",
+                  borderRadius: 8,
+                  justifyContent: "center",
+                  alignItems: "center",
+                }}
+              >
+                <Ionicons name="add" size={30} color="#ccc" />
+              </TouchableOpacity>
+            )}
+          </ScrollView>
+
+          {/* Showreel */}
+          <Text style={[styles.label, { marginTop: 15 }]}>
+            Bande Démo (Lien YouTube/Vimeo)
+          </Text>
+          <TextInput
+            style={styles.input}
+            value={showreel_url}
+            onChangeText={setShowreelUrl}
+            placeholder="https://youtube.com/..."
+            autoCapitalize="none"
+          />
+        </View>
+
+        {/* 6. VISIBILITÉ PROJETS */}
+        <SectionTitle title="Confidentialité Projets" />
+        <View style={styles.card}>
+          <Text style={{ fontSize: 13, color: "#666", marginBottom: 15 }}>
+            Cochez les projets que vous souhaitez rendre visibles sur votre
+            profil public.
+          </Text>
+
+          {/* CREATOR PROJECTS */}
+          <Text style={{ fontWeight: "bold", marginBottom: 10 }}>
+            Projets créés ({myProjects.length})
+          </Text>
+          {myProjects.length === 0 ? (
+            <Text
+              style={{ fontStyle: "italic", color: "#999", marginBottom: 15 }}
+            >
+              Aucun projet créé.
+            </Text>
+          ) : (
+            myProjects.map((p) => {
+              const isVisible = !hiddenProjectIds.includes(p.id);
+              return (
+                <View
+                  key={p.id}
+                  style={{
+                    flexDirection: "row",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    marginBottom: 10,
+                    paddingBottom: 10,
+                    borderBottomWidth: 1,
+                    borderColor: "#f0f0f0",
+                  }}
+                >
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontWeight: "600" }}>{p.title}</Text>
+                    <Text style={{ fontSize: 11, color: "#999" }}>
+                      {p.type} • {new Date(p.created_at).toLocaleDateString()}
+                    </Text>
+                  </View>
+                  <Switch
+                    value={isVisible}
+                    onValueChange={(val) => toggleProjectVisibility(p.id, val)}
+                    trackColor={{ false: "#767577", true: "#E1BEE7" }}
+                    thumbColor={isVisible ? "#841584" : "#f4f3f4"}
+                  />
+                </View>
+              );
+            })
+          )}
+
+          {/* PARTICIPATIONS */}
+          <Text style={{ fontWeight: "bold", marginBottom: 10, marginTop: 10 }}>
+            Participations ({myParticipations.length})
+          </Text>
+          {myParticipations.length === 0 ? (
+            <Text style={{ fontStyle: "italic", color: "#999" }}>
+              Aucune participation.
+            </Text>
+          ) : (
+            myParticipations.map((p, idx) => {
+              const isVisible = !hiddenProjectIds.includes(p.projectId);
+              return (
+                <View
+                  key={idx}
+                  style={{
+                    flexDirection: "row",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    marginBottom: 10,
+                    paddingBottom: 10,
+                    borderBottomWidth: 1,
+                    borderColor: "#f0f0f0",
+                  }}
+                >
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontWeight: "600" }}>{p.projectTitle}</Text>
+                    <Text style={{ fontSize: 12, color: "#841584" }}>
+                      Rôle : {p.roleTitle}
+                    </Text>
+                  </View>
+                  <Switch
+                    value={isVisible}
+                    onValueChange={(val) =>
+                      toggleProjectVisibility(p.projectId, val)
+                    }
+                    trackColor={{ false: "#767577", true: "#E1BEE7" }}
+                    thumbColor={isVisible ? "#841584" : "#f4f3f4"}
+                  />
+                </View>
+              );
+            })
+          )}
+        </View>
+
+        <View style={{ height: 50 }} />
+        <Button
+          title="Se déconnecter"
+          onPress={async () => {
+            await supabase.auth.signOut();
+            router.replace("/");
+          }}
+          color="#ff3b30"
+        />
+        <View style={{ height: 50 }} />
+      </ScrollView>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: "#f8f9fa" },
+  center: { flex: 1, justifyContent: "center", alignItems: "center" },
+  header: {
+    paddingTop: 50,
+    paddingBottom: 15,
+    paddingHorizontal: 15,
+    backgroundColor: "white",
+    borderBottomWidth: 1,
+    borderBottomColor: "#eee",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  headerTitle: { fontSize: 18, fontWeight: "bold" },
+  scrollContent: { padding: 20 },
+  avatar: { width: 100, height: 100, borderRadius: 50 },
+  avatarPlaceholder: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: "#eee",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  editBadge: {
+    position: "absolute",
+    right: 0,
+    bottom: 0,
+    backgroundColor: "#841584",
+    padding: 6,
+    borderRadius: 15,
+    borderWidth: 2,
+    borderColor: "white",
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: "bold",
+    marginTop: 20,
+    marginBottom: 10,
+    color: "#444",
+    textTransform: "uppercase",
+    letterSpacing: 1,
+  },
+  card: {
+    backgroundColor: "white",
+    borderRadius: 10,
+    padding: 15,
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+    marginBottom: 5,
+  },
+  label: { fontSize: 13, color: "#666", marginBottom: 6, fontWeight: "500" },
+  input: {
+    borderWidth: 1,
+    borderColor: "#ddd",
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 12,
+    fontSize: 15,
+  },
+  textArea: { height: 80, textAlignVertical: "top" },
+  addButton: {
+    backgroundColor: "#841584",
+    justifyContent: "center",
+    alignItems: "center",
+    width: 44,
+    height: 44,
+    borderRadius: 8,
+  },
+  tagsContainer: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  tag: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 20,
+    backgroundColor: "#f0f0f0",
+  },
+  tagSelected: { backgroundColor: "#841584" },
+  tagText: { fontSize: 12, color: "#333" },
+  tagTextSelected: { color: "white" },
+  skillTag: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#e3f2fd",
+    borderColor: "#bbdefb",
+    borderWidth: 1,
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  fileButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 10,
+    borderRadius: 8,
+  },
+  roleButton: {
+    // Kept from old styles just in case, though unused in new render
+  },
+  roleButtonSelected: {},
+  roleText: {},
+  roleTextSelected: {},
+});

@@ -31,6 +31,8 @@ export default function RootLayout() {
     // Vérifier si l'utilisateur est dans le groupe de routes (tabs)
     const inTabsGroup = segments[0] === "(tabs)";
     const inProjectPage = segments[0] === "project"; // Ajouter exception pour project/[id]
+    const inAccountPage = segments[0] === "account"; // Ajouter exception pour account page
+    const inProfilePage = segments[0] === "profile"; // Ajouter exception pour profile/[id]
 
     console.log("Auth Check:", {
       hasSession: !!session,
@@ -39,12 +41,21 @@ export default function RootLayout() {
     });
 
     // SCÉNARIO 1 : Pas connecté mais essaie d'aller ailleurs que la page de login
-    if (!session && inTabsGroup) {
+    if (
+      !session &&
+      (inTabsGroup || inProjectPage || inAccountPage || inProfilePage)
+    ) {
       router.replace("/"); // Hop, retour à l'accueil
     }
-    // SCÉNARIO 2 : Connecté mais encore sur la page de login (SAUF si on est sur project/[id])
-    else if (session && !inTabsGroup && !inProjectPage) {
-      router.replace("/(tabs)/tournage"); // Hop, direction le feed
+    // SCÉNARIO 2 : Connecté mais encore sur la page de login (SAUF si on est sur project/[id] ou account)
+    else if (
+      session &&
+      !inTabsGroup &&
+      !inProjectPage &&
+      !inAccountPage &&
+      !inProfilePage
+    ) {
+      router.replace("/(tabs)/my-projects"); // Hop, direction le feed
     }
   }, [session, initialized, segments]);
 
@@ -62,6 +73,16 @@ export default function RootLayout() {
       <Stack.Screen name="index" options={{ headerShown: false }} />
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="project" options={{ headerShown: false }} />
+      {/* 
+        Si 'profile' est un dossier contenant [id].tsx sans _layout ni index, 
+        il ne faut pas le déclarer comme screen ici, ou alors il faut qu'il ait un index.
+        Expo Router gère souvent profile/[id] automatiquement si on ne le contraint pas.
+        Mais pour éviter le warning, on peut cibler le fichier spécifique si on veut le styler ici,
+        ou simplement laisser Expo Router faire.
+        Cependant, dans votre cas, le warning dit 'No route named profile'.
+        On va changer 'profile' par 'profile/[id]' pour matcher le fichier existant.
+      */}
+      <Stack.Screen name="profile/[id]" options={{ headerShown: false }} />
     </Stack>
   );
 }

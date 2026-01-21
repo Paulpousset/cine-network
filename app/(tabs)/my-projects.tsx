@@ -1,17 +1,17 @@
+import { useUserMode } from "@/hooks/useUserMode";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useRouter } from "expo-router"; // <--- IMPORT useRouter
 import React, { useCallback, useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
-  FlatList,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    SectionList,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { supabase } from "../../lib/supabase";
-import { useUserMode } from "../hooks/useUserMode";
 
 type Project = {
   id: string;
@@ -19,12 +19,17 @@ type Project = {
   description: string;
   type: string;
   created_at: string;
+  owner_id: string;
+  has_notifications?: boolean;
 };
 
 export default function MyProjects() {
   const router = useRouter(); // <--- Hook de navigation
-  const [projects, setProjects] = useState<Project[]>([]);
+  const [sections, setSections] = useState<
+    { title: string; data: Project[] }[]
+  >([]);
   const [loading, setLoading] = useState(true);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -41,16 +46,74 @@ export default function MyProjects() {
       const {
         data: { session },
       } = await supabase.auth.getSession();
-      if (!session) return;
 
-      const { data, error } = await supabase
+      if (session) {
+        setCurrentUserId(session.user.id);
+      } else {
+        return;
+      }
+
+      // 1. Fetch Owned Projects
+      const { data: ownedData, error: ownedError } = await supabase
         .from("tournages")
         .select("*")
         .eq("owner_id", session.user.id)
         .order("created_at", { ascending: false });
 
-      if (error) throw error;
-      setProjects(data || []);
+      if (ownedError) throw ownedError;
+
+      // Check notifications for owned
+      let ownedProjects = ownedData || [];
+      if (ownedProjects.length > 0) {
+        const tournageIds = ownedProjects.map((p) => p.id);
+        const { data: pendingApps } = await supabase
+          .from("applications" as any)
+          .select(
+            `
+          role_id,
+          project_roles!inner (
+            tournage_id
+          )
+        `,
+          )
+          .eq("status", "pending")
+          .in("project_roles.tournage_id", tournageIds);
+
+        ownedProjects = ownedProjects.map((p) => ({
+          ...p,
+          has_notifications: pendingApps?.some(
+            (app: any) => app.project_roles?.tournage_id === p.id,
+          ),
+        }));
+      }
+
+      // 2. Fetch Participating Projects
+      // user is participating if they are 'assigned_profile_id' in a role
+      const { data: participations, error: partError } = await supabase
+        .from("project_roles")
+        .select(
+          `
+          tournage_id,
+          tournages (*)
+        `,
+        )
+        .eq("assigned_profile_id", session.user.id);
+
+      if (partError) throw partError;
+
+      // Extract unique tournages from participations, avoiding duplicates if multiple roles
+      const participatingMap = new Map();
+      participations?.forEach((p: any) => {
+        if (p.tournages) {
+          participatingMap.set(p.tournages.id, p.tournages);
+        }
+      });
+      const participatingProjects = Array.from(participatingMap.values());
+
+      setSections([
+        { title: "Mes Projets", data: ownedProjects },
+        { title: "Mes Participations", data: participatingProjects as any },
+      ]);
     } catch (error) {
       Alert.alert("Erreur", (error as Error).message);
     } finally {
@@ -66,6 +129,20 @@ export default function MyProjects() {
         router.push({ pathname: "/project/[id]", params: { id: item.id } })
       }
     >
+      {item.has_notifications && (
+        <View
+          style={{
+            position: "absolute",
+            top: 10,
+            right: 10,
+            width: 10,
+            height: 10,
+            borderRadius: 5,
+            backgroundColor: "red",
+            zIndex: 1, // Ensure it's on top
+          }}
+        />
+      )}
       <View style={styles.cardHeader}>
         <Text style={styles.cardTitle}>{item.title}</Text>
         <Text style={styles.cardType}>{item.type.replace("_", " ")}</Text>
@@ -88,21 +165,25 @@ export default function MyProjects() {
           style={{ marginTop: 50 }}
         />
       ) : (
-        <FlatList
-          data={projects}
-          keyExtractor={(item) => item.id}
+        <SectionList
+          sections={sections}
+          keyExtractor={(item, index) => item.id + index}
           renderItem={renderProjectItem}
+          renderSectionHeader={({ section: { title } }) => (
+            <Text style={styles.sectionHeader}>{title}</Text>
+          )}
           contentContainerStyle={styles.listContent}
           ListEmptyComponent={
             <Text style={styles.emptyText}>Aucun projet pour l'instant.</Text>
           }
+          stickySectionHeadersEnabled={false}
         />
       )}
 
       {mode === "creator" ? (
         <TouchableOpacity
           style={styles.fab}
-          onPress={() => router.push("/project/create")}
+          onPress={() => router.push("/project/new")}
         >
           <Ionicons name="add" size={30} color="white" />
         </TouchableOpacity>
@@ -120,6 +201,14 @@ const styles = StyleSheet.create({
     padding: 20,
     paddingTop: 60,
     backgroundColor: "white",
+  },
+  sectionHeader: {
+    fontSize: 20,
+    fontWeight: "bold",
+    marginTop: 20,
+    marginBottom: 10,
+    color: "#333",
+    backgroundColor: "#f8f9fa", // Match container bg
   },
   listContent: { padding: 15, paddingBottom: 100 },
   card: {

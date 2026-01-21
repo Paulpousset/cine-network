@@ -28,19 +28,19 @@ export default function TabLayout() {
       }}
     >
       <Tabs.Screen
-        name="tournage"
+        name="my-projects"
         options={{
-          title: "Mes Réalisations 🎬",
+          title: "Mes Projets 🎬",
           tabBarIcon: ({ color }) => <TabBarIcon name="film" color={color} />,
-          headerRight: () => (
-            <Link href="/Account" asChild>
+          headerLeft: () => (
+            <Link href="/account" asChild>
               <Pressable>
                 {({ pressed }) => (
                   <FontAwesome
                     name="user-circle"
                     size={25}
                     color={Colors[colorScheme ?? "light"].text}
-                    style={{ marginRight: 15, opacity: pressed ? 0.5 : 1 }}
+                    style={{ marginLeft: 15, opacity: pressed ? 0.5 : 1 }}
                   />
                 )}
               </Pressable>
@@ -50,19 +50,21 @@ export default function TabLayout() {
       />
 
       <Tabs.Screen
-        name="Discover"
+        name="jobs"
         options={{
-          title: "Casting & Jobs 🎬",
-          tabBarIcon: ({ color }) => <TabBarIcon name="film" color={color} />,
-          headerRight: () => (
-            <Link href="/Discover" asChild>
+          title: "Casting & Jobs ",
+          tabBarIcon: ({ color }) => (
+            <TabBarIcon name="briefcase" color={color} />
+          ),
+          headerLeft: () => (
+            <Link href="/account" asChild>
               <Pressable>
                 {({ pressed }) => (
                   <FontAwesome
                     name="user-circle"
                     size={25}
                     color={Colors[colorScheme ?? "light"].text}
-                    style={{ marginRight: 15, opacity: pressed ? 0.5 : 1 }}
+                    style={{ marginLeft: 15, opacity: pressed ? 0.5 : 1 }}
                   />
                 )}
               </Pressable>
@@ -72,31 +74,24 @@ export default function TabLayout() {
       />
 
       <Tabs.Screen
-        name="DiscoverProfiles"
+        name="talents"
         options={{
           title: "Profils",
           tabBarIcon: ({ color }) => <TabBarIcon name="user" color={color} />,
-          headerRight: () => (
-            <Link href="/DiscoverProfiles" asChild>
+          headerLeft: () => (
+            <Link href="/account" asChild>
               <Pressable>
                 {({ pressed }) => (
                   <FontAwesome
                     name="user-circle"
                     size={25}
                     color={Colors[colorScheme ?? "light"].text}
-                    style={{ marginRight: 15, opacity: pressed ? 0.5 : 1 }}
+                    style={{ marginLeft: 15, opacity: pressed ? 0.5 : 1 }}
                   />
                 )}
               </Pressable>
             </Link>
           ),
-        }}
-      />
-      <Tabs.Screen
-        name="Account"
-        options={{
-          title: "Mon Compte",
-          href: null,
         }}
       />
     </Tabs>
