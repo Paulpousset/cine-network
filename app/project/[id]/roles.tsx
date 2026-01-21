@@ -1,7 +1,8 @@
 import RoleFormFields from "@/components/RoleFormFields";
+import { fuzzyScore } from "@/utils/fuzzy";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -64,7 +65,7 @@ type RoleItem = {
   assigned_profile?: {
     full_name: string;
     username: string;
-    city?: string;
+    ville?: string;
   };
 };
 
@@ -81,6 +82,7 @@ export default function ManageRoles() {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<any[]>([]);
   const [searching, setSearching] = useState(false);
+  const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Edit/Add Role State
   const [editModalVisible, setEditModalVisible] = useState(false);
@@ -142,7 +144,7 @@ export default function ManageRoles() {
       if (userIds.length > 0) {
         const { data: profiles } = await supabase
           .from("profiles")
-          .select("id, full_name, username, city")
+          .select("id, full_name, username, ville")
           .in("id", userIds);
 
         const profileMap = new Map();
@@ -301,26 +303,82 @@ export default function ManageRoles() {
 
   async function searchProfilesForEdit(term: string) {
     setQuery(term);
+
+    if (searchTimeout.current) clearTimeout(searchTimeout.current);
+
+    // Si pas de terme, on effectue la recherche immédiatement pour les suggestions
+    if (!term || term.trim().length === 0) {
+      executeSearchProfilesForEdit("");
+    } else {
+      // On lance la recherche immédiatement sans attendre "Entrer"
+      // Le state est mis à jour et l'UI réagit au fur et à mesure
+      setSearching(true);
+      searchTimeout.current = setTimeout(() => {
+        executeSearchProfilesForEdit(term);
+      }, 300); // Réduit un peu le délai pour plus de réactivité
+    }
+  }
+
+  async function executeSearchProfilesForEdit(term: string) {
     setSearching(true);
     try {
+      const category = editingRole?.category;
       let queryBuilder = supabase
         .from("profiles")
-        .select("id, full_name, username, city")
-        .limit(20);
+        .select("id, full_name, username, ville, role")
+        .limit(200); // Fetch more for fuzzy filtering
 
       if (term && term.trim().length > 0) {
-        // Use a simpler ILIKE query on full_name first to ensure it matches common cases
-        // We can expand this later if needed, but let's stabilize the feature
-        queryBuilder = queryBuilder.ilike("full_name", `%${term}%`);
+        // Broad search to get candidates for fuzzy ranking
+        // Split term into parts to match more broadly
+        const parts = term.trim().split(/\s+/);
+        const mainPart = parts[0];
+        queryBuilder = queryBuilder.or(
+          `full_name.ilike.%${mainPart}%,username.ilike.%${mainPart}%,ville.ilike.%${mainPart}%`,
+        );
+      } else if (category) {
+        queryBuilder = queryBuilder.eq("role", category);
       }
 
       const { data, error } = await queryBuilder;
+      if (error) throw error;
 
-      if (error) {
-        console.error("Search API Error:", error);
-        throw error;
+      let processedResults = data || [];
+
+      if (term) {
+        // Apply fuzzy ranking
+        processedResults = processedResults
+          .map((item) => {
+            const searchStr = `${item.full_name || ""} ${item.username || ""} ${item.ville || ""}`;
+            return { ...item, score: fuzzyScore(term, searchStr) };
+          })
+          .filter((item) => item.score > 0)
+          .sort((a, b) => {
+            // Priority 1: Fuzzy score
+            if (b.score !== a.score) return b.score - a.score;
+            // Priority 2: Role matching
+            if (category) {
+              if (a.role === category && b.role !== category) return -1;
+              if (a.role !== category && b.role === category) return 1;
+            }
+            return 0;
+          });
+      } else if (category) {
+        // No term, already filtered by category, just limit
       }
-      setResults(data || []);
+
+      setResults(processedResults.slice(0, 20));
+
+      // Si aucun résultat après recherche, reset après un délai
+      if (processedResults.length === 0 && term) {
+        setTimeout(() => {
+          if (query === term) {
+            // Only clear if query hasn't changed
+            setResults([]);
+            setSearching(false);
+          }
+        }, 2000);
+      }
     } catch (e) {
       console.error(e);
       Alert.alert(
@@ -390,22 +448,73 @@ export default function ManageRoles() {
 
   async function searchProfiles(term: string) {
     setQuery(term);
+
+    if (searchTimeout.current) clearTimeout(searchTimeout.current);
+
+    // Si pas de terme, on effectue la recherche immédiatement pour les suggestions
+    if (!term || term.trim().length === 0) {
+      executeSearchProfiles("");
+    } else {
+      setSearching(true);
+      searchTimeout.current = setTimeout(() => {
+        executeSearchProfiles(term);
+      }, 300);
+    }
+  }
+
+  async function executeSearchProfiles(term: string) {
     setSearching(true);
     try {
+      const role = roles.find((r) => r.id === assigningRoleId);
+      const category = role?.category;
+
       let queryBuilder = supabase
         .from("profiles")
-        .select("id, full_name, username, city");
+        .select("id, full_name, username, ville, role")
+        .limit(200);
 
       if (term && term.trim().length > 0) {
+        const parts = term.trim().split(/\s+/);
+        const mainPart = parts[0];
         queryBuilder = queryBuilder.or(
-          `full_name.ilike.%${term}%,username.ilike.%${term}%,city.ilike.%${term}%`,
+          `full_name.ilike.%${mainPart}%,username.ilike.%${mainPart}%,ville.ilike.%${mainPart}%`,
         );
+      } else if (category) {
+        queryBuilder = queryBuilder.eq("role", category);
       }
-      queryBuilder = queryBuilder.limit(20);
 
       const { data, error } = await queryBuilder;
       if (error) throw error;
-      setResults(data || []);
+
+      let processedResults = data || [];
+      if (term) {
+        processedResults = processedResults
+          .map((item) => {
+            const searchStr = `${item.full_name || ""} ${item.username || ""} ${item.ville || ""}`;
+            return { ...item, score: fuzzyScore(term, searchStr) };
+          })
+          .filter((item) => item.score > 0)
+          .sort((a, b) => {
+            if (b.score !== a.score) return b.score - a.score;
+            if (category) {
+              if (a.role === category && b.role !== category) return -1;
+              if (a.role !== category && b.role === category) return 1;
+            }
+            return 0;
+          });
+      }
+
+      setResults(processedResults.slice(0, 20));
+
+      // Si aucun résultat après recherche, reset après un délai
+      if (processedResults.length === 0 && term) {
+        setTimeout(() => {
+          if (query === term) {
+            setResults([]);
+            setSearching(false);
+          }
+        }, 2000);
+      }
     } catch (e) {
       console.error(e);
     } finally {
@@ -473,7 +582,7 @@ export default function ManageRoles() {
                 assigned_profile: {
                   full_name: profile.full_name,
                   username: profile.username,
-                  city: profile.city,
+                  ville: profile.ville,
                 },
               }
             : r,
@@ -887,7 +996,7 @@ export default function ManageRoles() {
                 )}
 
                 {/* ASSIGNMENT */}
-                <Text style={styles.label}>Assigner quelqu'un (optionnel)</Text>
+
                 {editingRole.assignee ? (
                   <View style={styles.assigneeRow}>
                     <Text style={{ fontWeight: "600" }}>
@@ -916,7 +1025,7 @@ export default function ManageRoles() {
                     style={styles.assignProfileBtn}
                   >
                     <Text style={{ color: "#841584", fontWeight: "600" }}>
-                      + Choisir un profil
+                      Choisir un profil+
                     </Text>
                   </TouchableOpacity>
                 )}
@@ -997,11 +1106,30 @@ export default function ManageRoles() {
                             <Text style={{ fontWeight: "600", fontSize: 16 }}>
                               {item.full_name || item.username}
                             </Text>
-                            {item.city ? (
-                              <Text style={{ fontSize: 12, color: "#666" }}>
-                                {item.city}
-                              </Text>
-                            ) : null}
+                            <View
+                              style={{
+                                flexDirection: "row",
+                                alignItems: "center",
+                                gap: 6,
+                              }}
+                            >
+                              {item.role && (
+                                <Text
+                                  style={{
+                                    fontSize: 12,
+                                    color: "#841584",
+                                    fontWeight: "600",
+                                  }}
+                                >
+                                  {item.role.toUpperCase()}
+                                </Text>
+                              )}
+                              {item.ville ? (
+                                <Text style={{ fontSize: 12, color: "#666" }}>
+                                  {item.role ? `• ${item.ville}` : item.ville}
+                                </Text>
+                              ) : null}
+                            </View>
                           </View>
                           <Ionicons
                             name="add-circle-outline"
@@ -1065,11 +1193,30 @@ export default function ManageRoles() {
                       <Text style={{ fontWeight: "600", fontSize: 16 }}>
                         {item.full_name || item.username}
                       </Text>
-                      {item.city ? (
-                        <Text style={{ fontSize: 12, color: "#666" }}>
-                          {item.city}
-                        </Text>
-                      ) : null}
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          gap: 6,
+                        }}
+                      >
+                        {item.role && (
+                          <Text
+                            style={{
+                              fontSize: 12,
+                              color: "#841584",
+                              fontWeight: "600",
+                            }}
+                          >
+                            {item.role.toUpperCase()}
+                          </Text>
+                        )}
+                        {item.ville ? (
+                          <Text style={{ fontSize: 12, color: "#666" }}>
+                            {item.role ? `• ${item.ville}` : item.ville}
+                          </Text>
+                        ) : null}
+                      </View>
                     </View>
                     <Ionicons
                       name="add-circle-outline"

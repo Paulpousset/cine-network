@@ -1,21 +1,22 @@
 import RoleFormFields from "@/components/RoleFormFields";
+import { fuzzyScore } from "@/utils/fuzzy";
 import { JOB_TITLES } from "@/utils/roles";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
-    Alert,
-    Animated,
-    Easing,
-    FlatList,
-    Modal,
-    ScrollView,
-    SectionList,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  Animated,
+  Easing,
+  FlatList,
+  Modal,
+  ScrollView,
+  SectionList,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { supabase } from "../../../lib/supabase";
 
@@ -126,6 +127,7 @@ export default function ProjectDetails() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [searching, setSearching] = useState(false);
+  const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Applications Management
   const [applications, setApplications] = useState<any[]>([]);
@@ -375,21 +377,72 @@ export default function ProjectDetails() {
 
   async function searchProfilesForForm(term: string) {
     setFormSearchQuery(term);
-    if (!term.trim()) {
-      setFormSearchResults([]);
-      return;
-    }
-    try {
+    if (searchTimeout.current) clearTimeout(searchTimeout.current);
+
+    // Si pas de terme, on effectue la recherche immédiatement pour les suggestions
+    if (!term || term.trim().length === 0) {
+      executeSearchProfilesForForm("");
+    } else {
       setIsFormSearching(true);
-      const { data, error } = await supabase
+      searchTimeout.current = setTimeout(() => {
+        executeSearchProfilesForForm(term);
+      }, 300);
+    }
+  }
+
+  async function executeSearchProfilesForForm(term: string) {
+    setIsFormSearching(true);
+    try {
+      const category = editingRole?.category;
+      let queryBuilder = supabase
         .from("profiles")
-        .select("id, full_name, username, city")
-        .ilike("full_name", `%${term}%`)
-        .limit(20);
+        .select("id, full_name, username, ville, role")
+        .limit(200);
+
+      if (term && term.trim().length > 0) {
+        const parts = term.trim().split(/\s+/);
+        const mainPart = parts[0];
+        queryBuilder = queryBuilder.or(
+          `full_name.ilike.%${mainPart}%,username.ilike.%${mainPart}%,ville.ilike.%${mainPart}%`,
+        );
+      } else if (category) {
+        queryBuilder = queryBuilder.eq("role", category);
+      }
+
+      const { data, error } = await queryBuilder;
       if (error) throw error;
-      setFormSearchResults(data || []);
+
+      let processedResults = data || [];
+      if (term) {
+        processedResults = processedResults
+          .map((item) => {
+            const searchStr = `${item.full_name || ""} ${item.username || ""} ${item.ville || ""}`;
+            return { ...item, score: fuzzyScore(term, searchStr) };
+          })
+          .filter((item) => item.score > 0)
+          .sort((a, b) => {
+            if (b.score !== a.score) return b.score - a.score;
+            if (category) {
+              if (a.role === category && b.role !== category) return -1;
+              if (a.role !== category && b.role === category) return 1;
+            }
+            return 0;
+          });
+      }
+
+      setFormSearchResults(processedResults.slice(0, 20));
+
+      // Si aucun résultat après recherche, reset après un délai
+      if (processedResults.length === 0 && term) {
+        setTimeout(() => {
+          if (formSearchQuery === term) {
+            setFormSearchResults([]);
+            setIsFormSearching(false);
+          }
+        }, 2000);
+      }
     } catch (e) {
-      // silent
+      console.warn(e);
     } finally {
       setIsFormSearching(false);
     }
@@ -487,24 +540,69 @@ export default function ProjectDetails() {
 
   async function searchProfiles(term: string) {
     setSearchQuery(term);
-    if (!term.trim()) {
-      setSearchResults([]);
-      return;
-    }
-    try {
-      setSearching(true);
-      // Attempt search on username OR full_name safely
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("id, full_name, username")
-        .or(`username.ilike.%${term}%,full_name.ilike.%${term}%`)
-        .limit(20);
+    if (searchTimeout.current) clearTimeout(searchTimeout.current);
 
-      if (error) {
-        console.warn("Search error:", error);
-        throw error;
+    // Si pas de terme, on effectue la recherche immédiatement pour les suggestions
+    if (!term || term.trim().length === 0) {
+      executeSearchProfiles("");
+    } else {
+      setSearching(true);
+      searchTimeout.current = setTimeout(() => {
+        executeSearchProfiles(term);
+      }, 300);
+    }
+  }
+
+  async function executeSearchProfiles(term: string) {
+    setSearching(true);
+    try {
+      const category = manageRole?.category;
+      let queryBuilder = supabase
+        .from("profiles")
+        .select("id, full_name, username, ville, role")
+        .limit(200);
+
+      if (term && term.trim().length > 0) {
+        const parts = term.trim().split(/\s+/);
+        const mainPart = parts[0];
+        queryBuilder = queryBuilder.or(
+          `full_name.ilike.%${mainPart}%,username.ilike.%${mainPart}%,ville.ilike.%${mainPart}%`,
+        );
+      } else if (category) {
+        queryBuilder = queryBuilder.eq("role", category);
       }
-      setSearchResults(data || []);
+
+      const { data, error } = await queryBuilder;
+      if (error) throw error;
+
+      let processedResults = data || [];
+      if (term) {
+        processedResults = processedResults
+          .map((item) => {
+            const searchStr = `${item.full_name || ""} ${item.username || ""} ${item.ville || ""}`;
+            return { ...item, score: fuzzyScore(term, searchStr) };
+          })
+          .filter((item) => item.score > 0)
+          .sort((a, b) => {
+            if (b.score !== a.score) return b.score - a.score;
+            if (category) {
+              if (a.role === category && b.role !== category) return -1;
+              if (a.role !== category && b.role === category) return 1;
+            }
+            return 0;
+          });
+      }
+      setSearchResults(processedResults.slice(0, 20));
+
+      // Si aucun résultat après recherche, reset après un délai
+      if (processedResults.length === 0 && term) {
+        setTimeout(() => {
+          if (searchQuery === term) {
+            setSearchResults([]);
+            setSearching(false);
+          }
+        }, 2000);
+      }
     } catch (e) {
       console.warn("Search exception:", e);
     } finally {
@@ -1291,7 +1389,10 @@ export default function ProjectDetails() {
                   </View>
                 ) : (
                   <TouchableOpacity
-                    onPress={() => setIsSearchingProfileInForm(true)}
+                    onPress={() => {
+                      setIsSearchingProfileInForm(true);
+                      searchProfilesForForm("");
+                    }}
                     style={{
                       padding: 10,
                       borderWidth: 1,
@@ -1377,11 +1478,30 @@ export default function ProjectDetails() {
                           <Text style={{ fontWeight: "600", fontSize: 16 }}>
                             {item.full_name || item.username}
                           </Text>
-                          {item.city ? (
-                            <Text style={{ fontSize: 12, color: "#666" }}>
-                              {item.city}
-                            </Text>
-                          ) : null}
+                          <View
+                            style={{
+                              flexDirection: "row",
+                              alignItems: "center",
+                              gap: 6,
+                            }}
+                          >
+                            {item.role && (
+                              <Text
+                                style={{
+                                  fontSize: 12,
+                                  color: "#841584",
+                                  fontWeight: "600",
+                                }}
+                              >
+                                {item.role.toUpperCase()}
+                              </Text>
+                            )}
+                            {item.ville ? (
+                              <Text style={{ fontSize: 12, color: "#666" }}>
+                                {item.role ? `• ${item.ville}` : item.ville}
+                              </Text>
+                            ) : null}
+                          </View>
                         </View>
                         <Ionicons
                           name="add-circle-outline"
@@ -1643,12 +1763,44 @@ export default function ProjectDetails() {
                             borderColor: "#eee",
                             flexDirection: "row",
                             justifyContent: "space-between",
+                            alignItems: "center",
                           }}
                           onPress={() => assignUserToRole(u)}
                         >
-                          <Text style={{ fontWeight: "600" }}>
-                            {u.full_name || u.username}
-                          </Text>
+                          <View>
+                            <Text style={{ fontWeight: "600", fontSize: 16 }}>
+                              {u.full_name || u.username}
+                            </Text>
+                            <View
+                              style={{
+                                flexDirection: "row",
+                                alignItems: "center",
+                                gap: 6,
+                              }}
+                            >
+                              {u.role && (
+                                <Text
+                                  style={{
+                                    fontSize: 12,
+                                    color: "#841584",
+                                    fontWeight: "600",
+                                  }}
+                                >
+                                  {u.role.toUpperCase()}
+                                </Text>
+                              )}
+                              {u.ville ? (
+                                <Text style={{ fontSize: 12, color: "#666" }}>
+                                  {u.role ? `• ${u.ville}` : u.ville}
+                                </Text>
+                              ) : null}
+                            </View>
+                          </View>
+                          <Ionicons
+                            name="add-circle-outline"
+                            size={20}
+                            color="#841584"
+                          />
                         </TouchableOpacity>
                       ))}
                     </ScrollView>

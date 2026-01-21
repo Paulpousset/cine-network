@@ -1,3 +1,4 @@
+import { fuzzyScore } from "@/utils/fuzzy";
 import { JOB_TITLES } from "@/utils/roles";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -82,18 +83,19 @@ export default function DiscoverProfiles() {
 
       const list = (data as any[]) || [];
 
-      // Filtrage client-side pour la query (ville / nom / username)
-      const normalized = query.trim().toLowerCase();
-      const filtered = normalized
-        ? list.filter((p) => {
-            const name =
-              `${p.full_name || ""} ${p.username || ""}`.toLowerCase();
-            const city = (p.city || p.ville || p.location || p.website || "")
-              .toString()
-              .toLowerCase();
-            return name.includes(normalized) || city.includes(normalized);
+      // Filtrage Fuzzy client-side
+      const normalizedQuery = query.trim().toLowerCase();
+      let filtered = list;
+
+      if (normalizedQuery) {
+        filtered = list
+          .map((p) => {
+            const searchStr = `${p.full_name || ""} ${p.username || ""} ${p.city || p.ville || ""}`;
+            return { ...p, score: fuzzyScore(normalizedQuery, searchStr) };
           })
-        : list;
+          .filter((p) => p.score > 0)
+          .sort((a, b) => b.score - a.score);
+      }
 
       setProfiles(filtered);
     } catch (error) {
