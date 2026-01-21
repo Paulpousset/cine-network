@@ -1,19 +1,20 @@
+import RoleFormFields from "@/components/RoleFormFields";
+import { JOB_TITLES } from "@/utils/roles";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
-  Button,
-  FlatList,
-  Modal,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    Button,
+    FlatList,
+    Modal,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { supabase } from "../../../lib/supabase";
-import { JOB_TITLES } from "../../utils/roles";
 
 const ROLE_CATEGORIES = [
   "acteur",
@@ -27,6 +28,18 @@ const ROLE_CATEGORIES = [
   "technicien",
 ] as const;
 
+const HAIR_COLORS = [
+  "Brun",
+  "Châtain",
+  "Blond",
+  "Roux",
+  "Noir",
+  "Gris",
+  "Blanc",
+  "Autre",
+];
+const EYE_COLORS = ["Marron", "Bleu", "Vert", "Noisette", "Gris", "Vairons"];
+
 type DraftRole = {
   id: string;
   category: (typeof ROLE_CATEGORIES)[number];
@@ -38,6 +51,13 @@ type DraftRole = {
   gender?: string; // homme, femme, autre
   ageMin?: string; // numeric string
   ageMax?: string; // numeric string
+  height?: string; // numeric string (cm)
+  hairColor?: string;
+  eyeColor?: string;
+  equipment?: string;
+  software?: string;
+  specialties?: string;
+  data?: any;
 };
 
 export default function ProjectSetupWizard() {
@@ -80,6 +100,13 @@ export default function ProjectSetupWizard() {
           gender: "",
           ageMin: "",
           ageMax: "",
+          height: "",
+          hairColor: "",
+          eyeColor: "",
+          equipment: "",
+          software: "",
+          specialties: "",
+          data: {},
         }));
         setDraftRoles(drafts);
       }
@@ -118,6 +145,13 @@ export default function ProjectSetupWizard() {
         gender: "",
         ageMin: "",
         ageMax: "",
+        height: "",
+        hairColor: "",
+        eyeColor: "",
+        equipment: "",
+        software: "",
+        specialties: "",
+        data: {},
       },
     ]);
   }
@@ -126,6 +160,12 @@ export default function ProjectSetupWizard() {
     setDraftRoles((prev) =>
       prev.map((r) => (r.id === id ? { ...r, ...patch } : r)),
     );
+  }
+
+  function openPicker(id: string) {
+    setPickerOpen(id);
+    setQuery("");
+    setResults([]);
   }
 
   function removeDraft(id: string) {
@@ -161,30 +201,40 @@ export default function ProjectSetupWizard() {
     }
     try {
       setSaving(true);
-      const baseRows = draftRoles.map((r) => ({
-        tournage_id: id,
-        category: r.category,
-        title: r.title || "",
-        description: r.description || null,
-        quantity_needed: parseInt(r.quantity) || 1,
-        // assigned_profile_id: r.assignee?.id, // best-effort added below
-      }));
-
-      // First try with extra columns. If fails, fallback without extras.
-      try {
-        const rowsWithExtras = draftRoles.map((r) => ({
+      const baseRows = draftRoles.flatMap((r) => {
+        const qty = parseInt(r.quantity) || 1;
+        return Array.from({ length: qty }).map(() => ({
           tournage_id: id,
           category: r.category,
           title: r.title || "",
           description: r.description || null,
-          quantity_needed: parseInt(r.quantity) || 1,
-          assigned_profile_id: r.assignee?.id ?? null,
-          experience_level: r.experience || null,
-          gender: r.gender || null,
-          age_min: r.ageMin ? parseInt(r.ageMin) : null,
-          age_max: r.ageMax ? parseInt(r.ageMax) : null,
-          status: "draft",
         }));
+      });
+
+      // First try with extra columns. If fails, fallback without extras.
+      try {
+        const rowsWithExtras = draftRoles.flatMap((r) => {
+          const qty = parseInt(r.quantity) || 1;
+          return Array.from({ length: qty }).map(() => ({
+            tournage_id: id,
+            category: r.category,
+            title: r.title || "",
+            description: r.description || null,
+            assigned_profile_id: r.assignee?.id ?? null,
+            experience_level: r.experience || null,
+            gender: r.gender || null,
+            age_min: r.ageMin ? parseInt(r.ageMin) : null,
+            age_max: r.ageMax ? parseInt(r.ageMax) : null,
+            height: r.height ? parseInt(r.height) : null,
+            hair_color: r.hairColor || null,
+            eye_color: r.eyeColor || null,
+            equipment: r.equipment || null,
+            software: r.software || null,
+            specialties: r.specialties || null,
+            data: r.data || {},
+            status: "draft",
+          }));
+        });
         const { error: tryErr } = await supabase
           .from("project_roles")
           .insert(rowsWithExtras as any[]);
@@ -387,6 +437,14 @@ export default function ProjectSetupWizard() {
               </View>
             </View>
 
+            <RoleFormFields
+              category={item.category}
+              data={item}
+              onChange={(newData) => updateDraft(item.id, newData)}
+            />
+
+            {/* ASSIGNMENT */}
+
             <Text style={styles.label}>Assigner quelqu'un (optionnel)</Text>
             {item.assignee ? (
               <View style={styles.assigneeRow}>
@@ -399,7 +457,7 @@ export default function ProjectSetupWizard() {
               </View>
             ) : (
               <TouchableOpacity
-                onPress={() => setPickerOpen(item.id)}
+                onPress={() => openPicker(item.id)}
                 style={styles.assignBtn}
               >
                 <Text style={{ color: "white", fontWeight: "600" }}>
@@ -514,7 +572,13 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     elevation: 2,
   },
-  rowWrap: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 10 },
+  rowWrap: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    gap: 8,
+    marginBottom: 10,
+  },
   catChip: {
     borderColor: "#841584",
     borderWidth: 1,
@@ -531,7 +595,13 @@ const styles = StyleSheet.create({
   },
   jobChipSelected: { backgroundColor: "#333" },
   roleHeader: { fontSize: 12, color: "#999", marginBottom: 8 },
-  label: { fontSize: 14, fontWeight: "600", marginBottom: 6, color: "#333" },
+  label: {
+    fontSize: 14,
+    fontWeight: "600",
+    marginBottom: 6,
+    color: "#333",
+    textAlign: "center",
+  },
   input: {
     borderWidth: 1,
     borderColor: "#ddd",

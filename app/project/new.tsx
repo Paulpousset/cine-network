@@ -1,3 +1,4 @@
+import { JOB_TITLES } from "@/utils/roles";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import {
@@ -13,9 +14,9 @@ import {
     View,
 } from "react-native";
 import { supabase } from "../../lib/supabase";
+import AddressAutocomplete from "../components/AddressAutocomplete";
 import CityPicker from "../components/CityPicker";
 import CountryPicker from "../components/CountryPicker";
-import { JOB_TITLES } from "../utils/roles";
 
 export default function CreateTournage() {
   const router = useRouter();
@@ -25,6 +26,14 @@ export default function CreateTournage() {
   const [type, setType] = useState("court_metrage");
   const [country, setCountry] = useState("");
   const [city, setCity] = useState("");
+  const [address, setAddress] = useState("");
+  const [coords, setCoords] = useState<{
+    lat: number | null;
+    lon: number | null;
+  }>({
+    lat: null,
+    lon: null,
+  });
   const [creating, setCreating] = useState(false);
 
   type Category = keyof typeof JOB_TITLES;
@@ -33,6 +42,30 @@ export default function CreateTournage() {
 
   function roleKey(category: string, title: string) {
     return `${category}|${title}`;
+  }
+
+  // Very simple Nominatim Geocoding
+  async function getCoordinates(fullAddress: string) {
+    try {
+      const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(
+        fullAddress,
+      )}&format=json&limit=1`;
+      const res = await fetch(url, {
+        headers: {
+          "User-Agent": "CineNetwork/1.0", // Nominatim requires a User-Agent
+        },
+      });
+      const data = await res.json();
+      if (data && data.length > 0) {
+        return {
+          lat: parseFloat(data[0].lat),
+          lon: parseFloat(data[0].lon),
+        };
+      }
+    } catch (e) {
+      console.log("Geocoding error:", e);
+    }
+    return null;
   }
 
   function addRole(category: Category, title: string) {
@@ -81,6 +114,22 @@ export default function CreateTournage() {
       } = await supabase.auth.getSession();
       if (!session) throw new Error("Non connecté");
 
+      // Calculate Coordinates
+      // Prefer precise address if available (from autocomplete), otherwise City + Country fallback
+      let lat = coords.lat;
+      let lon = coords.lon;
+
+      const searchAddress = address.trim() || `${city} ${country}`;
+
+      // Only refetch if we don't have coords yet (e.g. user didn't select from dropdown)
+      if (!lat && !lon && searchAddress.trim()) {
+        const c = await getCoordinates(searchAddress);
+        if (c) {
+          lat = c.lat;
+          lon = c.lon;
+        }
+      }
+
       const { data, error } = await supabase
         .from("tournages")
         .insert({
@@ -90,6 +139,9 @@ export default function CreateTournage() {
           type,
           pays: country.trim() || null,
           ville: city.trim() || null,
+          address: address.trim() || null,
+          latitude: lat,
+          longitude: lon,
         })
         .select()
         .single();
@@ -105,7 +157,7 @@ export default function CreateTournage() {
         }));
         Alert.alert("Succès", "Tournage créé. Configurez les rôles.");
         router.replace({
-          pathname: "/project/setup/[id]",
+          pathname: "/project/[id]/setup",
           params: { id: data.id, prefillRoles: JSON.stringify(prefillRoles) },
         });
       } else {
@@ -158,6 +210,23 @@ export default function CreateTournage() {
             currentValue={city}
             placeholder="Rechercher une ville"
           />
+
+          <Text style={styles.label}>Adresse précise (Optionnel)</Text>
+          <AddressAutocomplete
+            city={city}
+            currentValue={address}
+            onSelect={(addr, lat, lon) => {
+              setAddress(addr);
+              if (lat && lon) {
+                setCoords({ lat, lon });
+              }
+            }}
+            placeholder="Ex: 10 Rue de la Paix"
+          />
+          <Text style={styles.helperText}>
+            Permet d'afficher le lieu exact sur la carte. Si vide, la ville sera
+            utilisée.
+          </Text>
 
           <Text style={styles.label}>Type</Text>
           <View style={styles.typeContainer}>
@@ -316,6 +385,14 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     marginBottom: 8,
     marginTop: 8,
+  },
+  helperText: {
+    fontSize: 12,
+    color: "#666",
+    fontStyle: "italic",
+    marginBottom: 10,
+    marginTop: -4,
+    marginLeft: 2,
   },
   input: {
     borderWidth: 1,
