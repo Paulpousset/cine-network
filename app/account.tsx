@@ -935,6 +935,31 @@ export default function Account() {
         </View>
 
         <View style={{ height: 50 }} />
+        
+        {/* DEV ONLY: SEED DATA */}
+        <TouchableOpacity
+          onPress={async () => {
+            try {
+                // Dynamic import to avoid bundling issues if file not found in some envs
+                const { seedDatabase } = await import("@/utils/seed");
+                await seedDatabase();
+            } catch (e) {
+                Alert.alert("Erreur", "Impossible de charger le script de seed");
+            }
+          }}
+          style={{
+            backgroundColor: "transparent",
+            padding: 15,
+            borderRadius: 12,
+            alignItems: "center",
+            borderWidth: 1,
+            borderColor: Colors.light.tint,
+            marginBottom: 15
+          }}
+        >
+            <Text style={{ color: Colors.light.tint, fontWeight: "bold" }}>Générer Données Test (Dev)</Text>
+        </TouchableOpacity>
+
         <TouchableOpacity
           onPress={async () => {
             await supabase.auth.signOut();

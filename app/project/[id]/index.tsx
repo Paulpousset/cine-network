@@ -1,5 +1,6 @@
 import RoleFormFields from "@/components/RoleFormFields";
 import Colors from "@/constants/Colors";
+import { GlobalStyles } from "@/constants/Styles";
 import { JOB_TITLES } from "@/utils/roles";
 import { fuzzySearch } from "@/utils/search";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
@@ -10,6 +11,7 @@ import {
   Animated,
   Easing,
   FlatList,
+  Image,
   Modal,
   ScrollView,
   SectionList,
@@ -20,6 +22,134 @@ import {
   View,
 } from "react-native";
 import { supabase } from "../../../lib/supabase";
+
+// --- Showcase Component (Vitrine pour non-membres) ---
+function ProjectShowcase({ project, roles }: { project: any; roles: any[] }) {
+  const router = useRouter();
+  
+  // Filter only published roles that are not assigned
+  const openRoles = roles.filter(
+    (r) => r.status === "published" && !r.assigned_profile_id
+  );
+
+  return (
+    <ScrollView style={{ flex: 1, backgroundColor: Colors.light.background }}>
+      {/* Hero Image */}
+      <View style={{ height: 250, width: "100%", backgroundColor: "#eee" }}>
+        {project.image_url ? (
+          <Image
+            source={{ uri: project.image_url }}
+            style={{ width: "100%", height: "100%", resizeMode: "cover" }}
+          />
+        ) : (
+          <View
+            style={{
+              flex: 1,
+              justifyContent: "center",
+              alignItems: "center",
+              backgroundColor: Colors.light.primary,
+            }}
+          >
+            <Ionicons name="film-outline" size={80} color="white" />
+          </View>
+        )}
+        <View
+          style={{
+            position: "absolute",
+            bottom: 0,
+            left: 0,
+            right: 0,
+            height: 80,
+            backgroundColor: "rgba(0,0,0,0.5)",
+            padding: 15,
+            justifyContent: "flex-end",
+          }}
+        >
+            <Text style={{color: 'white', fontSize: 12, fontWeight: 'bold', textTransform: 'uppercase', marginBottom: 4}}>
+                {project.type?.replace('_', ' ') || 'PROJET'}
+            </Text>
+            <Text style={{color: 'white', fontSize: 24, fontWeight: 'bold'}}>
+                {project.title}
+            </Text>
+        </View>
+      </View>
+
+      <View style={{ padding: 20 }}>
+        {/* Info Bar */}
+        <View style={{flexDirection: 'row', gap: 15, marginBottom: 20}}>
+            <View style={{flexDirection: 'row', alignItems: 'center', gap: 5}}>
+                <Ionicons name="location-outline" size={16} color="#666" />
+                <Text style={{color: '#666'}}>{project.ville || "Lieu inconnu"}</Text>
+            </View>
+            {project.start_date && (
+                <View style={{flexDirection: 'row', alignItems: 'center', gap: 5}}>
+                    <Ionicons name="calendar-outline" size={16} color="#666" />
+                    <Text style={{color: '#666'}}>
+                        {new Date(project.start_date).toLocaleDateString(undefined, {month: 'long', year: 'numeric'})}
+                    </Text>
+                </View>
+            )}
+        </View>
+
+        {/* Synopsis */}
+        <Text style={GlobalStyles.title2}>Synopsis</Text>
+        <Text style={{ fontSize: 16, lineHeight: 24, color: "#444", marginBottom: 30 }}>
+          {project.description || "Aucune description disponible pour ce projet."}
+        </Text>
+
+        {/* Open Roles */}
+        <Text style={GlobalStyles.title2}>Casting ({openRoles.length})</Text>
+        {openRoles.length === 0 ? (
+          <Text style={{ color: "#666", fontStyle: "italic" }}>
+            Aucun rôle ouvert pour le moment.
+          </Text>
+        ) : (
+          <View style={{ gap: 15 }}>
+            {openRoles.map((role) => (
+              <TouchableOpacity
+                key={role.id}
+                onPress={() => router.push(`/project/role/${role.id}`)}
+                style={{
+                  backgroundColor: "white",
+                  padding: 15,
+                  borderRadius: 12,
+                  borderWidth: 1,
+                  borderColor: Colors.light.border,
+                  ...GlobalStyles.card.shadowStyle, // Assuming shadow is part of card style or we just omit for clean look
+                }}
+              >
+                <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start'}}>
+                    <View style={{flex: 1}}>
+                         <Text
+                            style={{
+                                fontSize: 10,
+                                color: Colors.light.primary,
+                                fontWeight: "bold",
+                                textTransform: "uppercase",
+                                marginBottom: 4
+                            }}
+                        >
+                            {role.category}
+                        </Text>
+                        <Text style={{ fontSize: 18, fontWeight: "bold", marginBottom: 5 }}>
+                        {role.title}
+                        </Text>
+                        <Text style={{ color: "#666" }} numberOfLines={2}>
+                        {role.description}
+                        </Text>
+                    </View>
+                    <View style={{backgroundColor: Colors.light.backgroundSecondary, padding: 8, borderRadius: 8}}>
+                         <Ionicons name="chevron-forward" size={20} color={Colors.light.text} />
+                    </View>
+                </View>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+      </View>
+    </ScrollView>
+  );
+}
 
 // Custom Loading Component
 const SpinningClap = ({
@@ -91,6 +221,7 @@ export default function ProjectDetails() {
   const [roles, setRoles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [isVisitor, setIsVisitor] = useState(false); // New state to track visitor status
 
   // Detailed Role Form State
   const [roleFormVisible, setRoleFormVisible] = useState(false);
@@ -176,9 +307,30 @@ export default function ProjectDetails() {
       if (errProj) throw errProj;
       setProject(proj);
 
+      const userId = session?.user?.id;
+      const ownerId = proj.owner_id;
+
+      // Check membership
+      let isMember = false;
+      if (userId) {
+          if (userId === ownerId) {
+              isMember = true;
+          } else {
+            const { data: memberData } = await supabase
+                .from("project_roles")
+                .select("id")
+                .eq("tournage_id", id)
+                .eq("assigned_profile_id", userId)
+                .maybeSingle();
+            if (memberData) isMember = true;
+          }
+      }
+
+      setIsVisitor(!isMember);
+
       await fetchRoles();
 
-      if (session?.user?.id === proj.owner_id) {
+      if (isMember) {
         await fetchApplications();
       }
     } catch (error) {
@@ -925,6 +1077,15 @@ export default function ProjectDetails() {
         <SpinningClap />
       </View>
     );
+
+  if (isVisitor && project) {
+      return (
+          <View style={styles.container}>
+              <Stack.Screen options={{ headerShown: false }} />
+              <ProjectShowcase project={project} roles={roles} />
+          </View>
+      )
+  }
 
   return (
     <View style={styles.container}>

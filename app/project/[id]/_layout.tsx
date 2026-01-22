@@ -8,32 +8,62 @@ export default function ProjectIdLayout() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
   const [isOwner, setIsOwner] = useState(false);
+  const [isMember, setIsMember] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    checkOwner();
+    checkAccess();
   }, [id]);
 
-  async function checkOwner() {
+  async function checkAccess() {
     try {
+      setLoading(true);
       const {
         data: { session },
       } = await supabase.auth.getSession();
-      if (!session) return;
+      
+      if (!session) {
+          setLoading(false);
+          return;
+      }
 
-      const { data } = await supabase
+      const userId = session.user.id;
+
+      // Check Owner
+      const { data: project } = await supabase
         .from("tournages")
         .select("owner_id")
         .eq("id", id)
         .single();
 
-      if (data && data.owner_id === session.user.id) {
+      if (project && project.owner_id === userId) {
         setIsOwner(true);
+        // Owner is implicitly a member
+        setIsMember(true); 
+      } else {
+        // Check Member
+        const { data: membership } = await supabase
+            .from("project_roles")
+            .select("id")
+            .eq("tournage_id", id)
+            .eq("assigned_profile_id", userId)
+            .maybeSingle();
+        
+        if (membership) {
+            setIsMember(true);
+        }
       }
     } catch (e) {
-      console.log("Error checking owner:", e);
+      console.log("Error checking access:", e);
+    } finally {
+        setLoading(false);
     }
   }
 
+  const isVisitor = !isOwner && !isMember;
+
+  // If loading, we might show nothing or a spinner, but let's just let it render defaults until we know
+  
   return (
     <>
       <Stack.Screen options={{ headerShown: false }} />
@@ -47,6 +77,7 @@ export default function ProjectIdLayout() {
             height: 60,
             paddingBottom: 10,
             paddingTop: 5,
+            display: isVisitor ? 'none' : 'flex'
           },
           tabBarActiveTintColor: Colors.light.tint,
           tabBarInactiveTintColor: "#999",

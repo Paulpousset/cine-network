@@ -133,7 +133,7 @@ export default function AuthScreen() {
       ) : (
         <TouchableOpacity
             style={GlobalStyles.primaryButton}
-            onPress={isLogin ? signIn : signUp}
+          onPress={isLogin ? signIn : signUp}
         >
             <Text style={GlobalStyles.buttonText}>
                 {isLogin ? "Se connecter" : "S'inscrire"}

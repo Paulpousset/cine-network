@@ -31,6 +31,11 @@ interface Post {
   project?: {
     id: string;
     title: string;
+    image_url?: string | null;
+    type?: string;
+    ville?: string;
+    start_date?: string;
+    end_date?: string;
   };
 }
 
@@ -145,7 +150,7 @@ export default function FeedScreen() {
           created_at,
           user_id,
           visibility,
-          project:tournages(id, title), 
+          project:tournages(id, title, image_url, type, ville, start_date, end_date), 
           user:profiles (full_name, avatar_url) 
         `,
         )
@@ -291,12 +296,50 @@ export default function FeedScreen() {
       {item.project && (
         <TouchableOpacity
           onPress={() => router.push(`/project/${item.project!.id}`)}
-          style={styles.projectLink}
+          style={styles.projectCard}
+          activeOpacity={0.9}
         >
-          <Ionicons name="film" size={16} color={Colors.light.text} />
-          <Text style={styles.projectTitle}>
-            Tournage : {item.project.title}
+          {item.project.image_url ? (
+            <Image
+              source={{ uri: item.project.image_url }}
+              style={styles.projectCardImage}
+            />
+          ) : (
+            <View style={styles.projectCardPlaceholder}>
+              <Ionicons name="film" size={24} color={Colors.light.tabIconDefault} />
+            </View>
+          )}
+
+          <View style={styles.projectCardContent}>
+            <View style={{flexDirection: 'row', alignItems: 'center', gap: 6}}>
+                <Text style={styles.projectCardType}>
+                {item.project.type?.replace("_", " ").toUpperCase() || "PROJET"}
+                </Text>
+                {item.project.start_date && (
+                    <Text style={styles.projectCardDate}>
+                        • {new Date(item.project.start_date).toLocaleDateString(undefined, { month: 'short', year: 'numeric' })}
+                    </Text>
+                )}
+            </View>
+            <Text style={styles.projectCardTitle} numberOfLines={1}>
+              {item.project.title}
+            </Text>
+            <View
+              style={{ flexDirection: "row", alignItems: "center", marginTop: 4 }}
+            >
+              <Ionicons name="location-outline" size={12} color="#666" />
+              <Text style={styles.projectCardMeta}>
+                {item.project.ville || "Lieu non défini"}
           </Text>
+            </View>
+          </View>
+
+          <Ionicons
+            name="chevron-forward"
+            size={20}
+            color={Colors.light.border}
+            style={{ marginRight: 5 }}
+          />
         </TouchableOpacity>
       )}
 
@@ -475,20 +518,62 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   projectLink: {
+    // Removed old style
+  },
+  projectCard: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: Colors.light.backgroundSecondary,
-    padding: 8,
-    borderRadius: 6,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: Colors.light.border,
+    padding: 10,
+    marginBottom: 10,
+    gap: 12,
+  },
+  projectCardImage: {
+    width: 60,
+    height: 60,
+    borderRadius: 8,
+    backgroundColor: "#eee",
+  },
+  projectCardPlaceholder: {
+    width: 60,
+    height: 60,
+    borderRadius: 8,
+    backgroundColor: "#e0e0e0",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  projectCardContent: {
+    flex: 1,
     justifyContent: "center",
   },
-  projectTitle: {
-    marginLeft: 8,
-    fontWeight: "600",
+  projectCardTitle: {
+    fontSize: 16,
+    fontWeight: "bold",
     color: Colors.light.text,
-    textAlign: "center",
+    marginBottom: 2,
+  },
+  projectCardType: {
+    fontSize: 10,
+    fontWeight: "bold",
+    color: Colors.light.primary,
+    backgroundColor: Colors.light.background,
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+    borderRadius: 4,
+    overflow: "hidden",
+    alignSelf: "flex-start",
+  },
+  projectCardMeta: {
+    fontSize: 12,
+    color: "#666",
+    marginLeft: 4,
+  },
+  projectCardDate: {
+      fontSize: 10,
+      color: '#888'
   },
   footer: {
     marginTop: 5,
