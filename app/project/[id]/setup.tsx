@@ -1,6 +1,6 @@
 import RoleFormFields from "@/components/RoleFormFields";
-import { fuzzyScore } from "@/utils/fuzzy";
 import { JOB_TITLES } from "@/utils/roles";
+import { fuzzySearch } from "@/utils/search";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
@@ -216,20 +216,11 @@ export default function ProjectSetupWizard() {
 
       let processedResults = data || [];
       if (term) {
-        processedResults = processedResults
-          .map((item) => {
-            const searchStr = `${item.full_name || ""} ${item.username || ""} ${item.ville || ""}`;
-            return { ...item, score: fuzzyScore(term, searchStr) };
-          })
-          .filter((item) => item.score > 0)
-          .sort((a, b) => {
-            if (b.score !== a.score) return b.score - a.score;
-            if (category) {
-              if (a.role === category && b.role !== category) return -1;
-              if (a.role !== category && b.role === category) return 1;
-            }
-            return 0;
-          });
+        processedResults = fuzzySearch(
+          processedResults,
+          ["full_name", "username", "ville"],
+          term,
+        );
       }
 
       setResults(processedResults.slice(0, 20));

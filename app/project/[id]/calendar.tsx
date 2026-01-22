@@ -1,11 +1,14 @@
 import { Ionicons } from "@expo/vector-icons";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import { useGlobalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Button,
   FlatList,
   Modal,
+  Platform,
   StyleSheet,
   Text,
   TextInput,
@@ -68,6 +71,32 @@ export default function ProjectCalendar() {
 
   const [roleModalVisible, setRoleModalVisible] = useState(false);
   const [categoryModalVisible, setCategoryModalVisible] = useState(false);
+
+  // Date/Time Picker State
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
+
+  const onDateChange = (event: any, selectedDate?: Date) => {
+    // On Android, the picker closes automatically.
+    // On iOS, we might want to keep it open or close it manually.
+    if (Platform.OS === "android") {
+      setShowDatePicker(false);
+    }
+    if (selectedDate) {
+      setNewEventDate(selectedDate.toISOString().split("T")[0]);
+    }
+  };
+
+  const onTimeChange = (event: any, selectedDate?: Date) => {
+    if (Platform.OS === "android") {
+      setShowTimePicker(false);
+    }
+    if (selectedDate) {
+      const hours = selectedDate.getHours().toString().padStart(2, "0");
+      const minutes = selectedDate.getMinutes().toString().padStart(2, "0");
+      setNewEventTime(`${hours}:${minutes}`);
+    }
+  };
 
   useEffect(() => {
     if (id && id !== "undefined") {
@@ -510,26 +539,75 @@ export default function ProjectCalendar() {
             placeholder="Réunion, Tournage sc. 1..."
           />
 
-          <View style={{ flexDirection: "row", gap: 10 }}>
+          <View style={{ flexDirection: "row", gap: 10, marginBottom: 10 }}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.label}>Date (YYYY-MM-DD)</Text>
-              <TextInput
-                style={styles.input}
-                value={newEventDate}
-                onChangeText={setNewEventDate}
-                placeholder="2024-05-20"
-              />
+              <Text style={styles.label}>Date</Text>
+              <TouchableOpacity
+                onPress={() => {
+                  setShowDatePicker(true);
+                  if (Platform.OS === "ios") setShowTimePicker(false);
+                }}
+                style={[styles.input, { justifyContent: "center" }]}
+              >
+                <Text>{newEventDate || "Choisir date"}</Text>
+              </TouchableOpacity>
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.label}>Heure (HH:MM)</Text>
-              <TextInput
-                style={styles.input}
-                value={newEventTime}
-                onChangeText={setNewEventTime}
-                placeholder="14:30"
-              />
+              <Text style={styles.label}>Heure</Text>
+              <TouchableOpacity
+                onPress={() => {
+                  setShowTimePicker(true);
+                  if (Platform.OS === "ios") setShowDatePicker(false);
+                }}
+                style={[styles.input, { justifyContent: "center" }]}
+              >
+                <Text>{newEventTime || "Choisir heure"}</Text>
+              </TouchableOpacity>
             </View>
           </View>
+
+          {showDatePicker && (
+            <View style={{ alignItems: "center", marginBottom: 15 }}>
+              <DateTimePicker
+                value={newEventDate ? new Date(newEventDate) : new Date()}
+                mode="date"
+                display={Platform.OS === "ios" ? "inline" : "default"}
+                onChange={onDateChange}
+                style={Platform.OS === "ios" ? { width: 320 } : undefined}
+              />
+              {Platform.OS === "ios" && (
+                <Button
+                  title="Fermer le calendrier"
+                  onPress={() => setShowDatePicker(false)}
+                />
+              )}
+            </View>
+          )}
+
+          {showTimePicker && (
+            <View style={{ alignItems: "center", marginBottom: 15 }}>
+              <DateTimePicker
+                value={(() => {
+                  const d = new Date();
+                  if (newEventTime) {
+                    const [h, m] = newEventTime.split(":");
+                    d.setHours(parseInt(h), parseInt(m));
+                  }
+                  return d;
+                })()}
+                mode="time"
+                display={Platform.OS === "ios" ? "spinner" : "default"}
+                onChange={onTimeChange}
+                style={Platform.OS === "ios" ? { width: 320 } : undefined}
+              />
+              {Platform.OS === "ios" && (
+                <Button
+                  title="Valider l'heure"
+                  onPress={() => setShowTimePicker(false)}
+                />
+              )}
+            </View>
+          )}
 
           <Text style={styles.label}>Description</Text>
           <TextInput

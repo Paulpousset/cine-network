@@ -1,5 +1,5 @@
-import { fuzzyScore } from "@/utils/fuzzy";
 import { JOB_TITLES } from "@/utils/roles";
+import { fuzzySearch } from "@/utils/search";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
@@ -21,6 +21,7 @@ const ROLE_CATEGORIES = ["all", ...Object.keys(JOB_TITLES)];
 
 export default function DiscoverProfiles() {
   const router = useRouter();
+  const [allProfiles, setAllProfiles] = useState<any[]>([]);
   const [profiles, setProfiles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -34,10 +35,26 @@ export default function DiscoverProfiles() {
   const [cityModalVisible, setCityModalVisible] = useState(false);
   const [availableCities, setAvailableCities] = useState<string[]>([]);
 
+  // 1. Fetch data when server-side filters change
   useEffect(() => {
     fetchProfiles();
     fetchCities();
-  }, [selectedRole, selectedCity, query]);
+  }, [selectedRole, selectedCity]);
+
+  // 2. Client-side filtering when query or data changes
+  useEffect(() => {
+    const normalizedQuery = query.trim();
+    let filtered = allProfiles;
+
+    if (normalizedQuery) {
+      filtered = fuzzySearch(
+        allProfiles,
+        ["full_name", "username", "city", "ville", "location", "website"],
+        normalizedQuery,
+      );
+    }
+    setProfiles(filtered);
+  }, [query, allProfiles]);
 
   async function fetchCities() {
     try {
@@ -82,22 +99,7 @@ export default function DiscoverProfiles() {
       if (error) throw error;
 
       const list = (data as any[]) || [];
-
-      // Filtrage Fuzzy client-side
-      const normalizedQuery = query.trim().toLowerCase();
-      let filtered = list;
-
-      if (normalizedQuery) {
-        filtered = list
-          .map((p) => {
-            const searchStr = `${p.full_name || ""} ${p.username || ""} ${p.city || p.ville || ""}`;
-            return { ...p, score: fuzzyScore(normalizedQuery, searchStr) };
-          })
-          .filter((p) => p.score > 0)
-          .sort((a, b) => b.score - a.score);
-      }
-
-      setProfiles(filtered);
+      setAllProfiles(list);
     } catch (error) {
       Alert.alert("Erreur", (error as Error).message);
     } finally {

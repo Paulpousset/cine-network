@@ -1,5 +1,5 @@
 import RoleFormFields from "@/components/RoleFormFields";
-import { fuzzyScore } from "@/utils/fuzzy";
+import { fuzzySearch } from "@/utils/search";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
@@ -347,22 +347,11 @@ export default function ManageRoles() {
 
       if (term) {
         // Apply fuzzy ranking
-        processedResults = processedResults
-          .map((item) => {
-            const searchStr = `${item.full_name || ""} ${item.username || ""} ${item.ville || ""}`;
-            return { ...item, score: fuzzyScore(term, searchStr) };
-          })
-          .filter((item) => item.score > 0)
-          .sort((a, b) => {
-            // Priority 1: Fuzzy score
-            if (b.score !== a.score) return b.score - a.score;
-            // Priority 2: Role matching
-            if (category) {
-              if (a.role === category && b.role !== category) return -1;
-              if (a.role !== category && b.role === category) return 1;
-            }
-            return 0;
-          });
+        processedResults = fuzzySearch(
+          processedResults,
+          ["full_name", "username", "ville"],
+          term,
+        );
       } else if (category) {
         // No term, already filtered by category, just limit
       }
@@ -488,20 +477,11 @@ export default function ManageRoles() {
 
       let processedResults = data || [];
       if (term) {
-        processedResults = processedResults
-          .map((item) => {
-            const searchStr = `${item.full_name || ""} ${item.username || ""} ${item.ville || ""}`;
-            return { ...item, score: fuzzyScore(term, searchStr) };
-          })
-          .filter((item) => item.score > 0)
-          .sort((a, b) => {
-            if (b.score !== a.score) return b.score - a.score;
-            if (category) {
-              if (a.role === category && b.role !== category) return -1;
-              if (a.role !== category && b.role === category) return 1;
-            }
-            return 0;
-          });
+        processedResults = fuzzySearch(
+          processedResults,
+          ["full_name", "username", "ville"],
+          term,
+        );
       }
 
       setResults(processedResults.slice(0, 20));

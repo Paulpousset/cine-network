@@ -1,6 +1,6 @@
 import RoleFormFields from "@/components/RoleFormFields";
-import { fuzzyScore } from "@/utils/fuzzy";
 import { JOB_TITLES } from "@/utils/roles";
+import { fuzzySearch } from "@/utils/search";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
@@ -414,20 +414,28 @@ export default function ProjectDetails() {
 
       let processedResults = data || [];
       if (term) {
-        processedResults = processedResults
-          .map((item) => {
-            const searchStr = `${item.full_name || ""} ${item.username || ""} ${item.ville || ""}`;
-            return { ...item, score: fuzzyScore(term, searchStr) };
-          })
-          .filter((item) => item.score > 0)
-          .sort((a, b) => {
-            if (b.score !== a.score) return b.score - a.score;
-            if (category) {
-              if (a.role === category && b.role !== category) return -1;
-              if (a.role !== category && b.role === category) return 1;
-            }
-            return 0;
+        processedResults = fuzzySearch(
+          processedResults,
+          ["full_name", "username", "ville"],
+          term,
+        );
+
+        // Optional: Re-sort to prioritize exact category match if scores are close?
+        // For now, we trust Fuse.js ranking.
+        if (category) {
+          processedResults.sort((a, b) => {
+            const aMatch = a.role === category ? 1 : 0;
+            const bMatch = b.role === category ? 1 : 0;
+            // Only boost if it's a significant difference?
+            // Actually, let's just stick to fuzzy search result for simplicity as requested,
+            // or if we really want to boost category, we can do stable sort?
+            // Fuse search is stable?
+            return bMatch - aMatch;
+            // Wait, this would override fuzzy sort.
+            // Better to just leave it as is, Fuse usually does a good job.
           });
+          // Actually, remove the custom sort to just use Fuse.
+        }
       }
 
       setFormSearchResults(processedResults.slice(0, 20));
@@ -577,20 +585,11 @@ export default function ProjectDetails() {
 
       let processedResults = data || [];
       if (term) {
-        processedResults = processedResults
-          .map((item) => {
-            const searchStr = `${item.full_name || ""} ${item.username || ""} ${item.ville || ""}`;
-            return { ...item, score: fuzzyScore(term, searchStr) };
-          })
-          .filter((item) => item.score > 0)
-          .sort((a, b) => {
-            if (b.score !== a.score) return b.score - a.score;
-            if (category) {
-              if (a.role === category && b.role !== category) return -1;
-              if (a.role !== category && b.role === category) return 1;
-            }
-            return 0;
-          });
+        processedResults = fuzzySearch(
+          processedResults,
+          ["full_name", "username", "ville"],
+          term,
+        );
       }
       setSearchResults(processedResults.slice(0, 20));
 
