@@ -18,6 +18,8 @@ import {
 } from "react-native";
 import { supabase } from "../../../lib/supabase";
 import { JOB_TITLES } from "../../../utils/roles";
+import Colors from "@/constants/Colors";
+import { GlobalStyles } from "@/constants/Styles";
 
 const ROLE_CATEGORIES = [
   "acteur",
@@ -1441,20 +1443,20 @@ export default function ManageRoles() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f5f5f5" },
+  container: { flex: 1, backgroundColor: Colors.light.backgroundSecondary },
   header: {
     paddingTop: 60,
     paddingBottom: 15,
     paddingHorizontal: 20,
-    backgroundColor: "white",
+    backgroundColor: Colors.light.background,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     borderBottomWidth: 1,
-    borderColor: "#e0e0e0",
+    borderColor: Colors.light.border,
   },
   addBtn: {
-    backgroundColor: "#841584",
+    backgroundColor: Colors.light.primary,
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 12,
@@ -1462,17 +1464,19 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     gap: 4,
   },
-  screenTitle: { fontSize: 20, fontWeight: "bold" },
+  screenTitle: { fontSize: 20, fontWeight: "bold", color: Colors.light.text },
   subtitle: { fontSize: 14, color: "#666" },
   card: {
     backgroundColor: "white",
     marginBottom: 12,
     borderRadius: 10,
     padding: 15,
-    shadowColor: "#000",
+    shadowColor: Colors.light.shadow,
     shadowOpacity: 0.05,
     shadowRadius: 3,
     elevation: 2,
+    borderWidth: 1,
+    borderColor: Colors.light.border
   },
   cardHeader: {
     flexDirection: "row",
@@ -1480,7 +1484,7 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
     marginBottom: 10,
   },
-  roleTitle: { fontSize: 16, fontWeight: "bold", color: "#333" },
+  roleTitle: { fontSize: 16, fontWeight: "bold", color: Colors.light.text },
   categoryText: {
     fontSize: 12,
     color: "#888",
@@ -1500,7 +1504,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     borderTopWidth: 1,
-    borderColor: "#f0f0f0",
+    borderColor: Colors.light.border,
     paddingTop: 10,
     marginTop: 5,
   },
@@ -1509,13 +1513,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: 6,
   },
-  btnPublish: { backgroundColor: "#4CAF50" },
+  btnPublish: { backgroundColor: Colors.light.success },
   btnUnpublish: { backgroundColor: "#eee" },
 
   assignBtn: {
     padding: 6,
     borderWidth: 1,
-    borderColor: "#841584",
+    borderColor: Colors.light.primary,
     borderRadius: 6,
   },
   assignedContainer: {
@@ -1537,25 +1541,26 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   modalContent: {
-    backgroundColor: "white",
+    backgroundColor: Colors.light.background,
     borderRadius: 12,
     padding: 20,
     maxHeight: "80%",
   },
-  modalTitle: { fontSize: 18, fontWeight: "bold" },
+  modalTitle: { fontSize: 18, fontWeight: "bold", color: Colors.light.text },
   input: {
-    backgroundColor: "#f9f9f9",
+    backgroundColor: Colors.light.backgroundSecondary,
     borderWidth: 1,
-    borderColor: "#ddd",
+    borderColor: Colors.light.border,
     borderRadius: 8,
     padding: 10,
     marginVertical: 10,
     textAlign: "center",
+    color: Colors.light.text
   },
   userRow: {
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderColor: "#f0f0f0",
+    borderColor: Colors.light.border,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
@@ -1566,6 +1571,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     marginTop: 15,
     textAlign: "center",
+    color: Colors.light.text
   },
   rowWrap: {
     flexDirection: "row",
@@ -1577,54 +1583,54 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: "white",
+    backgroundColor: Colors.light.background,
     borderWidth: 1,
-    borderColor: "#ddd",
+    borderColor: Colors.light.border,
   },
   catChipSelected: {
-    backgroundColor: "#333",
-    borderColor: "#333",
+    backgroundColor: Colors.light.primary,
+    borderColor: Colors.light.primary,
   },
   jobChip: {
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 6,
-    backgroundColor: "#f0f0f0",
+    backgroundColor: Colors.light.backgroundSecondary,
     borderWidth: 1,
-    borderColor: "#eee",
+    borderColor: Colors.light.border,
   },
   jobChipSelected: {
-    backgroundColor: "#666",
-    borderColor: "#666",
+    backgroundColor: Colors.light.text,
+    borderColor: Colors.light.text,
   },
   assignProfileBtn: {
-    backgroundColor: "#E1BEE7",
+    backgroundColor: Colors.light.tint,
     padding: 10,
     borderRadius: 8,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: "#CE93D8",
+    borderColor: Colors.light.primary,
     borderStyle: "dashed",
   },
   assigneeRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: "#F3E5F5",
+    backgroundColor: Colors.light.backgroundSecondary,
     padding: 10,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: "#E1BEE7",
+    borderColor: Colors.light.border,
   },
   listSectionHeader: {
     paddingVertical: 10,
-    backgroundColor: "#f5f5f5", // match container bg to look like divider
+    backgroundColor: Colors.light.backgroundSecondary,
     marginBottom: 5,
   },
   listSectionTitle: {
     fontSize: 18,
     fontWeight: "bold",
-    color: "#333",
+    color: Colors.light.text,
   },
 });

@@ -2,6 +2,7 @@ import { supabase } from "@/lib/supabase";
 import { Ionicons } from "@expo/vector-icons";
 import { Stack, Tabs, useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
+import Colors from "@/constants/Colors";
 
 export default function ProjectIdLayout() {
   const { id } = useLocalSearchParams();
@@ -40,14 +41,14 @@ export default function ProjectIdLayout() {
         screenOptions={{
           headerShown: false,
           tabBarStyle: {
-            backgroundColor: "white",
+            backgroundColor: Colors.light.background,
             borderTopWidth: 1,
-            borderTopColor: "#eee",
+            borderTopColor: Colors.light.border,
             height: 60,
             paddingBottom: 10,
             paddingTop: 5,
           },
-          tabBarActiveTintColor: "#841584",
+          tabBarActiveTintColor: Colors.light.tint,
           tabBarInactiveTintColor: "#999",
         }}
       >

@@ -3,15 +3,17 @@ import { Ionicons } from "@expo/vector-icons";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
+import { GlobalStyles } from "@/constants/Styles";
+import Colors from "@/constants/Colors";
 
 export default function ProjectSettings() {
   const { id } = useLocalSearchParams();
@@ -161,7 +163,7 @@ export default function ProjectSettings() {
   if (loading)
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" />
+        <ActivityIndicator size="large" color={Colors.light.primary} />
       </View>
     );
 
@@ -172,76 +174,80 @@ export default function ProjectSettings() {
         style={{
           flexDirection: "row",
           alignItems: "center",
-          backgroundColor: "white",
+          backgroundColor: Colors.light.background,
           paddingTop: 50,
           paddingBottom: 15,
           paddingHorizontal: 15,
           borderBottomWidth: 1,
-          borderBottomColor: "#eee",
+          borderBottomColor: Colors.light.border,
         }}
       >
         <TouchableOpacity
           onPress={() => router.back()}
           style={{ marginRight: 10 }}
         >
-          <Ionicons name="arrow-back" size={24} color="black" />
+          <Ionicons name="arrow-back" size={24} color={Colors.light.text} />
         </TouchableOpacity>
-        <Text style={{ fontSize: 18, fontWeight: "bold" }}>
+        <Text style={GlobalStyles.title1}>
           Informations du projet
         </Text>
       </View>
 
       <ScrollView>
-        <View style={styles.section}>
+        <View style={GlobalStyles.card}>
           <Text style={styles.label}>Titre</Text>
           <TextInput
-            style={styles.input}
+            style={GlobalStyles.input}
             value={title}
             onChangeText={setTitle}
+            placeholderTextColor="#999"
           />
 
           <Text style={styles.label}>Description</Text>
           <TextInput
-            style={[styles.input, styles.textArea]}
+            style={[GlobalStyles.input, styles.textArea]}
             value={description}
             onChangeText={setDescription}
             multiline
+            placeholderTextColor="#999"
           />
 
           <View style={styles.row}>
             <View style={{ flex: 1, marginRight: 10 }}>
               <Text style={styles.label}>Ville</Text>
               <TextInput
-                style={styles.input}
+                style={GlobalStyles.input}
                 value={ville}
                 onChangeText={setVille}
+                placeholderTextColor="#999"
               />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.label}>Pays</Text>
               <TextInput
-                style={styles.input}
+                style={GlobalStyles.input}
                 value={pays}
                 onChangeText={setPays}
+                placeholderTextColor="#999"
               />
             </View>
           </View>
 
           <TouchableOpacity
-            style={styles.saveButton}
+            style={GlobalStyles.primaryButton}
             onPress={handleUpdateInfo}
             disabled={saving}
           >
             {saving ? (
               <ActivityIndicator color="white" />
             ) : (
-              <Text style={styles.saveButtonText}>Enregistrer</Text>
+              <Text style={GlobalStyles.buttonText}>Enregistrer</Text>
             )}
           </TouchableOpacity>
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Participants</Text>
+        <View style={GlobalStyles.card}>
+          <Text style={GlobalStyles.title2}>Participants</Text>
           {participants.length === 0 ? (
             <Text style={styles.emptyText}>Aucun participant</Text>
           ) : (
@@ -259,14 +265,14 @@ export default function ProjectSettings() {
                   onPress={() => handleRemoveParticipant(p.id)}
                   style={styles.removeButton}
                 >
-                  <Ionicons name="trash-outline" size={20} color="red" />
+                  <Ionicons name="trash-outline" size={20} color={Colors.light.danger} />
                 </TouchableOpacity>
               </View>
             ))
           )}
         </View>
 
-        <View style={[styles.section, { borderBottomWidth: 0 }]}>
+        <View style={[GlobalStyles.card, { borderBottomWidth: 0, shadowOpacity: 0 }]}>
           <TouchableOpacity
             style={styles.deleteButton}
             onPress={handleDeleteProject}
@@ -287,37 +293,11 @@ export default function ProjectSettings() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f8f9fa" },
+  container: { flex: 1, backgroundColor: Colors.light.backgroundSecondary },
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
-  section: {
-    backgroundColor: "white",
-    margin: 15,
-    padding: 15,
-    borderRadius: 10,
-    shadowColor: "#000",
-    shadowOpacity: 0.05,
-    shadowRadius: 5,
-    elevation: 2,
-  },
-  sectionTitle: { fontSize: 18, fontWeight: "bold", marginBottom: 15 },
   label: { fontSize: 14, color: "#666", marginBottom: 5 },
-  input: {
-    borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 8,
-    padding: 10,
-    marginBottom: 15,
-    fontSize: 16,
-  },
   textArea: { height: 80, textAlignVertical: "top" },
   row: { flexDirection: "row" },
-  saveButton: {
-    backgroundColor: "#841584",
-    padding: 15,
-    borderRadius: 8,
-    alignItems: "center",
-  },
-  saveButtonText: { color: "white", fontWeight: "bold", fontSize: 16 },
   participantRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -325,7 +305,7 @@ const styles = StyleSheet.create({
     borderBottomColor: "#eee",
     paddingVertical: 10,
   },
-  participantName: { fontWeight: "bold", fontSize: 16 },
+  participantName: { fontWeight: "bold", fontSize: 16, color: Colors.light.text },
   participantRole: { color: "#666", fontSize: 14, textTransform: "capitalize" },
   removeButton: { padding: 10 },
   emptyText: { color: "#999", fontStyle: "italic" },

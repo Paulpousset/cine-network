@@ -16,6 +16,8 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { supabase } from "../../../../lib/supabase";
+import { GlobalStyles } from "@/constants/Styles";
+import Colors from "@/constants/Colors";
 
 const CATEGORY_COLORS: Record<string, string> = {
   realisateur: "#E91E63",
@@ -30,7 +32,7 @@ const CATEGORY_COLORS: Record<string, string> = {
 };
 
 export default function ChannelChat() {
-  const { id, category } = useGlobalSearchParams(); // Changed to Global
+  const { id, category } = useGlobalSearchParams();
   const router = useRouter();
 
   const [messages, setMessages] = useState<any[]>([]);
@@ -42,12 +44,11 @@ export default function ChannelChat() {
 
   const flatListRef = useRef<FlatList>(null);
 
-  // Pour Android, ajuster le offset si header natif
   useEffect(() => {
     if (Platform.OS === "ios") {
       setKeyboardVerticalOffset(90);
     } else {
-      setKeyboardVerticalOffset(0); // Android gère souvent mieux le resize seul
+      setKeyboardVerticalOffset(0);
     }
   }, []);
 
@@ -57,13 +58,11 @@ export default function ChannelChat() {
     });
     fetchMessages();
 
-    // Fix potential ID array issue
     const projectId = Array.isArray(id) ? id[0] : id;
     const catStr = Array.isArray(category) ? category[0] : category;
 
     console.log(`Subscribing to chat:${projectId}:${catStr}`);
 
-    // Realtime subscription
     const channel = supabase
       .channel(`chat:${projectId}:${catStr}`)
       .on(
@@ -76,7 +75,6 @@ export default function ChannelChat() {
         },
         (payload) => {
           console.log("New message received!", payload);
-          // Verify category match just in case
           if (payload.new.category === catStr) {
             addNewMessage(payload.new.id);
           }
@@ -94,7 +92,6 @@ export default function ChannelChat() {
   async function fetchMessages() {
     if (!id || !category) return;
     setLoading(true);
-    // Note: Assuming 'project_messages' table exists
     const { data, error } = await supabase
       .from("project_messages" as any)
       .select(
@@ -114,7 +111,6 @@ export default function ChannelChat() {
 
     if (error) {
       console.log("Chat fetch error:", error);
-      // Alert.alert("Info", "La messagerie n'est pas encore active (Table manquante ?)");
     } else {
       setMessages(data || []);
     }
@@ -122,7 +118,6 @@ export default function ChannelChat() {
   }
 
   async function addNewMessage(msgId: string) {
-    // Fetch the full message with profile
     const { data } = await supabase
       .from("project_messages" as any)
       .select(
@@ -151,7 +146,7 @@ export default function ChannelChat() {
     if (!inputText.trim() || !userId) return;
     setSending(true);
     const content = inputText.trim();
-    setInputText(""); // Optimistic clear
+    setInputText("");
 
     const { error } = await supabase.from("project_messages" as any).insert({
       project_id: id,
@@ -162,7 +157,7 @@ export default function ChannelChat() {
 
     if (error) {
       Alert.alert("Erreur", error.message);
-      setInputText(content); // Restore if failed
+      setInputText(content);
     }
     setSending(false);
   }
@@ -173,22 +168,22 @@ export default function ChannelChat() {
       <SafeAreaView
         style={{
           flex: 1,
-          backgroundColor: "white",
+          backgroundColor: Colors.light.background,
           justifyContent: "center",
           alignItems: "center",
         }}
       >
-        <ActivityIndicator size="large" color="#841584" />
+        <ActivityIndicator size="large" color={Colors.light.tint} />
       </SafeAreaView>
     );
   }
 
   const categoryName = categoryStr.toUpperCase();
-  const themeColor = CATEGORY_COLORS[categoryStr] || "#666";
+  const themeColor = CATEGORY_COLORS[categoryStr] || Colors.light.tint;
 
   return (
     <SafeAreaView
-      style={{ flex: 1, backgroundColor: "white" }}
+      style={{ flex: 1, backgroundColor: Colors.light.background }}
       edges={["bottom", "left", "right"]}
     >
       <Stack.Screen
@@ -196,7 +191,8 @@ export default function ChannelChat() {
           headerTitle: `Équipe ${categoryName}`,
           headerTintColor: themeColor,
           headerShadowVisible: false,
-          headerStyle: { backgroundColor: "white" },
+          headerTitleStyle: { fontFamily: "System", fontWeight: "bold" },
+          headerStyle: { backgroundColor: Colors.light.background },
           headerLeft: (props) => (
             <TouchableOpacity
               onPress={() => router.back()}
@@ -219,7 +215,6 @@ export default function ChannelChat() {
           <FlatList
             ref={flatListRef}
             data={messages}
-            // To have latest at bottom: inverted true, data ordered desc
             inverted
             keyExtractor={(item) => item.id}
             contentContainerStyle={{ padding: 15, paddingBottom: 20 }}
@@ -255,12 +250,12 @@ export default function ChannelChat() {
                       styles.bubble,
                       isMe
                         ? { backgroundColor: themeColor }
-                        : { backgroundColor: "#f0f0f0" },
+                        : { backgroundColor: Colors.light.backgroundSecondary },
                     ]}
                   >
                     {!isMe && (
                       <Text
-                        style={{ fontSize: 10, color: "#666", marginBottom: 2 }}
+                        style={{ fontSize: 10, color: Colors.light.tabIconDefault, marginBottom: 2 }}
                       >
                         {item.sender?.full_name || "Inconnu"}
                       </Text>
@@ -268,7 +263,7 @@ export default function ChannelChat() {
                     <Text
                       style={[
                         styles.msgText,
-                        isMe ? { color: "white" } : { color: "#333" },
+                        isMe ? { color: "white" } : { color: Colors.light.text },
                       ]}
                     >
                       {item.content}
@@ -278,7 +273,7 @@ export default function ChannelChat() {
                         styles.dateText,
                         isMe
                           ? { color: "rgba(255,255,255,0.7)" }
-                          : { color: "#999" },
+                          : { color: Colors.light.tabIconDefault },
                       ]}
                     >
                       {new Date(item.created_at).toLocaleTimeString([], {
@@ -294,7 +289,7 @@ export default function ChannelChat() {
               <Text
                 style={{
                   textAlign: "center",
-                  color: "#ccc",
+                  color: Colors.light.tabIconDefault,
                   marginTop: 50,
                   transform: [{ scaleY: -1 }],
                 }}
@@ -310,6 +305,7 @@ export default function ChannelChat() {
           <TextInput
             style={styles.input}
             placeholder="Votre message..."
+            placeholderTextColor={Colors.light.tabIconDefault}
             value={inputText}
             onChangeText={setInputText}
             multiline
@@ -332,18 +328,17 @@ export default function ChannelChat() {
 }
 
 const styles = StyleSheet.create({
-  // header removed
   inputContainer: {
     flexDirection: "row",
     padding: 10,
     borderTopWidth: 1,
-    borderColor: "#eee",
-    backgroundColor: "white",
+    borderColor: Colors.light.border,
+    backgroundColor: Colors.light.background,
     alignItems: "flex-end",
   },
   input: {
     flex: 1,
-    backgroundColor: "#f9f9f9",
+    backgroundColor: Colors.light.backgroundSecondary,
     borderRadius: 20,
     paddingHorizontal: 15,
     paddingTop: 10,
@@ -351,6 +346,7 @@ const styles = StyleSheet.create({
     marginRight: 10,
     fontSize: 16,
     maxHeight: 100,
+    color: Colors.light.text,
   },
   sendButton: {
     width: 44,

@@ -1,4 +1,5 @@
 import RoleFormFields from "@/components/RoleFormFields";
+import Colors from "@/constants/Colors";
 import { JOB_TITLES } from "@/utils/roles";
 import { fuzzySearch } from "@/utils/search";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
@@ -956,9 +957,11 @@ export default function ProjectDetails() {
             </Text>
           </TouchableOpacity>
 
-          <View style={{ alignItems: "center" }}>
-            <Text style={styles.title}>{project?.title}</Text>
-            <Text style={styles.subtitle}>
+          <View style={{ alignItems: "center", flex: 1, marginHorizontal: 10 }}>
+            <Text style={styles.title} numberOfLines={2}>
+              {project?.title}
+            </Text>
+            <Text style={styles.subtitle} numberOfLines={1}>
               {project?.type} • {project?.ville || "Lieu non défini"}
             </Text>
           </View>
@@ -2087,15 +2090,15 @@ export default function ProjectDetails() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f5f5f5" },
+  container: { flex: 1, backgroundColor: Colors.light.backgroundSecondary },
   header: {
     padding: 20,
     paddingTop: 60,
-    backgroundColor: "white",
+    backgroundColor: Colors.light.background,
     borderBottomWidth: 1,
-    borderColor: "#eee",
+    borderColor: Colors.light.border,
   },
-  title: { fontSize: 24, fontWeight: "bold", textAlign: "center" },
+  title: { fontSize: 18, fontWeight: "bold", textAlign: "center", color: Colors.light.text },
   subtitle: { color: "#666", marginTop: 5, textAlign: "center" },
   sectionHeader: {
     flexDirection: "row",
@@ -2103,7 +2106,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     padding: 15,
   },
-  sectionTitle: { fontSize: 18, fontWeight: "bold" },
+  sectionTitle: { fontSize: 18, fontWeight: "bold", color: Colors.light.text },
 
   roleCard: {
     flexDirection: "row",
@@ -2112,10 +2115,12 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     marginBottom: 10,
     alignItems: "center",
-    shadowColor: "#000",
+    shadowColor: Colors.light.shadow,
     shadowOpacity: 0.05,
     shadowRadius: 3,
     elevation: 2,
+    borderWidth: 1,
+    borderColor: Colors.light.border
   },
   roleCategoryTag: {
     fontSize: 10,
@@ -2126,7 +2131,7 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     marginRight: 5,
   },
-  roleTitle: { fontWeight: "600", fontSize: 16 },
+  roleTitle: { fontWeight: "600", fontSize: 16, color: Colors.light.text },
   descText: { fontSize: 12, color: "#999", marginTop: 2, fontStyle: "italic" },
 
   assignedCard: {
@@ -2156,15 +2161,17 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     marginBottom: 15,
     textAlign: "center",
+    color: Colors.light.text
   },
   input: {
     borderWidth: 1,
-    borderColor: "#ddd",
+    borderColor: Colors.light.border,
     borderRadius: 8,
     padding: 10,
     marginBottom: 10,
-    backgroundColor: "#fafafa",
+    backgroundColor: Colors.light.backgroundSecondary,
     textAlign: "center",
+    color: Colors.light.text
   },
   label: {
     marginBottom: 8,
@@ -2180,6 +2187,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 20,
     marginRight: 8,
+    borderColor: Colors.light.border
   },
   rowWrap: {
     flexDirection: "row",
@@ -2195,10 +2203,12 @@ const styles = StyleSheet.create({
     marginBottom: 15,
   },
   jobChip: {
-    backgroundColor: "#f0f0f0",
+    backgroundColor: Colors.light.backgroundSecondary,
     paddingVertical: 6,
     paddingHorizontal: 10,
     borderRadius: 15,
+    borderWidth: 1,
+    borderColor: Colors.light.border
   },
-  jobChipSelected: { backgroundColor: "#333" },
+  jobChipSelected: { backgroundColor: Colors.light.primary },
 });

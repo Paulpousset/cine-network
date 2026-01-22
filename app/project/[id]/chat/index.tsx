@@ -10,6 +10,8 @@ import {
     View,
 } from "react-native";
 import { supabase } from "../../../../lib/supabase";
+import { GlobalStyles } from "@/constants/Styles";
+import Colors from "@/constants/Colors";
 
 const CATEGORY_COLORS: Record<string, string> = {
   realisateur: "#E91E63",
@@ -26,7 +28,7 @@ const CATEGORY_COLORS: Record<string, string> = {
 export default function ChatList() {
   const { id } = useGlobalSearchParams();
   const router = useRouter();
-  const [loading, setLoading] = useState(false); // Changed to false initially
+  const [loading, setLoading] = useState(false);
   const [channels, setChannels] = useState<string[]>([]);
   const [isOwner, setIsOwner] = useState(false);
   const [debugInfo, setDebugInfo] = useState("");
@@ -45,7 +47,6 @@ export default function ChatList() {
   async function fetchChannels() {
     try {
       setDebugInfo("Fetching... " + projectId);
-      // setLoading(true) handled in useEffect
       const {
         data: { session },
       } = await supabase.auth.getSession();
@@ -56,7 +57,6 @@ export default function ChatList() {
       }
       const userId = session.user.id;
 
-      // 1. Get Project Owner
       const { data: project, error: projError } = await supabase
         .from("tournages")
         .select("owner_id")
@@ -73,7 +73,6 @@ export default function ChatList() {
 
       let debugMsg = `User: ${userId?.substring(0, 5)}... Owner: ${project?.owner_id?.substring(0, 5)}... Match: ${userIsOwner}`;
 
-      // 2. Get all roles in project
       const { data: roles, error: roleError } = await supabase
         .from("project_roles")
         .select("category, assigned_profile_id")
@@ -89,13 +88,11 @@ export default function ChatList() {
 
       if (!roles || roles.length === 0) {
         setChannels([]);
-        setDebugInfo(debugMsg); // Set debug so we know roles are empty
+        setDebugInfo(debugMsg);
         return;
       }
 
-      // 3. Determine accessible categories
       if (userIsOwner) {
-        // Owner sees all categories that have at least one role
         const allUsedCategories = Array.from(
           new Set(roles.map((r: any) => r.category)),
         );
@@ -104,7 +101,6 @@ export default function ChatList() {
           `${debugMsg}\nCategories (Owner): ${allUsedCategories.length}`,
         );
       } else {
-        // Participant sees only categories where they are assigned
         const myRoles = roles.filter(
           (r: any) => r.assigned_profile_id === userId,
         );
@@ -124,20 +120,21 @@ export default function ChatList() {
   if (loading) {
     return (
       <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-        <ActivityIndicator color="#841584" />
+        <ActivityIndicator color={Colors.light.tint} />
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <View style={GlobalStyles.container}>
       <Stack.Screen
         options={{
           headerShown: true,
           headerTitle: "Conversation",
           headerShadowVisible: false,
           headerTitleAlign: "center",
-          headerStyle: { backgroundColor: "white" },
+          headerStyle: { backgroundColor: Colors.light.background },
+          headerTitleStyle: { fontFamily: "System", fontWeight: "bold", color: Colors.light.text },
           headerRight: isOwner
             ? () => (
                 <TouchableOpacity
@@ -149,22 +146,14 @@ export default function ChatList() {
                   }
                   style={{ padding: 5, marginRight: 10 }}
                 >
-                  <Ionicons name="settings-outline" size={24} color="#841584" />
+                  <Ionicons name="settings-outline" size={24} color={Colors.light.text} />
                 </TouchableOpacity>
               )
             : undefined,
         }}
       />
 
-      <View
-        style={{
-          paddingHorizontal: 20,
-          paddingVertical: 15,
-          borderBottomWidth: 1,
-          borderColor: "#f0f0f0",
-          backgroundColor: "white",
-        }}
-      >
+      <View style={styles.header}>
         <Text style={styles.subtitle}>
           {isOwner ? "Vue Ensemble" : "Vos équipes"}
         </Text>
@@ -176,7 +165,7 @@ export default function ChatList() {
         contentContainerStyle={{ padding: 15 }}
         ListEmptyComponent={
           <View style={{ padding: 20 }}>
-            <Text style={{ textAlign: "center", color: "#999", marginTop: 30 }}>
+            <Text style={{ textAlign: "center", color: Colors.light.tabIconDefault, marginTop: 30 }}>
               {isOwner
                 ? "Aucun rôle créé pour le moment."
                 : "Vous ne faites partie d'aucune équipe."}
@@ -184,7 +173,7 @@ export default function ChatList() {
             {debugInfo ? (
               <Text
                 style={{
-                  color: "red",
+                  color: Colors.light.danger,
                   marginTop: 10,
                   fontSize: 10,
                   textAlign: "center",
@@ -196,7 +185,7 @@ export default function ChatList() {
           </View>
         }
         renderItem={({ item }) => {
-          const color = CATEGORY_COLORS[item] || "#666";
+          const color = CATEGORY_COLORS[item] || Colors.light.tabIconDefault;
           return (
             <TouchableOpacity
               style={styles.channelCard}
@@ -219,11 +208,11 @@ export default function ChatList() {
                 <Text style={styles.channelTitle}>
                   Équipe {item.toUpperCase()}
                 </Text>
-                <Text style={{ fontSize: 12, color: "#666" }}>
+                <Text style={{ fontSize: 12, color: Colors.light.tabIconDefault }}>
                   Appuyez pour entrer
                 </Text>
               </View>
-              <Ionicons name="chevron-forward" size={20} color="#ccc" />
+              <Ionicons name="chevron-forward" size={20} color={Colors.light.border} />
             </TouchableOpacity>
           );
         }}
@@ -233,35 +222,28 @@ export default function ChatList() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "white",
-  },
   header: {
-    padding: 20,
-    backgroundColor: "white",
+    paddingHorizontal: 20,
+    paddingVertical: 15,
     borderBottomWidth: 1,
-    borderBottomColor: "#eee",
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: "bold",
+    borderColor: Colors.light.border,
+    backgroundColor: Colors.light.background,
   },
   subtitle: {
-    color: "#666",
-    marginTop: 4,
+    color: Colors.light.tabIconDefault,
+    fontWeight: "600",
   },
   channelCard: {
     flexDirection: "row",
     alignItems: "center",
     padding: 15,
-    backgroundColor: "#fff",
+    backgroundColor: Colors.light.card,
     marginBottom: 10,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#eee",
+    borderColor: Colors.light.border,
     // Shadow
-    shadowColor: "#000",
+    shadowColor: Colors.light.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 4,
@@ -278,6 +260,6 @@ const styles = StyleSheet.create({
   channelTitle: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#333",
+    color: Colors.light.text,
   },
 });

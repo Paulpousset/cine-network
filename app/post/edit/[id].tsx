@@ -4,21 +4,22 @@ import * as ImagePicker from "expo-image-picker";
 import { Stack, router, useLocalSearchParams } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    Image,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 import Colors from "@/constants/Colors";
 import { supabase } from "@/lib/supabase";
+import { GlobalStyles } from "@/constants/Styles";
 
 export default function EditPostScreen() {
   const { id } = useLocalSearchParams();
@@ -179,30 +180,31 @@ export default function EditPostScreen() {
   if (loading) {
     return (
       <View style={{ flex: 1, justifyContent: "center" }}>
-        <ActivityIndicator />
+        <ActivityIndicator color={Colors.light.primary} />
       </View>
     );
   }
 
   return (
     <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: "white" }}
+      style={{ flex: 1, backgroundColor: Colors.light.backgroundSecondary }}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
       <Stack.Screen
         options={{ title: "Modifier le post", headerBackTitle: "Annuler" }}
       />
       <ScrollView contentContainerStyle={styles.container}>
-        <View style={styles.inputContainer}>
+        <View style={GlobalStyles.card}>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { minHeight: 100 }]}
             placeholder="Quoi de neuf ?"
             multiline
             value={content}
             onChangeText={setContent}
             textAlignVertical="top"
+            placeholderTextColor="#999"
           />
-        </View>
+        
 
         {image && (
           <View style={styles.imagePreview}>
@@ -225,8 +227,9 @@ export default function EditPostScreen() {
             <Text style={styles.actionText}>Changer / Ajouter une photo</Text>
           </TouchableOpacity>
         </View>
+        </View>
 
-        <View style={styles.projectSelect}>
+        <View style={[GlobalStyles.card, styles.projectSelect]}>
           <Text style={styles.label}>Visibilité du post</Text>
           <View style={{ flexDirection: "row", gap: 15, marginBottom: 20 }}>
             <TouchableOpacity
@@ -299,14 +302,14 @@ export default function EditPostScreen() {
         </View>
 
         <TouchableOpacity
-          style={[styles.submitButton, saving && { opacity: 0.7 }]}
+          style={[GlobalStyles.primaryButton, saving && { opacity: 0.7 }, { marginTop: 20 }]}
           onPress={handleUpdate}
           disabled={saving}
         >
           {saving ? (
             <ActivityIndicator color="white" />
           ) : (
-            <Text style={styles.submitText}>Enregistrer</Text>
+            <Text style={GlobalStyles.buttonText}>Enregistrer</Text>
           )}
         </TouchableOpacity>
       </ScrollView>
@@ -330,8 +333,7 @@ const CustomPicker = ({ items, selectedValue, onValueChange }: any) => {
 
 const styles = StyleSheet.create({
   container: { padding: 20 },
-  inputContainer: { minHeight: 100 },
-  input: { fontSize: 16, color: "#333", minHeight: 100 },
+  input: { fontSize: 16, color: Colors.light.text },
   imagePreview: { marginVertical: 15, position: "relative" },
   removeImage: {
     position: "absolute",
@@ -344,14 +346,15 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     marginVertical: 10,
     borderTopWidth: 1,
-    borderBottomWidth: 1,
-    borderColor: "#eee",
+    borderColor: Colors.light.border,
     paddingVertical: 10,
   },
   actionButton: { flexDirection: "row", alignItems: "center", padding: 5 },
   actionText: { marginLeft: 10, color: Colors.light.tint, fontWeight: "600" },
-  projectSelect: { marginTop: 20 },
-  label: { fontSize: 14, color: "#666", marginBottom: 5 },
+  projectSelect: {
+    // marginTop: 20
+  },
+  label: { fontSize: 14, color: "#666", marginBottom: 5, fontWeight: '600' },
   pickerContainer: {
     backgroundColor: "#f9f9f9",
     borderRadius: 8,
@@ -363,14 +366,6 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: "#f9f9f9",
   },
-  submitButton: {
-    backgroundColor: Colors.light.tint,
-    padding: 15,
-    borderRadius: 8,
-    alignItems: "center",
-    marginTop: 30,
-  },
-  submitText: { color: "white", fontWeight: "bold", fontSize: 16 },
   visibilityBtn: {
     flex: 1,
     flexDirection: "row",

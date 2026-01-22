@@ -2,15 +2,17 @@ import { Ionicons } from "@expo/vector-icons";
 import { Stack, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-    Alert,
-    RefreshControl,
-    SectionList,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Alert,
+  RefreshControl,
+  SectionList,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { supabase } from "../../lib/supabase";
+import { GlobalStyles } from "@/constants/Styles";
+import Colors from "@/constants/Colors";
 
 export default function ConnectionRequests() {
   const router = useRouter();
@@ -156,7 +158,7 @@ export default function ConnectionRequests() {
 
     return (
       <TouchableOpacity
-        style={styles.card}
+        style={GlobalStyles.card}
         onPress={() =>
           router.push({
             pathname: "/profile/[id]",
@@ -165,12 +167,12 @@ export default function ConnectionRequests() {
         }
       >
         <View style={styles.info}>
-          <Text style={styles.name}>{user.full_name || user.username}</Text>
-          <Text style={styles.subtext}>
+          <Text style={GlobalStyles.title2}>{user.full_name || user.username}</Text>
+          <Text style={GlobalStyles.caption}>
             {user.role ? user.role.toUpperCase() : "Membre"} •{" "}
             {user.ville || "N/A"}
           </Text>
-          <Text style={styles.date}>
+          <Text style={[styles.date, { marginTop: 4 }]}>
             {isReceived ? "Reçu le" : "Envoyé le"}{" "}
             {new Date(item.created_at).toLocaleDateString()}
           </Text>
@@ -190,7 +192,7 @@ export default function ConnectionRequests() {
                 onPress={() => handleAction(item.id, "reject")}
                 style={[styles.btn, styles.btnReject]}
               >
-                <Ionicons name="close" size={22} color="#F44336" />
+                <Ionicons name="close" size={22} color={Colors.light.danger} />
               </TouchableOpacity>
             </>
           ) : (
@@ -198,7 +200,7 @@ export default function ConnectionRequests() {
               onPress={() => handleAction(item.id, "cancel")}
               style={[
                 styles.btn,
-                { backgroundColor: "#f5f5f5" }, // Softer gray
+                { backgroundColor: Colors.light.backgroundSecondary },
               ]}
             >
               <Ionicons name="trash-outline" size={20} color="#666" />
@@ -216,13 +218,13 @@ export default function ConnectionRequests() {
           headerTitle: "Invitations",
           headerTitleAlign: "center",
           headerShadowVisible: false,
-          headerStyle: { backgroundColor: "#f8f9fa" },
+          headerStyle: { backgroundColor: Colors.light.background },
           headerLeft: () => (
             <TouchableOpacity
               onPress={() => router.back()}
               style={{ padding: 10, marginLeft: -10 }}
             >
-              <Ionicons name="arrow-back" size={24} color="#000" />
+              <Ionicons name="arrow-back" size={24} color={Colors.light.text} />
             </TouchableOpacity>
           ),
         }}
@@ -254,7 +256,7 @@ export default function ConnectionRequests() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f8f9fa" },
+  container: { flex: 1, backgroundColor: Colors.light.backgroundSecondary },
   sectionHeader: {
     fontSize: 14,
     fontWeight: "600",
@@ -264,24 +266,7 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     letterSpacing: 1,
   },
-  card: {
-    backgroundColor: "white",
-    padding: 16,
-    borderRadius: 16,
-    marginBottom: 12,
-    flexDirection: "row",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 4, // Better shadow on Android
-    borderWidth: 1,
-    borderColor: "rgba(0,0,0,0.03)",
-  },
   info: { flex: 1, marginRight: 10 },
-  name: { fontSize: 16, fontWeight: "700", color: "#1a1a1a", marginBottom: 2 },
-  subtext: { fontSize: 13, color: "#666", marginBottom: 4 },
   date: { fontSize: 11, color: "#999" },
   actions: { flexDirection: "row", gap: 12 },
   btn: {
@@ -290,13 +275,13 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#000",
+    shadowColor: Colors.light.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 2,
   },
-  btnAccept: { backgroundColor: "#4CAF50" },
+  btnAccept: { backgroundColor: Colors.light.success },
   btnReject: {
     backgroundColor: "#fff",
     borderWidth: 1,

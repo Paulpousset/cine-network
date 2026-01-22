@@ -2,16 +2,18 @@ import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    SectionList,
-    StyleSheet,
-    Switch,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  SectionList,
+  StyleSheet,
+  Switch,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { supabase } from "../../../lib/supabase";
+import { GlobalStyles } from "@/constants/Styles";
+import Colors from "@/constants/Colors";
 
 export default function ManageTeam() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -126,18 +128,20 @@ export default function ManageTeam() {
             flexDirection: "row",
             alignItems: "center",
             gap: 5,
-            backgroundColor: "#f0f0f0",
+            backgroundColor: Colors.light.background,
             paddingHorizontal: 12,
             paddingVertical: 8,
             borderRadius: 20,
+            borderWidth: 1,
+            borderColor: Colors.light.border
           }}
         >
-          <Ionicons name="home" size={18} color="#333" />
-          <Text style={{ fontSize: 12, fontWeight: "600", color: "#333" }}>
+          <Ionicons name="home" size={18} color={Colors.light.text} />
+          <Text style={{ fontSize: 12, fontWeight: "600", color: Colors.light.text }}>
             Accueil
           </Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Gérer les Admins</Text>
+        <Text style={GlobalStyles.title2}>Gérer les Admins</Text>
         <View style={{ width: 40 }} />
       </View>
 
@@ -149,7 +153,7 @@ export default function ManageTeam() {
       {loading ? (
         <ActivityIndicator
           size="large"
-          color="#841584"
+          color={Colors.light.primary}
           style={{ marginTop: 50 }}
         />
       ) : (
@@ -163,7 +167,7 @@ export default function ManageTeam() {
             </View>
           )}
           renderItem={({ item }) => (
-            <View style={styles.card}>
+            <View style={GlobalStyles.card}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.name}>
                   {item.assigned_profile?.full_name ||
@@ -179,8 +183,8 @@ export default function ManageTeam() {
                   onValueChange={() =>
                     toggleAdmin(item.id, item.is_category_admin)
                   }
-                  trackColor={{ false: "#767577", true: "#841584" }}
-                  thumbColor={item.is_category_admin ? "#f4f3f4" : "#f4f3f4"}
+                  trackColor={{ false: "#767577", true: Colors.light.primary }}
+                  thumbColor={item.is_category_admin ? Colors.light.tint : "#f4f3f4"}
                 />
               </View>
             </View>
@@ -197,7 +201,7 @@ export default function ManageTeam() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f8f9fa", padding: 20 },
+  container: { flex: 1, backgroundColor: Colors.light.backgroundSecondary, padding: 20 },
   headerRow: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -205,7 +209,6 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     marginTop: 30,
   },
-  headerTitle: { fontSize: 20, fontWeight: "bold" },
   subtitle: {
     color: "#666",
     marginBottom: 20,
@@ -213,7 +216,7 @@ const styles = StyleSheet.create({
     fontStyle: "italic",
   },
   sectionHeader: {
-    backgroundColor: "#eee",
+    backgroundColor: Colors.light.backgroundSecondary,
     paddingVertical: 8,
     paddingHorizontal: 10,
     marginTop: 15,
@@ -224,20 +227,7 @@ const styles = StyleSheet.create({
     color: "#555",
     fontSize: 14,
   },
-  card: {
-    flexDirection: "row",
-    backgroundColor: "white",
-    padding: 15,
-    borderRadius: 10,
-    marginTop: 10,
-    alignItems: "center",
-    justifyContent: "space-between",
-    shadowColor: "#000",
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  name: { fontWeight: "bold", fontSize: 16, marginBottom: 4 },
+  name: { fontWeight: "bold", fontSize: 16, marginBottom: 4, color: Colors.light.text },
   role: { color: "#666", fontSize: 14 },
   switchLabel: { fontSize: 10, color: "#888", marginBottom: 2 },
   emptyText: { textAlign: "center", marginTop: 30, color: "#999" },

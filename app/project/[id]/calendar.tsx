@@ -16,6 +16,8 @@ import {
   View,
 } from "react-native";
 import { supabase } from "../../../lib/supabase";
+import { GlobalStyles } from "@/constants/Styles";
+import Colors from "@/constants/Colors";
 
 type Event = {
   id: string;
@@ -25,8 +27,8 @@ type Event = {
   end_time?: string;
   location?: string;
   event_type: "general" | "role_specific" | "category_specific";
-  target_role_ids?: string[]; // CHANGED: array of strings
-  target_categories?: string[]; // CHANGED: array of strings
+  target_role_ids?: string[];
+  target_categories?: string[];
 };
 
 export default function ProjectCalendar() {
@@ -38,7 +40,7 @@ export default function ProjectCalendar() {
   const [currentWeekStart, setCurrentWeekStart] = useState(() => {
     const d = new Date();
     const day = d.getDay();
-    const diff = d.getDate() - day + (day === 0 ? -6 : 1); // adjust when day is sunday
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1);
     return new Date(d.setDate(diff));
   });
 
@@ -47,7 +49,6 @@ export default function ProjectCalendar() {
   const [isOwner, setIsOwner] = useState(false);
   const [userRoleIds, setUserRoleIds] = useState<string[]>([]);
   const [userCategories, setUserCategories] = useState<string[]>([]);
-  // ADMIN SYSTEM: List of categories where the user is an admin
   const [adminCategories, setAdminCategories] = useState<string[]>([]);
 
   // Modal (Create Event)
@@ -61,24 +62,19 @@ export default function ProjectCalendar() {
     "general" | "role_specific" | "category_specific"
   >("general");
 
-  // Multi-select states
-  const [targetRoles, setTargetRoles] = useState<any[]>([]); // Array of selected role objects or IDs
-  const [targetCategories, setTargetCategories] = useState<string[]>([]); // Array of category strings
+  const [targetRoles, setTargetRoles] = useState<any[]>([]);
+  const [targetCategories, setTargetCategories] = useState<string[]>([]);
 
-  // For selecting target role/category
   const [projectRoles, setProjectRoles] = useState<any[]>([]);
   const [projectCategories, setProjectCategories] = useState<string[]>([]);
 
   const [roleModalVisible, setRoleModalVisible] = useState(false);
   const [categoryModalVisible, setCategoryModalVisible] = useState(false);
 
-  // Date/Time Picker State
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
 
   const onDateChange = (event: any, selectedDate?: Date) => {
-    // On Android, the picker closes automatically.
-    // On iOS, we might want to keep it open or close it manually.
     if (Platform.OS === "android") {
       setShowDatePicker(false);
     }
@@ -115,7 +111,6 @@ export default function ProjectCalendar() {
       } = await supabase.auth.getSession();
       if (!session) return;
 
-      // 1. Check Owner
       const { data: proj } = await supabase
         .from("tournages")
         .select("owner_id")
@@ -125,7 +120,6 @@ export default function ProjectCalendar() {
       const owner = proj?.owner_id === session.user.id;
       setIsOwner(owner);
 
-      // 2. Identify User's Roles in this project (if not owner)
       let roleIds: string[] = [];
       let categories: string[] = [];
       let adminCats: string[] = [];
@@ -140,8 +134,6 @@ export default function ProjectCalendar() {
         if (myRoles) {
           roleIds = myRoles.map((r) => r.id);
           categories = [...new Set(myRoles.map((r) => r.category))];
-
-          // Helper: Filter roles where is_category_admin is true
           adminCats = [
             ...new Set(
               myRoles
@@ -155,8 +147,6 @@ export default function ProjectCalendar() {
         setAdminCategories(adminCats);
       }
 
-      // 3. Fetch All Roles (needed for creating role-specific events)
-      // OWNER OR ADMIN needs this list to select targets
       if (owner || adminCats.length > 0) {
         const { data: rollers } = await supabase
           .from("project_roles")
@@ -164,9 +154,7 @@ export default function ProjectCalendar() {
           .eq("tournage_id", id);
 
         if (rollers) {
-          console.log("DEBUG: Roles fetched:", rollers.length);
           setProjectRoles(rollers);
-          // Extract unique categories
           const cats = Array.from(
             new Set<string>(
               rollers
@@ -174,12 +162,10 @@ export default function ProjectCalendar() {
                 .filter((c: any) => typeof c === "string" && c.length > 0),
             ),
           ).sort();
-          console.log("DEBUG: Categories extracted:", cats);
           setProjectCategories(cats);
         }
       }
 
-      // 4. Fetch Events
       fetchEvents(owner, roleIds, categories);
     } catch (e) {
       console.log(e);
@@ -200,18 +186,12 @@ export default function ProjectCalendar() {
         .eq("tournage_id", id)
         .order("start_time", { ascending: true });
 
-      // Retrieve data first, then filter in memory or specific query?
-      // OWNER sees ALL.
-      // USER sees 'general'
-      // OR 'event_type'='role_specific' AND 'target_role_id' IN myRoleIds
-      // OR 'event_type'='category_specific' AND 'target_category' IN myCategories
-
       const { data, error } = await query;
       if (error) throw error;
 
       let validEvents = (data || []).map((e: any) => ({
         ...e,
-        start_time: new Date(e.start_time).toISOString(), // ensure standard format
+        start_time: new Date(e.start_time).toISOString(),
       }));
 
       if (!owner) {
@@ -219,11 +199,7 @@ export default function ProjectCalendar() {
           if (e.event_type === "general") return true;
 
           if (e.event_type === "role_specific") {
-            // Check if ANY of my roles is in the target_role_ids array
-            // The DB stores it as JSONB array usually, or we need to adjust schema
-            // Assuming now we store array in a JSON column or text array
             const targets = e.target_role_ids || [];
-            // If targets is array of strings
             return targets.some((tid: string) => myRoleIds.includes(tid));
           }
 
@@ -248,7 +224,6 @@ export default function ProjectCalendar() {
     }
 
     try {
-      // Construct ISO timestamp: YYYY-MM-DDTHH:MM:00
       const isoStart = `${newEventDate}T${newEventTime}:00`;
 
       const payload: any = {
@@ -285,17 +260,10 @@ export default function ProjectCalendar() {
 
       if (error) throw error;
 
-      // NOTIFY CHAT
-      // If specific type, find relevant convo or send to general?
-      // For simplicity, let's send a system message to the GENERAL chat for now,
-      // or to specific category channels if implemented.
-      // Based on user request: "détails sont envoyé dans la conv en particulier"
-
       let chatMessage = `Un nouvel élément a été ajouté dans le calendrier : ${newEventTitle}\nDate : ${newEventDate} à ${newEventTime}`;
       if (newEventDesc) chatMessage += `\nDétails : ${newEventDesc}`;
 
       if (newEventType === "category_specific") {
-        // Send to EACH category channel
         for (const cat of targetCategories) {
           await supabase.from("project_messages" as any).insert({
             project_id: id,
@@ -307,7 +275,6 @@ export default function ProjectCalendar() {
       } else if (newEventType === "role_specific") {
         // No specific chat notification for roles for now
       } else {
-        // General event -> General chat
         await supabase.from("project_messages" as any).insert({
           project_id: id,
           content: chatMessage,
@@ -317,7 +284,6 @@ export default function ProjectCalendar() {
       }
 
       setModalVisible(false);
-      // Reset form
       setNewEventTitle("");
       setNewEventDesc("");
       setTargetRoles([]);
@@ -331,23 +297,16 @@ export default function ProjectCalendar() {
     }
   }
 
-  // Helper determining if user can create general events
   const canCreateGeneral = isOwner;
-  // Helper determining if user can create role events (Admin of at least one category OR Owner)
   const canCreateRole = isOwner || adminCategories.length > 0;
-  // Helper for category events
   const canCreateCategory = isOwner || adminCategories.length > 0;
 
-  // --- UI Helpers ---
-
-  // Calculate the 7 days of the current visible week
   const weekDays = Array.from({ length: 7 }, (_, i) => {
     const d = new Date(currentWeekStart);
     d.setDate(d.getDate() + i);
     return d.toISOString().split("T")[0];
   });
 
-  // Group events by Day
   const eventsByDay = events.reduce((acc: any, curr) => {
     const day = curr.start_time.split("T")[0];
     if (!acc[day]) acc[day] = [];
@@ -364,8 +323,7 @@ export default function ProjectCalendar() {
   const weekLabel = `${weekDays[0].split("-")[2]}/${weekDays[0].split("-")[1]} - ${weekDays[6].split("-")[2]}/${weekDays[6].split("-")[1]}`;
 
   return (
-    <View style={styles.container}>
-      {/* CUSTOM NAV HEADER: Just Title (No Back) + Settings if owner */}
+    <View style={GlobalStyles.container}>
       <View style={styles.fullHeader}>
         <View style={{ width: 24 }} />
         <Text style={styles.headerTitle}>Calendrier</Text>
@@ -379,7 +337,7 @@ export default function ProjectCalendar() {
             }
             style={{ padding: 5 }}
           >
-            <Ionicons name="settings-outline" size={24} color="#841584" />
+            <Ionicons name="settings-outline" size={24} color={Colors.light.text} />
           </TouchableOpacity>
         ) : (
           <View style={{ width: 24 }} />
@@ -389,11 +347,11 @@ export default function ProjectCalendar() {
       <View style={styles.headerRow}>
         <View style={styles.weekNav}>
           <TouchableOpacity onPress={() => changeWeek(-1)}>
-            <Ionicons name="chevron-back" size={24} color="#841584" />
+            <Ionicons name="chevron-back" size={24} color={Colors.light.tint} />
           </TouchableOpacity>
           <Text style={styles.weekLabel}>{weekLabel}</Text>
           <TouchableOpacity onPress={() => changeWeek(1)}>
-            <Ionicons name="chevron-forward" size={24} color="#841584" />
+            <Ionicons name="chevron-forward" size={24} color={Colors.light.tint} />
           </TouchableOpacity>
         </View>
       </View>
@@ -401,7 +359,7 @@ export default function ProjectCalendar() {
       {loading ? (
         <ActivityIndicator
           size="large"
-          color="#841584"
+          color={Colors.light.tint}
           style={{ marginTop: 50 }}
         />
       ) : (
@@ -413,7 +371,7 @@ export default function ProjectCalendar() {
           contentContainerStyle={{ paddingBottom: 100 }}
           ListEmptyComponent={
             <View style={{ marginTop: 40, alignItems: "center" }}>
-              <Text style={{ color: "#888", fontSize: 16 }}>
+              <Text style={{ color: Colors.light.tabIconDefault, fontSize: 16 }}>
                 Aucun événement cette semaine
               </Text>
             </View>
@@ -464,7 +422,7 @@ export default function ProjectCalendar() {
                         <View
                           style={[
                             styles.roleBadge,
-                            { backgroundColor: "#4CAF50" },
+                            { backgroundColor: Colors.light.success },
                           ]}
                         >
                           <Text style={styles.roleBadgeText}>
@@ -488,16 +446,13 @@ export default function ProjectCalendar() {
         />
       )}
 
-      {/* FAB Add Event (Owner OR Admin Only) */}
       {(isOwner || adminCategories.length > 0) && (
         <TouchableOpacity
           style={styles.fab}
           onPress={() => {
-            // Default to today
             const now = new Date();
             setNewEventDate(now.toISOString().split("T")[0]);
             setNewEventTime("09:00");
-            // If not owner but admin, force category type
             if (!isOwner && adminCategories.length > 0) {
               setNewEventType("category_specific");
             } else {
@@ -510,344 +465,358 @@ export default function ProjectCalendar() {
         </TouchableOpacity>
       )}
 
-      {/* CREATE EVENT MODAL */}
       <Modal
         visible={modalVisible}
         animationType="slide"
-        presentationStyle="formSheet"
+        transparent={true}
+        onRequestClose={() => setModalVisible(false)}
       >
-        <View style={styles.modalContent}>
-          <Text style={styles.modalHeader}>Nouvel Événement</Text>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={GlobalStyles.modalTitle}>Nouvel Événement</Text>
 
-          <Text style={styles.label}>Titre</Text>
-          <TextInput
-            style={styles.input}
-            value={newEventTitle}
-            onChangeText={setNewEventTitle}
-            placeholder="Réunion, Tournage sc. 1..."
-          />
+            <Text style={GlobalStyles.label}>Titre</Text>
+            <TextInput
+              style={GlobalStyles.input}
+              value={newEventTitle}
+              onChangeText={setNewEventTitle}
+              placeholder="Réunion, Tournage sc. 1..."
+              placeholderTextColor={Colors.light.tabIconDefault}
+            />
 
-          <View style={{ flexDirection: "row", gap: 10, marginBottom: 10 }}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.label}>Date</Text>
-              <TouchableOpacity
-                onPress={() => {
-                  setShowDatePicker(true);
-                  if (Platform.OS === "ios") setShowTimePicker(false);
-                }}
-                style={[styles.input, { justifyContent: "center" }]}
-              >
-                <Text>{newEventDate || "Choisir date"}</Text>
-              </TouchableOpacity>
+            <View style={{ flexDirection: "row", gap: 10, marginBottom: 10 }}>
+              <View style={{ flex: 1 }}>
+                <Text style={GlobalStyles.label}>Date</Text>
+                <TouchableOpacity
+                  onPress={() => {
+                    setShowDatePicker(true);
+                    if (Platform.OS === "ios") setShowTimePicker(false);
+                  }}
+                  style={[GlobalStyles.input, { justifyContent: "center" }]}
+                >
+                  <Text style={{ color: Colors.light.text }}>
+                    {newEventDate || "Choisir date"}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={GlobalStyles.label}>Heure</Text>
+                <TouchableOpacity
+                  onPress={() => {
+                    setShowTimePicker(true);
+                    if (Platform.OS === "ios") setShowDatePicker(false);
+                  }}
+                  style={[GlobalStyles.input, { justifyContent: "center" }]}
+                >
+                  <Text style={{ color: Colors.light.text }}>
+                    {newEventTime || "Choisir heure"}
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.label}>Heure</Text>
-              <TouchableOpacity
-                onPress={() => {
-                  setShowTimePicker(true);
-                  if (Platform.OS === "ios") setShowDatePicker(false);
-                }}
-                style={[styles.input, { justifyContent: "center" }]}
-              >
-                <Text>{newEventTime || "Choisir heure"}</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
 
-          {showDatePicker && (
-            <View style={{ alignItems: "center", marginBottom: 15 }}>
-              <DateTimePicker
-                value={newEventDate ? new Date(newEventDate) : new Date()}
-                mode="date"
-                display={Platform.OS === "ios" ? "inline" : "default"}
-                onChange={onDateChange}
-                style={Platform.OS === "ios" ? { width: 320 } : undefined}
-              />
-              {Platform.OS === "ios" && (
-                <Button
-                  title="Fermer le calendrier"
-                  onPress={() => setShowDatePicker(false)}
+            {showDatePicker && (
+              <View style={{ alignItems: "center", marginBottom: 15 }}>
+                <DateTimePicker
+                  value={newEventDate ? new Date(newEventDate) : new Date()}
+                  mode="date"
+                  display={Platform.OS === "ios" ? "inline" : "default"}
+                  onChange={onDateChange}
+                  style={Platform.OS === "ios" ? { width: 320 } : undefined}
                 />
+                {Platform.OS === "ios" && (
+                  <Button
+                    title="Fermer le calendrier"
+                    onPress={() => setShowDatePicker(false)}
+                  />
+                )}
+              </View>
+            )}
+
+            {showTimePicker && (
+              <View style={{ alignItems: "center", marginBottom: 15 }}>
+                <DateTimePicker
+                  value={(() => {
+                    const d = new Date();
+                    if (newEventTime) {
+                      const [h, m] = newEventTime.split(":");
+                      d.setHours(parseInt(h), parseInt(m));
+                    }
+                    return d;
+                  })()}
+                  mode="time"
+                  display={Platform.OS === "ios" ? "spinner" : "default"}
+                  onChange={onTimeChange}
+                  style={Platform.OS === "ios" ? { width: 320 } : undefined}
+                />
+                {Platform.OS === "ios" && (
+                  <Button
+                    title="Valider l'heure"
+                    onPress={() => setShowTimePicker(false)}
+                  />
+                )}
+              </View>
+            )}
+
+            <Text style={GlobalStyles.label}>Description</Text>
+            <TextInput
+              style={GlobalStyles.input}
+              value={newEventDesc}
+              onChangeText={setNewEventDesc}
+              placeholder="Lieu, détails..."
+              placeholderTextColor={Colors.light.tabIconDefault}
+            />
+
+            <Text style={GlobalStyles.label}>Visibilité</Text>
+            <View style={{ flexDirection: "row", gap: 5, marginBottom: 15 }}>
+              {canCreateGeneral && (
+                <TouchableOpacity
+                  onPress={() => setNewEventType("general")}
+                  style={[
+                    styles.typeBtn,
+                    newEventType === "general" && styles.typeBtnActive,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.typeBtnText,
+                      newEventType === "general" && { color: "white" },
+                    ]}
+                  >
+                    Général
+                  </Text>
+                </TouchableOpacity>
+              )}
+
+              {canCreateCategory && (
+                <TouchableOpacity
+                  onPress={() => {
+                    setNewEventType("category_specific");
+                    setCategoryModalVisible(true);
+                  }}
+                  style={[
+                    styles.typeBtn,
+                    newEventType === "category_specific" &&
+                      styles.typeBtnActive,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.typeBtnText,
+                      newEventType === "category_specific" && { color: "white" },
+                    ]}
+                  >
+                    {targetCategories.length > 0
+                      ? `${targetCategories.length} Catégorie(s)`
+                      : "Catégorie"}
+                  </Text>
+                </TouchableOpacity>
+              )}
+
+              {canCreateRole && (
+                <TouchableOpacity
+                  onPress={() => {
+                    setNewEventType("role_specific");
+                    setRoleModalVisible(true);
+                  }}
+                  style={[
+                    styles.typeBtn,
+                    newEventType === "role_specific" && styles.typeBtnActive,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.typeBtnText,
+                      newEventType === "role_specific" && { color: "white" },
+                    ]}
+                  >
+                    {targetRoles.length > 0
+                      ? `${targetRoles.length} Pers.`
+                      : "Personne"}
+                  </Text>
+                </TouchableOpacity>
               )}
             </View>
-          )}
 
-          {showTimePicker && (
-            <View style={{ alignItems: "center", marginBottom: 15 }}>
-              <DateTimePicker
-                value={(() => {
-                  const d = new Date();
-                  if (newEventTime) {
-                    const [h, m] = newEventTime.split(":");
-                    d.setHours(parseInt(h), parseInt(m));
-                  }
-                  return d;
-                })()}
-                mode="time"
-                display={Platform.OS === "ios" ? "spinner" : "default"}
-                onChange={onTimeChange}
-                style={Platform.OS === "ios" ? { width: 320 } : undefined}
-              />
-              {Platform.OS === "ios" && (
-                <Button
-                  title="Valider l'heure"
-                  onPress={() => setShowTimePicker(false)}
-                />
-              )}
-            </View>
-          )}
-
-          <Text style={styles.label}>Description</Text>
-          <TextInput
-            style={styles.input}
-            value={newEventDesc}
-            onChangeText={setNewEventDesc}
-            placeholder="Lieu, détails..."
-          />
-
-          <Text style={styles.label}>Visibilité</Text>
-          <View style={{ flexDirection: "row", gap: 5, marginBottom: 15 }}>
-            {canCreateGeneral && (
-              <TouchableOpacity
-                onPress={() => setNewEventType("general")}
-                style={[
-                  styles.typeBtn,
-                  newEventType === "general" && styles.typeBtnActive,
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.typeBtnText,
-                    newEventType === "general" && { color: "white" },
-                  ]}
-                >
-                  Général
-                </Text>
-              </TouchableOpacity>
-            )}
-
-            {canCreateCategory && (
-              <TouchableOpacity
-                onPress={() => {
-                  setNewEventType("category_specific");
-                  setCategoryModalVisible(true);
-                }}
-                style={[
-                  styles.typeBtn,
-                  newEventType === "category_specific" && styles.typeBtnActive,
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.typeBtnText,
-                    newEventType === "category_specific" && { color: "white" },
-                  ]}
-                >
-                  {targetCategories.length > 0
-                    ? `${targetCategories.length} Catégorie(s)`
-                    : "Catégorie"}
-                </Text>
-              </TouchableOpacity>
-            )}
-
-            {canCreateRole && (
-              <TouchableOpacity
-                onPress={() => {
-                  setNewEventType("role_specific");
-                  setRoleModalVisible(true);
-                }}
-                style={[
-                  styles.typeBtn,
-                  newEventType === "role_specific" && styles.typeBtnActive,
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.typeBtnText,
-                    newEventType === "role_specific" && { color: "white" },
-                  ]}
-                >
-                  {targetRoles.length > 0
-                    ? `${targetRoles.length} Pers.`
-                    : "Personne"}
-                </Text>
-              </TouchableOpacity>
-            )}
-          </View>
-
-          <View
-            style={{
-              flexDirection: "row",
-              justifyContent: "flex-end",
-              gap: 10,
-              marginTop: 20,
-            }}
-          >
-            <TouchableOpacity
-              onPress={() => setModalVisible(false)}
-              style={{ padding: 10 }}
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "flex-end",
+                gap: 10,
+                marginTop: 20,
+              }}
             >
-              <Text style={{ color: "red" }}>Annuler</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={createEvent} style={styles.createBtn}>
-              <Text style={{ color: "white", fontWeight: "bold" }}>Créer</Text>
-            </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => setModalVisible(false)}
+                style={{ padding: 10 }}
+              >
+                <Text style={{ color: Colors.light.danger }}>Annuler</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={createEvent}
+                style={GlobalStyles.primaryButton}
+              >
+                <Text style={GlobalStyles.buttonText}>Créer</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-
-          {/* ROLE PICKER SUB-MODAL */}
-          {roleModalVisible && (
-            <View style={styles.rolePickerOverlay}>
-              <View style={styles.rolePickerBox}>
-                <Text
-                  style={{ fontWeight: "bold", marginBottom: 10, fontSize: 16 }}
-                >
-                  Choisir les rôles concernés
-                </Text>
-                <FlatList
-                  data={projectRoles}
-                  keyExtractor={(item) => item.id}
-                  renderItem={({ item }) => {
-                    const isSelected = targetRoles.some(
-                      (r) => r.id === item.id,
-                    );
-                    return (
-                      <TouchableOpacity
-                        style={{
-                          padding: 12,
-                          borderBottomWidth: 1,
-                          borderColor: "#eee",
-                          backgroundColor: isSelected
-                            ? "#f3e5f5"
-                            : "transparent",
-                          flexDirection: "row",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                        }}
-                        onPress={() => {
-                          setTargetRoles((prev) => {
-                            if (prev.some((r) => r.id === item.id)) {
-                              return prev.filter((r) => r.id !== item.id);
-                            } else {
-                              return [...prev, item];
-                            }
-                          });
-                        }}
-                      >
-                        <Text>
-                          {item.title}{" "}
-                          <Text style={{ color: "#999", fontSize: 12 }}>
-                            ({item.category})
-                          </Text>
-                        </Text>
-                        {isSelected && (
-                          <Ionicons
-                            name="checkmark"
-                            size={20}
-                            color="#841584"
-                          />
-                        )}
-                      </TouchableOpacity>
-                    );
-                  }}
-                />
-                <TouchableOpacity
-                  onPress={() => setRoleModalVisible(false)}
-                  style={{ marginTop: 10, alignSelf: "center" }}
-                >
-                  <Text style={{ color: "#841584", fontWeight: "bold" }}>
-                    Validé
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          )}
-
-          {/* CATEGORY PICKER SUB-MODAL */}
-          {categoryModalVisible && (
-            <View style={styles.rolePickerOverlay}>
-              <View style={styles.rolePickerBox}>
-                <Text
-                  style={{ fontWeight: "bold", marginBottom: 10, fontSize: 16 }}
-                >
-                  Choisir les catégories
-                </Text>
-                <FlatList
-                  data={
-                    isOwner
-                      ? projectCategories
-                      : projectCategories.filter((c) =>
-                          adminCategories.includes(c),
-                        )
-                  }
-                  keyExtractor={(item) => item}
-                  renderItem={({ item }) => {
-                    const isSelected = targetCategories.includes(item);
-                    return (
-                      <TouchableOpacity
-                        style={{
-                          padding: 12,
-                          borderBottomWidth: 1,
-                          borderColor: "#eee",
-                          backgroundColor: isSelected
-                            ? "#f3e5f5"
-                            : "transparent",
-                          flexDirection: "row",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                        }}
-                        onPress={() => {
-                          setTargetCategories((prev) => {
-                            if (prev.includes(item)) {
-                              return prev.filter((c) => c !== item);
-                            } else {
-                              return [...prev, item];
-                            }
-                          });
-                        }}
-                      >
-                        <Text>{item}</Text>
-                        {isSelected && (
-                          <Ionicons
-                            name="checkmark"
-                            size={20}
-                            color="#841584"
-                          />
-                        )}
-                      </TouchableOpacity>
-                    );
-                  }}
-                  ListEmptyComponent={
-                    <Text style={{ textAlign: "center", color: "#999" }}>
-                      Aucune catégorie trouvée
-                    </Text>
-                  }
-                />
-                <TouchableOpacity
-                  onPress={() => setCategoryModalVisible(false)}
-                  style={{ marginTop: 10, alignSelf: "center" }}
-                >
-                  <Text style={{ color: "#841584", fontWeight: "bold" }}>
-                    Validé
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          )}
         </View>
+      </Modal>
+      
+      {/* ROLE PICKER SUB-MODAL */}
+      <Modal
+        visible={roleModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setRoleModalVisible(false)}
+      >
+          <View style={styles.rolePickerOverlay}>
+            <View style={styles.rolePickerBox}>
+              <Text
+                style={{ fontWeight: "bold", marginBottom: 10, fontSize: 16 }}
+              >
+                Choisir les rôles concernés
+              </Text>
+              <FlatList
+                data={projectRoles}
+                keyExtractor={(item) => item.id}
+                renderItem={({ item }) => {
+                  const isSelected = targetRoles.some(
+                    (r) => r.id === item.id,
+                  );
+                  return (
+                    <TouchableOpacity
+                      style={{
+                        padding: 12,
+                        borderBottomWidth: 1,
+                        borderColor: Colors.light.border,
+                        backgroundColor: isSelected
+                          ? Colors.light.backgroundSecondary
+                          : "transparent",
+                        flexDirection: "row",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                      }}
+                      onPress={() => {
+                        setTargetRoles((prev) => {
+                          if (prev.some((r) => r.id === item.id)) {
+                            return prev.filter((r) => r.id !== item.id);
+                          } else {
+                            return [...prev, item];
+                          }
+                        });
+                      }}
+                    >
+                      <Text style={{color: Colors.light.text}}>
+                        {item.title}{" "}
+                        <Text style={{ color: Colors.light.tabIconDefault, fontSize: 12 }}>
+                          ({item.category})
+                        </Text>
+                      </Text>
+                      {isSelected && (
+                        <Ionicons
+                          name="checkmark"
+                          size={20}
+                          color={Colors.light.tint}
+                        />
+                      )}
+                    </TouchableOpacity>
+                  );
+                }}
+              />
+              <TouchableOpacity
+                onPress={() => setRoleModalVisible(false)}
+                style={{ marginTop: 10, alignSelf: "center", padding: 10 }}
+              >
+                <Text style={{ color: Colors.light.tint, fontWeight: "bold" }}>
+                  Validé
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+      </Modal>
+
+      {/* CATEGORY PICKER SUB-MODAL */}
+      <Modal
+        visible={categoryModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setCategoryModalVisible(false)}
+      >
+          <View style={styles.rolePickerOverlay}>
+            <View style={styles.rolePickerBox}>
+              <Text
+                style={{ fontWeight: "bold", marginBottom: 10, fontSize: 16 }}
+              >
+                Choisir les catégories
+              </Text>
+              <FlatList
+                data={
+                  isOwner
+                    ? projectCategories
+                    : projectCategories.filter((c) =>
+                        adminCategories.includes(c),
+                      )
+                }
+                keyExtractor={(item) => item}
+                renderItem={({ item }) => {
+                  const isSelected = targetCategories.includes(item);
+                  return (
+                    <TouchableOpacity
+                      style={{
+                        padding: 12,
+                        borderBottomWidth: 1,
+                        borderColor: Colors.light.border,
+                        backgroundColor: isSelected
+                          ? Colors.light.backgroundSecondary
+                          : "transparent",
+                        flexDirection: "row",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                      }}
+                      onPress={() => {
+                        setTargetCategories((prev) => {
+                          if (prev.includes(item)) {
+                            return prev.filter((c) => c !== item);
+                          } else {
+                            return [...prev, item];
+                          }
+                        });
+                      }}
+                    >
+                      <Text style={{color: Colors.light.text}}>{item}</Text>
+                      {isSelected && (
+                        <Ionicons
+                          name="checkmark"
+                          size={20}
+                          color={Colors.light.tint}
+                        />
+                      )}
+                    </TouchableOpacity>
+                  );
+                }}
+                ListEmptyComponent={
+                  <Text style={{ textAlign: "center", color: Colors.light.tabIconDefault }}>
+                    Aucune catégorie trouvée
+                  </Text>
+                }
+              />
+              <TouchableOpacity
+                onPress={() => setCategoryModalVisible(false)}
+                style={{ marginTop: 10, alignSelf: "center", padding: 10 }}
+              >
+                <Text style={{ color: Colors.light.tint, fontWeight: "bold" }}>
+                  Validé
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
       </Modal>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f8f9fa", padding: 20 },
-  headerRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingTop: 40,
-    marginBottom: 20,
-  },
   fullHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -855,74 +824,80 @@ const styles = StyleSheet.create({
     paddingTop: 60,
     paddingBottom: 15,
     paddingHorizontal: 20,
-    backgroundColor: "white",
+    backgroundColor: Colors.light.background,
     borderBottomWidth: 1,
-    borderColor: "#eee",
+    borderColor: Colors.light.border,
     marginHorizontal: -20,
   },
   headerTitle: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: "bold",
+    fontFamily: "System",
+    color: Colors.light.text,
+  },
+  headerRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingTop: 20,
+    marginBottom: 20,
   },
   weekNav: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "white",
+    backgroundColor: Colors.light.card,
     borderRadius: 20,
     paddingHorizontal: 10,
     paddingVertical: 5,
     gap: 10,
+    borderWidth: 1,
+    borderColor: Colors.light.border,
   },
-  weekLabel: { fontWeight: "600", color: "#333" },
+  weekLabel: { fontWeight: "600", color: Colors.light.text },
 
-  emptyText: { textAlign: "center", color: "#999", marginTop: 50 },
-  noEventText: {
-    color: "#999",
-    fontStyle: "italic",
-    fontSize: 12,
-    marginLeft: 10,
-    marginBottom: 10,
-  },
   todaySection: {
-    backgroundColor: "rgba(132, 21, 132, 0.05)",
+    backgroundColor: Colors.light.backgroundSecondary,
     marginLeft: -10,
     marginRight: -10,
     paddingHorizontal: 10,
     borderRadius: 8,
   },
-  todayText: { color: "#841584" },
+  todayText: { color: Colors.light.tint },
 
   daySection: { marginBottom: 20 },
   dateHeader: {
     marginBottom: 10,
     borderBottomWidth: 1,
-    borderColor: "#ddd",
+    borderColor: Colors.light.border,
     paddingBottom: 5,
   },
   dateTitle: {
     fontSize: 16,
     fontWeight: "bold",
     textTransform: "capitalize",
-    color: "#333",
+    color: Colors.light.text,
   },
 
   eventCard: {
-    backgroundColor: "white",
+    backgroundColor: Colors.light.card,
     padding: 15,
-    borderRadius: 10,
+    borderRadius: 12,
     marginBottom: 8,
     borderLeftWidth: 4,
-    borderLeftColor: "#841584",
-    shadowColor: "#000",
+    borderLeftColor: Colors.light.tint,
+    borderWidth: 1,
+    borderColor: Colors.light.border,
+    shadowColor: Colors.light.shadow,
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  roleEventCard: { borderLeftColor: "#FF9800", backgroundColor: "#FFF8E1" }, // Orange for specific roles
+  roleEventCard: { borderLeftColor: "#FF9800", backgroundColor: "#FFF8E1" },
 
-  eventTime: { fontWeight: "bold", color: "#333", marginBottom: 4 },
-  eventTitle: { fontSize: 16, fontWeight: "600", marginBottom: 4 },
-  eventDesc: { color: "#666", fontSize: 14 },
+  eventTime: { fontWeight: "bold", color: Colors.light.text, marginBottom: 4 },
+  eventTitle: { fontSize: 16, fontWeight: "600", marginBottom: 4, color: Colors.light.text },
+  eventDesc: { color: Colors.light.tabIconDefault, fontSize: 14 },
   roleBadge: {
     backgroundColor: "#FF9800",
     paddingHorizontal: 6,
@@ -938,71 +913,62 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: "#841584",
+    backgroundColor: Colors.light.tint,
     justifyContent: "center",
     alignItems: "center",
-    shadowColor: "#000",
+    shadowColor: Colors.light.shadow,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4.65,
+    elevation: 8,
+  },
+
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalContent: {
+    backgroundColor: Colors.light.background,
+    borderRadius: 12,
+    padding: 20,
+    width: "90%",
+    maxHeight: "80%",
+    shadowColor: Colors.light.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
     elevation: 5,
   },
-
-  modalContent: {
-    flex: 1,
-    padding: 20,
-    paddingTop: 50,
-    backgroundColor: "white",
-  },
-  modalHeader: {
-    fontSize: 20,
-    fontWeight: "bold",
-    marginBottom: 20,
-    textAlign: "center",
-  },
-  label: { color: "#666", marginBottom: 5, fontSize: 12, fontWeight: "600" },
-  input: {
-    borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 8,
-    padding: 10,
-    marginBottom: 15,
-    fontSize: 16,
-  },
-
   typeBtn: {
     flex: 1,
     padding: 12,
     borderWidth: 1,
-    borderColor: "#ddd",
+    borderColor: Colors.light.border,
     borderRadius: 8,
     alignItems: "center",
   },
-  typeBtnActive: { backgroundColor: "#841584", borderColor: "#841584" },
-  typeBtnText: { color: "#333", fontWeight: "600" },
-
-  createBtn: {
-    backgroundColor: "#841584",
-    padding: 10,
-    borderRadius: 8,
-    paddingHorizontal: 20,
-  },
+  typeBtnActive: { backgroundColor: Colors.light.tint, borderColor: Colors.light.tint },
+  typeBtnText: { color: Colors.light.text, fontWeight: "600" },
 
   rolePickerOverlay: {
-    position: "absolute",
-    top: 0,
-    bottom: 0,
-    left: 0,
-    right: 0,
-    zIndex: 999,
+    flex: 1,
     backgroundColor: "rgba(0,0,0,0.5)",
     justifyContent: "center",
+    alignItems: "center",
     padding: 30,
   },
   rolePickerBox: {
-    backgroundColor: "white",
+    backgroundColor: Colors.light.background,
     borderRadius: 10,
     padding: 20,
+    width: "100%",
     maxHeight: 400,
+    shadowColor: Colors.light.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
 });

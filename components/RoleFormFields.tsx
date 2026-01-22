@@ -6,6 +6,8 @@ import {
     TouchableOpacity,
     View,
 } from "react-native";
+import { GlobalStyles } from "@/constants/Styles";
+import Colors from "@/constants/Colors";
 
 const HAIR_COLORS = [
   "Brun",
@@ -48,24 +50,22 @@ export default function RoleFormFields({
     updateField(key, next);
   };
 
-  // --- FORMULAIRES SPÉCIFIQUES ---
-
-  // 1. ACTEUR (Physique)
   if (category === "acteur") {
     return (
       <View>
-        <Text style={styles.sectionTitle}>Caractéristiques physiques</Text>
+        <Text style={GlobalStyles.sectionTitle}>Caractéristiques physiques</Text>
 
-        <Text style={styles.label}>Taille (cm)</Text>
+        <Text style={GlobalStyles.label}>Taille (cm)</Text>
         <TextInput
           placeholder="Ex: 175"
+          placeholderTextColor={Colors.light.tabIconDefault}
           keyboardType="numeric"
-          style={styles.input}
+          style={GlobalStyles.input}
           value={data.height ? String(data.height) : ""}
           onChangeText={(t) => updateField("height", t ? parseInt(t) : null)}
         />
 
-        <Text style={styles.label}>Cheveux</Text>
+        <Text style={GlobalStyles.label}>Cheveux</Text>
         <View style={styles.rowWrap}>
           {HAIR_COLORS.map((c) => (
             <TouchableOpacity
@@ -78,7 +78,7 @@ export default function RoleFormFields({
             >
               <Text
                 style={{
-                  color: toArray(data.hairColor).includes(c) ? "white" : "#333",
+                  color: toArray(data.hairColor).includes(c) ? "white" : Colors.light.text,
                 }}
               >
                 {c}
@@ -87,7 +87,7 @@ export default function RoleFormFields({
           ))}
         </View>
 
-        <Text style={styles.label}>Yeux</Text>
+        <Text style={GlobalStyles.label}>Yeux</Text>
         <View style={styles.rowWrap}>
           {EYE_COLORS.map((c) => (
             <TouchableOpacity
@@ -100,7 +100,7 @@ export default function RoleFormFields({
             >
               <Text
                 style={{
-                  color: toArray(data.eyeColor).includes(c) ? "white" : "#333",
+                  color: toArray(data.eyeColor).includes(c) ? "white" : Colors.light.text,
                 }}
               >
                 {c}
@@ -112,27 +112,28 @@ export default function RoleFormFields({
     );
   }
 
-  // 2. TECHNIQUE (Image, Son, Post-prod, Deco, Technicien)
   if (["image", "son", "post_prod", "deco", "technicien"].includes(category)) {
     return (
       <View>
-        <Text style={styles.sectionTitle}>Compétences techniques</Text>
+        <Text style={GlobalStyles.sectionTitle}>Compétences techniques</Text>
 
-        <Text style={styles.label}>Matériel requis / utilisé</Text>
+        <Text style={GlobalStyles.label}>Matériel requis / utilisé</Text>
         <Text style={styles.helper}>
           Liste du matériel que la personne devra manipuler ou apporter.
         </Text>
         <TextInput
           placeholder="Ex: Caméra RED, Micro HF, Kit Lumière..."
-          style={styles.input}
+          placeholderTextColor={Colors.light.tabIconDefault}
+          style={GlobalStyles.input}
           value={data.equipment || ""}
           onChangeText={(t) => updateField("equipment", t)}
         />
 
-        <Text style={styles.label}>Logiciels maitrisés</Text>
+        <Text style={GlobalStyles.label}>Logiciels maitrisés</Text>
         <TextInput
           placeholder="Ex: DaVinci Resolve, Pro Tools, After Effects..."
-          style={styles.input}
+          placeholderTextColor={Colors.light.tabIconDefault}
+          style={GlobalStyles.input}
           value={data.software || ""}
           onChangeText={(t) => updateField("software", t)}
         />
@@ -140,16 +141,16 @@ export default function RoleFormFields({
     );
   }
 
-  // 3. HMC (Costume, Maquillage)
   if (category === "hmc") {
     return (
       <View>
-        <Text style={styles.sectionTitle}>Spécificités HMC</Text>
+        <Text style={GlobalStyles.sectionTitle}>Spécificités HMC</Text>
 
-        <Text style={styles.label}>Spécialités</Text>
+        <Text style={GlobalStyles.label}>Spécialités</Text>
         <TextInput
           placeholder="Ex: Maquillage FX, Coiffure d'époque, Couture..."
-          style={styles.input}
+          placeholderTextColor={Colors.light.tabIconDefault}
+          style={GlobalStyles.input}
           value={data.specialties || ""}
           onChangeText={(t) => updateField("specialties", t)}
         />
@@ -157,42 +158,15 @@ export default function RoleFormFields({
     );
   }
 
-  // 4. PRODUCTION / REALISATION (Général)
-  // Pas de champs spécifiques pour l'instant, juste les champs standards (Description, Expérience)
   return null;
 }
 
 const styles = StyleSheet.create({
-  sectionTitle: {
-    fontSize: 14,
-    fontWeight: "bold",
-    color: "#841584",
-    marginTop: 10,
-    marginBottom: 10,
-    textTransform: "uppercase",
-    textAlign: "center",
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: "600",
-    marginBottom: 6,
-    color: "#333",
-    marginTop: 10,
-    textAlign: "center",
-  },
   helper: {
     fontSize: 12,
-    color: "#666",
+    color: Colors.light.tabIconDefault,
     marginBottom: 6,
     fontStyle: "italic",
-    textAlign: "center",
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 8,
-    padding: 10,
-    backgroundColor: "#fafafa",
     textAlign: "center",
   },
   rowWrap: {
@@ -206,11 +180,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: "#ddd",
-    backgroundColor: "white",
+    borderColor: Colors.light.border,
+    backgroundColor: Colors.light.background,
   },
   chipSelected: {
-    backgroundColor: "#333",
-    borderColor: "#333",
+    backgroundColor: Colors.light.primary,
+    borderColor: Colors.light.primary,
   },
 });

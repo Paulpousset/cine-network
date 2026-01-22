@@ -16,6 +16,8 @@ import {
   View,
 } from "react-native";
 import { supabase } from "../../lib/supabase";
+import { GlobalStyles } from "@/constants/Styles";
+import Colors from "@/constants/Colors";
 
 const ROLE_CATEGORIES = ["all", ...Object.keys(JOB_TITLES)];
 
@@ -141,15 +143,15 @@ export default function DiscoverProfiles() {
 
   function renderProfile({ item }: { item: any }) {
     return (
-      <View style={styles.card}>
+      <View style={GlobalStyles.card}>
         <View style={{ flex: 1 }}>
-          <Text style={styles.name}>
+          <Text style={GlobalStyles.title2}>
             {item.full_name || item.username || "Profil"}
           </Text>
-          <Text style={styles.role}>
+          <Text style={[styles.role, { color: Colors.light.primary }]}>
             {(item.role || "").toString().replace("_", " ")}
           </Text>
-          <Text style={styles.meta}>
+          <Text style={GlobalStyles.caption}>
             {item.city || item.ville || item.location || item.website || ""}
           </Text>
         </View>
@@ -174,7 +176,7 @@ export default function DiscoverProfiles() {
               <TouchableOpacity
                 onPress={() => router.push("/network/connections")}
               >
-                <Ionicons name="people" size={24} color="black" />
+                <Ionicons name="people" size={24} color={Colors.light.text} />
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={() => router.push("/network/requests")}
@@ -183,7 +185,7 @@ export default function DiscoverProfiles() {
                   <Ionicons
                     name="notifications"
                     size={24}
-                    color={pendingCount > 0 ? "red" : "black"}
+                    color={pendingCount > 0 ? Colors.light.danger : Colors.light.text}
                   />
                   {pendingCount > 0 && (
                     <View
@@ -194,7 +196,7 @@ export default function DiscoverProfiles() {
                         width: 8,
                         height: 8,
                         borderRadius: 4,
-                        backgroundColor: "red",
+                        backgroundColor: Colors.light.danger,
                       }}
                     />
                   )}
@@ -205,7 +207,7 @@ export default function DiscoverProfiles() {
         }}
       />
       {/* HEADER FILTERS */}
-      <View style={{ backgroundColor: "white", paddingVertical: 10 }}>
+      <View style={{ backgroundColor: Colors.light.background, paddingVertical: 10 }}>
         <View style={styles.filtersRow}>
           {renderFilterButton(
             "Catégorie",
@@ -227,7 +229,8 @@ export default function DiscoverProfiles() {
             placeholder="Rechercher par nom..."
             value={query}
             onChangeText={setQuery}
-            style={styles.searchInput}
+            style={[GlobalStyles.input, styles.searchInput]}
+            placeholderTextColor="#9CA3AF"
           />
         </View>
       </View>
@@ -235,7 +238,7 @@ export default function DiscoverProfiles() {
       {loading ? (
         <ActivityIndicator
           size="large"
-          color="#841584"
+          color={Colors.light.primary}
           style={{ marginTop: 30 }}
         />
       ) : (
@@ -287,7 +290,7 @@ export default function DiscoverProfiles() {
                         : item.charAt(0).toUpperCase() + item.slice(1)}
                     </Text>
                     {selectedRole === item && (
-                      <Ionicons name="checkmark" size={18} color="#841584" />
+                      <Ionicons name="checkmark" size={18} color={Colors.light.primary} />
                     )}
                   </TouchableOpacity>
                 )}
@@ -328,7 +331,7 @@ export default function DiscoverProfiles() {
                       {item === "all" ? "Toutes" : item}
                     </Text>
                     {selectedCity === item && (
-                      <Ionicons name="checkmark" size={18} color="#841584" />
+                      <Ionicons name="checkmark" size={18} color={Colors.light.primary} />
                     )}
                   </TouchableOpacity>
                 )}
@@ -342,14 +345,7 @@ export default function DiscoverProfiles() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f8f9fa" },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: "bold",
-    paddingHorizontal: 20,
-    marginTop: 40,
-    marginBottom: 10,
-  },
+  container: { flex: 1, backgroundColor: Colors.light.backgroundSecondary },
   filtersRow: {
     flexDirection: "row",
     paddingHorizontal: 20,
@@ -361,12 +357,12 @@ const styles = StyleSheet.create({
   filterButton: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#f5f5f5",
+    backgroundColor: Colors.light.backgroundSecondary,
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: "#e0e0e0",
+    borderColor: Colors.light.border,
     gap: 6,
   },
   filterLabel: {
@@ -382,29 +378,10 @@ const styles = StyleSheet.create({
   },
   searchRow: { paddingHorizontal: 20, paddingBottom: 10 },
   searchInput: {
-    borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 8,
-    padding: 10,
-    backgroundColor: "white",
+      backgroundColor: Colors.light.backgroundSecondary
   },
-  card: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "white",
-    padding: 15,
-    marginBottom: 12,
-    borderRadius: 12,
-    shadowColor: "#000",
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-    marginHorizontal: 15, // Added margin for card list
-  },
-  name: { fontSize: 16, fontWeight: "700" },
-  role: { color: "#841584", marginTop: 4, fontWeight: "600" },
-  meta: { color: "#666", marginTop: 6, fontSize: 12 },
-  cta: { color: "#841584", fontWeight: "700" },
+  role: { marginTop: 4, fontWeight: "600" },
+  cta: { color: Colors.light.primary, fontWeight: "700" },
 
   // Modal Styles
   modalOverlay: {
@@ -434,5 +411,5 @@ const styles = StyleSheet.create({
     borderColor: "#f0f0f0",
   },
   modalItemText: { fontSize: 16, color: "#333" },
-  modalItemTextSelected: { color: "#841584", fontWeight: "bold" },
+  modalItemTextSelected: { color: Colors.light.primary, fontWeight: "bold" },
 });

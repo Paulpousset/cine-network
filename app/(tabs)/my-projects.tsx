@@ -12,6 +12,8 @@ import {
     View,
 } from "react-native";
 import { supabase } from "../../lib/supabase";
+import { GlobalStyles } from "@/constants/Styles";
+import Colors from "@/constants/Colors";
 
 type Project = {
   id: string;
@@ -123,7 +125,7 @@ export default function MyProjects() {
 
   const renderProjectItem = ({ item }: { item: Project }) => (
     <TouchableOpacity
-      style={styles.card}
+      style={GlobalStyles.card}
       // Au clic, on va vers le détail aussi
       onPress={() =>
         router.push({ pathname: "/project/[id]", params: { id: item.id } })
@@ -138,19 +140,19 @@ export default function MyProjects() {
             width: 10,
             height: 10,
             borderRadius: 5,
-            backgroundColor: "red",
+            backgroundColor: Colors.light.danger,
             zIndex: 1, // Ensure it's on top
           }}
         />
       )}
       <View style={styles.cardHeader}>
-        <Text style={styles.cardTitle}>{item.title}</Text>
+        <Text style={[GlobalStyles.title2, { flex: 1 }]}>{item.title}</Text>
         <Text style={styles.cardType}>{item.type.replace("_", " ")}</Text>
       </View>
-      <Text numberOfLines={2} style={styles.cardDesc}>
+      <Text numberOfLines={2} style={GlobalStyles.body}>
         {item.description || "Pas de description"}
       </Text>
-      <Text style={styles.cardDate}>
+      <Text style={[GlobalStyles.caption, { textAlign: 'right', marginTop: 8 }]}>
         Créé le {new Date(item.created_at).toLocaleDateString()}
       </Text>
     </TouchableOpacity>
@@ -161,7 +163,7 @@ export default function MyProjects() {
       {loading ? (
         <ActivityIndicator
           size="large"
-          color="#841584"
+          color={Colors.light.primary}
           style={{ marginTop: 50 }}
         />
       ) : (
@@ -192,51 +194,32 @@ export default function MyProjects() {
   );
 }
 
-// ... Les styles restent les mêmes que tu avais ...
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f8f9fa" },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: "bold",
-    padding: 20,
-    paddingTop: 60,
-    backgroundColor: "white",
-  },
+  container: { flex: 1, backgroundColor: Colors.light.backgroundSecondary },
   sectionHeader: {
     fontSize: 20,
     fontWeight: "bold",
     marginTop: 20,
     marginBottom: 10,
-    color: "#333",
-    backgroundColor: "#f8f9fa", // Match container bg
+    color: Colors.light.text,
+    backgroundColor: Colors.light.backgroundSecondary, 
   },
   listContent: { padding: 15, paddingBottom: 100 },
-  card: {
-    backgroundColor: "white",
-    padding: 15,
-    borderRadius: 12,
-    marginBottom: 15,
-    shadowColor: "#000",
-    shadowOpacity: 0.1,
-    shadowRadius: 5,
-    elevation: 3,
-  },
   cardHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     marginBottom: 5,
+    alignItems: 'center'
   },
-  cardTitle: { fontSize: 18, fontWeight: "bold", flex: 1 },
   cardType: {
     fontSize: 12,
-    color: "#841584",
-    backgroundColor: "#f3e5f5",
-    padding: 4,
-    borderRadius: 4,
+    color: Colors.light.primary,
+    backgroundColor: Colors.light.backgroundSecondary, // lighter shade
+    padding: 6,
+    borderRadius: 8,
     overflow: "hidden",
+    fontWeight: '600'
   },
-  cardDesc: { color: "#666", marginBottom: 10 },
-  cardDate: { fontSize: 10, color: "#aaa", textAlign: "right" },
   emptyText: {
     textAlign: "center",
     marginTop: 50,
@@ -247,12 +230,16 @@ const styles = StyleSheet.create({
     position: "absolute",
     bottom: 30,
     right: 30,
-    backgroundColor: "#841584",
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    backgroundColor: Colors.light.primary,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     justifyContent: "center",
     alignItems: "center",
-    elevation: 5,
+    elevation: 4,
+    shadowColor: Colors.light.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
   },
 });

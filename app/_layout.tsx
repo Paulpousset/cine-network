@@ -46,7 +46,7 @@ export default function RootLayout() {
     }
     // SCÉNARIO 2 : Connecté mais encore sur la page de login
     else if (session && inLoginPage) {
-      router.replace("/feed"); // Hop, direction le feed
+      router.replace("/my-projects"); // Hop, direction mes projets
     }
   }, [session, initialized, pathname]);
 

@@ -13,6 +13,8 @@ import {
   View,
 } from "react-native";
 import { supabase } from "../../lib/supabase";
+import { GlobalStyles } from "@/constants/Styles";
+import Colors from "@/constants/Colors";
 
 export default function ProfileDetail() {
   const { id } = useLocalSearchParams();
@@ -288,7 +290,7 @@ export default function ProfileDetail() {
   }
 
   if (loading)
-    return <ActivityIndicator style={{ marginTop: 50 }} color="#841584" />;
+    return <ActivityIndicator style={{ marginTop: 50 }} color={Colors.light.primary} />;
 
   return (
     <>
@@ -300,7 +302,7 @@ export default function ProfileDetail() {
             onPress={() => router.back()}
             style={styles.backButton}
           >
-            <Ionicons name="arrow-back" size={24} color="#333" />
+            <Ionicons name="arrow-back" size={24} color={Colors.light.text} />
           </TouchableOpacity>
 
           {profile?.avatar_url ? (
@@ -313,7 +315,7 @@ export default function ProfileDetail() {
             </View>
           )}
 
-          <Text style={styles.name}>
+          <Text style={GlobalStyles.title1}>
             {profile?.full_name || profile?.username || "Profil"}
           </Text>
           <Text style={styles.role}>
@@ -347,6 +349,7 @@ export default function ProfileDetail() {
               gap: 10,
               marginTop: 15,
               flexWrap: "wrap",
+              justifyContent: 'center'
             }}
           >
             {/* CLAP BUTTON */}
@@ -355,10 +358,10 @@ export default function ProfileDetail() {
                 style={[
                   styles.actionButton,
                   connectionStatus === "accepted"
-                    ? { backgroundColor: "#4CAF50" }
+                    ? { backgroundColor: Colors.light.success }
                     : connectionStatus === "pending"
                       ? { backgroundColor: "#FF9800" }
-                      : { backgroundColor: "#841584" },
+                      : { backgroundColor: Colors.light.primary },
                 ]}
                 onPress={handleClap}
                 disabled={connectionStatus === "pending" && isRequester}
@@ -411,7 +414,7 @@ export default function ProfileDetail() {
             )}
 
             <TouchableOpacity
-              style={[styles.actionButton, { backgroundColor: "#2196F3" }]}
+              style={[styles.actionButton, { backgroundColor: Colors.light.tint }]}
               onPress={() =>
                 router.push({
                   pathname: "/profile/posts",
@@ -431,7 +434,7 @@ export default function ProfileDetail() {
         {/* PHYSIQUE section (conditional) */}
         {(profile?.height || profile?.hair_color || profile?.eye_color) && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Caractéristiques</Text>
+            <Text style={GlobalStyles.title2}>Caractéristiques</Text>
             <View style={styles.attributesGrid}>
               {profile.height && (
                 <View style={styles.attributeItem}>
@@ -458,13 +461,9 @@ export default function ProfileDetail() {
         {/* TECH section */}
         {(profile?.equipment || profile?.software) && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Matériel & Outils</Text>
+            <Text style={GlobalStyles.title2}>Matériel & Outils</Text>
             <View
-              style={{
-                backgroundColor: "white",
-                borderRadius: 12,
-                padding: 15,
-              }}
+              style={GlobalStyles.card}
             >
               {profile.equipment && (
                 <View style={{ marginBottom: 12 }}>
@@ -489,13 +488,9 @@ export default function ProfileDetail() {
         {/* HMC section */}
         {profile?.specialties && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Spécialités</Text>
+            <Text style={GlobalStyles.title2}>Spécialités</Text>
             <View
-              style={{
-                backgroundColor: "white",
-                borderRadius: 12,
-                padding: 15,
-              }}
+              style={GlobalStyles.card}
             >
               <Text style={[styles.attrValue, { fontWeight: "400" }]}>
                 {profile.specialties}
@@ -507,7 +502,7 @@ export default function ProfileDetail() {
         {/* SKILLS */}
         {profile?.skills && profile.skills.length > 0 && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Compétences</Text>
+            <Text style={GlobalStyles.title2}>Compétences</Text>
             <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
               {profile.skills.map((s: string, i: number) => (
                 <View key={i} style={styles.skillTag}>
@@ -521,7 +516,7 @@ export default function ProfileDetail() {
         {/* SHOWREEL */}
         {profile?.showreel_url && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Bande Démo</Text>
+            <Text style={GlobalStyles.title2}>Bande Démo</Text>
             <TouchableOpacity
               onPress={() => openLink(profile.showreel_url)}
               style={styles.videoCard}
@@ -539,7 +534,7 @@ export default function ProfileDetail() {
         {/* BOOK PHOTOS */}
         {profile?.book_urls && profile.book_urls.length > 0 && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Book Photo</Text>
+            <Text style={GlobalStyles.title2}>Book Photo</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               {profile.book_urls.map((url: string, i: number) => (
                 <TouchableOpacity key={i} onPress={() => {}}>
@@ -552,7 +547,7 @@ export default function ProfileDetail() {
 
         {/* PROJETS */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Expérience (Projets)</Text>
+          <Text style={GlobalStyles.title2}>Expérience (Projets)</Text>
           {tournages.length === 0 && participations.length === 0 ? (
             <Text style={styles.emptyText}>Aucun projet visible.</Text>
           ) : (
@@ -604,17 +599,17 @@ export default function ProfileDetail() {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: "#f8f9fa",
+    backgroundColor: Colors.light.backgroundSecondary,
     flexGrow: 1,
   },
   headerSection: {
     alignItems: "center",
     padding: 20,
     paddingTop: 60,
-    backgroundColor: "white",
+    backgroundColor: Colors.light.background,
     borderBottomRightRadius: 30,
     borderBottomLeftRadius: 30,
-    shadowColor: "#000",
+    shadowColor: Colors.light.shadow,
     shadowOpacity: 0.05,
     shadowRadius: 10,
     elevation: 5,
@@ -643,16 +638,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  name: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#1a1a1a",
-    marginBottom: 5,
-    textAlign: "center",
-  },
   role: {
     fontSize: 14,
-    color: "#841584",
+    color: Colors.light.primary,
     fontWeight: "600",
     textTransform: "uppercase",
     letterSpacing: 1,
@@ -675,7 +663,7 @@ const styles = StyleSheet.create({
   },
   actionButton: {
     flexDirection: "row",
-    backgroundColor: "#841584",
+    backgroundColor: Colors.light.primary,
     paddingVertical: 10,
     paddingHorizontal: 15,
     borderRadius: 20,
@@ -691,12 +679,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     marginBottom: 25,
   },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    marginBottom: 12,
-    color: "#333",
-  },
   attributesGrid: {
     flexDirection: "row",
     backgroundColor: "white",
@@ -706,6 +688,8 @@ const styles = StyleSheet.create({
     shadowColor: "#000",
     shadowOpacity: 0.03,
     shadowRadius: 3,
+    borderWidth: 1,
+    borderColor: Colors.light.border
   },
   attributeItem: {
     alignItems: "center",
@@ -722,10 +706,12 @@ const styles = StyleSheet.create({
     color: "#333",
   },
   skillTag: {
-    backgroundColor: "#e8eaf6",
+    backgroundColor: Colors.light.background,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,
+    borderWidth: 1,
+    borderColor: Colors.light.border
   },
   bookImage: {
     width: 100,
@@ -756,10 +742,12 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     marginBottom: 10,
     borderLeftWidth: 3,
-    borderLeftColor: "#841584",
+    borderLeftColor: Colors.light.primary,
     shadowColor: "#000",
     shadowOpacity: 0.03,
     elevation: 1,
+    borderWidth: 1,
+    borderColor: Colors.light.border
   },
   participationCard: {
     backgroundColor: "#fff",
@@ -768,11 +756,13 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     borderLeftWidth: 3,
     borderLeftColor: "#ccc",
+    borderWidth: 1,
+    borderColor: Colors.light.border
   },
   projectTitle: {
     fontWeight: "700",
     fontSize: 16,
-    color: "#333",
+    color: Colors.light.text,
   },
   projectMeta: {
     fontSize: 12,
@@ -780,7 +770,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   participationRole: {
-    color: "#841584",
+    color: Colors.light.primary,
     fontWeight: "600",
     fontSize: 14,
   },

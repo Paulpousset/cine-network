@@ -16,6 +16,8 @@ import {
   View,
 } from "react-native";
 import { supabase } from "../../../lib/supabase";
+import { GlobalStyles } from "@/constants/Styles";
+import Colors from "@/constants/Colors";
 
 const ROLE_CATEGORIES = [
   "acteur",
@@ -614,15 +616,15 @@ export default function ProjectSetupWizard() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f5f5f5" },
+  container: { flex: 1, backgroundColor: Colors.light.backgroundSecondary },
   header: {
     padding: 20,
     paddingTop: 60,
-    backgroundColor: "white",
+    backgroundColor: Colors.light.background,
     borderBottomWidth: 1,
-    borderColor: "#eee",
+    borderColor: Colors.light.border,
   },
-  title: { fontSize: 22, fontWeight: "bold" },
+  title: { fontSize: 22, fontWeight: "bold", color: Colors.light.text },
   subtitle: { color: "#666", marginTop: 4 },
   sectionHeader: {
     flexDirection: "row",
@@ -630,16 +632,18 @@ const styles = StyleSheet.create({
     alignItems: "center",
     padding: 15,
   },
-  sectionTitle: { fontSize: 18, fontWeight: "bold" },
+  sectionTitle: { fontSize: 18, fontWeight: "bold", color: Colors.light.text },
   roleCard: {
     backgroundColor: "white",
     borderRadius: 12,
     padding: 12,
     marginBottom: 12,
-    shadowColor: "#000",
+    shadowColor: Colors.light.shadow,
     shadowOpacity: 0.05,
     shadowRadius: 3,
     elevation: 2,
+    borderWidth: 1,
+    borderColor: Colors.light.border
   },
   rowWrap: {
     flexDirection: "row",
@@ -649,35 +653,38 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   catChip: {
-    borderColor: "#841584",
+    borderColor: Colors.light.primary,
     borderWidth: 1,
     paddingVertical: 6,
     paddingHorizontal: 10,
     borderRadius: 16,
   },
-  catChipSelected: { backgroundColor: "#841584" },
+  catChipSelected: { backgroundColor: Colors.light.primary },
   jobChip: {
-    backgroundColor: "#f0f0f0",
+    backgroundColor: Colors.light.backgroundSecondary,
     paddingVertical: 6,
     paddingHorizontal: 10,
     borderRadius: 15,
+    borderWidth: 1,
+    borderColor: Colors.light.border
   },
-  jobChipSelected: { backgroundColor: "#333" },
+  jobChipSelected: { backgroundColor: Colors.light.text, borderColor: Colors.light.text },
   roleHeader: { fontSize: 12, color: "#999", marginBottom: 8 },
   label: {
     fontSize: 14,
     fontWeight: "600",
     marginBottom: 6,
-    color: "#333",
+    color: Colors.light.text,
     textAlign: "center",
   },
   input: {
     borderWidth: 1,
-    borderColor: "#ddd",
+    borderColor: Colors.light.border,
     borderRadius: 8,
     padding: 10,
     marginBottom: 10,
-    backgroundColor: "#fafafa",
+    backgroundColor: Colors.light.backgroundSecondary,
+    color: Colors.light.text
   },
   assigneeRow: {
     flexDirection: "row",
@@ -685,11 +692,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     padding: 10,
     borderWidth: 1,
-    borderColor: "#ddd",
+    borderColor: Colors.light.border,
     borderRadius: 8,
+    backgroundColor: Colors.light.background
   },
   assignBtn: {
-    backgroundColor: "#841584",
+    backgroundColor: Colors.light.primary,
     padding: 10,
     alignItems: "center",
     borderRadius: 8,
@@ -699,10 +707,10 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: "white",
+    backgroundColor: Colors.light.background,
     padding: 10,
     borderTopWidth: 1,
-    borderColor: "#eee",
+    borderColor: Colors.light.border,
   },
 
   modalOverlay: {
@@ -711,16 +719,17 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0,0,0,0.5)",
     padding: 20,
   },
-  modalContent: { backgroundColor: "white", borderRadius: 15, padding: 20 },
+  modalContent: { backgroundColor: Colors.light.background, borderRadius: 15, padding: 20 },
   modalTitle: {
     fontSize: 18,
     fontWeight: "bold",
     textAlign: "center",
     marginBottom: 10,
+    color: Colors.light.text
   },
   profileRow: {
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderColor: "#eee",
+    borderColor: Colors.light.border,
   },
 });

@@ -12,6 +12,8 @@ import {
   View,
 } from "react-native";
 import { supabase } from "../../../lib/supabase";
+import { GlobalStyles } from "@/constants/Styles";
+import Colors from "@/constants/Colors";
 
 export default function RoleDetails() {
   const { id } = useLocalSearchParams();
@@ -114,7 +116,7 @@ export default function RoleDetails() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#841584" />
+        <ActivityIndicator size="large" color={Colors.light.primary} />
       </View>
     );
   }
@@ -180,7 +182,7 @@ export default function RoleDetails() {
             style={styles.backButton}
             onPress={() => router.back()}
           >
-            <Ionicons name="arrow-back" size={24} color="black" />
+            <Ionicons name="arrow-back" size={24} color={Colors.light.text} />
           </TouchableOpacity>
         </View>
 
@@ -196,8 +198,8 @@ export default function RoleDetails() {
           </View>
 
           {/* PROJECT INFO CARD */}
-          <View style={styles.projectCard}>
-            <Text style={styles.sectionTitle}>Le Projet</Text>
+          <View style={GlobalStyles.card}>
+            <Text style={GlobalStyles.title2}>Le Projet</Text>
             <Text style={styles.projectTitle}>{project.title}</Text>
             <Text style={styles.projectMeta}>
               {project.type?.replace("_", " ")} • {project.ville || "Lieu N/C"}
@@ -216,7 +218,7 @@ export default function RoleDetails() {
 
           {/* ROLE DETAILS */}
           <View style={styles.detailsContainer}>
-            <Text style={styles.sectionTitle}>Détails du poste</Text>
+            <Text style={[GlobalStyles.title2, { marginTop: 20 }]}>Détails du poste</Text>
 
             {role.description && (
               <Text style={styles.descriptionText}>{role.description}</Text>
@@ -306,7 +308,7 @@ export default function RoleDetails() {
       <View style={styles.footer}>
         <TouchableOpacity
           style={[
-            styles.applyButton,
+            GlobalStyles.primaryButton,
             (hasApplied || applying) && { backgroundColor: "#ccc" },
           ]}
           onPress={handleApply}
@@ -315,7 +317,7 @@ export default function RoleDetails() {
           {applying ? (
             <ActivityIndicator color="white" />
           ) : (
-            <Text style={styles.applyButtonText}>
+            <Text style={GlobalStyles.buttonText}>
               {hasApplied ? "Candidature envoyée" : "Postuler"}
             </Text>
           )}
@@ -326,9 +328,9 @@ export default function RoleDetails() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff" },
+  container: { flex: 1, backgroundColor: Colors.light.backgroundSecondary },
   loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
-  errorText: { fontSize: 18, color: "red", textAlign: "center", marginTop: 50 },
+  errorText: { fontSize: 18, color: Colors.light.danger, textAlign: "center", marginTop: 50 },
 
   imageHeader: { height: 200, backgroundColor: "#333", position: "relative" },
   projectImage: { width: "100%", height: "100%", opacity: 0.8 },
@@ -336,7 +338,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#841584",
+    backgroundColor: Colors.light.primary,
   },
 
   backButton: {
@@ -354,7 +356,7 @@ const styles = StyleSheet.create({
   content: {
     padding: 20,
     marginTop: -20,
-    backgroundColor: "white",
+    backgroundColor: Colors.light.backgroundSecondary,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
   },
@@ -365,41 +367,28 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 20,
   },
-  roleTitle: { fontSize: 24, fontWeight: "bold", flex: 1, marginRight: 10 },
+  roleTitle: { fontSize: 24, fontWeight: "bold", flex: 1, marginRight: 10, color: Colors.light.text },
   badge: {
-    backgroundColor: "#f3e5f5",
+    backgroundColor: Colors.light.background,
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 8,
+    borderWidth: 1,
+    borderColor: Colors.light.primary
   },
-  badgeText: { color: "#841584", fontWeight: "bold", fontSize: 12 },
+  badgeText: { color: Colors.light.primary, fontWeight: "bold", fontSize: 12 },
 
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    marginBottom: 10,
-    marginTop: 10,
-    color: "#333",
-  },
-
-  projectCard: {
-    backgroundColor: "#f9f9f9",
-    padding: 15,
-    borderRadius: 12,
-    marginBottom: 20,
-  },
-  projectTitle: { fontSize: 16, fontWeight: "600", color: "#333" },
+  projectTitle: { fontSize: 16, fontWeight: "600", color: Colors.light.text },
   projectMeta: { fontSize: 14, color: "#666", marginBottom: 8 },
   dateRow: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: 8 },
   dateText: { fontSize: 12, color: "#666" },
 
   detailsContainer: {},
   descriptionText: {
-    fontSize: 18,
-    lineHeight: 26,
-    color: "#444",
+    fontSize: 16,
+    lineHeight: 24,
+    color: Colors.light.text,
     marginBottom: 15,
-    //center the descrpition and make it big
     textAlign: "justify",
     paddingVertical: 10,
   },
@@ -411,10 +400,12 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   tag: {
-    backgroundColor: "#f0f0f0",
+    backgroundColor: Colors.light.background,
     padding: 10,
     borderRadius: 8,
     minWidth: "45%",
+    borderWidth: 1,
+    borderColor: Colors.light.border
   },
   tagLabel: {
     fontSize: 10,
@@ -422,14 +413,16 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     marginBottom: 2,
   },
-  tagValue: { fontSize: 14, fontWeight: "600", color: "#333" },
+  tagValue: { fontSize: 14, fontWeight: "600", color: Colors.light.text },
   tagWide: {
     paddingHorizontal: 12,
     paddingVertical: 12,
     borderRadius: 8,
-    backgroundColor: "#F3E5F5",
+    backgroundColor: Colors.light.background,
     width: "100%",
     marginBottom: 8,
+    borderWidth: 1,
+    borderColor: Colors.light.border
   },
 
   footer: {
@@ -437,18 +430,10 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: "white",
+    backgroundColor: Colors.light.background,
     padding: 20,
     paddingBottom: 40,
     borderTopWidth: 1,
-    borderColor: "#eee",
+    borderColor: Colors.light.border,
   },
-  applyButton: {
-    backgroundColor: "#841584",
-    paddingVertical: 15,
-    borderRadius: 12,
-    alignItems: "center",
-  },
-
-  applyButtonText: { color: "white", fontSize: 18, fontWeight: "bold" },
 });

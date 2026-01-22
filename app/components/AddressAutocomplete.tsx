@@ -8,9 +8,11 @@ import {
     TouchableOpacity,
     View,
 } from "react-native";
+import { GlobalStyles } from "@/constants/Styles";
+import Colors from "@/constants/Colors";
 
 type AddressAutocompleteProps = {
-  city?: string; // The city context to refine search
+  city?: string;
   onSelect: (address: string, lat?: number, lon?: number) => void;
   currentValue?: string;
   placeholder?: string;
@@ -35,7 +37,6 @@ export default function AddressAutocomplete({
 
   async function searchAddress(text: string) {
     setQuery(text);
-    // Basic update without coords if typing manually
     onSelect(text);
 
     if (text.length < 3) {
@@ -46,8 +47,6 @@ export default function AddressAutocomplete({
 
     try {
       setLoading(true);
-      // We combine the user input with the selected city to filter results effectively
-      // "10 rue de la paix" + " Paris" -> "10 rue de la paix Paris"
       const searchTerm = city ? `${text} ${city}` : text;
 
       const response = await fetch(
@@ -58,8 +57,6 @@ export default function AddressAutocomplete({
       const data = await response.json();
 
       if (data && data.features) {
-        // Filter: If city is specified, we might want to ensure results are in acceptable range?
-        // But adding it to query usually does the job.
         setSuggestions(data.features);
         setShowList(true);
       }
@@ -71,11 +68,6 @@ export default function AddressAutocomplete({
   }
 
   function handleSelect(item: any) {
-    // item.properties.name gives "10 Rue de la Paix" (housenumber + street)
-    // item.properties.label gives full address "10 Rue de la Paix 75002 Paris"
-    // Since we separate city in the form, we likely want "name" (Street + Number)
-
-    // However, sometimes it is just the street name if no number.
     const streetPart = item.properties.name || item.properties.label;
 
     setQuery(streetPart);
@@ -90,21 +82,21 @@ export default function AddressAutocomplete({
     <View style={styles.container}>
       <View style={styles.inputContainer}>
         <TextInput
-          style={styles.input}
+          style={GlobalStyles.input}
           placeholder={placeholder || "Adresse précise..."}
+          placeholderTextColor={Colors.light.tabIconDefault}
           value={query}
           onChangeText={searchAddress}
         />
         {loading && (
           <ActivityIndicator
             size="small"
-            color="#841584"
+            color={Colors.light.tint}
             style={styles.loader}
           />
         )}
       </View>
 
-      {/* SUGGESTIONS LIST */}
       {showList && suggestions.length > 0 && (
         <View style={styles.suggestionsBox}>
           <ScrollView keyboardShouldPersistTaps="handled">
@@ -127,35 +119,27 @@ export default function AddressAutocomplete({
 const styles = StyleSheet.create({
   container: {
     marginBottom: 15,
-    zIndex: 1000, // Helps with overlay if needed, though simpler here
+    zIndex: 1000,
   },
   inputContainer: {
     flexDirection: "row",
     alignItems: "center",
     position: "relative",
   },
-  input: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 8,
-    padding: 10,
-    backgroundColor: "white",
-    fontSize: 16,
-  },
   loader: {
     position: "absolute",
     right: 10,
+    top: 15, // Adjusted to align with input height
   },
   suggestionsBox: {
-    backgroundColor: "white",
+    backgroundColor: Colors.light.background,
     borderWidth: 1,
-    borderColor: "#eee",
+    borderColor: Colors.light.border,
     borderTopWidth: 0,
     maxHeight: 200,
     borderRadius: 8,
     marginTop: 2,
-    shadowColor: "#000",
+    shadowColor: Colors.light.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -164,10 +148,10 @@ const styles = StyleSheet.create({
   item: {
     padding: 15,
     borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
+    borderBottomColor: Colors.light.backgroundSecondary,
   },
   itemText: {
     fontSize: 14,
-    color: "#333",
+    color: Colors.light.text,
   },
 });

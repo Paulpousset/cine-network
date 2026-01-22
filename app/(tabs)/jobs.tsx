@@ -16,6 +16,8 @@ import {
 } from "react-native";
 import MapView, { Marker, PROVIDER_DEFAULT } from "react-native-maps";
 import { supabase } from "../../lib/supabase";
+import { GlobalStyles } from "@/constants/Styles";
+import Colors from "@/constants/Colors";
 
 // On récupère les clés de ton fichier rolesList.ts
 const ROLE_CATEGORIES = ["all", ...Object.keys(JOB_TITLES)];
@@ -143,7 +145,7 @@ export default function Discover() {
   function renderRole({ item }: { item: RoleWithProject }) {
     return (
       <TouchableOpacity
-        style={styles.card}
+        style={GlobalStyles.card}
         onPress={() => router.push(`/project/role/${item.id}`)}
       >
         {/* En-tête avec le nom du PROJET */}
@@ -166,10 +168,10 @@ export default function Discover() {
         <View style={styles.divider} />
 
         {/* Corps avec le RÔLE recherché */}
-        <Text style={styles.roleTitle}>{item.title}</Text>
+        <Text style={[GlobalStyles.title2, { color: Colors.light.primary }]}>{item.title}</Text>
 
         {item.description ? (
-          <Text style={styles.roleDesc} numberOfLines={2}>
+          <Text style={GlobalStyles.body} numberOfLines={2}>
             {item.description}
           </Text>
         ) : null}
@@ -207,7 +209,7 @@ export default function Discover() {
             style={{
               flexDirection: "row",
               alignItems: "center",
-              backgroundColor: "#841584",
+              backgroundColor: Colors.light.primary,
               paddingVertical: 6,
               paddingHorizontal: 12,
               borderRadius: 20,
@@ -254,7 +256,7 @@ export default function Discover() {
       {loading ? (
         <ActivityIndicator
           size="large"
-          color="#841584"
+          color={Colors.light.primary}
           style={{ marginTop: 50 }}
         />
       ) : viewMode === "map" ? (
@@ -345,7 +347,7 @@ export default function Discover() {
                         : cat.charAt(0).toUpperCase() + cat.slice(1)}
                     </Text>
                     {selectedCategory === cat && (
-                      <Ionicons name="checkmark" size={20} color="#841584" />
+                      <Ionicons name="checkmark" size={20} color={Colors.light.primary} />
                     )}
                   </TouchableOpacity>
                 ))}
@@ -385,7 +387,7 @@ export default function Discover() {
                       {city === "all" ? "Toutes" : city}
                     </Text>
                     {selectedCity === city && (
-                      <Ionicons name="checkmark" size={20} color="#841584" />
+                      <Ionicons name="checkmark" size={20} color={Colors.light.primary} />
                     )}
                   </TouchableOpacity>
                 ))}
@@ -399,14 +401,14 @@ export default function Discover() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f8f9fa" },
+  container: { flex: 1, backgroundColor: Colors.light.backgroundSecondary },
   header: {
-    backgroundColor: "white",
+    backgroundColor: Colors.light.background,
     paddingTop: 24,
     paddingBottom: 15,
     paddingHorizontal: 20,
     borderBottomWidth: 1,
-    borderColor: "#eee",
+    borderColor: Colors.light.border,
   },
   headerTitle: {
     fontSize: 28,
@@ -422,12 +424,12 @@ const styles = StyleSheet.create({
   filterButton: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#f5f5f5",
+    backgroundColor: Colors.light.backgroundSecondary,
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: "#e0e0e0",
+    borderColor: Colors.light.border,
     gap: 6,
   },
   filterLabel: {
@@ -443,17 +445,6 @@ const styles = StyleSheet.create({
   listContent: { padding: 15, paddingBottom: 100 },
   emptyText: { textAlign: "center", marginTop: 50, color: "#999" },
 
-  // CARD DESIGN
-  card: {
-    backgroundColor: "white",
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 15,
-    shadowColor: "#000",
-    shadowOpacity: 0.05,
-    shadowRadius: 5,
-    elevation: 2,
-  },
   cardHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -468,14 +459,14 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 6,
   },
-  badgeText: { fontSize: 10, color: "#841584", fontWeight: "bold" },
+  badgeText: { fontSize: 10, color: Colors.light.primary, fontWeight: "bold" },
 
   divider: { height: 1, backgroundColor: "#eee", marginVertical: 12 },
 
   roleTitle: {
     fontSize: 18,
     fontWeight: "bold",
-    color: "#841584",
+    color: Colors.light.primary,
     marginBottom: 4,
   },
   roleQty: { fontSize: 13, color: "#666", marginBottom: 8 },
@@ -486,7 +477,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   ctaText: {
-    color: "#841584",
+    color: Colors.light.primary,
     fontWeight: "bold",
     textAlign: "right",
     fontSize: 12,
@@ -525,11 +516,11 @@ const styles = StyleSheet.create({
     color: "#333",
   },
   modalItemTextSelected: {
-    color: "#841584",
+    color: Colors.light.primary,
     fontWeight: "bold",
   },
   customMarker: {
-    backgroundColor: "#841584",
+    backgroundColor: Colors.light.primary,
     padding: 8,
     borderRadius: 20,
     borderWidth: 2,

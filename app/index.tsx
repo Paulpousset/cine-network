@@ -3,7 +3,6 @@ import React, { useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  Button,
   ScrollView,
   StyleSheet,
   Text,
@@ -12,6 +11,8 @@ import {
   View,
 } from "react-native";
 import { supabase } from "../lib/supabase";
+import { GlobalStyles } from "@/constants/Styles"; // Import GlobalStyles
+import Colors from "@/constants/Colors"; // Import Colors
 
 const ROLES = Object.keys(JOB_TITLES);
 
@@ -63,7 +64,7 @@ export default function AuthScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>
+      <Text style={[GlobalStyles.title1, { textAlign: 'center', marginBottom: 30 }]}>
         {isLogin ? "Connexion 🎬" : "Rejoindre le Cast 📝"}
       </Text>
 
@@ -73,7 +74,8 @@ export default function AuthScreen() {
           placeholder="Nom complet"
           value={fullName}
           onChangeText={setFullName}
-          style={styles.input}
+          style={[GlobalStyles.input, styles.inputMargin]}
+          placeholderTextColor="#9CA3AF"
         />
       )}
 
@@ -83,20 +85,22 @@ export default function AuthScreen() {
         value={email}
         onChangeText={setEmail}
         autoCapitalize="none"
-        style={styles.input}
+        style={[GlobalStyles.input, styles.inputMargin]}
+        placeholderTextColor="#9CA3AF"
       />
       <TextInput
         placeholder="Mot de passe"
         value={password}
         onChangeText={setPassword}
         secureTextEntry
-        style={styles.input}
+        style={[GlobalStyles.input, styles.inputMargin]}
+        placeholderTextColor="#9CA3AF"
       />
 
       {/* --- SÉLECTEUR DE RÔLE (UNIQUEMENT SI INSCRIPTION) --- */}
       {!isLogin && (
         <>
-          <Text style={styles.label}>Je suis :</Text>
+          <Text style={GlobalStyles.title2}>Je suis :</Text>
           <View style={styles.rolesContainer}>
             {ROLES.map((item) => (
               <TouchableOpacity
@@ -125,13 +129,16 @@ export default function AuthScreen() {
 
       {/* --- BOUTON D'ACTION PRINCIPAL --- */}
       {loading ? (
-        <ActivityIndicator size="large" color="#841584" />
+        <ActivityIndicator size="large" color={Colors.light.primary} />
       ) : (
-        <Button
-          title={isLogin ? "Se connecter" : "S'inscrire"}
-          onPress={isLogin ? signIn : signUp}
-          color="#841584"
-        />
+        <TouchableOpacity
+            style={GlobalStyles.primaryButton}
+            onPress={isLogin ? signIn : signUp}
+        >
+            <Text style={GlobalStyles.buttonText}>
+                {isLogin ? "Se connecter" : "S'inscrire"}
+            </Text>
+        </TouchableOpacity>
       )}
 
       {/* --- BOUTON POUR CHANGER DE MODE --- */}
@@ -150,37 +157,25 @@ export default function AuthScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flexGrow: 1, justifyContent: "center", padding: 20 },
-  title: {
-    fontSize: 30,
-    fontWeight: "bold",
-    textAlign: "center",
-    marginBottom: 30,
+  container: { flexGrow: 1, justifyContent: "center", padding: 20, backgroundColor: Colors.light.background },
+  inputMargin: {
+      marginBottom: 12
   },
-  input: {
-    borderWidth: 1,
-    borderColor: "#ccc",
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 12,
-    backgroundColor: "white",
-  },
-  label: { marginTop: 10, marginBottom: 8, fontWeight: "600", fontSize: 16 },
   spacer: { height: 20 },
-  rolesContainer: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
+  rolesContainer: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: 10 },
   roleButton: {
     paddingVertical: 8,
     paddingHorizontal: 16,
     borderWidth: 1,
-    borderColor: "#841584",
-    borderRadius: 20,
+    borderColor: Colors.light.primary,
+    borderRadius: 20, // Keep rounded for chips
     marginBottom: 5,
   },
-  roleButtonSelected: { backgroundColor: "#841584" },
-  roleText: { color: "#841584" },
+  roleButtonSelected: { backgroundColor: Colors.light.primary },
+  roleText: { color: Colors.light.primary },
   roleTextSelected: { color: "white", fontWeight: "bold" },
 
   // Style du lien en bas
   switchButton: { marginTop: 20, alignItems: "center" },
-  switchText: { color: "#841584", fontWeight: "bold" },
+  switchText: { color: Colors.light.primary, fontWeight: "bold" },
 });

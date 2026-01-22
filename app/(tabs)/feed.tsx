@@ -1,6 +1,7 @@
 import Colors from "@/constants/Colors";
 import { supabase } from "@/lib/supabase";
 import { Ionicons } from "@expo/vector-icons";
+import type { Href } from "expo-router";
 import { Stack, router, useFocusEffect } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
@@ -14,6 +15,7 @@ import {
     TouchableOpacity,
     View,
 } from "react-native";
+import { GlobalStyles } from "@/constants/Styles";
 
 interface Post {
   id: string;
@@ -69,14 +71,14 @@ const AutoHeightImage = ({
         style={{
           width: "100%",
           height: 200,
-          backgroundColor: "#eee",
+          backgroundColor: Colors.light.backgroundSecondary,
           justifyContent: "center",
           alignItems: "center",
           borderRadius: 8,
           marginBottom: 10,
         }}
       >
-        <ActivityIndicator />
+        <ActivityIndicator color={Colors.light.primary} />
       </View>
     );
   }
@@ -97,7 +99,7 @@ const AutoHeightImage = ({
           width: "100%",
           height: "100%",
           borderRadius: 8,
-          backgroundColor: "#eee",
+          backgroundColor: Colors.light.backgroundSecondary,
         }}
         resizeMode="cover"
       />
@@ -225,7 +227,7 @@ export default function FeedScreen() {
                   <TouchableOpacity
                     onPress={() => {
                       try {
-                        router.push(value);
+                        router.push(value as Href);
                       } catch (e) {
                         // noop
                       }
@@ -239,7 +241,7 @@ export default function FeedScreen() {
             }
 
             return (
-              <Text key={`${index}-${line}`} style={styles.contentLine}>
+              <Text key={`${index}-${line}`} style={GlobalStyles.body}>
                 <Text style={styles.kvKey}>{key}:</Text>
                 {value ? ` ${value}` : ""}
               </Text>
@@ -247,7 +249,7 @@ export default function FeedScreen() {
           }
 
           return (
-            <Text key={`${index}-${line}`} style={styles.contentLine}>
+            <Text key={`${index}-${line}`} style={GlobalStyles.body}>
               {line}
             </Text>
           );
@@ -257,7 +259,7 @@ export default function FeedScreen() {
   };
 
   const renderItem = ({ item }: { item: Post }) => (
-    <View style={styles.card}>
+    <View style={GlobalStyles.card}>
       <View style={styles.header}>
         <Image
           source={{
@@ -291,7 +293,7 @@ export default function FeedScreen() {
           onPress={() => router.push(`/project/${item.project!.id}`)}
           style={styles.projectLink}
         >
-          <Ionicons name="film" size={16} color="#666" />
+          <Ionicons name="film" size={16} color={Colors.light.text} />
           <Text style={styles.projectTitle}>
             Tournage : {item.project.title}
           </Text>
@@ -320,11 +322,11 @@ export default function FeedScreen() {
                   })
                 }
               >
-                <Ionicons name="documents-outline" size={24} color="black" />
+                <Ionicons name="documents-outline" size={24} color={Colors.light.text} />
               </TouchableOpacity>
 
               <TouchableOpacity onPress={() => router.push("/post/new")}>
-                <Ionicons name="add-circle-outline" size={24} color="black" />
+                <Ionicons name="add-circle-outline" size={24} color={Colors.light.text} />
               </TouchableOpacity>
             </View>
           ),
@@ -337,7 +339,7 @@ export default function FeedScreen() {
           flexDirection: "row",
           padding: 10,
           gap: 10,
-          backgroundColor: "white",
+          backgroundColor: Colors.light.background,
         }}
       >
         <TouchableOpacity
@@ -375,7 +377,7 @@ export default function FeedScreen() {
       </View>
 
       {loading && !refreshing ? (
-        <ActivityIndicator style={{ marginTop: 20 }} />
+        <ActivityIndicator style={{ marginTop: 20 }} color={Colors.light.primary} />
       ) : (
         <FlatList
           data={posts}
@@ -423,18 +425,7 @@ export default function FeedScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f4f4f4",
-  },
-  card: {
-    backgroundColor: "white",
-    borderRadius: 10,
-    padding: 15,
-    marginBottom: 10,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    backgroundColor: Colors.light.backgroundSecondary,
   },
   header: {
     flexDirection: "row",
@@ -450,12 +441,13 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: 20,
     marginRight: 10,
-    backgroundColor: "#eee",
+    backgroundColor: Colors.light.backgroundSecondary,
   },
   name: {
     fontWeight: "bold",
     fontSize: 16,
     textAlign: "center",
+    color: Colors.light.text
   },
   date: {
     color: "#666",
@@ -465,21 +457,11 @@ const styles = StyleSheet.create({
   contentBlock: {
     marginBottom: 10,
   },
-  contentLine: {
-    fontSize: 14,
-    lineHeight: 20,
-    textAlign: "center",
-    color: "#222",
-  },
   kvKey: {
     fontWeight: "700",
-    color: "#841584",
+    color: Colors.light.primary,
     textTransform: "uppercase",
     letterSpacing: 0.5,
-  },
-  linkText: {
-    color: Colors.light.tint,
-    textDecorationLine: "underline",
   },
   linkButton: {
     backgroundColor: Colors.light.tint,
@@ -495,17 +477,17 @@ const styles = StyleSheet.create({
   projectLink: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#f9f9f9",
+    backgroundColor: Colors.light.backgroundSecondary,
     padding: 8,
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: "#eee",
+    borderColor: Colors.light.border,
     justifyContent: "center",
   },
   projectTitle: {
     marginLeft: 8,
     fontWeight: "600",
-    color: "#333",
+    color: Colors.light.text,
     textAlign: "center",
   },
   footer: {
@@ -521,7 +503,7 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 8,
     borderRadius: 20,
-    backgroundColor: "#f0f0f0",
+    backgroundColor: Colors.light.backgroundSecondary,
     alignItems: "center",
   },
   filterBtnActive: {

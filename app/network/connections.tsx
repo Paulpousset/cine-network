@@ -2,15 +2,17 @@ import { Ionicons } from "@expo/vector-icons";
 import { Stack, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-    Alert,
-    FlatList,
-    RefreshControl,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Alert,
+  FlatList,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { supabase } from "../../lib/supabase";
+import { GlobalStyles } from "@/constants/Styles";
+import Colors from "@/constants/Colors";
 
 export default function NetworkConnections() {
   const router = useRouter();
@@ -91,7 +93,7 @@ export default function NetworkConnections() {
     const otherUser = isMeRequester ? item.receiver : item.requester;
 
     return (
-      <View style={styles.card}>
+      <View style={GlobalStyles.card}>
         <TouchableOpacity
           style={styles.info}
           onPress={() =>
@@ -101,10 +103,10 @@ export default function NetworkConnections() {
             })
           }
         >
-          <Text style={styles.name}>
+          <Text style={GlobalStyles.title2}>
             {otherUser.full_name || otherUser.username}
           </Text>
-          <Text style={styles.subtext}>
+          <Text style={GlobalStyles.caption}>
             {otherUser.role ? otherUser.role.toUpperCase() : "Membre"} •{" "}
             {otherUser.ville || "N/A"}
           </Text>
@@ -116,7 +118,7 @@ export default function NetworkConnections() {
             removeConnection(item.id, otherUser.full_name || otherUser.username)
           }
         >
-          <Ionicons name="trash-outline" size={20} color="red" />
+          <Ionicons name="trash-outline" size={20} color={Colors.light.danger} />
         </TouchableOpacity>
       </View>
     );
@@ -132,7 +134,7 @@ export default function NetworkConnections() {
               onPress={() => router.back()}
               style={{ marginRight: 10 }}
             >
-              <Ionicons name="arrow-back" size={24} color="#000" />
+              <Ionicons name="arrow-back" size={24} color={Colors.light.text} />
             </TouchableOpacity>
           ),
         }}
@@ -158,20 +160,6 @@ export default function NetworkConnections() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f8f9fa" },
-  card: {
-    backgroundColor: "white",
-    padding: 15,
-    borderRadius: 12,
-    marginBottom: 10,
-    flexDirection: "row",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 2,
-  },
+  container: { flex: 1, backgroundColor: Colors.light.backgroundSecondary },
   info: { flex: 1 },
-  name: { fontSize: 16, fontWeight: "bold", color: "#333" },
-  subtext: { fontSize: 12, color: "#666", marginTop: 2 },
 });

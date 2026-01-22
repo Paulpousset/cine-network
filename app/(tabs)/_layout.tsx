@@ -25,13 +25,30 @@ export default function TabLayout() {
         headerShown: useClientOnlyValue(false, true),
         tabBarStyle: {
           backgroundColor: Colors[colorScheme ?? "light"].background,
-          height: 60, // A bit taller for better touch targets
+          borderTopWidth: 1,
+          borderTopColor: Colors[colorScheme ?? "light"].border, // Utilisation de la nouvelle couleur de bordure
+          height: 60,
           paddingBottom: 8,
           paddingTop: 8,
+          elevation: 0, // Suppression de l'ombre sur Android pour le style Minimal
+          shadowOpacity: 0, // Suppression de l'ombre sur iOS pour le style Minimal
         },
         tabBarLabelStyle: {
           fontSize: 10,
           fontWeight: "600",
+          fontFamily: "System", // Police système propre pour le côté Minimal
+        },
+        headerStyle: {
+          backgroundColor: Colors[colorScheme ?? "light"].background,
+          elevation: 0, // Suppression de l'ombre du header
+          shadowOpacity: 0,
+          borderBottomWidth: 1,
+          borderBottomColor: Colors[colorScheme ?? "light"].border,
+        },
+        headerTitleStyle: {
+          fontWeight: "700",
+          fontSize: 18,
+          color: Colors[colorScheme ?? "light"].text,
         },
       }}
     >

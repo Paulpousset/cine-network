@@ -2,14 +2,16 @@ import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    FlatList,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  FlatList,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { supabase } from "../../../lib/supabase";
+import { GlobalStyles } from "@/constants/Styles";
+import Colors from "@/constants/Colors";
 
 export default function ProjectTeam() {
   const router = useRouter();
@@ -61,12 +63,12 @@ export default function ProjectTeam() {
     const category = item.category;
 
     return (
-      <View style={styles.card}>
+      <View style={GlobalStyles.card}>
         <View style={styles.avatarPlaceholder}>
           <Text style={styles.avatarText}>{name.charAt(0).toUpperCase()}</Text>
         </View>
         <View style={{ flex: 1, marginLeft: 15 }}>
-          <Text style={styles.name}>{name}</Text>
+          <Text style={GlobalStyles.title2}>{name}</Text>
           <Text style={styles.roleTitle}>{roleTitle}</Text>
           <View style={styles.metaRow}>
             <View style={styles.badge}>
@@ -98,15 +100,15 @@ export default function ProjectTeam() {
           onPress={() => router.back()}
           style={styles.backButton}
         >
-          <Ionicons name="arrow-back" size={24} color="black" />
+          <Ionicons name="arrow-back" size={24} color={Colors.light.text} />
         </TouchableOpacity>
-        <Text style={styles.title}>L'Équipe du Film</Text>
+        <Text style={GlobalStyles.title1}>L'Équipe du Film</Text>
       </View>
 
       {loading ? (
         <ActivityIndicator
           size="large"
-          color="#841584"
+          color={Colors.light.primary}
           style={{ marginTop: 50 }}
         />
       ) : (
@@ -127,48 +129,36 @@ export default function ProjectTeam() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f8f9fa" },
+  container: { flex: 1, backgroundColor: Colors.light.backgroundSecondary },
   header: {
     padding: 20,
     paddingTop: 60,
-    backgroundColor: "white",
+    backgroundColor: Colors.light.background,
     flexDirection: "row",
     alignItems: "center",
     borderBottomWidth: 1,
-    borderColor: "#eee",
+    borderColor: Colors.light.border,
   },
   backButton: { marginRight: 15 },
-  title: { fontSize: 20, fontWeight: "bold" },
-  card: {
-    backgroundColor: "white",
-    borderRadius: 12,
-    padding: 15,
-    marginBottom: 10,
-    flexDirection: "row",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOpacity: 0.05,
-    shadowRadius: 5,
-    elevation: 2,
-  },
   avatarPlaceholder: {
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: "#e1bee7",
+    backgroundColor: Colors.light.tint,
     justifyContent: "center",
     alignItems: "center",
   },
-  avatarText: { fontSize: 20, fontWeight: "bold", color: "#841584" },
-  name: { fontSize: 16, fontWeight: "bold", marginBottom: 2 },
-  roleTitle: { fontSize: 14, color: "#333", marginBottom: 5 },
+  avatarText: { fontSize: 20, fontWeight: "bold", color: Colors.light.primary },
+  roleTitle: { fontSize: 14, color: Colors.light.text, marginBottom: 5 },
   metaRow: { flexDirection: "row", alignItems: "center", gap: 10 },
   badge: {
-    backgroundColor: "#f3f3f3",
+    backgroundColor: Colors.light.backgroundSecondary,
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 4,
+    borderWidth: 1,
+    borderColor: Colors.light.border
   },
-  badgeText: { fontSize: 10, color: "#666", fontWeight: "600" },
+  badgeText: { fontSize: 10, color: Colors.light.text, fontWeight: "600" },
   cityText: { fontSize: 12, color: "#999" },
 });

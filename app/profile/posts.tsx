@@ -4,15 +4,17 @@ import { useFocusEffect } from "@react-navigation/native";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    FlatList,
-    Image,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  Image,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
+import { GlobalStyles } from "@/constants/Styles";
+import Colors from "@/constants/Colors";
 
 interface Post {
   id: string;
@@ -102,7 +104,7 @@ export default function UserPostsScreen() {
   };
 
   const renderItem = ({ item }: { item: Post }) => (
-    <View style={styles.card}>
+    <View style={GlobalStyles.card}>
       <View style={styles.header}>
         <Image
           source={{
@@ -129,13 +131,13 @@ export default function UserPostsScreen() {
               <Ionicons name="pencil" size={20} color="#666" />
             </TouchableOpacity>
             <TouchableOpacity onPress={() => deletePost(item.id)}>
-              <Ionicons name="trash" size={20} color="red" />
+              <Ionicons name="trash" size={20} color={Colors.light.danger} />
             </TouchableOpacity>
           </View>
         )}
       </View>
 
-      {item.content && <Text style={styles.content}>{item.content}</Text>}
+      {item.content && <Text style={GlobalStyles.body}>{item.content}</Text>}
 
       {item.image_url && (
         <Image
@@ -169,7 +171,7 @@ export default function UserPostsScreen() {
       />
 
       {loading ? (
-        <ActivityIndicator style={{ marginTop: 20 }} />
+        <ActivityIndicator style={{ marginTop: 20 }} color={Colors.light.primary} />
       ) : (
         <FlatList
           data={posts}
@@ -191,18 +193,7 @@ export default function UserPostsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f4f4f4",
-  },
-  card: {
-    backgroundColor: "white",
-    borderRadius: 10,
-    padding: 15,
-    marginBottom: 10,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    backgroundColor: Colors.light.backgroundSecondary,
   },
   header: {
     flexDirection: "row",
@@ -219,15 +210,11 @@ const styles = StyleSheet.create({
   name: {
     fontWeight: "bold",
     fontSize: 16,
+    color: Colors.light.text
   },
   date: {
     color: "#666",
     fontSize: 12,
-  },
-  content: {
-    fontSize: 14,
-    marginBottom: 10,
-    lineHeight: 20,
   },
   postImage: {
     width: "100%",
@@ -239,11 +226,11 @@ const styles = StyleSheet.create({
   projectLink: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#f9f9f9",
+    backgroundColor: Colors.light.backgroundSecondary,
     padding: 8,
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: "#eee",
+    borderColor: Colors.light.border,
   },
   projectTitle: {
     marginLeft: 8,

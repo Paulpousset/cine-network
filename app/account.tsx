@@ -8,7 +8,6 @@ import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  Button,
   Image,
   ScrollView,
   StyleSheet,
@@ -18,6 +17,8 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { GlobalStyles } from "@/constants/Styles";
+import Colors from "@/constants/Colors";
 
 // --- CONSTANTS ---
 const HAIR_COLORS = [
@@ -399,7 +400,7 @@ export default function Account() {
   if (loading && !profile.id)
     return (
       <View style={styles.center}>
-        <ActivityIndicator />
+        <ActivityIndicator color={Colors.light.primary} />
       </View>
     );
 
@@ -409,18 +410,18 @@ export default function Account() {
       {/* HEADER */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={{ padding: 5 }}>
-          <Ionicons name="arrow-back" size={24} color="#333" />
+          <Ionicons name="arrow-back" size={24} color={Colors.light.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Mon Profil</Text>
+        <Text style={[GlobalStyles.title2, { marginBottom: 0 }]}>Mon Profil</Text>
         <TouchableOpacity
           onPress={saveProfile}
           disabled={loading || uploading}
           style={{ padding: 5 }}
         >
           {loading || uploading ? (
-            <ActivityIndicator size="small" color="#841584" />
+            <ActivityIndicator size="small" color={Colors.light.primary} />
           ) : (
-            <Text style={{ color: "#841584", fontWeight: "bold" }}>Sauver</Text>
+            <Text style={{ color: Colors.light.primary, fontWeight: "bold" }}>Sauver</Text>
           )}
         </TouchableOpacity>
       </View>
@@ -447,22 +448,24 @@ export default function Account() {
 
         {/* 1. INFOS GENERALES */}
         <SectionTitle title="Informations Générales" />
-        <View style={styles.card}>
+        <View style={GlobalStyles.card}>
           <Text style={styles.label}>Nom complet</Text>
           <TextInput
-            style={styles.input}
+            style={GlobalStyles.input}
             value={full_name}
             onChangeText={setFullName}
             placeholder="Prénom Nom"
+            placeholderTextColor="#999"
           />
 
           <Text style={styles.label}>Nom d'utilisateur (Pseudo)</Text>
           <TextInput
-            style={styles.input}
+            style={GlobalStyles.input}
             value={username}
             onChangeText={setUsername}
             placeholder="pseudo"
             autoCapitalize="none"
+            placeholderTextColor="#999"
           />
 
           <Text style={styles.label}>Rôle Principal</Text>
@@ -495,51 +498,56 @@ export default function Account() {
 
           <Text style={styles.label}>Ville de résidence</Text>
           <TextInput
-            style={styles.input}
+            style={GlobalStyles.input}
             value={city}
             onChangeText={setCity}
             placeholder="Paris, France"
+            placeholderTextColor="#999"
           />
 
           <Text style={styles.label}>Bio / Présentation</Text>
           <TextInput
-            style={[styles.input, styles.textArea]}
+            style={[GlobalStyles.input, styles.textArea]}
             value={bio}
             onChangeText={setBio}
             placeholder="Décrivez votre parcours en quelques lignes..."
             multiline
+            placeholderTextColor="#999"
           />
         </View>
 
         {/* 2. CONTACT PUBLIC */}
         <SectionTitle title="Contact & Pro" />
-        <View style={styles.card}>
+        <View style={GlobalStyles.card}>
           <Text style={styles.label}>Site web / Portfolio URL</Text>
           <TextInput
-            style={styles.input}
+            style={GlobalStyles.input}
             value={website}
             onChangeText={setWebsite}
             placeholder="https://..."
             autoCapitalize="none"
+            placeholderTextColor="#999"
           />
 
           <Text style={styles.label}>Email Pro (Public)</Text>
           <TextInput
-            style={styles.input}
+            style={GlobalStyles.input}
             value={email_public}
             onChangeText={setEmailPublic}
             placeholder="contact@exemple.com"
             keyboardType="email-address"
             autoCapitalize="none"
+            placeholderTextColor="#999"
           />
 
           <Text style={styles.label}>Téléphone (Optionnel)</Text>
           <TextInput
-            style={styles.input}
+            style={GlobalStyles.input}
             value={phone}
             onChangeText={setPhone}
             placeholder="+33 6..."
             keyboardType="phone-pad"
+            placeholderTextColor="#999"
           />
 
           <View
@@ -553,14 +561,14 @@ export default function Account() {
               borderColor: "#eee",
             }}
           >
-            <Text style={{ fontSize: 14, color: "#333", flex: 1 }}>
+            <Text style={{ fontSize: 14, color: Colors.light.text, flex: 1 }}>
               Afficher mes contacts sur mon profil public ?
             </Text>
             <Switch
               value={isContactVisible}
               onValueChange={toggleContactVisibility}
-              trackColor={{ false: "#767577", true: "#E1BEE7" }}
-              thumbColor={isContactVisible ? "#841584" : "#f4f3f4"}
+              trackColor={{ false: "#767577", true: Colors.light.primary }}
+              thumbColor={isContactVisible ? Colors.light.tint : "#f4f3f4"}
             />
           </View>
         </View>
@@ -571,16 +579,17 @@ export default function Account() {
         {["acteur", "modele", "figurant"].includes(role) && (
           <>
             <SectionTitle title="Apparence & Caractéristiques" />
-            <View style={styles.card}>
+            <View style={GlobalStyles.card}>
               <View style={{ flexDirection: "row", gap: 10 }}>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.label}>Taille (cm)</Text>
                   <TextInput
-                    style={styles.input}
+                    style={GlobalStyles.input}
                     value={height}
                     onChangeText={setHeight}
                     placeholder="175"
                     keyboardType="numeric"
+                    placeholderTextColor="#999"
                   />
                 </View>
                 <View style={{ flex: 1 }}>
@@ -643,22 +652,24 @@ export default function Account() {
         ) && (
           <>
             <SectionTitle title="Matériel & Outils" />
-            <View style={styles.card}>
+            <View style={GlobalStyles.card}>
               <Text style={styles.label}>
                 Matériel (Caméra, Son, Lumière...)
               </Text>
               <TextInput
-                style={styles.input}
+                style={GlobalStyles.input}
                 value={equipment}
                 onChangeText={setEquipment}
                 placeholder="Ex: Sony A7S III, Micro Zoom H6..."
+                placeholderTextColor="#999"
               />
               <Text style={styles.label}>Logiciels & Outils</Text>
               <TextInput
-                style={styles.input}
+                style={GlobalStyles.input}
                 value={software}
                 onChangeText={setSoftware}
                 placeholder="Premiere Pro, DaVinci, Final Draft..."
+                placeholderTextColor="#999"
               />
             </View>
           </>
@@ -668,13 +679,14 @@ export default function Account() {
         {role === "hmc" && (
           <>
             <SectionTitle title="Spécialités HMC" />
-            <View style={styles.card}>
+            <View style={GlobalStyles.card}>
               <Text style={styles.label}>Spécialités</Text>
               <TextInput
-                style={styles.input}
+                style={GlobalStyles.input}
                 value={specialties}
                 onChangeText={setSpecialties}
                 placeholder="Maquillage SFX, Coiffure époque..."
+                placeholderTextColor="#999"
               />
             </View>
           </>
@@ -682,13 +694,14 @@ export default function Account() {
 
         {/* 4. SKILLS */}
         <SectionTitle title="Compétences & Tags" />
-        <View style={styles.card}>
+        <View style={GlobalStyles.card}>
           <View style={{ flexDirection: "row", gap: 5 }}>
             <TextInput
-              style={[styles.input, { flex: 1, marginBottom: 0 }]}
+              style={[GlobalStyles.input, { flex: 1, marginBottom: 0 }]}
               value={skillsInput}
               onChangeText={setSkillsInput}
               placeholder="Ajouter (ex: Piano, Permis B, Montage...)"
+              placeholderTextColor="#999"
               onSubmitEditing={() => {
                 if (skillsInput.trim()) {
                   setSkills([...skills, skillsInput.trim()]);
@@ -726,7 +739,7 @@ export default function Account() {
 
         {/* 5. DOCUMENTS & MEDIAS */}
         <SectionTitle title="Documents & Médias" />
-        <View style={styles.card}>
+        <View style={GlobalStyles.card}>
           {/* CV */}
           <Text style={styles.label}>CV (PDF)</Text>
           <View
@@ -741,11 +754,11 @@ export default function Account() {
                 style={styles.fileButton}
                 onPress={() => Alert.alert("CV", "Fichier déjà uploadé")}
               >
-                <Ionicons name="document-text" size={24} color="#841584" />
+                <Ionicons name="document-text" size={24} color={Colors.light.primary} />
                 <Text
                   style={{
                     marginLeft: 10,
-                    color: "#841584",
+                    color: Colors.light.primary,
                     fontWeight: "600",
                   }}
                 >
@@ -791,7 +804,7 @@ export default function Account() {
                     borderRadius: 10,
                   }}
                 >
-                  <Ionicons name="close-circle" size={20} color="red" />
+                  <Ionicons name="close-circle" size={20} color={Colors.light.danger} />
                 </TouchableOpacity>
               </View>
             ))}
@@ -817,17 +830,18 @@ export default function Account() {
             Bande Démo (Lien YouTube/Vimeo)
           </Text>
           <TextInput
-            style={styles.input}
+            style={GlobalStyles.input}
             value={showreel_url}
             onChangeText={setShowreelUrl}
             placeholder="https://youtube.com/..."
             autoCapitalize="none"
+            placeholderTextColor="#999"
           />
         </View>
 
         {/* 6. VISIBILITÉ PROJETS */}
         <SectionTitle title="Confidentialité Projets" />
-        <View style={styles.card}>
+        <View style={GlobalStyles.card}>
           <Text style={{ fontSize: 13, color: "#666", marginBottom: 15 }}>
             Cochez les projets que vous souhaitez rendre visibles sur votre
             profil public.
@@ -868,8 +882,8 @@ export default function Account() {
                   <Switch
                     value={isVisible}
                     onValueChange={(val) => toggleProjectVisibility(p.id, val)}
-                    trackColor={{ false: "#767577", true: "#E1BEE7" }}
-                    thumbColor={isVisible ? "#841584" : "#f4f3f4"}
+                    trackColor={{ false: "#767577", true: Colors.light.primary }}
+                    thumbColor={isVisible ? Colors.light.tint : "#f4f3f4"}
                   />
                 </View>
               );
@@ -902,7 +916,7 @@ export default function Account() {
                 >
                   <View style={{ flex: 1 }}>
                     <Text style={{ fontWeight: "600" }}>{p.projectTitle}</Text>
-                    <Text style={{ fontSize: 12, color: "#841584" }}>
+                    <Text style={{ fontSize: 12, color: Colors.light.primary }}>
                       Rôle : {p.roleTitle}
                     </Text>
                   </View>
@@ -911,8 +925,8 @@ export default function Account() {
                     onValueChange={(val) =>
                       toggleProjectVisibility(p.projectId, val)
                     }
-                    trackColor={{ false: "#767577", true: "#E1BEE7" }}
-                    thumbColor={isVisible ? "#841584" : "#f4f3f4"}
+                    trackColor={{ false: "#767577", true: Colors.light.primary }}
+                    thumbColor={isVisible ? Colors.light.tint : "#f4f3f4"}
                   />
                 </View>
               );
@@ -921,14 +935,20 @@ export default function Account() {
         </View>
 
         <View style={{ height: 50 }} />
-        <Button
-          title="Se déconnecter"
+        <TouchableOpacity
           onPress={async () => {
             await supabase.auth.signOut();
             router.replace("/");
           }}
-          color="#ff3b30"
-        />
+          style={{ 
+              backgroundColor: Colors.light.danger,
+              padding: 15,
+              borderRadius: 12,
+              alignItems: 'center'
+           }}
+        >
+            <Text style={{ color: 'white', fontWeight: 'bold' }}>Se déconnecter</Text>
+        </TouchableOpacity>
         <View style={{ height: 50 }} />
       </ScrollView>
     </View>
@@ -936,20 +956,19 @@ export default function Account() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f8f9fa" },
+  container: { flex: 1, backgroundColor: Colors.light.backgroundSecondary },
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
   header: {
     paddingTop: 50,
     paddingBottom: 15,
     paddingHorizontal: 15,
-    backgroundColor: "white",
+    backgroundColor: Colors.light.background,
     borderBottomWidth: 1,
-    borderBottomColor: "#eee",
+    borderBottomColor: Colors.light.border,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
   },
-  headerTitle: { fontSize: 18, fontWeight: "bold" },
   scrollContent: { padding: 20 },
   avatar: { width: 100, height: 100, borderRadius: 50 },
   avatarPlaceholder: {
@@ -964,7 +983,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     right: 0,
     bottom: 0,
-    backgroundColor: "#841584",
+    backgroundColor: Colors.light.primary,
     padding: 6,
     borderRadius: 15,
     borderWidth: 2,
@@ -979,28 +998,10 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     letterSpacing: 1,
   },
-  card: {
-    backgroundColor: "white",
-    borderRadius: 10,
-    padding: 15,
-    shadowColor: "#000",
-    shadowOpacity: 0.05,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
-    marginBottom: 5,
-  },
   label: { fontSize: 13, color: "#666", marginBottom: 6, fontWeight: "500" },
-  input: {
-    borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 8,
-    padding: 10,
-    marginBottom: 12,
-    fontSize: 15,
-  },
   textArea: { height: 80, textAlignVertical: "top" },
   addButton: {
-    backgroundColor: "#841584",
+    backgroundColor: Colors.light.primary,
     justifyContent: "center",
     alignItems: "center",
     width: 44,
@@ -1012,10 +1013,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 20,
-    backgroundColor: "#f0f0f0",
+    backgroundColor: Colors.light.backgroundSecondary,
+    borderWidth: 1,
+    borderColor: Colors.light.border
   },
-  tagSelected: { backgroundColor: "#841584" },
-  tagText: { fontSize: 12, color: "#333" },
+  tagSelected: { backgroundColor: Colors.light.primary, borderColor: Colors.light.primary },
+  tagText: { fontSize: 12, color: Colors.light.text },
   tagTextSelected: { color: "white" },
   skillTag: {
     flexDirection: "row",
@@ -1033,10 +1036,4 @@ const styles = StyleSheet.create({
     padding: 10,
     borderRadius: 8,
   },
-  roleButton: {
-    // Kept from old styles just in case, though unused in new render
-  },
-  roleButtonSelected: {},
-  roleText: {},
-  roleTextSelected: {},
 });

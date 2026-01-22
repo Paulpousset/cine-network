@@ -2,21 +2,23 @@ import { JOB_TITLES } from "@/utils/roles";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { supabase } from "../../lib/supabase";
 import AddressAutocomplete from "../components/AddressAutocomplete";
 import CityPicker from "../components/CityPicker";
 import CountryPicker from "../components/CountryPicker";
+import { GlobalStyles } from "@/constants/Styles";
+import Colors from "@/constants/Colors";
 
 export default function CreateTournage() {
   const router = useRouter();
@@ -177,24 +179,26 @@ export default function CreateTournage() {
       behavior={Platform.select({ ios: "padding", android: undefined })}
     >
       <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.container}>
-        <Text style={styles.headerTitle}>Créer un tournage</Text>
+        <Text style={GlobalStyles.title1}>Créer un tournage</Text>
 
-        <View style={styles.section}>
+        <View style={GlobalStyles.card}>
           <Text style={styles.label}>Titre</Text>
           <TextInput
             placeholder="Ex: Le Dernier Métro"
-            style={styles.input}
+            style={GlobalStyles.input}
             value={title}
             onChangeText={setTitle}
+            placeholderTextColor="#999"
           />
 
           <Text style={styles.label}>Pitch / Description</Text>
           <TextInput
             placeholder="Décrivez brièvement votre projet"
-            style={[styles.input, styles.textArea]}
+            style={[GlobalStyles.input, styles.textArea]}
             value={desc}
             onChangeText={setDesc}
             multiline
+            placeholderTextColor="#999"
           />
 
           <Text style={styles.label}>Pays</Text>
@@ -239,7 +243,7 @@ export default function CreateTournage() {
                 ]}
                 onPress={() => setType(t)}
               >
-                <Text style={{ color: type === t ? "white" : "#841584" }}>
+                <Text style={{ color: type === t ? "white" : Colors.light.primary, fontWeight: '600' }}>
                   {t === "court_metrage"
                     ? "Court"
                     : t.charAt(0).toUpperCase() + t.slice(1)}
@@ -250,8 +254,8 @@ export default function CreateTournage() {
         </View>
 
         {/* Rôles à rechercher */}
-        <View style={[styles.section, { marginTop: 16 }]}>
-          <Text style={styles.sectionTitle}>Rôles recherchés</Text>
+        <View style={[GlobalStyles.card, { marginTop: 16 }]}>
+          <Text style={GlobalStyles.title2}>Rôles recherchés</Text>
           {Object.keys(JOB_TITLES).map((cat) => (
             <View key={cat} style={{ marginTop: 10 }}>
               <Text style={styles.catTitle}>
@@ -273,8 +277,9 @@ export default function CreateTournage() {
                     >
                       <Text
                         style={{
-                          color: active ? "#fff" : "#841584",
+                          color: active ? "#fff" : Colors.light.primary,
                           marginLeft: 6,
+                          fontWeight: active ? 'bold' : 'normal'
                         }}
                       >
                         + {job}
@@ -292,16 +297,16 @@ export default function CreateTournage() {
           ))}
 
           {/* Résumé de la sélection */}
-          <View style={{ marginTop: 16 }}>
+          <View style={{ marginTop: 16, paddingTop: 16, borderTopWidth: 1, borderColor: Colors.light.border }}>
             <Text style={styles.label}>Sélection</Text>
             {Object.keys(selected).length === 0 ? (
-              <Text style={{ color: "#888" }}>Aucun rôle sélectionné.</Text>
+              <Text style={{ color: "#888", fontStyle: 'italic' }}>Aucun rôle sélectionné.</Text>
             ) : (
               <View style={{ gap: 8 }}>
                 {Object.entries(selected).map(([k, r]) => (
                   <View key={k} style={styles.selectionRow}>
-                    <Text style={{ flex: 1 }}>
-                      {r.title} • {r.category}
+                    <Text style={{ flex: 1, color: Colors.light.text }}>
+                      <Text style={{ fontWeight: 'bold' }}>{r.title}</Text> • {r.category}
                     </Text>
                     <View style={styles.qtyControls}>
                       <TouchableOpacity
@@ -312,7 +317,7 @@ export default function CreateTournage() {
                           −
                         </Text>
                       </TouchableOpacity>
-                      <Text style={{ minWidth: 18, textAlign: "center" }}>
+                      <Text style={{ minWidth: 18, textAlign: "center", color: Colors.light.text }}>
                         {r.quantity}
                       </Text>
                       <TouchableOpacity
@@ -333,28 +338,25 @@ export default function CreateTournage() {
 
         <View style={styles.actions}>
           <TouchableOpacity
-            style={[styles.button, styles.buttonSecondary]}
+            style={GlobalStyles.secondaryButton}
             onPress={() => router.back()}
             disabled={creating}
           >
-            <Text style={[styles.buttonText, { color: "#333" }]}>Annuler</Text>
+            <Text style={GlobalStyles.secondaryButtonText}>Annuler</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.button, styles.buttonPrimary]}
+            style={GlobalStyles.primaryButton}
             onPress={handleCreate}
             disabled={creating}
           >
             {creating ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <View
-                style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
-              >
-                <Text style={styles.buttonText}>Créer le tournage</Text>
-              </View>
+              <Text style={GlobalStyles.buttonText}>Créer le tournage</Text>
             )}
           </TouchableOpacity>
         </View>
+        <View style={{ height: 40 }} />
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -364,27 +366,19 @@ const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
     padding: 20,
-    backgroundColor: "#f8f9fa",
+    backgroundColor: Colors.light.backgroundSecondary,
   },
   headerTitle: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: "bold",
     marginTop: 10,
     marginBottom: 20,
-  },
-  section: {
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    padding: 16,
-    shadowColor: "#000",
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 2,
   },
   label: {
     fontWeight: "600",
     marginBottom: 8,
     marginTop: 8,
+    color: Colors.light.text,
   },
   helperText: {
     fontSize: 12,
@@ -393,13 +387,6 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     marginTop: -4,
     marginLeft: 2,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
   },
   textArea: {
     height: 120,
@@ -414,21 +401,16 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderWidth: 1,
-    borderColor: "#841584",
+    borderColor: Colors.light.primary,
     borderRadius: 8,
     backgroundColor: "transparent",
   },
   typeButtonSelected: {
-    backgroundColor: "#841584",
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    marginBottom: 6,
+    backgroundColor: Colors.light.primary,
   },
   catTitle: {
     fontWeight: "600",
-    color: "#444",
+    color: Colors.light.text,
     marginBottom: 6,
   },
   rowWrap: {
@@ -443,11 +425,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: "#841584",
-    backgroundColor: "#fff",
+    borderColor: Colors.light.primary,
+    backgroundColor: Colors.light.background,
   },
   jobAddChipSelected: {
-    backgroundColor: "#841584",
+    backgroundColor: Colors.light.primary,
   },
   countBadge: {
     marginLeft: 8,
@@ -468,8 +450,10 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     padding: 10,
-    backgroundColor: "#fafafa",
+    backgroundColor: Colors.light.backgroundSecondary,
     borderRadius: 8,
+    borderWidth: 1,
+    borderColor: Colors.light.border
   },
   qtyControls: {
     flexDirection: "row",
@@ -491,22 +475,5 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginTop: 20,
     gap: 12,
-  },
-  button: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  buttonPrimary: {
-    backgroundColor: "#841584",
-  },
-  buttonSecondary: {
-    backgroundColor: "#eee",
-  },
-  buttonText: {
-    color: "#fff",
-    fontWeight: "600",
   },
 });

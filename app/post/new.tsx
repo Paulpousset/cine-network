@@ -4,21 +4,22 @@ import * as ImagePicker from "expo-image-picker";
 import { Stack, router } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    Image,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 import Colors from "@/constants/Colors";
 import { supabase } from "@/lib/supabase";
+import { GlobalStyles } from "@/constants/Styles";
 
 export default function NewPostScreen() {
   const [content, setContent] = useState("");
@@ -151,23 +152,24 @@ export default function NewPostScreen() {
 
   return (
     <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: "white" }}
+      style={{ flex: 1, backgroundColor: Colors.light.backgroundSecondary }}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
       <Stack.Screen
         options={{ title: "Nouveau Post", headerBackTitle: "Annuler" }}
       />
       <ScrollView contentContainerStyle={styles.container}>
-        <View style={styles.inputContainer}>
+        <View style={GlobalStyles.card}>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { minHeight: 100 }]}
             placeholder="Quoi de neuf ?"
             multiline
             value={content}
             onChangeText={setContent}
             textAlignVertical="top"
+            placeholderTextColor="#999"
           />
-        </View>
+        
 
         {image && (
           <View style={styles.imagePreview}>
@@ -190,8 +192,9 @@ export default function NewPostScreen() {
             <Text style={styles.actionText}>Ajouter une photo</Text>
           </TouchableOpacity>
         </View>
+        </View>
 
-        <View style={styles.projectSelect}>
+        <View style={[GlobalStyles.card, styles.projectSelect]}>
           <Text style={styles.label}>Visibilité du post</Text>
           <View style={{ flexDirection: "row", gap: 15, marginBottom: 20 }}>
             <TouchableOpacity
@@ -265,14 +268,14 @@ export default function NewPostScreen() {
         </View>
 
         <TouchableOpacity
-          style={[styles.submitButton, loading && { opacity: 0.7 }]}
+          style={[GlobalStyles.primaryButton, loading && { opacity: 0.7 }, { marginTop: 20 }]}
           onPress={handlePost}
           disabled={loading}
         >
           {loading ? (
             <ActivityIndicator color="white" />
           ) : (
-            <Text style={styles.submitText}>Publier</Text>
+            <Text style={GlobalStyles.buttonText}>Publier</Text>
           )}
         </TouchableOpacity>
       </ScrollView>
@@ -303,13 +306,9 @@ const styles = StyleSheet.create({
   container: {
     padding: 20,
   },
-  inputContainer: {
-    minHeight: 100,
-  },
   input: {
     fontSize: 16,
-    color: "#333",
-    minHeight: 100,
+    color: Colors.light.text,
   },
   imagePreview: {
     marginVertical: 15,
@@ -326,8 +325,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     marginVertical: 10,
     borderTopWidth: 1,
-    borderBottomWidth: 1,
-    borderColor: "#eee",
+    borderColor: Colors.light.border,
     paddingVertical: 10,
   },
   actionButton: {
@@ -341,12 +339,13 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   projectSelect: {
-    marginTop: 20,
+    // marginTop: 20,
   },
   label: {
     fontSize: 14,
     color: "#666",
     marginBottom: 5,
+    fontWeight: '600'
   },
   pickerContainer: {
     backgroundColor: "#f9f9f9",
@@ -358,18 +357,6 @@ const styles = StyleSheet.create({
     borderColor: "#ddd",
     borderRadius: 8,
     backgroundColor: "#f9f9f9",
-  },
-  submitButton: {
-    backgroundColor: Colors.light.tint,
-    padding: 15,
-    borderRadius: 8,
-    alignItems: "center",
-    marginTop: 30,
-  },
-  submitText: {
-    color: "white",
-    fontWeight: "bold",
-    fontSize: 16,
   },
   visibilityBtn: {
     flex: 1,
