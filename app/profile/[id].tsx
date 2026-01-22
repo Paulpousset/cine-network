@@ -24,6 +24,14 @@ export default function ProfileDetail() {
   const [isOwnProfile, setIsOwnProfile] = useState(false);
   const [contactVisible, setContactVisible] = useState(true);
 
+  // Connection State
+  const [connectionStatus, setConnectionStatus] = useState<
+    "pending" | "accepted" | "rejected" | null
+  >(null);
+  const [connectionId, setConnectionId] = useState<string | null>(null);
+  const [isRequester, setIsRequester] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+
   useEffect(() => {
     fetchProfile();
   }, [id]);
@@ -38,12 +46,13 @@ export default function ProfileDetail() {
 
       setLoading(true);
 
-      // Check current user
       const {
         data: { session },
       } = await supabase.auth.getSession();
-      const currentUserId = session?.user?.id;
-      const isOwner = currentUserId === profileId;
+      const myId = session?.user?.id || null;
+      setCurrentUserId(myId);
+
+      const isOwner = myId === profileId;
       setIsOwnProfile(isOwner);
 
       // Fetch Profile Data
@@ -52,6 +61,7 @@ export default function ProfileDetail() {
         .select("*")
         .eq("id", profileId)
         .single();
+
       if (error) throw error;
       setProfile(data);
 
@@ -71,14 +81,40 @@ export default function ProfileDetail() {
       }
       setContactVisible(isContactVisibleInSettings);
 
-      // fetch public tournages for this user
+      // Fetch connection status if not owner
+      if (myId && !isOwner) {
+        // On récupère TOUTES les connexions potentielles (doublons inclus)
+        const { data: conns } = await supabase
+          .from("connections")
+          .select("*")
+          .or(
+            `and(requester_id.eq.${myId},receiver_id.eq.${profileId}),and(requester_id.eq.${profileId},receiver_id.eq.${myId})`,
+          );
+
+        if (conns && conns.length > 0) {
+          // Priorité : 1. Accepted, 2. Pending, 3. Rejected
+          const accepted = conns.find((c) => c.status === "accepted");
+          const pending = conns.find((c) => c.status === "pending");
+          const rejected = conns.find((c) => c.status === "rejected");
+
+          const activeConn = accepted || pending || rejected || conns[0];
+
+          setConnectionStatus(activeConn.status);
+          setConnectionId(activeConn.id);
+          setIsRequester(activeConn.requester_id === myId);
+        } else {
+          setConnectionStatus(null);
+          setConnectionId(null);
+        }
+      }
+
+      // Fetch public tournages
       let query = supabase
         .from("tournages")
         .select("id, title, type, created_at, is_public")
         .eq("owner_id", profileId)
         .order("created_at", { ascending: false });
 
-      // If not owner, filter by global public flag (optional, but good practice)
       if (!isOwner) {
         query = query.eq("is_public", true);
       }
@@ -86,7 +122,6 @@ export default function ProfileDetail() {
       const { data: tours, error: errTours } = await query;
       if (!errTours) {
         let filteredTours = tours || [];
-        // Apply Profile Settings Filter (Hidden Projects)
         if (!isOwner) {
           filteredTours = filteredTours.filter(
             (t) => !hiddenIds.includes(t.id),
@@ -95,7 +130,7 @@ export default function ProfileDetail() {
         setTournages(filteredTours);
       }
 
-      // Fetch visible participations
+      // Fetch public participations
       let pQuery = supabase
         .from("project_roles")
         .select(
@@ -121,7 +156,6 @@ export default function ProfileDetail() {
 
       if (!partError && parts) {
         let filteredParts = parts || [];
-        // Apply Profile Settings Filter (Hidden Projects)
         if (!isOwner) {
           filteredParts = filteredParts.filter((p) => {
             const t = Array.isArray(p.tournages) ? p.tournages[0] : p.tournages;
@@ -130,21 +164,128 @@ export default function ProfileDetail() {
         }
         setParticipations(filteredParts);
       }
-    } catch (error) {
-      console.log("Fetch error on profile:", error);
-      Alert.alert("Erreur", (error as Error).message);
+    } catch (e) {
+      console.warn(e);
+      Alert.alert("Ooops", "Impossible de charger le profil.");
       router.back();
     } finally {
       setLoading(false);
     }
   }
 
-  const openLink = (url: string) => {
+  async function handleClap() {
+    if (!currentUserId || !profile) return;
+    try {
+      // 1. Check ALL connections to handle mutual/duplicates
+      const { data: conns } = await supabase
+        .from("connections")
+        .select("*")
+        .or(
+          `and(requester_id.eq.${currentUserId},receiver_id.eq.${profile.id}),and(requester_id.eq.${profile.id},receiver_id.eq.${currentUserId})`,
+        );
+
+      const accepted = conns?.find((c) => c.status === "accepted");
+      if (accepted) {
+        setConnectionStatus("accepted");
+        Alert.alert("Déjà connecté", "Vous êtes déjà connectés.");
+        // Cleanup duplicates if any exist
+        const duplicates = conns?.filter((c) => c.id !== accepted.id) || [];
+        for (const dup of duplicates) {
+          await supabase.from("connections").delete().eq("id", dup.id);
+        }
+        return;
+      }
+
+      const myPendingRequest = conns?.find(
+        (c) => c.requester_id === currentUserId && c.status === "pending",
+      );
+      const receivedPendingRequest = conns?.find(
+        (c) => c.receiver_id === currentUserId && c.status === "pending",
+      );
+
+      // CASE: I already asked
+      if (myPendingRequest && !receivedPendingRequest) {
+        Alert.alert("Patience", "Votre demande est en attente.");
+        setConnectionStatus("pending");
+        setIsRequester(true);
+        setConnectionId(myPendingRequest.id);
+        return;
+      }
+
+      // CASE: They asked me (Accept logic)
+      if (receivedPendingRequest) {
+        const { error } = await supabase
+          .from("connections")
+          .update({ status: "accepted" })
+          .eq("id", receivedPendingRequest.id);
+
+        if (error) throw error;
+
+        // If I ALSO had a pending request to them, delete it now
+        if (myPendingRequest) {
+          await supabase
+            .from("connections")
+            .delete()
+            .eq("id", myPendingRequest.id);
+        }
+
+        setConnectionStatus("accepted");
+        setConnectionId(receivedPendingRequest.id);
+        setIsRequester(false);
+        Alert.alert("Bravo !", "Vous êtes maintenant connecté.");
+        return;
+      }
+
+      // CASE: Revival (Rejected previously)
+      const rejected = conns?.find((c) => c.status === "rejected");
+      if (rejected) {
+        // Relancer
+        const { error } = await supabase
+          .from("connections")
+          .update({
+            status: "pending",
+            requester_id: currentUserId,
+            receiver_id: profile.id,
+            created_at: new Date().toISOString(),
+          })
+          .eq("id", rejected.id);
+
+        if (error) throw error;
+        setConnectionStatus("pending");
+        setConnectionId(rejected.id);
+        setIsRequester(true);
+        Alert.alert("Clap !", "Nouvelle demande envoyée.");
+        return;
+      }
+
+      // CASE: No connection exists -> Create New One
+      const { data, error } = await supabase
+        .from("connections")
+        .insert({
+          requester_id: currentUserId,
+          receiver_id: profile.id,
+          status: "pending",
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      setConnectionStatus("pending");
+      setConnectionId(data.id);
+      setIsRequester(true);
+      Alert.alert("Clap envoyé !", "Votre demande de connexion a été envoyée.");
+    } catch (e) {
+      Alert.alert("Erreur", "Action impossible.");
+      console.error(e);
+    }
+  }
+
+  function openLink(url: string) {
     if (!url) return;
-    Linking.openURL(url).catch((err) =>
-      Alert.alert("Erreur", "Impossible d'ouvrir le lien"),
+    Linking.openURL(url).catch(() =>
+      Alert.alert("Erreur", "Impossible d'ouvrir ce lien"),
     );
-  };
+  }
 
   if (loading)
     return <ActivityIndicator style={{ marginTop: 50 }} color="#841584" />;
@@ -200,14 +341,58 @@ export default function ProfileDetail() {
             </View>
           )}
 
-          <View style={{ flexDirection: "row", gap: 10, marginTop: 15 }}>
+          <View
+            style={{
+              flexDirection: "row",
+              gap: 10,
+              marginTop: 15,
+              flexWrap: "wrap",
+            }}
+          >
+            {/* CLAP BUTTON */}
+            {!isOwnProfile && (
+              <TouchableOpacity
+                style={[
+                  styles.actionButton,
+                  connectionStatus === "accepted"
+                    ? { backgroundColor: "#4CAF50" }
+                    : connectionStatus === "pending"
+                      ? { backgroundColor: "#FF9800" }
+                      : { backgroundColor: "#841584" },
+                ]}
+                onPress={handleClap}
+                disabled={connectionStatus === "pending" && isRequester}
+              >
+                <Ionicons
+                  name={
+                    connectionStatus === "accepted"
+                      ? "checkmark-circle"
+                      : connectionStatus === "pending"
+                        ? "time"
+                        : "hand-left-outline"
+                  }
+                  size={20}
+                  color="white"
+                />
+                <Text style={styles.actionButtonText}>
+                  {connectionStatus === "accepted"
+                    ? "Connecté"
+                    : connectionStatus === "pending"
+                      ? isRequester
+                        ? "En attente..."
+                        : "Accepter Clap"
+                      : "Clap !"}
+                </Text>
+              </TouchableOpacity>
+            )}
+
             {(contactVisible || isOwnProfile) && profile?.website && (
               <TouchableOpacity
-                style={styles.actionButton}
+                style={[styles.actionButton, { backgroundColor: "#333" }]}
                 onPress={() => openLink(profile.website)}
               >
                 <Ionicons name="globe-outline" size={20} color="white" />
-                <Text style={styles.actionButtonText}>Site Web</Text>
+                {/* <Text style={styles.actionButtonText}>Site</Text> */}
               </TouchableOpacity>
             )}
 
@@ -224,6 +409,22 @@ export default function ProfileDetail() {
                 <Text style={styles.actionButtonText}>Voir CV</Text>
               </TouchableOpacity>
             )}
+
+            <TouchableOpacity
+              style={[styles.actionButton, { backgroundColor: "#2196F3" }]}
+              onPress={() =>
+                router.push({
+                  pathname: "/profile/posts",
+                  params: {
+                    userId: profile.id,
+                    userName: profile.full_name || profile.username,
+                  },
+                })
+              }
+            >
+              <Ionicons name="newspaper-outline" size={20} color="white" />
+              <Text style={styles.actionButtonText}>Voir posts</Text>
+            </TouchableOpacity>
           </View>
         </View>
 

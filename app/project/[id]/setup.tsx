@@ -272,13 +272,9 @@ export default function ProjectSetupWizard() {
             gender: r.gender || null,
             age_min: r.ageMin ? parseInt(r.ageMin) : null,
             age_max: r.ageMax ? parseInt(r.ageMax) : null,
-            height: r.height ? parseInt(r.height) : null,
-            hair_color: r.hairColor || null,
-            eye_color: r.eyeColor || null,
             equipment: r.equipment || null,
             software: r.software || null,
             specialties: r.specialties || null,
-            data: r.data || {},
             status: "draft",
           }));
         });

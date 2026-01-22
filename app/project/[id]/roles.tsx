@@ -76,6 +76,7 @@ export default function ManageRoles() {
   const [roles, setRoles] = useState<RoleItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [projectTitle, setProjectTitle] = useState("");
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   // Search/Assign State
   const [assigningRoleId, setAssigningRoleId] = useState<string | null>(null);
@@ -92,23 +93,51 @@ export default function ManageRoles() {
     title: string;
     description: string;
     quantity: string;
-    experience: string;
-    gender: string;
+    experience: string | string[];
+    gender: string | string[];
     ageMin: string;
     ageMax: string;
     height: string;
-    hairColor: string;
-    eyeColor: string;
+    hairColor: string | string[];
+    eyeColor: string | string[];
     equipment: string;
     software: string;
     specialties: string;
     status: string; // "draft" | "published"
     assignee: { id: string; label: string } | null;
     data: any;
+    createPost?: boolean;
   } | null>(null);
   const [isSavingRole, setIsSavingRole] = useState(false);
   const [isSearchingProfileInEdit, setIsSearchingProfileInEdit] =
     useState(false);
+
+  const toArray = (value: any): string[] => {
+    if (Array.isArray(value)) return value;
+    if (!value) return [];
+    if (typeof value === "string" && value.includes(",")) {
+      return value
+        .split(",")
+        .map((v) => v.trim())
+        .filter(Boolean);
+    }
+    return [String(value)];
+  };
+
+  const toggleMultiValue = (key: "experience" | "gender", value: string) => {
+    if (!editingRole) return;
+    const current = toArray(editingRole[key]);
+    const next = current.includes(value)
+      ? current.filter((v) => v !== value)
+      : [...current, value];
+    setEditingRole({ ...editingRole, [key]: next } as typeof editingRole);
+  };
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) setCurrentUserId(user.id);
+    });
+  }, []);
 
   useEffect(() => {
     fetchData();
@@ -196,6 +225,7 @@ export default function ManageRoles() {
       data: {},
       status: "draft",
       assignee: null,
+      createPost: false,
     });
     setEditModalVisible(true);
     setIsSearchingProfileInEdit(false);
@@ -233,6 +263,7 @@ export default function ManageRoles() {
                 role.assigned_profile.username,
             }
           : null,
+        createPost: false,
       });
       setEditModalVisible(true);
       setIsSearchingProfileInEdit(false);
@@ -244,34 +275,83 @@ export default function ManageRoles() {
     }
   }
 
-  async function saveRole() {
+  function handleSave() {
     if (!editingRole) return;
     if (!editingRole.title.trim()) {
       Alert.alert("Erreur", "Le titre est requis");
       return;
     }
 
+    if (!editingRole.id) {
+      Alert.alert(
+        "Publier l'offre",
+        "Souhaitez-vous publier cette offre dans Jobs et la partager dans le fil d'actualité ?",
+        [
+          {
+            text: "Brouillon",
+            style: "cancel",
+            onPress: () => processSave(false, "draft"),
+          },
+          {
+            text: "Publier dans Jobs",
+            onPress: () => processSave(false, "published"),
+          },
+          {
+            text: "Jobs + Feed",
+            onPress: () => processSave(true, "published"),
+          },
+        ],
+      );
+      return;
+    }
+
+    if (editingRole.status === "published") {
+      Alert.alert(
+        "Publier",
+        "Voulez-vous aussi créer un post automatique dans le fil d'actualité pour annoncer cette offre ?",
+        [
+          {
+            text: "Non",
+            onPress: () => processSave(false),
+          },
+          {
+            text: "Oui, publier l'annonce",
+            onPress: () => processSave(true),
+          },
+        ],
+      );
+    } else {
+      processSave(false);
+    }
+  }
+
+  async function processSave(createPost: boolean, forcedStatus?: string) {
+    if (!editingRole) return;
     try {
       setIsSavingRole(true);
+
+      const resolvedStatus = editingRole.assignee?.id
+        ? "assigned"
+        : forcedStatus || editingRole.status;
 
       const payload = {
         tournage_id: id,
         category: editingRole.category,
         title: editingRole.title,
         description: editingRole.description || null,
-        experience_level: editingRole.experience || null,
-        gender: editingRole.gender || null,
+        experience_level: toArray(editingRole.experience).join(", ") || null,
+        gender: toArray(editingRole.gender).join(", ") || null,
         age_min: editingRole.ageMin ? parseInt(editingRole.ageMin) : null,
         age_max: editingRole.ageMax ? parseInt(editingRole.ageMax) : null,
-        height: editingRole.height ? parseInt(editingRole.height) : null,
-        hair_color: editingRole.hairColor || null,
-        eye_color: editingRole.eyeColor || null,
+        // height: editingRole.height ? parseInt(editingRole.height) : null,
+        // hair_color: editingRole.hairColor || null,
+        // eye_color: editingRole.eyeColor || null,
         equipment: editingRole.equipment || null,
         software: editingRole.software || null,
         specialties: editingRole.specialties || null,
-        data: editingRole.data,
+        // data: editingRole.data,
         assigned_profile_id: editingRole.assignee?.id ?? null,
-        status: editingRole.assignee?.id ? "assigned" : editingRole.status,
+        status: resolvedStatus,
       };
 
       if (editingRole.id) {
@@ -288,8 +368,98 @@ export default function ManageRoles() {
         const rows = Array.from({ length: qty }).map(() => ({
           ...payload,
         }));
-        const { error } = await supabase.from("project_roles").insert(rows);
+        const { data: insertedRows, error } = await supabase
+          .from("project_roles")
+          .insert(rows)
+          .select();
         if (error) throw error;
+      }
+
+      // Create Post if requested
+      const shouldCreatePost =
+        editingRole.createPost && resolvedStatus === "published";
+      if (shouldCreatePost) {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (user) {
+          const qty = parseInt(editingRole.quantity) || 1;
+          const qtyText = qty > 1 ? `${qty} ` : "";
+          const ageText =
+            editingRole.ageMin || editingRole.ageMax
+              ? `Âge: ${editingRole.ageMin || "?"}-${editingRole.ageMax || "?"}`
+              : "";
+          const details = [
+            editingRole.category
+              ? `Catégorie: ${editingRole.category.toUpperCase()}`
+              : "",
+            editingRole.description
+              ? `Description: ${editingRole.description}`
+              : "",
+            toArray(editingRole.experience).length
+              ? `Expérience: ${toArray(editingRole.experience).join(", ")}`
+              : "",
+            toArray(editingRole.gender).length
+              ? `Sexe: ${toArray(editingRole.gender).join(", ")}`
+              : "",
+            ageText,
+            editingRole.height ? `Taille: ${editingRole.height} cm` : "",
+            toArray(editingRole.hairColor).length
+              ? `Cheveux: ${toArray(editingRole.hairColor).join(", ")}`
+              : "",
+            toArray(editingRole.eyeColor).length
+              ? `Yeux: ${toArray(editingRole.eyeColor).join(", ")}`
+              : "",
+            editingRole.equipment ? `Matériel: ${editingRole.equipment}` : "",
+            editingRole.software ? `Logiciels: ${editingRole.software}` : "",
+            editingRole.specialties
+              ? `Spécialités: ${editingRole.specialties}`
+              : "",
+          ].filter(Boolean);
+          // Prefer direct role id when available (edit path), otherwise try to
+          // find the newly created role and link to it.
+          let roleLink = `/project/${id}`;
+          if (editingRole.id) {
+            roleLink = `/project/role/${editingRole.id}`;
+          } else {
+            const { data: recent } = await supabase
+              .from("project_roles")
+              .select("id")
+              .eq("tournage_id", id)
+              .eq("title", editingRole.title)
+              .order("created_at", { ascending: false })
+              .limit(1);
+            if (recent && recent.length > 0) {
+              roleLink = `/project/role/${recent[0].id}`;
+            }
+          }
+
+          const postContent = [
+            `📢 Recherche ${qtyText}${editingRole.title}`,
+            `Pour le projet "${projectTitle}"`,
+            ...details,
+            `Lien: ${roleLink}`,
+          ].join("\n");
+
+          const { error: postError } = await supabase.from("posts").insert({
+            user_id: user.id,
+            content: postContent.trim(),
+            project_id: id,
+            visibility: "public",
+          });
+
+          if (postError) {
+            Alert.alert(
+              "Info",
+              "Rôle enregistré, mais le post n'a pas pu être créé.",
+            );
+          } else {
+            Alert.alert(
+              "Succès",
+              "Rôle enregistré et partagé sur le fil d'actualité !",
+            );
+          }
+        }
       }
 
       setEditModalVisible(false);
@@ -860,19 +1030,18 @@ export default function ManageRoles() {
                   {["debutant", "intermediaire", "confirme"].map((lvl) => (
                     <TouchableOpacity
                       key={lvl}
-                      onPress={() =>
-                        setEditingRole({ ...editingRole, experience: lvl })
-                      }
+                      onPress={() => toggleMultiValue("experience", lvl)}
                       style={[
                         styles.catChip,
-                        editingRole.experience === lvl &&
+                        toArray(editingRole.experience).includes(lvl) &&
                           styles.catChipSelected,
                       ]}
                     >
                       <Text
                         style={{
-                          color:
-                            editingRole.experience === lvl ? "white" : "#333",
+                          color: toArray(editingRole.experience).includes(lvl)
+                            ? "white"
+                            : "#333",
                         }}
                       >
                         {lvl.charAt(0).toUpperCase() + lvl.slice(1)}
@@ -887,17 +1056,18 @@ export default function ManageRoles() {
                   {["homme", "femme", "autre"].map((g) => (
                     <TouchableOpacity
                       key={g}
-                      onPress={() =>
-                        setEditingRole({ ...editingRole, gender: g })
-                      }
+                      onPress={() => toggleMultiValue("gender", g)}
                       style={[
                         styles.catChip,
-                        editingRole.gender === g && styles.catChipSelected,
+                        toArray(editingRole.gender).includes(g) &&
+                          styles.catChipSelected,
                       ]}
                     >
                       <Text
                         style={{
-                          color: editingRole.gender === g ? "white" : "#333",
+                          color: toArray(editingRole.gender).includes(g)
+                            ? "white"
+                            : "#333",
                         }}
                       >
                         {g.charAt(0).toUpperCase() + g.slice(1)}
@@ -951,29 +1121,78 @@ export default function ManageRoles() {
                     Ce rôle est assigné. Le statut est verrouillé.
                   </Text>
                 ) : (
-                  <View style={styles.rowWrap}>
-                    {["draft", "published"].map((st) => (
-                      <TouchableOpacity
-                        key={st}
-                        onPress={() =>
-                          setEditingRole({ ...editingRole, status: st })
-                        }
-                        style={[
-                          styles.catChip,
-                          editingRole.status === st && styles.catChipSelected, // eslint-disable-line
-                        ]}
-                      >
-                        <Text
-                          style={{
-                            color: editingRole.status === st ? "white" : "#333",
-                          }}
+                  <View>
+                    <View style={styles.rowWrap}>
+                      {["draft", "published"].map((st) => (
+                        <TouchableOpacity
+                          key={st}
+                          onPress={() =>
+                            setEditingRole({
+                              ...editingRole,
+                              status: st,
+                              ...(st === "draft" ? { createPost: false } : {}),
+                            })
+                          }
+                          style={[
+                            styles.catChip,
+                            editingRole.status === st && styles.catChipSelected, // eslint-disable-line
+                          ]}
                         >
-                          {st === "draft" ? "Brouillon" : "Publié"}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
+                          <Text
+                            style={{
+                              color:
+                                editingRole.status === st ? "white" : "#333",
+                            }}
+                          >
+                            {st === "draft" ? "Brouillon" : "Publié"}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
                   </View>
                 )}
+
+                <Text style={styles.label}>Diffusion</Text>
+                <View style={styles.rowWrap}>
+                  <TouchableOpacity
+                    onPress={() =>
+                      setEditingRole({ ...editingRole, createPost: false })
+                    }
+                    disabled={editingRole.status !== "published"}
+                    style={[
+                      styles.catChip,
+                      !editingRole.createPost && styles.catChipSelected,
+                      editingRole.status !== "published" && { opacity: 0.5 },
+                    ]}
+                  >
+                    <Text
+                      style={{
+                        color: !editingRole.createPost ? "white" : "#333",
+                      }}
+                    >
+                      Jobs uniquement
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() =>
+                      setEditingRole({ ...editingRole, createPost: true })
+                    }
+                    disabled={editingRole.status !== "published"}
+                    style={[
+                      styles.catChip,
+                      editingRole.createPost && styles.catChipSelected,
+                      editingRole.status !== "published" && { opacity: 0.5 },
+                    ]}
+                  >
+                    <Text
+                      style={{
+                        color: editingRole.createPost ? "white" : "#333",
+                      }}
+                    >
+                      Jobs + Feed
+                    </Text>
+                  </TouchableOpacity>
+                </View>
 
                 {/* ASSIGNMENT */}
 
@@ -1019,7 +1238,7 @@ export default function ManageRoles() {
                     marginTop: 20,
                     opacity: isSavingRole ? 0.7 : 1,
                   }}
-                  onPress={saveRole}
+                  onPress={handleSave}
                   disabled={isSavingRole}
                 >
                   {isSavingRole ? (
@@ -1331,6 +1550,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 10,
     marginVertical: 10,
+    textAlign: "center",
   },
   userRow: {
     paddingVertical: 12,

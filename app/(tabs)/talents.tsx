@@ -1,8 +1,8 @@
 import { JOB_TITLES } from "@/utils/roles";
 import { fuzzySearch } from "@/utils/search";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import { Stack, useFocusEffect, useRouter } from "expo-router";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -24,6 +24,7 @@ export default function DiscoverProfiles() {
   const [allProfiles, setAllProfiles] = useState<any[]>([]);
   const [profiles, setProfiles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [pendingCount, setPendingCount] = useState(0);
 
   // Filters State
   const [selectedRole, setSelectedRole] = useState<string>("all");
@@ -34,6 +35,25 @@ export default function DiscoverProfiles() {
   const [categoryModalVisible, setCategoryModalVisible] = useState(false);
   const [cityModalVisible, setCityModalVisible] = useState(false);
   const [availableCities, setAvailableCities] = useState<string[]>([]);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchPendingCount();
+    }, []),
+  );
+
+  async function fetchPendingCount() {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session) return;
+    const { count } = await supabase
+      .from("connections")
+      .select("*", { count: "exact", head: true })
+      .eq("receiver_id", session.user.id)
+      .eq("status", "pending");
+    setPendingCount(count || 0);
+  }
 
   // 1. Fetch data when server-side filters change
   useEffect(() => {
@@ -146,6 +166,44 @@ export default function DiscoverProfiles() {
 
   return (
     <View style={styles.container}>
+      <Stack.Screen
+        options={{
+          headerTitle: "Profils",
+          headerRight: () => (
+            <View style={{ flexDirection: "row", gap: 15, marginRight: 15 }}>
+              <TouchableOpacity
+                onPress={() => router.push("/network/connections")}
+              >
+                <Ionicons name="people" size={24} color="black" />
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => router.push("/network/requests")}
+              >
+                <View>
+                  <Ionicons
+                    name="notifications"
+                    size={24}
+                    color={pendingCount > 0 ? "red" : "black"}
+                  />
+                  {pendingCount > 0 && (
+                    <View
+                      style={{
+                        position: "absolute",
+                        top: -2,
+                        right: -2,
+                        width: 8,
+                        height: 8,
+                        borderRadius: 4,
+                        backgroundColor: "red",
+                      }}
+                    />
+                  )}
+                </View>
+              </TouchableOpacity>
+            </View>
+          ),
+        }}
+      />
       {/* HEADER FILTERS */}
       <View style={{ backgroundColor: "white", paddingVertical: 10 }}>
         <View style={styles.filtersRow}>

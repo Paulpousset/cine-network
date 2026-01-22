@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useGlobalSearchParams, useRouter } from "expo-router";
+import { Stack, useGlobalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
     ActivityIndicator,
@@ -131,39 +131,40 @@ export default function ChatList() {
 
   return (
     <View style={styles.container}>
+      <Stack.Screen
+        options={{
+          headerShown: true,
+          headerTitle: "Conversation",
+          headerShadowVisible: false,
+          headerTitleAlign: "center",
+          headerStyle: { backgroundColor: "white" },
+          headerRight: isOwner
+            ? () => (
+                <TouchableOpacity
+                  onPress={() =>
+                    router.push({
+                      pathname: "/project/[id]/settings",
+                      params: { id: projectId as string },
+                    })
+                  }
+                  style={{ padding: 5, marginRight: 10 }}
+                >
+                  <Ionicons name="settings-outline" size={24} color="#841584" />
+                </TouchableOpacity>
+              )
+            : undefined,
+        }}
+      />
+
       <View
         style={{
-          flexDirection: "row",
-          justifyContent: "space-between",
-          alignItems: "center",
           paddingHorizontal: 20,
-          paddingTop: 60,
-          paddingBottom: 15,
-          backgroundColor: "white",
+          paddingVertical: 15,
           borderBottomWidth: 1,
-          borderColor: "#eee",
+          borderColor: "#f0f0f0",
+          backgroundColor: "white",
         }}
       >
-        <View style={{ width: 24 }} />
-        <Text style={{ fontSize: 20, fontWeight: "bold" }}>Conversation</Text>
-        {isOwner ? (
-          <TouchableOpacity
-            onPress={() =>
-              router.push({
-                pathname: "/project/[id]/settings",
-                params: { id: projectId as string },
-              })
-            }
-            style={{ padding: 5 }}
-          >
-            <Ionicons name="settings-outline" size={24} color="#841584" />
-          </TouchableOpacity>
-        ) : (
-          <View style={{ width: 24 }} />
-        )}
-      </View>
-
-      <View style={{ paddingHorizontal: 20, paddingVertical: 10 }}>
         <Text style={styles.subtitle}>
           {isOwner ? "Vue Ensemble" : "Vos équipes"}
         </Text>

@@ -99,19 +99,20 @@ export default function ProjectDetails() {
     title: string;
     description: string;
     quantity: string;
-    experience: string;
-    gender: string;
+    experience: string | string[];
+    gender: string | string[];
     ageMin: string;
     ageMax: string;
     height: string;
-    hairColor: string;
-    eyeColor: string;
+    hairColor: string | string[];
+    eyeColor: string | string[];
     equipment: string;
     software: string;
     specialties: string;
     status: "draft" | "published"; // "draft" | "published"
     assignee: { id: string; label: string } | null;
     data: any; // JSONB storage for extra fields
+    createPost: boolean;
   } | null>(null);
   const [isSavingRole, setIsSavingRole] = useState(false);
 
@@ -133,6 +134,27 @@ export default function ProjectDetails() {
   const [applications, setApplications] = useState<any[]>([]);
   const [applicationsModalVisible, setApplicationsModalVisible] =
     useState(false);
+
+  const toArray = (value: any): string[] => {
+    if (Array.isArray(value)) return value;
+    if (!value) return [];
+    if (typeof value === "string" && value.includes(",")) {
+      return value
+        .split(",")
+        .map((v) => v.trim())
+        .filter(Boolean);
+    }
+    return [String(value)];
+  };
+
+  const toggleMultiValue = (key: "experience" | "gender", value: string) => {
+    if (!editingRole) return;
+    const current = toArray(editingRole[key]);
+    const next = current.includes(value)
+      ? current.filter((v) => v !== value)
+      : [...current, value];
+    setEditingRole({ ...editingRole, [key]: next } as typeof editingRole);
+  };
 
   useEffect(() => {
     fetchProjectDetails();
@@ -251,6 +273,7 @@ export default function ProjectDetails() {
       software: "",
       specialties: "",
       data: {},
+      createPost: false,
     });
     setRoleFormVisible(true);
     setIsSearchingProfileInForm(false);
@@ -295,6 +318,7 @@ export default function ProjectDetails() {
           data: role.data || {},
           status: role.status || "draft",
           assignee: assignee,
+          createPost: false,
         });
         setRoleFormVisible(true);
         setIsSearchingProfileInForm(false);
@@ -307,6 +331,16 @@ export default function ProjectDetails() {
     }
   }
 
+  function handleSaveRoleForm() {
+    if (!editingRole) return;
+    if (!editingRole.title.trim()) {
+      Alert.alert("Erreur", "Le titre est requis");
+      return;
+    }
+
+    saveRoleForm();
+  }
+
   async function saveRoleForm() {
     if (!editingRole) return;
     if (!editingRole.title.trim()) {
@@ -316,24 +350,23 @@ export default function ProjectDetails() {
 
     try {
       setIsSavingRole(true);
+      const resolvedStatus = editingRole.assignee?.id
+        ? "assigned"
+        : editingRole.status;
       const payload = {
         tournage_id: id,
         category: editingRole.category,
         title: editingRole.title,
         description: editingRole.description || null,
-        experience_level: editingRole.experience || null,
-        gender: editingRole.gender || null,
+        experience_level: toArray(editingRole.experience).join(", ") || null,
+        gender: toArray(editingRole.gender).join(", ") || null,
         age_min: editingRole.ageMin ? parseInt(editingRole.ageMin) : null,
         age_max: editingRole.ageMax ? parseInt(editingRole.ageMax) : null,
         assigned_profile_id: editingRole.assignee?.id ?? null,
-        height: editingRole.height ? parseInt(editingRole.height) : null,
-        hair_color: editingRole.hairColor || null,
-        eye_color: editingRole.eyeColor || null,
         equipment: editingRole.equipment || null,
         software: editingRole.software || null,
         specialties: editingRole.specialties || null,
-        data: editingRole.data,
-        status: editingRole.status,
+        status: resolvedStatus,
       };
 
       if (editingRole.id) {
@@ -349,8 +382,98 @@ export default function ProjectDetails() {
         const rows = Array.from({ length: qty }).map(() => ({
           ...payload,
         }));
-        const { error } = await supabase.from("project_roles").insert(rows);
+        const { data: insertedRows, error } = await supabase
+          .from("project_roles")
+          .insert(rows)
+          .select();
         if (error) throw error;
+      }
+
+      const shouldCreatePost =
+        editingRole.createPost && resolvedStatus === "published";
+      if (shouldCreatePost) {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (user) {
+          const qty = parseInt(editingRole.quantity) || 1;
+          const qtyText = qty > 1 ? `${qty} ` : "";
+          const ageText =
+            editingRole.ageMin || editingRole.ageMax
+              ? `Âge: ${editingRole.ageMin || "?"}-${editingRole.ageMax || "?"}`
+              : "";
+          const details = [
+            editingRole.category
+              ? `Catégorie: ${editingRole.category.toUpperCase()}`
+              : "",
+            editingRole.description
+              ? `Description: ${editingRole.description}`
+              : "",
+            toArray(editingRole.experience).length
+              ? `Expérience: ${toArray(editingRole.experience).join(", ")}`
+              : "",
+            toArray(editingRole.gender).length
+              ? `Sexe: ${toArray(editingRole.gender).join(", ")}`
+              : "",
+            ageText,
+            editingRole.height ? `Taille: ${editingRole.height} cm` : "",
+            toArray(editingRole.hairColor).length
+              ? `Cheveux: ${toArray(editingRole.hairColor).join(", ")}`
+              : "",
+            toArray(editingRole.eyeColor).length
+              ? `Yeux: ${toArray(editingRole.eyeColor).join(", ")}`
+              : "",
+            editingRole.equipment ? `Matériel: ${editingRole.equipment}` : "",
+            editingRole.software ? `Logiciels: ${editingRole.software}` : "",
+            editingRole.specialties
+              ? `Spécialités: ${editingRole.specialties}`
+              : "",
+          ].filter(Boolean);
+          // Build link to the role. Prefer explicit id when editing, otherwise try to
+          // reference the first inserted row.
+          let roleLink = `/project/${id}`;
+          if (editingRole.id) {
+            roleLink = `/project/role/${editingRole.id}`;
+          } else {
+            // Try to read the most recently created role for this title/project
+            const { data: recent } = await supabase
+              .from("project_roles")
+              .select("id")
+              .eq("tournage_id", id)
+              .eq("title", editingRole.title)
+              .order("created_at", { ascending: false })
+              .limit(1);
+            if (recent && recent.length > 0) {
+              roleLink = `/project/role/${recent[0].id}`;
+            }
+          }
+
+          const postContent = [
+            `📢 Recherche ${qtyText}${editingRole.title}`,
+            `Pour le projet "${project?.title || ""}"`,
+            ...details,
+            `Lien: ${roleLink}`,
+          ].join("\n");
+
+          const { error: postError } = await supabase.from("posts").insert({
+            user_id: user.id,
+            content: postContent.trim(),
+            project_id: id,
+            visibility: "public",
+          });
+
+          if (postError) {
+            Alert.alert(
+              "Info",
+              "Rôle enregistré, mais le post n'a pas pu être créé.",
+            );
+          } else {
+            Alert.alert(
+              "Succès",
+              "Rôle enregistré et partagé sur le fil d'actualité !",
+            );
+          }
+        }
       }
 
       setRoleFormVisible(false);
@@ -1246,12 +1369,10 @@ export default function ProjectDetails() {
                   {["debutant", "intermediaire", "confirme"].map((lvl) => (
                     <TouchableOpacity
                       key={lvl}
-                      onPress={() =>
-                        setEditingRole({ ...editingRole, experience: lvl })
-                      }
+                      onPress={() => toggleMultiValue("experience", lvl)}
                       style={[
                         styles.catButton,
-                        editingRole.experience === lvl && {
+                        toArray(editingRole.experience).includes(lvl) && {
                           backgroundColor: "#333",
                           borderColor: "#333",
                         },
@@ -1259,8 +1380,9 @@ export default function ProjectDetails() {
                     >
                       <Text
                         style={{
-                          color:
-                            editingRole.experience === lvl ? "white" : "#333",
+                          color: toArray(editingRole.experience).includes(lvl)
+                            ? "white"
+                            : "#333",
                         }}
                       >
                         {lvl.charAt(0).toUpperCase() + lvl.slice(1)}
@@ -1275,12 +1397,10 @@ export default function ProjectDetails() {
                   {["homme", "femme", "autre"].map((g) => (
                     <TouchableOpacity
                       key={g}
-                      onPress={() =>
-                        setEditingRole({ ...editingRole, gender: g })
-                      }
+                      onPress={() => toggleMultiValue("gender", g)}
                       style={[
                         styles.catButton,
-                        editingRole.gender === g && {
+                        toArray(editingRole.gender).includes(g) && {
                           backgroundColor: "#333",
                           borderColor: "#333",
                         },
@@ -1288,7 +1408,9 @@ export default function ProjectDetails() {
                     >
                       <Text
                         style={{
-                          color: editingRole.gender === g ? "white" : "#333",
+                          color: toArray(editingRole.gender).includes(g)
+                            ? "white"
+                            : "#333",
                         }}
                       >
                         {g.charAt(0).toUpperCase() + g.slice(1)}
@@ -1348,7 +1470,11 @@ export default function ProjectDetails() {
                       <TouchableOpacity
                         key={st}
                         onPress={() =>
-                          setEditingRole({ ...editingRole, status: st as any })
+                          setEditingRole({
+                            ...editingRole,
+                            status: st as any,
+                            ...(st === "draft" ? { createPost: false } : {}),
+                          })
                         }
                         style={[
                           styles.catButton,
@@ -1370,6 +1496,54 @@ export default function ProjectDetails() {
                     ))}
                   </View>
                 )}
+
+                <Text style={styles.label}>Diffusion</Text>
+                <View style={styles.rowWrap}>
+                  <TouchableOpacity
+                    onPress={() =>
+                      setEditingRole({ ...editingRole, createPost: false })
+                    }
+                    disabled={editingRole.status !== "published"}
+                    style={[
+                      styles.catButton,
+                      !editingRole.createPost && {
+                        backgroundColor: "#333",
+                        borderColor: "#333",
+                      },
+                      editingRole.status !== "published" && { opacity: 0.5 },
+                    ]}
+                  >
+                    <Text
+                      style={{
+                        color: !editingRole.createPost ? "white" : "#333",
+                      }}
+                    >
+                      Jobs uniquement
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() =>
+                      setEditingRole({ ...editingRole, createPost: true })
+                    }
+                    disabled={editingRole.status !== "published"}
+                    style={[
+                      styles.catButton,
+                      editingRole.createPost && {
+                        backgroundColor: "#4CAF50",
+                        borderColor: "#4CAF50",
+                      },
+                      editingRole.status !== "published" && { opacity: 0.5 },
+                    ]}
+                  >
+                    <Text
+                      style={{
+                        color: editingRole.createPost ? "white" : "#333",
+                      }}
+                    >
+                      Jobs + Feed
+                    </Text>
+                  </TouchableOpacity>
+                </View>
 
                 {/* ASSIGNMENT */}
                 <Text style={styles.label}>Assigner quelqu'un (optionnel)</Text>
@@ -1416,7 +1590,7 @@ export default function ProjectDetails() {
                     marginTop: 20,
                     opacity: isSavingRole ? 0.7 : 1,
                   }}
-                  onPress={saveRoleForm}
+                  onPress={handleSaveRoleForm}
                   disabled={isSavingRole}
                 >
                   {isSavingRole ? (
@@ -1990,6 +2164,7 @@ const styles = StyleSheet.create({
     padding: 10,
     marginBottom: 10,
     backgroundColor: "#fafafa",
+    textAlign: "center",
   },
   label: {
     marginBottom: 8,

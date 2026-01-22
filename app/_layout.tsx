@@ -1,5 +1,5 @@
 import { Session } from "@supabase/supabase-js";
-import { Stack, useRouter, useSegments } from "expo-router";
+import { Stack, usePathname, useRouter, useSegments } from "expo-router";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, View } from "react-native";
 import { supabase } from "../lib/supabase";
@@ -9,6 +9,7 @@ export default function RootLayout() {
   const [initialized, setInitialized] = useState(false);
 
   const segments = useSegments();
+  const pathname = usePathname();
   const router = useRouter();
 
   useEffect(() => {
@@ -28,36 +29,26 @@ export default function RootLayout() {
   useEffect(() => {
     if (!initialized) return;
 
-    // Vérifier si l'utilisateur est dans le groupe de routes (tabs)
-    const inTabsGroup = segments[0] === "(tabs)";
-    const inProjectPage = segments[0] === "project"; // Ajouter exception pour project/[id]
-    const inAccountPage = segments[0] === "account"; // Ajouter exception pour account page
-    const inProfilePage = segments[0] === "profile"; // Ajouter exception pour profile/[id]
+    // Définir la page de login comme étant la racine
+    // On utilise pathname pour éviter les soucis avec segments vide lors des transitions
+    const inLoginPage = pathname === "/" || pathname === "";
 
     console.log("Auth Check:", {
       hasSession: !!session,
-      segments: segments,
-      inTabsGroup,
+      pathname,
+      segments,
+      inLoginPage,
     });
 
     // SCÉNARIO 1 : Pas connecté mais essaie d'aller ailleurs que la page de login
-    if (
-      !session &&
-      (inTabsGroup || inProjectPage || inAccountPage || inProfilePage)
-    ) {
+    if (!session && !inLoginPage) {
       router.replace("/"); // Hop, retour à l'accueil
     }
-    // SCÉNARIO 2 : Connecté mais encore sur la page de login (SAUF si on est sur project/[id] ou account)
-    else if (
-      session &&
-      !inTabsGroup &&
-      !inProjectPage &&
-      !inAccountPage &&
-      !inProfilePage
-    ) {
-      router.replace("/(tabs)/my-projects"); // Hop, direction le feed
+    // SCÉNARIO 2 : Connecté mais encore sur la page de login
+    else if (session && inLoginPage) {
+      router.replace("/feed"); // Hop, direction le feed
     }
-  }, [session, initialized, segments]);
+  }, [session, initialized, pathname]);
 
   // Petit écran de chargement au lancement de l'app
   if (!initialized) {
@@ -73,6 +64,7 @@ export default function RootLayout() {
       <Stack.Screen name="index" options={{ headerShown: false }} />
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="project" options={{ headerShown: false }} />
+      <Stack.Screen name="network" options={{ headerShown: false }} />
       {/* 
         Si 'profile' est un dossier contenant [id].tsx sans _layout ni index, 
         il ne faut pas le déclarer comme screen ici, ou alors il faut qu'il ait un index.

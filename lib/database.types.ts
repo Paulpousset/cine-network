@@ -56,14 +56,66 @@ export type Database = {
           },
         ]
       }
+      connections: {
+        Row: {
+          created_at: string | null
+          id: string
+          receiver_id: string
+          requester_id: string
+          status: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          receiver_id: string
+          requester_id: string
+          status?: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          receiver_id?: string
+          requester_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "connections_receiver_id_fkey"
+            columns: ["receiver_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "connections_requester_id_fkey"
+            columns: ["requester_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
+          bio: string | null
+          book_urls: string[] | null
+          cv_url: string | null
           email: string | null
+          email_public: string | null
+          equipment: string | null
+          eye_color: string | null
           full_name: string | null
+          hair_color: string | null
+          height: number | null
           id: string
           pays: string | null
+          phone: string | null
           role: Database["public"]["Enums"]["user_role"] | null
+          showreel_url: string | null
+          skills: string[] | null
+          software: string | null
+          specialties: string | null
           updated_at: string | null
           username: string | null
           ville: string | null
@@ -71,11 +123,24 @@ export type Database = {
         }
         Insert: {
           avatar_url?: string | null
+          bio?: string | null
+          book_urls?: string[] | null
+          cv_url?: string | null
           email?: string | null
+          email_public?: string | null
+          equipment?: string | null
+          eye_color?: string | null
           full_name?: string | null
+          hair_color?: string | null
+          height?: number | null
           id: string
           pays?: string | null
+          phone?: string | null
           role?: Database["public"]["Enums"]["user_role"] | null
+          showreel_url?: string | null
+          skills?: string[] | null
+          software?: string | null
+          specialties?: string | null
           updated_at?: string | null
           username?: string | null
           ville?: string | null
@@ -83,11 +148,24 @@ export type Database = {
         }
         Update: {
           avatar_url?: string | null
+          bio?: string | null
+          book_urls?: string[] | null
+          cv_url?: string | null
           email?: string | null
+          email_public?: string | null
+          equipment?: string | null
+          eye_color?: string | null
           full_name?: string | null
+          hair_color?: string | null
+          height?: number | null
           id?: string
           pays?: string | null
+          phone?: string | null
           role?: Database["public"]["Enums"]["user_role"] | null
+          showreel_url?: string | null
+          skills?: string[] | null
+          software?: string | null
+          specialties?: string | null
           updated_at?: string | null
           username?: string | null
           ville?: string | null
@@ -205,11 +283,14 @@ export type Database = {
           category: Database["public"]["Enums"]["user_role"]
           created_at: string
           description: string | null
+          equipment: string | null
           experience_level: string | null
           gender: string | null
           id: string
           is_category_admin: boolean | null
           quantity_filled: number | null
+          software: string | null
+          specialties: string | null
           status: string | null
           title: string
           tournage_id: string
@@ -221,11 +302,14 @@ export type Database = {
           category: Database["public"]["Enums"]["user_role"]
           created_at?: string
           description?: string | null
+          equipment?: string | null
           experience_level?: string | null
           gender?: string | null
           id?: string
           is_category_admin?: boolean | null
           quantity_filled?: number | null
+          software?: string | null
+          specialties?: string | null
           status?: string | null
           title: string
           tournage_id: string
@@ -237,11 +321,14 @@ export type Database = {
           category?: Database["public"]["Enums"]["user_role"]
           created_at?: string
           description?: string | null
+          equipment?: string | null
           experience_level?: string | null
           gender?: string | null
           id?: string
           is_category_admin?: boolean | null
           quantity_filled?: number | null
+          software?: string | null
+          specialties?: string | null
           status?: string | null
           title?: string
           tournage_id?: string

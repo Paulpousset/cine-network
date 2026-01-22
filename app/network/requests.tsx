@@ -1,0 +1,305 @@
+import { Ionicons } from "@expo/vector-icons";
+import { Stack, useRouter } from "expo-router";
+import React, { useEffect, useState } from "react";
+import {
+    Alert,
+    RefreshControl,
+    SectionList,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
+} from "react-native";
+import { supabase } from "../../lib/supabase";
+
+export default function ConnectionRequests() {
+  const router = useRouter();
+  const [loading, setLoading] = useState(true);
+  const [sections, setSections] = useState<any[]>([]);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchRequests();
+  }, []);
+
+  async function fetchRequests() {
+    try {
+      setLoading(true);
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session) return;
+      setCurrentUserId(session.user.id);
+
+      // 1. Fetch received requests (Pending)
+      const { data: received, error: errorReceived } = await supabase
+        .from("connections")
+        .select(
+          `
+          *,
+          requester:profiles!requester_id(id, full_name, username, role, ville)
+        `,
+        )
+        .eq("receiver_id", session.user.id)
+        .eq("status", "pending")
+        .order("created_at", { ascending: false });
+
+      if (errorReceived) throw errorReceived;
+
+      // 2. Fetch sent requests (Pending)
+      const { data: sent, error: errorSent } = await supabase
+        .from("connections")
+        .select(
+          `
+          *,
+          receiver:profiles!receiver_id(id, full_name, username, role, ville)
+        `,
+        )
+        .eq("requester_id", session.user.id)
+        .eq("status", "pending")
+        .order("created_at", { ascending: false });
+
+      if (errorSent) throw errorSent;
+
+      setSections([
+        { title: "Reçues", data: received || [] },
+        { title: "Envoyées", data: sent || [] },
+      ]);
+    } catch (e) {
+      console.error(e);
+      Alert.alert("Erreur", "Impossible de charger les demandes.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleAction(
+    id: string,
+    action: "accept" | "reject" | "cancel",
+  ) {
+    // 1. Optimistic Update : on enlève l'item de l'interface immédiatement
+    setSections((prev) =>
+      prev.map((section) => ({
+        ...section,
+        data: section.data.filter((item: any) => item.id !== id),
+      })),
+    );
+
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const myId = session?.user.id;
+      if (!myId) throw new Error("Non connecté");
+
+      let error;
+      if (action === "cancel") {
+        // Suppression
+        // On utilise delete({ count: 'exact' }) pour savoir si une ligne a vraiment été effacée
+        const res = await supabase
+          .from("connections")
+          .delete({ count: "exact" })
+          .eq("id", id);
+
+        error = res.error;
+
+        // Si aucune ligne n'a été affectée (count === 0), c'est souvent un problème de droits (RLS)
+        if (!error && res.count === 0) {
+          throw new Error(
+            "Impossible de supprimer : Vous n'avez probablement pas la permission (RLS) ou l'élément n'existe plus.",
+          );
+        }
+      } else {
+        // Acceptation/Rejet : on s'assure que c'est bien POUR moi
+        const newStatus = action === "accept" ? "accepted" : "rejected";
+        const res = await supabase
+          .from("connections")
+          .update({ status: newStatus })
+          .eq("id", id)
+          .eq("receiver_id", myId) // Sécurité supplémentaire
+          .select() // Retourne l'objet modifié
+          .single();
+
+        error = res.error;
+        const updatedConn = res.data;
+
+        // NETTOYAGE DES DOUBLONS (Mutual Request)
+        // Si j'accepte une demande de Bob, et que j'avais AUSSI envoyé une demande à Bob...
+        // ... je dois supprimer ma demande sortante pour éviter d'avoir 2 lignes actives.
+        if (!error && action === "accept" && updatedConn) {
+          const senderId = updatedConn.requester_id;
+          // Clean up any pending request I sent to this user
+          const { error: delError } = await supabase
+            .from("connections")
+            .delete()
+            .eq("requester_id", myId)
+            .eq("receiver_id", senderId)
+            .eq("status", "pending");
+
+          if (delError) console.log("Cleanup warning:", delError);
+        }
+      }
+
+      if (error) throw error;
+    } catch (e: any) {
+      console.error("Action failed:", e);
+      Alert.alert("Erreur", "La suppression a échoué : " + e.message);
+      // En cas d'échec seulement, on recharge la liste pour faire réapparaître l'item
+      fetchRequests();
+    }
+  }
+
+  const renderItem = ({ item, section }: { item: any; section: any }) => {
+    const isReceived = section.title === "Reçues";
+    // For received, show requester info. For sent, show receiver info.
+    const user = isReceived ? item.requester : item.receiver;
+
+    return (
+      <TouchableOpacity
+        style={styles.card}
+        onPress={() =>
+          router.push({
+            pathname: "/profile/[id]",
+            params: { id: user.id },
+          })
+        }
+      >
+        <View style={styles.info}>
+          <Text style={styles.name}>{user.full_name || user.username}</Text>
+          <Text style={styles.subtext}>
+            {user.role ? user.role.toUpperCase() : "Membre"} •{" "}
+            {user.ville || "N/A"}
+          </Text>
+          <Text style={styles.date}>
+            {isReceived ? "Reçu le" : "Envoyé le"}{" "}
+            {new Date(item.created_at).toLocaleDateString()}
+          </Text>
+        </View>
+
+        {/* ACTIONS */}
+        <View style={styles.actions}>
+          {isReceived ? (
+            <>
+              <TouchableOpacity
+                onPress={() => handleAction(item.id, "accept")}
+                style={[styles.btn, styles.btnAccept]}
+              >
+                <Ionicons name="checkmark" size={22} color="white" />
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => handleAction(item.id, "reject")}
+                style={[styles.btn, styles.btnReject]}
+              >
+                <Ionicons name="close" size={22} color="#F44336" />
+              </TouchableOpacity>
+            </>
+          ) : (
+            <TouchableOpacity
+              onPress={() => handleAction(item.id, "cancel")}
+              style={[
+                styles.btn,
+                { backgroundColor: "#f5f5f5" }, // Softer gray
+              ]}
+            >
+              <Ionicons name="trash-outline" size={20} color="#666" />
+            </TouchableOpacity>
+          )}
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
+  return (
+    <View style={styles.container}>
+      <Stack.Screen
+        options={{
+          headerTitle: "Invitations",
+          headerTitleAlign: "center",
+          headerShadowVisible: false,
+          headerStyle: { backgroundColor: "#f8f9fa" },
+          headerLeft: () => (
+            <TouchableOpacity
+              onPress={() => router.back()}
+              style={{ padding: 10, marginLeft: -10 }}
+            >
+              <Ionicons name="arrow-back" size={24} color="#000" />
+            </TouchableOpacity>
+          ),
+        }}
+      />
+      <SectionList
+        sections={sections}
+        keyExtractor={(item) => item.id}
+        renderItem={renderItem}
+        renderSectionHeader={({ section: { title, data } }) =>
+          data.length > 0 ? (
+            <Text style={styles.sectionHeader}>{title}</Text>
+          ) : null
+        }
+        contentContainerStyle={{ padding: 15 }}
+        refreshControl={
+          <RefreshControl refreshing={loading} onRefresh={fetchRequests} />
+        }
+        ListEmptyComponent={
+          !loading ? (
+            <Text style={{ textAlign: "center", marginTop: 50, color: "#999" }}>
+              Aucune invitation en cours.
+            </Text>
+          ) : null
+        }
+        stickySectionHeadersEnabled={false}
+      />
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: "#f8f9fa" },
+  sectionHeader: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#666",
+    marginBottom: 10,
+    marginTop: 15,
+    textTransform: "uppercase",
+    letterSpacing: 1,
+  },
+  card: {
+    backgroundColor: "white",
+    padding: 16,
+    borderRadius: 16,
+    marginBottom: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 4, // Better shadow on Android
+    borderWidth: 1,
+    borderColor: "rgba(0,0,0,0.03)",
+  },
+  info: { flex: 1, marginRight: 10 },
+  name: { fontSize: 16, fontWeight: "700", color: "#1a1a1a", marginBottom: 2 },
+  subtext: { fontSize: 13, color: "#666", marginBottom: 4 },
+  date: { fontSize: 11, color: "#999" },
+  actions: { flexDirection: "row", gap: 12 },
+  btn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  btnAccept: { backgroundColor: "#4CAF50" },
+  btnReject: {
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "#ffebee",
+  },
+});

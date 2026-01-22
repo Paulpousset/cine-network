@@ -1,20 +1,20 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useGlobalSearchParams, useRouter } from "expo-router";
+import { Stack, useGlobalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 
 import {
-  ActivityIndicator,
-  Alert,
-  FlatList,
-  KeyboardAvoidingView,
-  Platform,
-  SafeAreaView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    FlatList,
+    KeyboardAvoidingView,
+    Platform,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { supabase } from "../../../../lib/supabase";
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -38,8 +38,18 @@ export default function ChannelChat() {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
+  const [keyboardVerticalOffset, setKeyboardVerticalOffset] = useState(0);
 
   const flatListRef = useRef<FlatList>(null);
+
+  // Pour Android, ajuster le offset si header natif
+  useEffect(() => {
+    if (Platform.OS === "ios") {
+      setKeyboardVerticalOffset(90);
+    } else {
+      setKeyboardVerticalOffset(0); // Android gère souvent mieux le resize seul
+    }
+  }, []);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -177,26 +187,31 @@ export default function ChannelChat() {
   const themeColor = CATEGORY_COLORS[categoryStr] || "#666";
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "white" }}>
-      {/* Header Custom */}
-      <View style={[styles.header, { borderBottomColor: themeColor + "40" }]}>
-        <TouchableOpacity onPress={() => router.back()} style={{ padding: 5 }}>
-          <Ionicons name="chevron-back" size={28} color={themeColor} />
-        </TouchableOpacity>
-        <View style={{ marginLeft: 10 }}>
-          <Text style={[styles.headerTitle, { color: themeColor }]}>
-            Équipe {categoryName}
-          </Text>
-          <Text style={{ fontSize: 10, color: "#999" }}>
-            Membres du département {category}
-          </Text>
-        </View>
-      </View>
+    <SafeAreaView
+      style={{ flex: 1, backgroundColor: "white" }}
+      edges={["bottom", "left", "right"]}
+    >
+      <Stack.Screen
+        options={{
+          headerTitle: `Équipe ${categoryName}`,
+          headerTintColor: themeColor,
+          headerShadowVisible: false,
+          headerStyle: { backgroundColor: "white" },
+          headerLeft: (props) => (
+            <TouchableOpacity
+              onPress={() => router.back()}
+              style={{ marginRight: 15, padding: 5 }}
+            >
+              <Ionicons name="arrow-back" size={24} color={themeColor} />
+            </TouchableOpacity>
+          ),
+        }}
+      />
 
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        behavior={Platform.OS === "ios" ? "padding" : "padding"}
         style={{ flex: 1 }}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 100 : 0}
       >
         {loading ? (
           <ActivityIndicator style={{ marginTop: 50 }} color={themeColor} />
@@ -207,7 +222,7 @@ export default function ChannelChat() {
             // To have latest at bottom: inverted true, data ordered desc
             inverted
             keyExtractor={(item) => item.id}
-            contentContainerStyle={{ padding: 15 }}
+            contentContainerStyle={{ padding: 15, paddingBottom: 20 }}
             renderItem={({ item }) => {
               const isMe = item.sender_id === userId;
               return (
@@ -317,24 +332,13 @@ export default function ChannelChat() {
 }
 
 const styles = StyleSheet.create({
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 10,
-    backgroundColor: "white",
-    borderBottomWidth: 1,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-  },
+  // header removed
   inputContainer: {
     flexDirection: "row",
     padding: 10,
     borderTopWidth: 1,
     borderColor: "#eee",
     backgroundColor: "white",
-    paddingBottom: Platform.OS === "ios" ? 20 : 10,
     alignItems: "flex-end",
   },
   input: {

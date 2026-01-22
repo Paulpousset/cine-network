@@ -12,7 +12,7 @@ function TabBarIcon(props: {
   name: React.ComponentProps<typeof FontAwesome>["name"];
   color: string;
 }) {
-  return <FontAwesome size={28} style={{ marginBottom: -3 }} {...props} />;
+  return <FontAwesome size={24} style={{ marginBottom: 0 }} {...props} />;
 }
 
 export default function TabLayout() {
@@ -22,9 +22,17 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: Colors[colorScheme ?? "light"].tint,
-        // Disable the static render of the header on web
-        // to prevent a hydration error in React Navigation v6.
         headerShown: useClientOnlyValue(false, true),
+        tabBarStyle: {
+          backgroundColor: Colors[colorScheme ?? "light"].background,
+          height: 60, // A bit taller for better touch targets
+          paddingBottom: 8,
+          paddingTop: 8,
+        },
+        tabBarLabelStyle: {
+          fontSize: 10,
+          fontWeight: "600",
+        },
       }}
     >
       <Tabs.Screen
@@ -76,8 +84,32 @@ export default function TabLayout() {
       <Tabs.Screen
         name="talents"
         options={{
-          title: "Profils",
+          title: "Réseau",
           tabBarIcon: ({ color }) => <TabBarIcon name="user" color={color} />,
+          headerLeft: () => (
+            <Link href="/account" asChild>
+              <Pressable>
+                {({ pressed }) => (
+                  <FontAwesome
+                    name="user-circle"
+                    size={25}
+                    color={Colors[colorScheme ?? "light"].text}
+                    style={{ marginLeft: 15, opacity: pressed ? 0.5 : 1 }}
+                  />
+                )}
+              </Pressable>
+            </Link>
+          ),
+        }}
+      />
+
+      <Tabs.Screen
+        name="feed"
+        options={{
+          title: "Fil d'actu",
+          tabBarIcon: ({ color }) => (
+            <TabBarIcon name="newspaper-o" color={color} />
+          ),
           headerLeft: () => (
             <Link href="/account" asChild>
               <Pressable>

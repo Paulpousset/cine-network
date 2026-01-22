@@ -34,6 +34,20 @@ export default function RoleFormFields({
     onChange({ ...data, [key]: value });
   };
 
+  const toArray = (value: any): string[] => {
+    if (Array.isArray(value)) return value;
+    if (!value) return [];
+    return [String(value)];
+  };
+
+  const toggleMultiSelect = (key: string, value: string) => {
+    const current = toArray(data[key]);
+    const next = current.includes(value)
+      ? current.filter((v) => v !== value)
+      : [...current, value];
+    updateField(key, next);
+  };
+
   // --- FORMULAIRES SPÉCIFIQUES ---
 
   // 1. ACTEUR (Physique)
@@ -56,12 +70,17 @@ export default function RoleFormFields({
           {HAIR_COLORS.map((c) => (
             <TouchableOpacity
               key={c}
-              onPress={() =>
-                updateField("hairColor", data.hairColor === c ? "" : c)
-              }
-              style={[styles.chip, data.hairColor === c && styles.chipSelected]}
+              onPress={() => toggleMultiSelect("hairColor", c)}
+              style={[
+                styles.chip,
+                toArray(data.hairColor).includes(c) && styles.chipSelected,
+              ]}
             >
-              <Text style={{ color: data.hairColor === c ? "white" : "#333" }}>
+              <Text
+                style={{
+                  color: toArray(data.hairColor).includes(c) ? "white" : "#333",
+                }}
+              >
                 {c}
               </Text>
             </TouchableOpacity>
@@ -73,12 +92,17 @@ export default function RoleFormFields({
           {EYE_COLORS.map((c) => (
             <TouchableOpacity
               key={c}
-              onPress={() =>
-                updateField("eyeColor", data.eyeColor === c ? "" : c)
-              }
-              style={[styles.chip, data.eyeColor === c && styles.chipSelected]}
+              onPress={() => toggleMultiSelect("eyeColor", c)}
+              style={[
+                styles.chip,
+                toArray(data.eyeColor).includes(c) && styles.chipSelected,
+              ]}
             >
-              <Text style={{ color: data.eyeColor === c ? "white" : "#333" }}>
+              <Text
+                style={{
+                  color: toArray(data.eyeColor).includes(c) ? "white" : "#333",
+                }}
+              >
                 {c}
               </Text>
             </TouchableOpacity>
@@ -146,6 +170,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
     marginBottom: 10,
     textTransform: "uppercase",
+    textAlign: "center",
   },
   label: {
     fontSize: 14,
@@ -153,12 +178,14 @@ const styles = StyleSheet.create({
     marginBottom: 6,
     color: "#333",
     marginTop: 10,
+    textAlign: "center",
   },
   helper: {
     fontSize: 12,
     color: "#666",
     marginBottom: 6,
     fontStyle: "italic",
+    textAlign: "center",
   },
   input: {
     borderWidth: 1,
@@ -166,11 +193,13 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 10,
     backgroundColor: "#fafafa",
+    textAlign: "center",
   },
   rowWrap: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 8,
+    justifyContent: "center",
   },
   chip: {
     paddingVertical: 6,
