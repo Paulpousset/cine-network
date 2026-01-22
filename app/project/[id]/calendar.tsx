@@ -366,21 +366,9 @@ export default function ProjectCalendar() {
   return (
     <View style={styles.container}>
       {/* CUSTOM NAV HEADER: Just Title (No Back) + Settings if owner */}
-      <View
-        style={{
-          flexDirection: "row",
-          justifyContent: "space-between",
-          alignItems: "center",
-          paddingHorizontal: 20,
-          paddingTop: 60,
-          paddingBottom: 15,
-          backgroundColor: "white",
-          borderBottomWidth: 1,
-          borderColor: "#eee",
-        }}
-      >
+      <View style={styles.fullHeader}>
         <View style={{ width: 24 }} />
-        <Text style={{ fontSize: 20, fontWeight: "bold" }}>Calendrier</Text>
+        <Text style={styles.headerTitle}>Calendrier</Text>
         {isOwner ? (
           <TouchableOpacity
             onPress={() =>
@@ -859,6 +847,18 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingTop: 40,
     marginBottom: 20,
+  },
+  fullHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingTop: 60,
+    paddingBottom: 15,
+    paddingHorizontal: 20,
+    backgroundColor: "white",
+    borderBottomWidth: 1,
+    borderColor: "#eee",
+    marginHorizontal: -20,
   },
   headerTitle: {
     fontSize: 24,
