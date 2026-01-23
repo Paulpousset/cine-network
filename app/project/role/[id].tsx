@@ -8,6 +8,8 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
+  Modal,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -23,6 +25,8 @@ export default function RoleDetails() {
   const [hasApplied, setHasApplied] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [applying, setApplying] = useState(false);
+  const [applicationMessage, setApplicationMessage] = useState("");
+  const [applicationModalVisible, setApplicationModalVisible] = useState(false);
 
   useEffect(() => {
     fetchRoleDetails();
@@ -53,6 +57,15 @@ export default function RoleDetails() {
     }
   }
 
+  function openApplicationModal() {
+    if (!userId) {
+      Alert.alert("Erreur", "Vous devez être connecté pour postuler.");
+      return;
+    }
+    if (hasApplied) return;
+    setApplicationModalVisible(true);
+  }
+
   async function handleApply() {
     if (!userId) {
       Alert.alert("Erreur", "Vous devez être connecté pour postuler.");
@@ -66,6 +79,7 @@ export default function RoleDetails() {
         role_id: id,
         candidate_id: userId,
         status: "pending",
+        message: applicationMessage.trim() || null,
       });
 
       if (error) {
@@ -79,6 +93,7 @@ export default function RoleDetails() {
       } else {
         setHasApplied(true);
         Alert.alert("Succès", "Votre candidature a été envoyée !");
+        setApplicationModalVisible(false);
       }
     } catch (e) {
       Alert.alert("Erreur", (e as Error).message);
@@ -311,7 +326,7 @@ export default function RoleDetails() {
             GlobalStyles.primaryButton,
             (hasApplied || applying) && { backgroundColor: "#ccc" },
           ]}
-          onPress={handleApply}
+          onPress={openApplicationModal}
           disabled={hasApplied || applying}
         >
           {applying ? (
@@ -323,6 +338,71 @@ export default function RoleDetails() {
           )}
         </TouchableOpacity>
       </View>
+
+      {/* MODAL APPLICATION */}
+      <Modal
+        visible={applicationModalVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setApplicationModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: 15,
+              }}
+            >
+              <Text style={GlobalStyles.title2}>Postuler</Text>
+              <TouchableOpacity
+                onPress={() => setApplicationModalVisible(false)}
+              >
+                <Ionicons name="close" size={24} color="#333" />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={{ marginBottom: 10, color: "#666" }}>
+              Vous pouvez ajouter un message personnel à votre candidature.
+            </Text>
+
+            <View
+              style={{
+                borderWidth: 1,
+                borderColor: Colors.light.border,
+                borderRadius: 8,
+                padding: 10,
+                backgroundColor: Colors.light.backgroundSecondary,
+                height: 120,
+                marginBottom: 20,
+              }}
+            >
+              <TextInput
+                style={{ flex: 1, textAlignVertical: "top", color: Colors.light.text }}
+                placeholder="Bonjour, je suis très intéressé par ce rôle..."
+                multiline
+                value={applicationMessage}
+                onChangeText={setApplicationMessage}
+                autoFocus
+              />
+            </View>
+
+            <TouchableOpacity
+              style={GlobalStyles.primaryButton}
+              onPress={handleApply}
+              disabled={applying}
+            >
+              {applying ? (
+                <ActivityIndicator color="white" />
+              ) : (
+                <Text style={GlobalStyles.buttonText}>Envoyer ma candidature</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -435,5 +515,20 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
     borderTopWidth: 1,
     borderColor: Colors.light.border,
+  },
+
+  // Modal Styles (copied from other file for consistency)
+  modalOverlay: {
+    flex: 1,
+    justifyContent: "center",
+    backgroundColor: "rgba(0,0,0,0.5)",
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: "white",
+    borderRadius: 15,
+    padding: 20,
+    maxHeight: "80%",
+    width: "100%",
   },
 });

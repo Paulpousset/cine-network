@@ -1,7 +1,8 @@
 import FontAwesome from "@expo/vector-icons/FontAwesome";
+import { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { Link, Tabs } from "expo-router";
 import React from "react";
-import { Pressable } from "react-native";
+import { Pressable, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 import { useClientOnlyValue } from "@/components/useClientOnlyValue";
 import { useColorScheme } from "@/components/useColorScheme";
@@ -15,32 +16,74 @@ function TabBarIcon(props: {
   return <FontAwesome size={24} style={{ marginBottom: 0 }} {...props} />;
 }
 
+function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
+  const colorScheme = useColorScheme();
+  const colors = Colors[colorScheme ?? "light"];
+
+  return (
+    <View
+      style={[
+        styles.tabBarContainer,
+        { backgroundColor: colors.background, borderTopColor: colors.border },
+      ]}
+    >
+      {state.routes.map((route, index) => {
+        const { options } = descriptors[route.key];
+        const isFocused = state.index === index;
+        const color = isFocused ? colors.tint : "#999";
+
+        const onPress = () => {
+          const event = navigation.emit({
+            type: "tabPress",
+            target: route.key,
+            canPreventDefault: true,
+          });
+
+          if (!isFocused && !event.defaultPrevented) {
+            navigation.navigate(route.name, route.params);
+          }
+        };
+
+        return (
+          <React.Fragment key={route.key}>
+            <TouchableOpacity
+              onPress={onPress}
+              style={styles.tabItem}
+              activeOpacity={0.7}
+            >
+              {options.tabBarIcon?.({ focused: isFocused, color, size: 24 })}
+              <Text style={[styles.tabLabel, { color }]}>
+                {options.title}
+              </Text>
+            </TouchableOpacity>
+
+            {index < state.routes.length - 1 && (
+              <View
+                style={[
+                  styles.divider,
+                  { backgroundColor: colors.tint, opacity: 0.3 },
+                ]}
+              />
+            )}
+          </React.Fragment>
+        );
+      })}
+    </View>
+  );
+}
+
 export default function TabLayout() {
   const colorScheme = useColorScheme();
 
   return (
     <Tabs
+      tabBar={(props) => <CustomTabBar {...props} />}
       screenOptions={{
         tabBarActiveTintColor: Colors[colorScheme ?? "light"].tint,
         headerShown: useClientOnlyValue(false, true),
-        tabBarStyle: {
-          backgroundColor: Colors[colorScheme ?? "light"].background,
-          borderTopWidth: 1,
-          borderTopColor: Colors[colorScheme ?? "light"].border, // Utilisation de la nouvelle couleur de bordure
-          height: 60,
-          paddingBottom: 8,
-          paddingTop: 8,
-          elevation: 0, // Suppression de l'ombre sur Android pour le style Minimal
-          shadowOpacity: 0, // Suppression de l'ombre sur iOS pour le style Minimal
-        },
-        tabBarLabelStyle: {
-          fontSize: 10,
-          fontWeight: "600",
-          fontFamily: "System", // Police système propre pour le côté Minimal
-        },
         headerStyle: {
           backgroundColor: Colors[colorScheme ?? "light"].background,
-          elevation: 0, // Suppression de l'ombre du header
+          elevation: 0,
           shadowOpacity: 0,
           borderBottomWidth: 1,
           borderBottomColor: Colors[colorScheme ?? "light"].border,
@@ -71,6 +114,20 @@ export default function TabLayout() {
               </Pressable>
             </Link>
           ),
+          headerRight: () => (
+            <Link href="/direct-messages" asChild>
+              <Pressable>
+                {({ pressed }) => (
+                  <FontAwesome
+                    name="comments"
+                    size={24}
+                    color={Colors[colorScheme ?? "light"].text}
+                    style={{ marginRight: 15, opacity: pressed ? 0.5 : 1 }}
+                  />
+                )}
+              </Pressable>
+            </Link>
+          ),
         }}
       />
 
@@ -95,6 +152,20 @@ export default function TabLayout() {
               </Pressable>
             </Link>
           ),
+          headerRight: () => (
+            <Link href="/direct-messages" asChild>
+              <Pressable>
+                {({ pressed }) => (
+                  <FontAwesome
+                    name="comments"
+                    size={24}
+                    color={Colors[colorScheme ?? "light"].text}
+                    style={{ marginRight: 15, opacity: pressed ? 0.5 : 1 }}
+                  />
+                )}
+              </Pressable>
+            </Link>
+          ),
         }}
       />
 
@@ -112,6 +183,20 @@ export default function TabLayout() {
                     size={25}
                     color={Colors[colorScheme ?? "light"].text}
                     style={{ marginLeft: 15, opacity: pressed ? 0.5 : 1 }}
+                  />
+                )}
+              </Pressable>
+            </Link>
+          ),
+          headerRight: () => (
+            <Link href="/direct-messages" asChild>
+              <Pressable>
+                {({ pressed }) => (
+                  <FontAwesome
+                    name="comments"
+                    size={24}
+                    color={Colors[colorScheme ?? "light"].text}
+                    style={{ marginRight: 15, opacity: pressed ? 0.5 : 1 }}
                   />
                 )}
               </Pressable>
@@ -141,8 +226,49 @@ export default function TabLayout() {
               </Pressable>
             </Link>
           ),
+          headerRight: () => (
+            <Link href="/direct-messages" asChild>
+              <Pressable>
+                {({ pressed }) => (
+                  <FontAwesome
+                    name="comments"
+                    size={24}
+                    color={Colors[colorScheme ?? "light"].text}
+                    style={{ marginRight: 15, opacity: pressed ? 0.5 : 1 }}
+                  />
+                )}
+              </Pressable>
+            </Link>
+          ),
         }}
       />
     </Tabs>
   );
 }
+
+const styles = StyleSheet.create({
+  tabBarContainer: {
+    flexDirection: "row",
+    height: 85,
+    alignItems: "center",
+    borderTopWidth: 1,
+    paddingBottom: 25,
+    paddingTop: 10,
+  },
+  tabItem: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+  },
+  tabLabel: {
+    fontSize: 10,
+    fontWeight: "600",
+    fontFamily: "System",
+  },
+  divider: {
+    width: 2, // Slightly thicker to show rounded corners better, or keep thin
+    height: 24, // Slightly shorter
+    borderRadius: 2, // Rounded ends
+  },
+});

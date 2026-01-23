@@ -417,6 +417,19 @@ export default function ProfileDetail() {
               style={[styles.actionButton, { backgroundColor: Colors.light.tint }]}
               onPress={() =>
                 router.push({
+                  pathname: "/direct-messages/[id]",
+                  params: { id: profile.id },
+                })
+              }
+            >
+              <Ionicons name="chatbubble-ellipses-outline" size={20} color="white" />
+              <Text style={styles.actionButtonText}>Message</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.actionButton, { backgroundColor: Colors.light.tint }]}
+              onPress={() =>
+                router.push({
                   pathname: "/profile/posts",
                   params: {
                     userId: profile.id,

@@ -1,3 +1,5 @@
+import Colors from "@/constants/Colors";
+import { GlobalStyles } from "@/constants/Styles";
 import { JOB_TITLES } from "@/utils/roles";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -16,8 +18,6 @@ import {
 } from "react-native";
 import MapView, { Marker, PROVIDER_DEFAULT } from "react-native-maps";
 import { supabase } from "../../lib/supabase";
-import { GlobalStyles } from "@/constants/Styles";
-import Colors from "@/constants/Colors";
 
 // On récupère les clés de ton fichier rolesList.ts
 const ROLE_CATEGORIES = ["all", ...Object.keys(JOB_TITLES)];
@@ -44,9 +44,12 @@ type RoleWithProject = {
 export default function Discover() {
   const router = useRouter();
   const [roles, setRoles] = useState<RoleWithProject[]>([]);
+  const [projects, setProjects] = useState<any[]>([]); // New state for projects
   const [loading, setLoading] = useState(true);
 
-  // View Mode
+  // View Content Type: 'roles' (Jobs) or 'projects' (Tournages)
+  const [contentType, setContentType] = useState<"roles" | "projects">("roles");
+  // View Mode: 'list' or 'map'
   const [viewMode, setViewMode] = useState<"list" | "map">("list");
 
   // Filters
@@ -135,11 +138,78 @@ export default function Discover() {
         (r) => r.status !== "draft",
       );
       setRoles(visible);
+
+      // Derive unique projects from roles
+      const uniqueProjectsMap = new Map();
+      visible.forEach(role => {
+        if (role.tournages && !uniqueProjectsMap.has(role.tournages.id)) {
+            uniqueProjectsMap.set(role.tournages.id, {
+                ...role.tournages,
+                roleCount: 1, // Start count
+                roles: [role] // Keep track of roles
+            });
+        } else if (role.tournages) {
+            const p = uniqueProjectsMap.get(role.tournages.id);
+            p.roleCount++;
+            p.roles.push(role);
+        }
+      });
+      setProjects(Array.from(uniqueProjectsMap.values()));
+
     } catch (error) {
       Alert.alert("Erreur", (error as Error).message);
     } finally {
       setLoading(false);
     }
+  }
+
+  function renderProject({ item }: { item: any }) {
+    return (
+      <TouchableOpacity
+        style={GlobalStyles.card}
+        onPress={() => router.push(`/project/${item.id}`)}
+      >
+        <View style={styles.cardHeader}>
+          <View style={{flex: 1}}>
+            <Text style={[styles.projectTitle, { fontSize: 18, marginBottom: 4 }]}>
+              {item.title || "Projet Inconnu"}
+            </Text>
+            <Text style={styles.projectSubtitle}>
+              {item.type?.replace("_", " ")} • {item.ville || "Lieu N/C"}
+            </Text>
+          </View>
+          <View style={[styles.badge, { backgroundColor: Colors.light.tint + '20' }]}>
+            <Text style={[styles.badgeText, { color: Colors.light.tint, fontSize: 12 }]}>
+                {item.roleCount} OFFRE{item.roleCount > 1 ? 'S' : ''}
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.divider} />
+
+        <View style={{flexDirection: 'row', flexWrap: 'wrap', gap: 8}}>
+            {item.roles.slice(0, 3).map((r: any) => (
+                <View key={r.id} style={{
+                    backgroundColor: '#f5f5f5',
+                    paddingHorizontal: 8,
+                    paddingVertical: 4,
+                    borderRadius: 4
+                }}>
+                    <Text style={{fontSize: 10, color: '#666'}}>
+                        {r.title}
+                    </Text>
+                </View>
+            ))}
+            {item.roles.length > 3 && (
+                <Text style={{fontSize: 10, color: '#999', alignSelf: 'center'}}>
+                    +{item.roles.length - 3} autres
+                </Text>
+            )}
+        </View>
+
+        <Text style={styles.ctaText}>Voir le projet →</Text>
+      </TouchableOpacity>
+    );
   }
 
   function renderRole({ item }: { item: RoleWithProject }) {
@@ -197,10 +267,52 @@ export default function Discover() {
     <View style={styles.container}>
       {/* HEADER */}
       <View style={styles.header}>
+        {/* TABS: ROLES vs PROJETS */}
+        <View style={{ flexDirection: 'row', backgroundColor: Colors.light.backgroundSecondary, borderRadius: 8, padding: 4, marginBottom: 15 }}>
+            <TouchableOpacity
+                onPress={() => setContentType("roles")}
+                style={{
+                    flex: 1,
+                    paddingVertical: 8,
+                    borderRadius: 6,
+                    backgroundColor: contentType === "roles" ? "white" : "transparent",
+                    ...((contentType === "roles") ? {
+                        shadowColor: "#000",
+                        shadowOffset: { width: 0, height: 2 },
+                        shadowOpacity: 0.1,
+                        shadowRadius: 3,
+                        elevation: 2
+                    } : {}),
+                    alignItems: 'center'
+                }}
+            >
+                <Text style={{ fontWeight: "600", color: contentType === "roles" ? Colors.light.text : "#999" }}>Offres</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+                onPress={() => setContentType("projects")}
+                style={{
+                    flex: 1,
+                    paddingVertical: 8,
+                    borderRadius: 6,
+                    backgroundColor: contentType === "projects" ? "white" : "transparent",
+                    ...((contentType === "projects") ? {
+                        shadowColor: "#000",
+                        shadowOffset: { width: 0, height: 2 },
+                        shadowOpacity: 0.1,
+                        shadowRadius: 3,
+                        elevation: 2
+                    } : {}),
+                    alignItems: 'center'
+                }}
+            >
+                <Text style={{ fontWeight: "600", color: contentType === "projects" ? Colors.light.text : "#999" }}>Tournages</Text>
+            </TouchableOpacity>
+        </View>
+
         <View
           style={{
             flexDirection: "row",
-            justifyContent: "center",
+            justifyContent: "space-between",
             alignItems: "center",
             marginBottom: 10,
           }}
@@ -271,29 +383,28 @@ export default function Discover() {
               longitudeDelta: 10,
             }}
           >
-            {roles.map((item) => {
-              const t = Array.isArray(item.tournages)
-                ? item.tournages[0]
-                : item.tournages;
-
-              if (!t || !t.latitude || !t.longitude) {
+            {/* 
+                CORRECTION: Afficher les PROJETS sur la carte pour éviter les doublons 
+                (car tous les rôles d'un projet sont au même endroit).
+            */}
+            {projects.map((proj) => {
+              if (!proj || !proj.latitude || !proj.longitude) {
                 return null;
               }
-              // Unique key to prevent React warnings
-              const key = `role-${item.id}`;
+              const key = `proj-${proj.id}`;
               return (
                 <Marker
                   key={key}
                   coordinate={{
-                    latitude: t.latitude,
-                    longitude: t.longitude,
+                    latitude: proj.latitude,
+                    longitude: proj.longitude,
                   }}
-                  title={item.title}
-                  description={`${t.title} (${item.category})`}
-                  onCalloutPress={() => router.push(`/project/role/${item.id}`)}
+                  title={proj.title}
+                  description={`${proj.roleCount} offre(s) • ${proj.type}`}
+                  onCalloutPress={() => router.push(`/project/${proj.id}`)}
                 >
                   <View style={styles.customMarker}>
-                    <Ionicons name="videocam" size={16} color="white" />
+                    <Text style={{color:'white', fontWeight:'bold', fontSize: 10}}>{proj.roleCount}</Text>
                   </View>
                 </Marker>
               );
@@ -302,12 +413,12 @@ export default function Discover() {
         </View>
       ) : (
         <FlatList
-          data={roles}
+          data={contentType === "roles" ? roles : projects}
           keyExtractor={(item) => item.id}
-          renderItem={renderRole}
+          renderItem={contentType === "roles" ? renderRole : renderProject}
           contentContainerStyle={styles.listContent}
           ListEmptyComponent={
-            <Text style={styles.emptyText}>Aucun casting pour le moment.</Text>
+            <Text style={styles.emptyText}>Aucun résultat pour le moment.</Text>
           }
         />
       )}

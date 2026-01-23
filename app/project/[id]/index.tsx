@@ -28,8 +28,9 @@ function ProjectShowcase({ project, roles }: { project: any; roles: any[] }) {
   const router = useRouter();
   
   // Filter only published roles that are not assigned
+  // We align with the logic that if it's not draft and not assigned, it's open.
   const openRoles = roles.filter(
-    (r) => r.status === "published" && !r.assigned_profile_id
+    (r) => r.status !== "draft" && !r.assigned_profile_id
   );
 
   return (
@@ -115,7 +116,11 @@ function ProjectShowcase({ project, roles }: { project: any; roles: any[] }) {
                   borderRadius: 12,
                   borderWidth: 1,
                   borderColor: Colors.light.border,
-                  ...GlobalStyles.card.shadowStyle, // Assuming shadow is part of card style or we just omit for clean look
+                  shadowColor: "#000",
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.05,
+                  shadowRadius: 8,
+                  elevation: 2,
                 }}
               >
                 <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start'}}>
@@ -321,8 +326,8 @@ export default function ProjectDetails() {
                 .select("id")
                 .eq("tournage_id", id)
                 .eq("assigned_profile_id", userId)
-                .maybeSingle();
-            if (memberData) isMember = true;
+                .limit(1);
+            if (memberData && memberData.length > 0) isMember = true;
           }
       }
 
@@ -2197,9 +2202,16 @@ export default function ProjectDetails() {
                 }}
               >
                 <View style={{ marginBottom: 10 }}>
-                  <Text style={{ fontWeight: "bold", fontSize: 16 }}>
-                    {item.profiles?.full_name || item.profiles?.username}
-                  </Text>
+                  <TouchableOpacity
+                    onPress={() => {
+                        setApplicationsModalVisible(false);
+                        router.push(`/profile/${item.candidate_id}`);
+                    }}
+                  >
+                    <Text style={{ fontWeight: "bold", fontSize: 16, color: Colors.light.primary, textDecorationLine: 'underline' }}>
+                        {item.profiles?.full_name || item.profiles?.username}
+                    </Text>
+                  </TouchableOpacity>
                   <Text style={{ color: "#666" }}>
                     Candidat pour :{" "}
                     <Text style={{ fontWeight: "600", color: "#333" }}>

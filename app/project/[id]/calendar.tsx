@@ -70,6 +70,7 @@ export default function ProjectCalendar() {
 
   const [roleModalVisible, setRoleModalVisible] = useState(false);
   const [categoryModalVisible, setCategoryModalVisible] = useState(false);
+  const [selectionMode, setSelectionMode] = useState<"none" | "role" | "category">("none");
 
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
@@ -148,10 +149,16 @@ export default function ProjectCalendar() {
       }
 
       if (owner || adminCats.length > 0) {
-        const { data: rollers } = await supabase
+        // Simplification: on ne récupère pas le profil assigné via une jointure complexe
+        // car on ne l'affiche pas dans le picker pour l'instant.
+        const { data: rollers, error: rolesError } = await supabase
           .from("project_roles")
-          .select("id, title, category, assigned_profile:profiles(full_name)")
+          .select("id, title, category") 
           .eq("tournage_id", id);
+
+        if (rolesError) {
+            console.log("Error fetching roles for calendar:", rolesError);
+        }
 
         if (rollers) {
           setProjectRoles(rollers);
@@ -284,6 +291,7 @@ export default function ProjectCalendar() {
       }
 
       setModalVisible(false);
+      setSelectionMode("none");
       setNewEventTitle("");
       setNewEventDesc("");
       setTargetRoles([]);
@@ -469,348 +477,338 @@ export default function ProjectCalendar() {
         visible={modalVisible}
         animationType="slide"
         transparent={true}
-        onRequestClose={() => setModalVisible(false)}
+        onRequestClose={() => {
+            if (selectionMode !== 'none') {
+                setSelectionMode('none');
+            } else {
+                setModalVisible(false);
+            }
+        }}
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text style={GlobalStyles.modalTitle}>Nouvel Événement</Text>
+            {selectionMode === "none" ? (
+              <>
+                <Text style={GlobalStyles.modalTitle}>Nouvel Événement</Text>
 
-            <Text style={GlobalStyles.label}>Titre</Text>
-            <TextInput
-              style={GlobalStyles.input}
-              value={newEventTitle}
-              onChangeText={setNewEventTitle}
-              placeholder="Réunion, Tournage sc. 1..."
-              placeholderTextColor={Colors.light.tabIconDefault}
-            />
-
-            <View style={{ flexDirection: "row", gap: 10, marginBottom: 10 }}>
-              <View style={{ flex: 1 }}>
-                <Text style={GlobalStyles.label}>Date</Text>
-                <TouchableOpacity
-                  onPress={() => {
-                    setShowDatePicker(true);
-                    if (Platform.OS === "ios") setShowTimePicker(false);
-                  }}
-                  style={[GlobalStyles.input, { justifyContent: "center" }]}
-                >
-                  <Text style={{ color: Colors.light.text }}>
-                    {newEventDate || "Choisir date"}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={GlobalStyles.label}>Heure</Text>
-                <TouchableOpacity
-                  onPress={() => {
-                    setShowTimePicker(true);
-                    if (Platform.OS === "ios") setShowDatePicker(false);
-                  }}
-                  style={[GlobalStyles.input, { justifyContent: "center" }]}
-                >
-                  <Text style={{ color: Colors.light.text }}>
-                    {newEventTime || "Choisir heure"}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            {showDatePicker && (
-              <View style={{ alignItems: "center", marginBottom: 15 }}>
-                <DateTimePicker
-                  value={newEventDate ? new Date(newEventDate) : new Date()}
-                  mode="date"
-                  display={Platform.OS === "ios" ? "inline" : "default"}
-                  onChange={onDateChange}
-                  style={Platform.OS === "ios" ? { width: 320 } : undefined}
+                <Text style={GlobalStyles.label}>Titre</Text>
+                <TextInput
+                  style={GlobalStyles.input}
+                  value={newEventTitle}
+                  onChangeText={setNewEventTitle}
+                  placeholder="Réunion, Tournage sc. 1..."
+                  placeholderTextColor={Colors.light.tabIconDefault}
                 />
-                {Platform.OS === "ios" && (
-                  <Button
-                    title="Fermer le calendrier"
-                    onPress={() => setShowDatePicker(false)}
-                  />
+
+                <View style={{ flexDirection: "row", gap: 10, marginBottom: 10 }}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={GlobalStyles.label}>Date</Text>
+                    <TouchableOpacity
+                      onPress={() => {
+                        setShowDatePicker(true);
+                        if (Platform.OS === "ios") setShowTimePicker(false);
+                      }}
+                      style={[GlobalStyles.input, { justifyContent: "center" }]}
+                    >
+                      <Text style={{ color: Colors.light.text }}>
+                        {newEventDate || "Choisir date"}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={GlobalStyles.label}>Heure</Text>
+                    <TouchableOpacity
+                      onPress={() => {
+                        setShowTimePicker(true);
+                        if (Platform.OS === "ios") setShowDatePicker(false);
+                      }}
+                      style={[GlobalStyles.input, { justifyContent: "center" }]}
+                    >
+                      <Text style={{ color: Colors.light.text }}>
+                        {newEventTime || "Choisir heure"}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                {showDatePicker && (
+                  <View style={{ alignItems: "center", marginBottom: 15 }}>
+                    <DateTimePicker
+                      value={newEventDate ? new Date(newEventDate) : new Date()}
+                      mode="date"
+                      display={Platform.OS === "ios" ? "inline" : "default"}
+                      onChange={onDateChange}
+                      style={Platform.OS === "ios" ? { width: 320 } : undefined}
+                    />
+                    {Platform.OS === "ios" && (
+                      <Button
+                        title="Fermer le calendrier"
+                        onPress={() => setShowDatePicker(false)}
+                      />
+                    )}
+                  </View>
                 )}
+
+                {showTimePicker && (
+                  <View style={{ alignItems: "center", marginBottom: 15 }}>
+                    <DateTimePicker
+                      value={(() => {
+                        const d = new Date();
+                        if (newEventTime) {
+                          const [h, m] = newEventTime.split(":");
+                          d.setHours(parseInt(h), parseInt(m));
+                        }
+                        return d;
+                      })()}
+                      mode="time"
+                      display={Platform.OS === "ios" ? "spinner" : "default"}
+                      onChange={onTimeChange}
+                      style={Platform.OS === "ios" ? { width: 320 } : undefined}
+                    />
+                    {Platform.OS === "ios" && (
+                      <Button
+                        title="Valider l'heure"
+                        onPress={() => setShowTimePicker(false)}
+                      />
+                    )}
+                  </View>
+                )}
+
+                <Text style={GlobalStyles.label}>Description</Text>
+                <TextInput
+                  style={GlobalStyles.input}
+                  value={newEventDesc}
+                  onChangeText={setNewEventDesc}
+                  placeholder="Lieu, détails..."
+                  placeholderTextColor={Colors.light.tabIconDefault}
+                />
+
+                <Text style={GlobalStyles.label}>Visibilité</Text>
+                <View style={{ flexDirection: "row", gap: 5, marginBottom: 15 }}>
+                  {canCreateGeneral && (
+                    <TouchableOpacity
+                      onPress={() => setNewEventType("general")}
+                      style={[
+                        styles.typeBtn,
+                        newEventType === "general" && styles.typeBtnActive,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.typeBtnText,
+                          newEventType === "general" && { color: "white" },
+                        ]}
+                      >
+                        Général
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+
+                  {canCreateCategory && (
+                    <TouchableOpacity
+                      onPress={() => {
+                        setNewEventType("category_specific");
+                        setSelectionMode("category");
+                      }}
+                      style={[
+                        styles.typeBtn,
+                        newEventType === "category_specific" &&
+                          styles.typeBtnActive,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.typeBtnText,
+                          newEventType === "category_specific" && { color: "white" },
+                        ]}
+                      >
+                        {targetCategories.length > 0
+                          ? `${targetCategories.length} Catégorie(s)`
+                          : "Catégorie"}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+
+                  {canCreateRole && (
+                    <TouchableOpacity
+                      onPress={() => {
+                        setNewEventType("role_specific");
+                        setSelectionMode("role");
+                      }}
+                      style={[
+                        styles.typeBtn,
+                        newEventType === "role_specific" && styles.typeBtnActive,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.typeBtnText,
+                          newEventType === "role_specific" && { color: "white" },
+                        ]}
+                      >
+                        {targetRoles.length > 0
+                          ? `${targetRoles.length} Pers.`
+                          : "Personne"}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+
+                <View
+                  style={{
+                    flexDirection: "row",
+                    justifyContent: "flex-end",
+                    gap: 10,
+                    marginTop: 20,
+                  }}
+                >
+                  <TouchableOpacity
+                    onPress={() => setModalVisible(false)}
+                    style={{ padding: 10 }}
+                  >
+                    <Text style={{ color: Colors.light.danger }}>Annuler</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={createEvent}
+                    style={GlobalStyles.primaryButton}
+                  >
+                    <Text style={GlobalStyles.buttonText}>Créer</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            ) : selectionMode === "role" ? (
+              <View style={{ flex: 1 }}>
+                <Text
+                  style={{ fontWeight: "bold", marginBottom: 10, fontSize: 16 }}
+                >
+                  Choisir les rôles concernés
+                </Text>
+                <FlatList
+                  data={projectRoles}
+                  keyExtractor={(item) => item.id}
+                  renderItem={({ item }) => {
+                    const isSelected = targetRoles.some(
+                      (r) => r.id === item.id,
+                    );
+                    return (
+                      <TouchableOpacity
+                        style={{
+                          padding: 12,
+                          borderBottomWidth: 1,
+                          borderColor: Colors.light.border,
+                          backgroundColor: isSelected
+                            ? Colors.light.backgroundSecondary
+                            : "transparent",
+                          flexDirection: "row",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                        }}
+                        onPress={() => {
+                          setTargetRoles((prev) => {
+                            if (prev.some((r) => r.id === item.id)) {
+                              return prev.filter((r) => r.id !== item.id);
+                            } else {
+                              return [...prev, item];
+                            }
+                          });
+                        }}
+                      >
+                        <Text style={{color: Colors.light.text}}>
+                          {item.title}{" "}
+                          <Text style={{ color: Colors.light.tabIconDefault, fontSize: 12 }}>
+                            ({item.category})
+                          </Text>
+                        </Text>
+                        {isSelected && (
+                          <Ionicons
+                            name="checkmark"
+                            size={20}
+                            color={Colors.light.tint}
+                          />
+                        )}
+                      </TouchableOpacity>
+                    );
+                  }}
+                />
+                <TouchableOpacity
+                  onPress={() => setSelectionMode("none")}
+                  style={{ marginTop: 10, alignSelf: "center", padding: 10 }}
+                >
+                  <Text style={{ color: Colors.light.tint, fontWeight: "bold" }}>
+                    Valider la sélection
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <View style={{ flex: 1 }}>
+                <Text
+                  style={{ fontWeight: "bold", marginBottom: 10, fontSize: 16 }}
+                >
+                  Choisir les catégories
+                </Text>
+                <FlatList
+                  data={
+                    isOwner
+                      ? projectCategories
+                      : projectCategories.filter((c) =>
+                          adminCategories.includes(c),
+                        )
+                  }
+                  keyExtractor={(item) => item}
+                  renderItem={({ item }) => {
+                    const isSelected = targetCategories.includes(item);
+                    return (
+                      <TouchableOpacity
+                        style={{
+                          padding: 12,
+                          borderBottomWidth: 1,
+                          borderColor: Colors.light.border,
+                          backgroundColor: isSelected
+                            ? Colors.light.backgroundSecondary
+                            : "transparent",
+                          flexDirection: "row",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                        }}
+                        onPress={() => {
+                          setTargetCategories((prev) => {
+                            if (prev.includes(item)) {
+                              return prev.filter((c) => c !== item);
+                            } else {
+                              return [...prev, item];
+                            }
+                          });
+                        }}
+                      >
+                        <Text style={{color: Colors.light.text}}>{item}</Text>
+                        {isSelected && (
+                          <Ionicons
+                            name="checkmark"
+                            size={20}
+                            color={Colors.light.tint}
+                          />
+                        )}
+                      </TouchableOpacity>
+                    );
+                  }}
+                  ListEmptyComponent={
+                    <Text style={{ textAlign: "center", color: Colors.light.tabIconDefault }}>
+                      Aucune catégorie trouvée
+                    </Text>
+                  }
+                />
+                <TouchableOpacity
+                  onPress={() => setSelectionMode("none")}
+                  style={{ marginTop: 10, alignSelf: "center", padding: 10 }}
+                >
+                  <Text style={{ color: Colors.light.tint, fontWeight: "bold" }}>
+                    Valider la sélection
+                  </Text>
+                </TouchableOpacity>
               </View>
             )}
-
-            {showTimePicker && (
-              <View style={{ alignItems: "center", marginBottom: 15 }}>
-                <DateTimePicker
-                  value={(() => {
-                    const d = new Date();
-                    if (newEventTime) {
-                      const [h, m] = newEventTime.split(":");
-                      d.setHours(parseInt(h), parseInt(m));
-                    }
-                    return d;
-                  })()}
-                  mode="time"
-                  display={Platform.OS === "ios" ? "spinner" : "default"}
-                  onChange={onTimeChange}
-                  style={Platform.OS === "ios" ? { width: 320 } : undefined}
-                />
-                {Platform.OS === "ios" && (
-                  <Button
-                    title="Valider l'heure"
-                    onPress={() => setShowTimePicker(false)}
-                  />
-                )}
-              </View>
-            )}
-
-            <Text style={GlobalStyles.label}>Description</Text>
-            <TextInput
-              style={GlobalStyles.input}
-              value={newEventDesc}
-              onChangeText={setNewEventDesc}
-              placeholder="Lieu, détails..."
-              placeholderTextColor={Colors.light.tabIconDefault}
-            />
-
-            <Text style={GlobalStyles.label}>Visibilité</Text>
-            <View style={{ flexDirection: "row", gap: 5, marginBottom: 15 }}>
-              {canCreateGeneral && (
-                <TouchableOpacity
-                  onPress={() => setNewEventType("general")}
-                  style={[
-                    styles.typeBtn,
-                    newEventType === "general" && styles.typeBtnActive,
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.typeBtnText,
-                      newEventType === "general" && { color: "white" },
-                    ]}
-                  >
-                    Général
-                  </Text>
-                </TouchableOpacity>
-              )}
-
-              {canCreateCategory && (
-                <TouchableOpacity
-                  onPress={() => {
-                    setNewEventType("category_specific");
-                    setCategoryModalVisible(true);
-                  }}
-                  style={[
-                    styles.typeBtn,
-                    newEventType === "category_specific" &&
-                      styles.typeBtnActive,
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.typeBtnText,
-                      newEventType === "category_specific" && { color: "white" },
-                    ]}
-                  >
-                    {targetCategories.length > 0
-                      ? `${targetCategories.length} Catégorie(s)`
-                      : "Catégorie"}
-                  </Text>
-                </TouchableOpacity>
-              )}
-
-              {canCreateRole && (
-                <TouchableOpacity
-                  onPress={() => {
-                    setNewEventType("role_specific");
-                    setRoleModalVisible(true);
-                  }}
-                  style={[
-                    styles.typeBtn,
-                    newEventType === "role_specific" && styles.typeBtnActive,
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.typeBtnText,
-                      newEventType === "role_specific" && { color: "white" },
-                    ]}
-                  >
-                    {targetRoles.length > 0
-                      ? `${targetRoles.length} Pers.`
-                      : "Personne"}
-                  </Text>
-                </TouchableOpacity>
-              )}
-            </View>
-
-            <View
-              style={{
-                flexDirection: "row",
-                justifyContent: "flex-end",
-                gap: 10,
-                marginTop: 20,
-              }}
-            >
-              <TouchableOpacity
-                onPress={() => setModalVisible(false)}
-                style={{ padding: 10 }}
-              >
-                <Text style={{ color: Colors.light.danger }}>Annuler</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={createEvent}
-                style={GlobalStyles.primaryButton}
-              >
-                <Text style={GlobalStyles.buttonText}>Créer</Text>
-              </TouchableOpacity>
-            </View>
           </View>
         </View>
-      </Modal>
-      
-      {/* ROLE PICKER SUB-MODAL */}
-      <Modal
-        visible={roleModalVisible}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setRoleModalVisible(false)}
-      >
-          <View style={styles.rolePickerOverlay}>
-            <View style={styles.rolePickerBox}>
-              <Text
-                style={{ fontWeight: "bold", marginBottom: 10, fontSize: 16 }}
-              >
-                Choisir les rôles concernés
-              </Text>
-              <FlatList
-                data={projectRoles}
-                keyExtractor={(item) => item.id}
-                renderItem={({ item }) => {
-                  const isSelected = targetRoles.some(
-                    (r) => r.id === item.id,
-                  );
-                  return (
-                    <TouchableOpacity
-                      style={{
-                        padding: 12,
-                        borderBottomWidth: 1,
-                        borderColor: Colors.light.border,
-                        backgroundColor: isSelected
-                          ? Colors.light.backgroundSecondary
-                          : "transparent",
-                        flexDirection: "row",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                      }}
-                      onPress={() => {
-                        setTargetRoles((prev) => {
-                          if (prev.some((r) => r.id === item.id)) {
-                            return prev.filter((r) => r.id !== item.id);
-                          } else {
-                            return [...prev, item];
-                          }
-                        });
-                      }}
-                    >
-                      <Text style={{color: Colors.light.text}}>
-                        {item.title}{" "}
-                        <Text style={{ color: Colors.light.tabIconDefault, fontSize: 12 }}>
-                          ({item.category})
-                        </Text>
-                      </Text>
-                      {isSelected && (
-                        <Ionicons
-                          name="checkmark"
-                          size={20}
-                          color={Colors.light.tint}
-                        />
-                      )}
-                    </TouchableOpacity>
-                  );
-                }}
-              />
-              <TouchableOpacity
-                onPress={() => setRoleModalVisible(false)}
-                style={{ marginTop: 10, alignSelf: "center", padding: 10 }}
-              >
-                <Text style={{ color: Colors.light.tint, fontWeight: "bold" }}>
-                  Validé
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-      </Modal>
-
-      {/* CATEGORY PICKER SUB-MODAL */}
-      <Modal
-        visible={categoryModalVisible}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setCategoryModalVisible(false)}
-      >
-          <View style={styles.rolePickerOverlay}>
-            <View style={styles.rolePickerBox}>
-              <Text
-                style={{ fontWeight: "bold", marginBottom: 10, fontSize: 16 }}
-              >
-                Choisir les catégories
-              </Text>
-              <FlatList
-                data={
-                  isOwner
-                    ? projectCategories
-                    : projectCategories.filter((c) =>
-                        adminCategories.includes(c),
-                      )
-                }
-                keyExtractor={(item) => item}
-                renderItem={({ item }) => {
-                  const isSelected = targetCategories.includes(item);
-                  return (
-                    <TouchableOpacity
-                      style={{
-                        padding: 12,
-                        borderBottomWidth: 1,
-                        borderColor: Colors.light.border,
-                        backgroundColor: isSelected
-                          ? Colors.light.backgroundSecondary
-                          : "transparent",
-                        flexDirection: "row",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                      }}
-                      onPress={() => {
-                        setTargetCategories((prev) => {
-                          if (prev.includes(item)) {
-                            return prev.filter((c) => c !== item);
-                          } else {
-                            return [...prev, item];
-                          }
-                        });
-                      }}
-                    >
-                      <Text style={{color: Colors.light.text}}>{item}</Text>
-                      {isSelected && (
-                        <Ionicons
-                          name="checkmark"
-                          size={20}
-                          color={Colors.light.tint}
-                        />
-                      )}
-                    </TouchableOpacity>
-                  );
-                }}
-                ListEmptyComponent={
-                  <Text style={{ textAlign: "center", color: Colors.light.tabIconDefault }}>
-                    Aucune catégorie trouvée
-                  </Text>
-                }
-              />
-              <TouchableOpacity
-                onPress={() => setCategoryModalVisible(false)}
-                style={{ marginTop: 10, alignSelf: "center", padding: 10 }}
-              >
-                <Text style={{ color: Colors.light.tint, fontWeight: "bold" }}>
-                  Validé
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
       </Modal>
     </View>
   );
@@ -935,6 +933,7 @@ const styles = StyleSheet.create({
     padding: 20,
     width: "90%",
     maxHeight: "80%",
+    minHeight: 400, // Hauteur minimale pour éviter l'effet "écrasé"
     shadowColor: Colors.light.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,

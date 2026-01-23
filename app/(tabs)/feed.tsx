@@ -266,22 +266,27 @@ export default function FeedScreen() {
   const renderItem = ({ item }: { item: Post }) => (
     <View style={GlobalStyles.card}>
       <View style={styles.header}>
-        <Image
-          source={{
-            uri: item.user?.avatar_url || "https://via.placeholder.com/40",
-          }}
-          style={styles.avatar}
-        />
-        <View style={styles.headerText}>
-          <Text style={styles.name}>
-            {item.user?.full_name || "Utilisateur"}
-          </Text>
-          <Text style={styles.date}>
-            {new Date(item.created_at).toLocaleDateString()}{" "}
-            {new Date(item.created_at).getHours()}:
-            {new Date(item.created_at).getMinutes().toString().padStart(2, "0")}
-          </Text>
-        </View>
+        <TouchableOpacity 
+            onPress={() => router.push({ pathname: "/profile/[id]", params: { id: item.user_id } })}
+            style={{flexDirection: 'row', alignItems: 'center', flex: 1}}
+        >
+            <Image
+            source={{
+                uri: item.user?.avatar_url || "https://via.placeholder.com/40",
+            }}
+            style={styles.avatar}
+            />
+            <View style={{flex: 1}}>
+                <Text style={styles.name}>
+                    {item.user?.full_name || "Utilisateur"}
+                </Text>
+                <Text style={styles.date}>
+                    {new Date(item.created_at).toLocaleDateString()}{" "}
+                    {new Date(item.created_at).getHours()}:
+                    {new Date(item.created_at).getMinutes().toString().padStart(2, "0")}
+                </Text>
+            </View>
+        </TouchableOpacity>
       </View>
 
       {item.content && renderContent(item.content)}
@@ -475,10 +480,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 10,
   },
-  headerText: {
-    flex: 1,
-    alignItems: "center",
-  },
   avatar: {
     width: 40,
     height: 40,
@@ -489,13 +490,11 @@ const styles = StyleSheet.create({
   name: {
     fontWeight: "bold",
     fontSize: 16,
-    textAlign: "center",
     color: Colors.light.text
   },
   date: {
     color: "#666",
     fontSize: 12,
-    textAlign: "center",
   },
   contentBlock: {
     marginBottom: 10,
