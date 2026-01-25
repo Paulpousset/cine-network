@@ -1,3 +1,7 @@
+import ClapLoading from "@/components/ClapLoading";
+import PaymentModal from "@/components/PaymentModal";
+import Colors from "@/constants/Colors";
+import { GlobalStyles } from "@/constants/Styles";
 import { useUserMode } from "@/hooks/useUserMode";
 import { supabase } from "@/lib/supabase";
 import { Ionicons } from "@expo/vector-icons";
@@ -6,7 +10,6 @@ import * as ImagePicker from "expo-image-picker";
 import { Stack, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
   Alert,
   Image,
   ScrollView,
@@ -17,8 +20,6 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { GlobalStyles } from "@/constants/Styles";
-import Colors from "@/constants/Colors";
 
 // --- CONSTANTS ---
 const HAIR_COLORS = [
@@ -95,6 +96,12 @@ export default function Account() {
   // Avatar
   const [avatar_url, setAvatarUrl] = useState<string | null>(null);
 
+  // Subscription
+  const [subscriptionTier, setSubscriptionTier] = useState<"free" | "studio">(
+    "free",
+  );
+  const [paymentModalVisible, setPaymentModalVisible] = useState(false);
+
   useEffect(() => {
     fetchProfile();
   }, []);
@@ -122,6 +129,7 @@ export default function Account() {
         setWebsite(data.website || "");
         setRole(data.role || "");
         setAvatarUrl(data.avatar_url);
+        setSubscriptionTier(data.subscription_tier || "free");
 
         // Nouveaux champs (si existants)
         setBio(data.bio || "");
@@ -339,6 +347,26 @@ export default function Account() {
     }
   }
 
+  async function handleUpgradeSuccess() {
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const { error } = await supabase
+        .from("profiles")
+        .update({ subscription_tier: "studio" })
+        .eq("id", session.user.id);
+
+      if (error) throw error;
+      setSubscriptionTier("studio");
+      Alert.alert("Félicitations !", "Vous êtes maintenant membre Studio.");
+    } catch (e) {
+      Alert.alert("Erreur", "Impossible de mettre à jour votre abonnement.");
+    }
+  }
+
   // --- SAVE ---
 
   async function saveProfile() {
@@ -400,7 +428,7 @@ export default function Account() {
   if (loading && !profile.id)
     return (
       <View style={styles.center}>
-        <ActivityIndicator color={Colors.light.primary} />
+        <ClapLoading size={50} color={Colors.light.primary} />
       </View>
     );
 
@@ -412,16 +440,20 @@ export default function Account() {
         <TouchableOpacity onPress={() => router.back()} style={{ padding: 5 }}>
           <Ionicons name="arrow-back" size={24} color={Colors.light.text} />
         </TouchableOpacity>
-        <Text style={[GlobalStyles.title2, { marginBottom: 0 }]}>Mon Profil</Text>
+        <Text style={[GlobalStyles.title2, { marginBottom: 0 }]}>
+          Mon Profil
+        </Text>
         <TouchableOpacity
           onPress={saveProfile}
           disabled={loading || uploading}
           style={{ padding: 5 }}
         >
           {loading || uploading ? (
-            <ActivityIndicator size="small" color={Colors.light.primary} />
+            <ClapLoading size={24} color={Colors.light.primary} />
           ) : (
-            <Text style={{ color: Colors.light.primary, fontWeight: "bold" }}>Sauver</Text>
+            <Text style={{ color: Colors.light.primary, fontWeight: "bold" }}>
+              Sauver
+            </Text>
           )}
         </TouchableOpacity>
       </View>
@@ -444,6 +476,87 @@ export default function Account() {
           <Text style={{ marginTop: 10, color: "#666" }}>
             Photo de profil principale
           </Text>
+        </View>
+
+        {/* ABONNEMENT */}
+        <View
+          style={[
+            GlobalStyles.card,
+            { alignItems: "center", paddingVertical: 25 },
+          ]}
+        >
+          <Text style={GlobalStyles.title2}>Mon Abonnement</Text>
+          <View
+            style={{
+              backgroundColor:
+                subscriptionTier === "studio" ? Colors.light.primary : "#eee",
+              paddingHorizontal: 15,
+              paddingVertical: 8,
+              borderRadius: 20,
+              marginVertical: 10,
+            }}
+          >
+            <Text
+              style={{
+                color: subscriptionTier === "studio" ? "white" : "#666",
+                fontWeight: "bold",
+                textTransform: "uppercase",
+              }}
+            >
+              {subscriptionTier === "studio" ? "Studio Pro" : "Gratuit"}
+            </Text>
+          </View>
+
+          {subscriptionTier === "free" && (
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 10,
+                marginTop: 10,
+                width: "100%",
+              }}
+            >
+              <TouchableOpacity
+                onPress={() => setPaymentModalVisible(true)}
+                style={[GlobalStyles.primaryButton, { flex: 1 }]}
+              >
+                <Text style={GlobalStyles.buttonText}>
+                  Passer Pro (29€/mois)
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() =>
+                  Alert.alert(
+                    "Abonnement Studio",
+                    "En passant Studio, vous pouvez créer un nombre illimité de projets, accéder aux statistiques avancées et bénéficier d'une meilleure visibilité.",
+                  )
+                }
+                style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: 22,
+                  backgroundColor: Colors.light.backgroundSecondary,
+                  justifyContent: "center",
+                  alignItems: "center",
+                  borderWidth: 1,
+                  borderColor: Colors.light.border,
+                }}
+              >
+                <Ionicons
+                  name="information"
+                  size={24}
+                  color={Colors.light.text}
+                />
+              </TouchableOpacity>
+            </View>
+          )}
+          {subscriptionTier === "studio" && (
+            <Text style={{ color: Colors.light.success, marginTop: 5 }}>
+              Vous bénéficiez de projets illimités et d'outils avancés.
+            </Text>
+          )}
         </View>
 
         {/* 1. INFOS GENERALES */}
@@ -754,7 +867,11 @@ export default function Account() {
                 style={styles.fileButton}
                 onPress={() => Alert.alert("CV", "Fichier déjà uploadé")}
               >
-                <Ionicons name="document-text" size={24} color={Colors.light.primary} />
+                <Ionicons
+                  name="document-text"
+                  size={24}
+                  color={Colors.light.primary}
+                />
                 <Text
                   style={{
                     marginLeft: 10,
@@ -804,7 +921,11 @@ export default function Account() {
                     borderRadius: 10,
                   }}
                 >
-                  <Ionicons name="close-circle" size={20} color={Colors.light.danger} />
+                  <Ionicons
+                    name="close-circle"
+                    size={20}
+                    color={Colors.light.danger}
+                  />
                 </TouchableOpacity>
               </View>
             ))}
@@ -882,7 +1003,10 @@ export default function Account() {
                   <Switch
                     value={isVisible}
                     onValueChange={(val) => toggleProjectVisibility(p.id, val)}
-                    trackColor={{ false: "#767577", true: Colors.light.primary }}
+                    trackColor={{
+                      false: "#767577",
+                      true: Colors.light.primary,
+                    }}
                     thumbColor={isVisible ? Colors.light.tint : "#f4f3f4"}
                   />
                 </View>
@@ -925,7 +1049,10 @@ export default function Account() {
                     onValueChange={(val) =>
                       toggleProjectVisibility(p.projectId, val)
                     }
-                    trackColor={{ false: "#767577", true: Colors.light.primary }}
+                    trackColor={{
+                      false: "#767577",
+                      true: Colors.light.primary,
+                    }}
                     thumbColor={isVisible ? Colors.light.tint : "#f4f3f4"}
                   />
                 </View>
@@ -935,16 +1062,16 @@ export default function Account() {
         </View>
 
         <View style={{ height: 50 }} />
-        
+
         {/* DEV ONLY: SEED DATA */}
         <TouchableOpacity
           onPress={async () => {
             try {
-                // Dynamic import to avoid bundling issues if file not found in some envs
-                const { seedDatabase } = await import("@/utils/seed");
-                await seedDatabase();
+              // Dynamic import to avoid bundling issues if file not found in some envs
+              const { seedDatabase } = await import("@/utils/seed");
+              await seedDatabase();
             } catch (e) {
-                Alert.alert("Erreur", "Impossible de charger le script de seed");
+              Alert.alert("Erreur", "Impossible de charger le script de seed");
             }
           }}
           style={{
@@ -954,10 +1081,12 @@ export default function Account() {
             alignItems: "center",
             borderWidth: 1,
             borderColor: Colors.light.tint,
-            marginBottom: 15
+            marginBottom: 15,
           }}
         >
-            <Text style={{ color: Colors.light.tint, fontWeight: "bold" }}>Générer Données Test (Dev)</Text>
+          <Text style={{ color: Colors.light.tint, fontWeight: "bold" }}>
+            Générer Données Test (Dev)
+          </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -965,17 +1094,27 @@ export default function Account() {
             await supabase.auth.signOut();
             router.replace("/");
           }}
-          style={{ 
-              backgroundColor: Colors.light.danger,
-              padding: 15,
-              borderRadius: 12,
-              alignItems: 'center'
-           }}
+          style={{
+            backgroundColor: Colors.light.danger,
+            padding: 15,
+            borderRadius: 12,
+            alignItems: "center",
+          }}
         >
-            <Text style={{ color: 'white', fontWeight: 'bold' }}>Se déconnecter</Text>
+          <Text style={{ color: "white", fontWeight: "bold" }}>
+            Se déconnecter
+          </Text>
         </TouchableOpacity>
         <View style={{ height: 50 }} />
       </ScrollView>
+
+      <PaymentModal
+        visible={paymentModalVisible}
+        amount={29.0}
+        label="Abonnement Studio (1 mois)"
+        onClose={() => setPaymentModalVisible(false)}
+        onSuccess={handleUpgradeSuccess}
+      />
     </View>
   );
 }
@@ -1040,9 +1179,12 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     backgroundColor: Colors.light.backgroundSecondary,
     borderWidth: 1,
-    borderColor: Colors.light.border
+    borderColor: Colors.light.border,
   },
-  tagSelected: { backgroundColor: Colors.light.primary, borderColor: Colors.light.primary },
+  tagSelected: {
+    backgroundColor: Colors.light.primary,
+    borderColor: Colors.light.primary,
+  },
   tagText: { fontSize: 12, color: Colors.light.text },
   tagTextSelected: { color: "white" },
   skillTag: {

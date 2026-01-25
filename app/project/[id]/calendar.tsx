@@ -1,9 +1,16 @@
+import ClapLoading from "@/components/ClapLoading";
+import Colors from "@/constants/Colors";
+import { GlobalStyles } from "@/constants/Styles";
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
-import { useGlobalSearchParams, useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
+  useFocusEffect,
+  useGlobalSearchParams,
+  useLocalSearchParams,
+  useRouter,
+} from "expo-router";
+import React, { useCallback, useState } from "react";
+import {
   Alert,
   Button,
   FlatList,
@@ -16,8 +23,6 @@ import {
   View,
 } from "react-native";
 import { supabase } from "../../../lib/supabase";
-import { GlobalStyles } from "@/constants/Styles";
-import Colors from "@/constants/Colors";
 
 type Event = {
   id: string;
@@ -29,12 +34,17 @@ type Event = {
   event_type: "general" | "role_specific" | "category_specific";
   target_role_ids?: string[];
   target_categories?: string[];
+  is_shoot_day?: boolean;
 };
 
 export default function ProjectCalendar() {
-  const { id } = useGlobalSearchParams<{ id: string }>();
+  const localParams = useLocalSearchParams();
+  const globalParams = useGlobalSearchParams();
+  const idValue = localParams.id || globalParams.id;
+  const projectId = Array.isArray(idValue) ? idValue[0] : idValue;
+
   const router = useRouter();
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
   // Week View State
   const [currentWeekStart, setCurrentWeekStart] = useState(() => {
@@ -51,8 +61,9 @@ export default function ProjectCalendar() {
   const [userCategories, setUserCategories] = useState<string[]>([]);
   const [adminCategories, setAdminCategories] = useState<string[]>([]);
 
-  // Modal (Create Event)
+  // Modal (Create/Edit Event)
   const [modalVisible, setModalVisible] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<Event | null>(null);
   const [newEventTitle, setNewEventTitle] = useState("");
   const [newEventDesc, setNewEventDesc] = useState("");
   const [newEventDate, setNewEventDate] = useState(""); // YYYY-MM-DD
@@ -70,7 +81,9 @@ export default function ProjectCalendar() {
 
   const [roleModalVisible, setRoleModalVisible] = useState(false);
   const [categoryModalVisible, setCategoryModalVisible] = useState(false);
-  const [selectionMode, setSelectionMode] = useState<"none" | "role" | "category">("none");
+  const [selectionMode, setSelectionMode] = useState<
+    "none" | "role" | "category"
+  >("none");
 
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
@@ -95,41 +108,63 @@ export default function ProjectCalendar() {
     }
   };
 
-  useEffect(() => {
-    if (id && id !== "undefined") {
-      fetchContext();
-    } else {
-      setLoading(false);
-    }
-  }, [id]);
+  useFocusEffect(
+    useCallback(() => {
+      if (projectId && projectId !== "undefined") {
+        fetchContext();
+      }
+    }, [projectId]),
+  );
 
   async function fetchContext() {
-    if (!id || id === "undefined") return;
+    if (!projectId || projectId === "undefined") {
+      console.warn("Calendar: No project ID found");
+      return;
+    }
+
     try {
       setLoading(true);
+      console.log("Calendar: Fetching context for project:", projectId);
+
       const {
         data: { session },
       } = await supabase.auth.getSession();
-      if (!session) return;
 
-      const { data: proj } = await supabase
+      if (!session) {
+        console.warn("Calendar: No session found");
+        return;
+      }
+
+      console.log("Calendar: User ID:", session.user.id);
+
+      const { data: proj, error: projError } = await supabase
         .from("tournages")
         .select("owner_id")
-        .eq("id", id)
-        .single();
+        .eq("id", projectId)
+        .maybeSingle();
+
+      if (projError) {
+        console.error("Calendar: Error fetching project:", projError);
+      }
 
       const owner = proj?.owner_id === session.user.id;
+      console.log(
+        "Calendar: Is Owner?",
+        owner,
+        "Owner ID in DB:",
+        proj?.owner_id,
+      );
       setIsOwner(owner);
 
       let roleIds: string[] = [];
       let categories: string[] = [];
       let adminCats: string[] = [];
 
-      if (!owner) {
+      if (!owner && proj) {
         const { data: myRoles } = await supabase
           .from("project_roles")
           .select("id, category, is_category_admin")
-          .eq("tournage_id", id)
+          .eq("tournage_id", projectId)
           .eq("assigned_profile_id", session.user.id);
 
         if (myRoles) {
@@ -149,15 +184,13 @@ export default function ProjectCalendar() {
       }
 
       if (owner || adminCats.length > 0) {
-        // Simplification: on ne récupère pas le profil assigné via une jointure complexe
-        // car on ne l'affiche pas dans le picker pour l'instant.
         const { data: rollers, error: rolesError } = await supabase
           .from("project_roles")
-          .select("id, title, category") 
-          .eq("tournage_id", id);
+          .select("id, title, category")
+          .eq("tournage_id", projectId);
 
         if (rolesError) {
-            console.log("Error fetching roles for calendar:", rolesError);
+          console.log("Error fetching roles for calendar:", rolesError);
         }
 
         if (rollers) {
@@ -173,9 +206,9 @@ export default function ProjectCalendar() {
         }
       }
 
-      fetchEvents(owner, roleIds, categories);
+      await fetchEvents(owner, roleIds, categories);
     } catch (e) {
-      console.log(e);
+      Alert.alert("Erreur", (e as Error).message);
     } finally {
       setLoading(false);
     }
@@ -187,10 +220,11 @@ export default function ProjectCalendar() {
     myCategories: string[] = [],
   ) {
     try {
+      // 1. Fetch Project Events
       let query = supabase
         .from("project_events" as any)
         .select("*")
-        .eq("tournage_id", id)
+        .eq("tournage_id", projectId)
         .order("start_time", { ascending: true });
 
       const { data, error } = await query;
@@ -201,6 +235,7 @@ export default function ProjectCalendar() {
         start_time: new Date(e.start_time).toISOString(),
       }));
 
+      // Filter events based on permissions
       if (!owner) {
         validEvents = validEvents.filter((e: any) => {
           if (e.event_type === "general") return true;
@@ -218,13 +253,131 @@ export default function ProjectCalendar() {
         });
       }
 
-      setEvents(validEvents);
+      // 2. Fetch Shoot Days (as Events)
+      let shootDaysQuery = supabase
+        .from("shoot_days")
+        .select("*, day_calls(role_id)") // Select calls to filter for members
+        .eq("tournage_id", projectId);
+
+      const { data: shootDays, error: sdError } = await shootDaysQuery;
+
+      let myShootSays: any[] = [];
+      if (shootDays) {
+        if (owner) {
+          myShootSays = shootDays;
+        } else {
+          // Filter: keep days where I have a call OR (maybe) days that are general?
+          // For now, only where I have a call.
+          // "Category Convocation" creates a day_call, so this works.
+          myShootSays = shootDays.filter((sd: any) => {
+            const calls = sd.day_calls || [];
+            return calls.some((c: any) => myRoleIds.includes(c.role_id));
+          });
+        }
+      }
+
+      const shootDayEvents = myShootSays.map((sd: any) => {
+        // Construct Start Time from Date + Call Time
+        let startIso = sd.date; // YYYY-MM-DD
+        if (sd.call_time) {
+          startIso = `${sd.date}T${sd.call_time}`;
+        } else {
+          startIso = `${sd.date}T08:00:00`; // Default
+        }
+
+        return {
+          id: sd.id,
+          title: `🎥 Tournage: ${sd.location || "Lieu non défini"}`,
+          description: sd.notes || "",
+          start_time: new Date(startIso).toISOString(),
+          location: sd.location,
+          event_type: "general", // treated as general for display logic
+          target_categories: [], // could populate if needed
+          is_shoot_day: true,
+        };
+      });
+
+      const allEvents = [...validEvents, ...shootDayEvents];
+
+      // Re-sort
+      allEvents.sort(
+        (a, b) =>
+          new Date(a.start_time).getTime() - new Date(b.start_time).getTime(),
+      );
+
+      setEvents(allEvents);
     } catch (e) {
       Alert.alert("Erreur", (e as Error).message);
     }
   }
 
-  async function createEvent() {
+  function openEditModal(event: Event) {
+    const isCategoryAdmin =
+      event.event_type === "category_specific" &&
+      event.target_categories?.some((cat) => adminCategories.includes(cat));
+
+    if (!isOwner && !isCategoryAdmin) {
+      // Normal users can't edit
+      return;
+    }
+
+    setEditingEvent(event);
+    setNewEventTitle(event.title);
+    setNewEventDesc(event.description || "");
+
+    const startDate = new Date(event.start_time);
+    setNewEventDate(startDate.toISOString().split("T")[0]);
+    const hours = startDate.getHours().toString().padStart(2, "0");
+    const minutes = startDate.getMinutes().toString().padStart(2, "0");
+    setNewEventTime(`${hours}:${minutes}`);
+
+    setNewEventType(event.event_type);
+    if (event.event_type === "role_specific") {
+      const roles = projectRoles.filter((r) =>
+        event.target_role_ids?.includes(r.id),
+      );
+      setTargetRoles(roles);
+    } else if (event.event_type === "category_specific") {
+      setTargetCategories(event.target_categories || []);
+    }
+
+    setModalVisible(true);
+  }
+
+  async function deleteEvent() {
+    if (!editingEvent) return;
+
+    Alert.alert(
+      "Supprimer l'événement",
+      "Êtes-vous sûr de vouloir supprimer cet événement ?",
+      [
+        { text: "Annuler", style: "cancel" },
+        {
+          text: "Supprimer",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              const { error } = await supabase
+                .from("project_events" as any)
+                .delete()
+                .eq("id", editingEvent.id);
+
+              if (error) throw error;
+
+              setModalVisible(false);
+              setEditingEvent(null);
+              fetchEvents(isOwner, userRoleIds, userCategories);
+              Alert.alert("Succès", "Événement supprimé.");
+            } catch (e) {
+              Alert.alert("Erreur", (e as Error).message);
+            }
+          },
+        },
+      ],
+    );
+  }
+
+  async function saveEvent() {
     if (!newEventTitle.trim() || !newEventDate.trim() || !newEventTime.trim()) {
       Alert.alert("Erreur", "Titre, Date et Heure requis.");
       return;
@@ -234,7 +387,7 @@ export default function ProjectCalendar() {
       const isoStart = `${newEventDate}T${newEventTime}:00`;
 
       const payload: any = {
-        tournage_id: id,
+        tournage_id: projectId,
         title: newEventTitle,
         description: newEventDesc,
         start_time: isoStart,
@@ -250,6 +403,7 @@ export default function ProjectCalendar() {
           return;
         }
         payload.target_role_ids = targetRoles.map((r) => r.id);
+        payload.target_categories = null;
       } else if (newEventType === "category_specific") {
         if (targetCategories.length === 0) {
           Alert.alert(
@@ -259,38 +413,52 @@ export default function ProjectCalendar() {
           return;
         }
         payload.target_categories = targetCategories;
+        payload.target_role_ids = null;
+      } else {
+        payload.target_role_ids = null;
+        payload.target_categories = null;
       }
 
-      const { error } = await supabase
-        .from("project_events" as any)
-        .insert(payload);
+      if (editingEvent) {
+        const { error } = await supabase
+          .from("project_events" as any)
+          .update(payload)
+          .eq("id", editingEvent.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from("project_events" as any)
+          .insert(payload);
+        if (error) throw error;
 
-      if (error) throw error;
+        // Only notify on NEW events to avoid spamming on simple edits
+        let chatMessage = `Un nouvel élément a été ajouté dans le calendrier : ${newEventTitle}\nDate : ${newEventDate} à ${newEventTime}`;
+        if (newEventDesc) chatMessage += `\nDétails : ${newEventDesc}`;
 
-      let chatMessage = `Un nouvel élément a été ajouté dans le calendrier : ${newEventTitle}\nDate : ${newEventDate} à ${newEventTime}`;
-      if (newEventDesc) chatMessage += `\nDétails : ${newEventDesc}`;
-
-      if (newEventType === "category_specific") {
-        for (const cat of targetCategories) {
+        if (newEventType === "category_specific") {
+          for (const cat of targetCategories) {
+            await supabase.from("project_messages" as any).insert({
+              project_id: projectId,
+              content: chatMessage,
+              sender_id: (await supabase.auth.getSession()).data.session?.user
+                .id,
+              category: cat,
+            });
+          }
+        } else if (newEventType === "role_specific") {
+          // No specific chat notification for roles for now
+        } else {
           await supabase.from("project_messages" as any).insert({
-            project_id: id,
+            project_id: projectId,
             content: chatMessage,
             sender_id: (await supabase.auth.getSession()).data.session?.user.id,
-            category: cat,
+            category: "general",
           });
         }
-      } else if (newEventType === "role_specific") {
-        // No specific chat notification for roles for now
-      } else {
-        await supabase.from("project_messages" as any).insert({
-          project_id: id,
-          content: chatMessage,
-          sender_id: (await supabase.auth.getSession()).data.session?.user.id,
-          category: "general",
-        });
       }
 
       setModalVisible(false);
+      setEditingEvent(null);
       setSelectionMode("none");
       setNewEventTitle("");
       setNewEventDesc("");
@@ -298,7 +466,10 @@ export default function ProjectCalendar() {
       setTargetCategories([]);
       setNewEventType("general");
 
-      Alert.alert("Succès", "Événement ajouté et notifié.");
+      Alert.alert(
+        "Succès",
+        editingEvent ? "Événement mis à jour." : "Événement ajouté et notifié.",
+      );
       fetchEvents(isOwner, userRoleIds, userCategories);
     } catch (e) {
       Alert.alert("Erreur", (e as Error).message);
@@ -331,7 +502,7 @@ export default function ProjectCalendar() {
   const weekLabel = `${weekDays[0].split("-")[2]}/${weekDays[0].split("-")[1]} - ${weekDays[6].split("-")[2]}/${weekDays[6].split("-")[1]}`;
 
   return (
-    <View style={GlobalStyles.container}>
+    <View style={styles.container}>
       <View style={styles.fullHeader}>
         <View style={{ width: 24 }} />
         <Text style={styles.headerTitle}>Calendrier</Text>
@@ -340,12 +511,16 @@ export default function ProjectCalendar() {
             onPress={() =>
               router.push({
                 pathname: "/project/[id]/settings",
-                params: { id: typeof id === "string" ? id : id[0] },
+                params: { id: projectId },
               })
             }
             style={{ padding: 5 }}
           >
-            <Ionicons name="settings-outline" size={24} color={Colors.light.text} />
+            <Ionicons
+              name="settings-outline"
+              size={24}
+              color={Colors.light.text}
+            />
           </TouchableOpacity>
         ) : (
           <View style={{ width: 24 }} />
@@ -359,14 +534,18 @@ export default function ProjectCalendar() {
           </TouchableOpacity>
           <Text style={styles.weekLabel}>{weekLabel}</Text>
           <TouchableOpacity onPress={() => changeWeek(1)}>
-            <Ionicons name="chevron-forward" size={24} color={Colors.light.tint} />
+            <Ionicons
+              name="chevron-forward"
+              size={24}
+              color={Colors.light.tint}
+            />
           </TouchableOpacity>
         </View>
       </View>
 
       {loading ? (
-        <ActivityIndicator
-          size="large"
+        <ClapLoading
+          size={50}
           color={Colors.light.tint}
           style={{ marginTop: 50 }}
         />
@@ -379,7 +558,9 @@ export default function ProjectCalendar() {
           contentContainerStyle={{ paddingBottom: 100 }}
           ListEmptyComponent={
             <View style={{ marginTop: 40, alignItems: "center" }}>
-              <Text style={{ color: Colors.light.tabIconDefault, fontSize: 16 }}>
+              <Text
+                style={{ color: Colors.light.tabIconDefault, fontSize: 16 }}
+              >
                 Aucun événement cette semaine
               </Text>
             </View>
@@ -400,54 +581,113 @@ export default function ProjectCalendar() {
                   </Text>
                 </View>
 
-                {dayEvents.map((evt: Event) => (
-                  <View
-                    key={evt.id}
-                    style={[
-                      styles.eventCard,
-                      evt.event_type === "role_specific" &&
-                        styles.roleEventCard,
-                    ]}
-                  >
-                    <View
-                      style={{
-                        flexDirection: "row",
-                        justifyContent: "space-between",
+                {dayEvents.map((evt: Event) => {
+                  const isCategoryAdmin =
+                    evt.event_type === "category_specific" &&
+                    evt.target_categories?.some((cat) =>
+                      adminCategories.includes(cat),
+                    );
+                  const canEdit =
+                    !evt.is_shoot_day && (isOwner || isCategoryAdmin);
+
+                  return (
+                    <TouchableOpacity
+                      key={evt.id}
+                      activeOpacity={evt.is_shoot_day || canEdit ? 0.7 : 1}
+                      onPress={() => {
+                        if (evt.is_shoot_day) {
+                          // Use 'push' to go to production view
+                          router.push(
+                            `/project/${projectId}/production/${evt.id}`,
+                          );
+                        } else if (canEdit) {
+                          openEditModal(evt);
+                        }
                       }}
+                      style={[
+                        styles.eventCard,
+                        evt.event_type === "role_specific" &&
+                          styles.roleEventCard,
+                        evt.is_shoot_day && {
+                          backgroundColor: "#fff9db",
+                          borderLeftColor: "#fcc419",
+                        },
+                      ]}
                     >
-                      <Text style={styles.eventTime}>
-                        {new Date(evt.start_time).toLocaleTimeString("fr-FR", {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </Text>
-                      {evt.event_type === "role_specific" && (
-                        <View style={styles.roleBadge}>
-                          <Text style={styles.roleBadgeText}>Perso</Text>
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          justifyContent: "space-between",
+                        }}
+                      >
+                        <Text style={styles.eventTime}>
+                          {evt.start_time
+                            ? new Date(evt.start_time).toLocaleTimeString(
+                                "fr-FR",
+                                {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                },
+                              )
+                            : "--:--"}
+                        </Text>
+                        <View style={{ flexDirection: "row", gap: 5 }}>
+                          {evt.is_shoot_day && (
+                            <View
+                              style={[
+                                styles.roleBadge,
+                                { backgroundColor: "#e67700" },
+                              ]}
+                            >
+                              <Text
+                                style={[
+                                  styles.roleBadgeText,
+                                  { color: "white" },
+                                ]}
+                              >
+                                TOURNAGE
+                              </Text>
+                            </View>
+                          )}
+
+                          {!evt.is_shoot_day &&
+                            evt.event_type === "role_specific" && (
+                              <View style={styles.roleBadge}>
+                                <Text style={styles.roleBadgeText}>Perso</Text>
+                              </View>
+                            )}
+                          {!evt.is_shoot_day &&
+                            evt.event_type === "category_specific" && (
+                              <View
+                                style={[
+                                  styles.roleBadge,
+                                  { backgroundColor: Colors.light.success },
+                                ]}
+                              >
+                                <Text style={styles.roleBadgeText}>
+                                  {evt.target_categories &&
+                                  evt.target_categories.length > 0
+                                    ? evt.target_categories.join(", ")
+                                    : "Groupe"}
+                                </Text>
+                              </View>
+                            )}
+                          {canEdit && (
+                            <Ionicons
+                              name="pencil"
+                              size={14}
+                              color={Colors.light.tabIconDefault}
+                            />
+                          )}
                         </View>
-                      )}
-                      {evt.event_type === "category_specific" && (
-                        <View
-                          style={[
-                            styles.roleBadge,
-                            { backgroundColor: Colors.light.success },
-                          ]}
-                        >
-                          <Text style={styles.roleBadgeText}>
-                            {evt.target_categories &&
-                            evt.target_categories.length > 0
-                              ? evt.target_categories.join(", ")
-                              : "Groupe"}
-                          </Text>
-                        </View>
-                      )}
-                    </View>
-                    <Text style={styles.eventTitle}>{evt.title}</Text>
-                    {evt.description ? (
-                      <Text style={styles.eventDesc}>{evt.description}</Text>
-                    ) : null}
-                  </View>
-                ))}
+                      </View>
+                      <Text style={styles.eventTitle}>{evt.title}</Text>
+                      {evt.description ? (
+                        <Text style={styles.eventDesc}>{evt.description}</Text>
+                      ) : null}
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
             );
           }}
@@ -458,6 +698,11 @@ export default function ProjectCalendar() {
         <TouchableOpacity
           style={styles.fab}
           onPress={() => {
+            setEditingEvent(null);
+            setNewEventTitle("");
+            setNewEventDesc("");
+            setTargetRoles([]);
+            setTargetCategories([]);
             const now = new Date();
             setNewEventDate(now.toISOString().split("T")[0]);
             setNewEventTime("09:00");
@@ -478,18 +723,21 @@ export default function ProjectCalendar() {
         animationType="slide"
         transparent={true}
         onRequestClose={() => {
-            if (selectionMode !== 'none') {
-                setSelectionMode('none');
-            } else {
-                setModalVisible(false);
-            }
+          if (selectionMode !== "none") {
+            setSelectionMode("none");
+          } else {
+            setModalVisible(false);
+            setEditingEvent(null);
+          }
         }}
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             {selectionMode === "none" ? (
               <>
-                <Text style={GlobalStyles.modalTitle}>Nouvel Événement</Text>
+                <Text style={GlobalStyles.modalTitle}>
+                  {editingEvent ? "Modifier l'événement" : "Nouvel Événement"}
+                </Text>
 
                 <Text style={GlobalStyles.label}>Titre</Text>
                 <TextInput
@@ -500,7 +748,9 @@ export default function ProjectCalendar() {
                   placeholderTextColor={Colors.light.tabIconDefault}
                 />
 
-                <View style={{ flexDirection: "row", gap: 10, marginBottom: 10 }}>
+                <View
+                  style={{ flexDirection: "row", gap: 10, marginBottom: 10 }}
+                >
                   <View style={{ flex: 1 }}>
                     <Text style={GlobalStyles.label}>Date</Text>
                     <TouchableOpacity
@@ -584,96 +834,120 @@ export default function ProjectCalendar() {
                 />
 
                 <Text style={GlobalStyles.label}>Visibilité</Text>
-                <View style={{ flexDirection: "row", gap: 5, marginBottom: 15 }}>
-                  {canCreateGeneral && (
-                    <TouchableOpacity
-                      onPress={() => setNewEventType("general")}
+                <View
+                  style={{ flexDirection: "row", gap: 5, marginBottom: 15 }}
+                >
+                  <TouchableOpacity
+                    onPress={() => setNewEventType("general")}
+                    style={[
+                      styles.typeBtn,
+                      newEventType === "general" && styles.typeBtnActive,
+                    ]}
+                  >
+                    <Text
                       style={[
-                        styles.typeBtn,
-                        newEventType === "general" && styles.typeBtnActive,
+                        styles.typeBtnText,
+                        newEventType === "general" && { color: "white" },
                       ]}
                     >
-                      <Text
-                        style={[
-                          styles.typeBtnText,
-                          newEventType === "general" && { color: "white" },
-                        ]}
-                      >
-                        Général
-                      </Text>
-                    </TouchableOpacity>
-                  )}
+                      Général
+                    </Text>
+                  </TouchableOpacity>
 
-                  {canCreateCategory && (
-                    <TouchableOpacity
-                      onPress={() => {
-                        setNewEventType("category_specific");
-                        setSelectionMode("category");
-                      }}
+                  <TouchableOpacity
+                    onPress={() => {
+                      setNewEventType("category_specific");
+                      setSelectionMode("category");
+                    }}
+                    style={[
+                      styles.typeBtn,
+                      newEventType === "category_specific" &&
+                        styles.typeBtnActive,
+                    ]}
+                  >
+                    <Text
                       style={[
-                        styles.typeBtn,
-                        newEventType === "category_specific" &&
-                          styles.typeBtnActive,
+                        styles.typeBtnText,
+                        newEventType === "category_specific" && {
+                          color: "white",
+                        },
                       ]}
                     >
-                      <Text
-                        style={[
-                          styles.typeBtnText,
-                          newEventType === "category_specific" && { color: "white" },
-                        ]}
-                      >
-                        {targetCategories.length > 0
-                          ? `${targetCategories.length} Catégorie(s)`
-                          : "Catégorie"}
-                      </Text>
-                    </TouchableOpacity>
-                  )}
+                      {targetCategories.length > 0
+                        ? `${targetCategories.length} Catégorie(s)`
+                        : "Catégorie"}
+                    </Text>
+                  </TouchableOpacity>
 
-                  {canCreateRole && (
-                    <TouchableOpacity
-                      onPress={() => {
-                        setNewEventType("role_specific");
-                        setSelectionMode("role");
-                      }}
+                  <TouchableOpacity
+                    onPress={() => {
+                      setNewEventType("role_specific");
+                      setSelectionMode("role");
+                    }}
+                    style={[
+                      styles.typeBtn,
+                      newEventType === "role_specific" && styles.typeBtnActive,
+                    ]}
+                  >
+                    <Text
                       style={[
-                        styles.typeBtn,
-                        newEventType === "role_specific" && styles.typeBtnActive,
+                        styles.typeBtnText,
+                        newEventType === "role_specific" && {
+                          color: "white",
+                        },
                       ]}
                     >
-                      <Text
-                        style={[
-                          styles.typeBtnText,
-                          newEventType === "role_specific" && { color: "white" },
-                        ]}
-                      >
-                        {targetRoles.length > 0
-                          ? `${targetRoles.length} Pers.`
-                          : "Personne"}
-                      </Text>
-                    </TouchableOpacity>
-                  )}
+                      {targetRoles.length > 0
+                        ? `${targetRoles.length} Pers.`
+                        : "Personne"}
+                    </Text>
+                  </TouchableOpacity>
                 </View>
 
                 <View
                   style={{
                     flexDirection: "row",
-                    justifyContent: "flex-end",
-                    gap: 10,
+                    justifyContent: "space-between",
+                    alignItems: "center",
                     marginTop: 20,
                   }}
                 >
-                  <TouchableOpacity
-                    onPress={() => setModalVisible(false)}
-                    style={{ padding: 10 }}
-                  >
-                    <Text style={{ color: Colors.light.danger }}>Annuler</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    onPress={createEvent}
-                    style={GlobalStyles.primaryButton}
-                  >
-                    <Text style={GlobalStyles.buttonText}>Créer</Text>
-                  </TouchableOpacity>
+                  {editingEvent ? (
+                    <TouchableOpacity
+                      onPress={deleteEvent}
+                      style={{ padding: 10 }}
+                    >
+                      <Ionicons
+                        name="trash-outline"
+                        size={24}
+                        color={Colors.light.danger}
+                      />
+                    </TouchableOpacity>
+                  ) : (
+                    <View />
+                  )}
+
+                  <View style={{ flexDirection: "row", gap: 10 }}>
+                    <TouchableOpacity
+                      onPress={() => {
+                        setModalVisible(false);
+                        setEditingEvent(null);
+                      }}
+                      style={{ padding: 10, justifyContent: "center" }}
+                    >
+                      <Text style={{ color: Colors.light.tabIconDefault }}>
+                        Annuler
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={saveEvent}
+                      style={GlobalStyles.primaryButton}
+                    >
+                      <Text style={GlobalStyles.buttonText}>
+                        {editingEvent ? "Enregistrer" : "Créer"}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
               </>
             ) : selectionMode === "role" ? (
@@ -713,9 +987,14 @@ export default function ProjectCalendar() {
                           });
                         }}
                       >
-                        <Text style={{color: Colors.light.text}}>
+                        <Text style={{ color: Colors.light.text }}>
                           {item.title}{" "}
-                          <Text style={{ color: Colors.light.tabIconDefault, fontSize: 12 }}>
+                          <Text
+                            style={{
+                              color: Colors.light.tabIconDefault,
+                              fontSize: 12,
+                            }}
+                          >
                             ({item.category})
                           </Text>
                         </Text>
@@ -734,7 +1013,9 @@ export default function ProjectCalendar() {
                   onPress={() => setSelectionMode("none")}
                   style={{ marginTop: 10, alignSelf: "center", padding: 10 }}
                 >
-                  <Text style={{ color: Colors.light.tint, fontWeight: "bold" }}>
+                  <Text
+                    style={{ color: Colors.light.tint, fontWeight: "bold" }}
+                  >
                     Valider la sélection
                   </Text>
                 </TouchableOpacity>
@@ -780,7 +1061,7 @@ export default function ProjectCalendar() {
                           });
                         }}
                       >
-                        <Text style={{color: Colors.light.text}}>{item}</Text>
+                        <Text style={{ color: Colors.light.text }}>{item}</Text>
                         {isSelected && (
                           <Ionicons
                             name="checkmark"
@@ -792,7 +1073,12 @@ export default function ProjectCalendar() {
                     );
                   }}
                   ListEmptyComponent={
-                    <Text style={{ textAlign: "center", color: Colors.light.tabIconDefault }}>
+                    <Text
+                      style={{
+                        textAlign: "center",
+                        color: Colors.light.tabIconDefault,
+                      }}
+                    >
                       Aucune catégorie trouvée
                     </Text>
                   }
@@ -801,7 +1087,9 @@ export default function ProjectCalendar() {
                   onPress={() => setSelectionMode("none")}
                   style={{ marginTop: 10, alignSelf: "center", padding: 10 }}
                 >
-                  <Text style={{ color: Colors.light.tint, fontWeight: "bold" }}>
+                  <Text
+                    style={{ color: Colors.light.tint, fontWeight: "bold" }}
+                  >
                     Valider la sélection
                   </Text>
                 </TouchableOpacity>
@@ -815,6 +1103,11 @@ export default function ProjectCalendar() {
 }
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: Colors.light.background,
+    paddingHorizontal: 20,
+  },
   fullHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -894,7 +1187,12 @@ const styles = StyleSheet.create({
   roleEventCard: { borderLeftColor: "#FF9800", backgroundColor: "#FFF8E1" },
 
   eventTime: { fontWeight: "bold", color: Colors.light.text, marginBottom: 4 },
-  eventTitle: { fontSize: 16, fontWeight: "600", marginBottom: 4, color: Colors.light.text },
+  eventTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    marginBottom: 4,
+    color: Colors.light.text,
+  },
   eventDesc: { color: Colors.light.tabIconDefault, fontSize: 14 },
   roleBadge: {
     backgroundColor: "#FF9800",
@@ -948,7 +1246,10 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: "center",
   },
-  typeBtnActive: { backgroundColor: Colors.light.tint, borderColor: Colors.light.tint },
+  typeBtnActive: {
+    backgroundColor: Colors.light.tint,
+    borderColor: Colors.light.tint,
+  },
   typeBtnText: { color: Colors.light.text, fontWeight: "600" },
 
   rolePickerOverlay: {

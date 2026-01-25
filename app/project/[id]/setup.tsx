@@ -1,10 +1,11 @@
+import ClapLoading from "@/components/ClapLoading";
 import RoleFormFields from "@/components/RoleFormFields";
+import Colors from "@/constants/Colors";
 import { JOB_TITLES } from "@/utils/roles";
 import { fuzzySearch } from "@/utils/search";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
-  ActivityIndicator,
   Alert,
   Button,
   FlatList,
@@ -16,8 +17,6 @@ import {
   View,
 } from "react-native";
 import { supabase } from "../../../lib/supabase";
-import { GlobalStyles } from "@/constants/Styles";
-import Colors from "@/constants/Colors";
 
 const ROLE_CATEGORIES = [
   "acteur",
@@ -302,7 +301,7 @@ export default function ProjectSetupWizard() {
   }
 
   if (loading)
-    return <ActivityIndicator style={{ marginTop: 50 }} color="#841584" />;
+    return <ClapLoading style={{ marginTop: 50 }} color="#841584" size={30} />;
 
   return (
     <View style={styles.container}>
@@ -538,7 +537,7 @@ export default function ProjectSetupWizard() {
               style={styles.input}
             />
             {searching ? (
-              <ActivityIndicator color="#841584" />
+              <ClapLoading color="#841584" size={30} />
             ) : (
               <FlatList
                 data={results}
@@ -643,7 +642,7 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     elevation: 2,
     borderWidth: 1,
-    borderColor: Colors.light.border
+    borderColor: Colors.light.border,
   },
   rowWrap: {
     flexDirection: "row",
@@ -666,9 +665,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     borderRadius: 15,
     borderWidth: 1,
-    borderColor: Colors.light.border
+    borderColor: Colors.light.border,
   },
-  jobChipSelected: { backgroundColor: Colors.light.text, borderColor: Colors.light.text },
+  jobChipSelected: {
+    backgroundColor: Colors.light.text,
+    borderColor: Colors.light.text,
+  },
   roleHeader: { fontSize: 12, color: "#999", marginBottom: 8 },
   label: {
     fontSize: 14,
@@ -684,7 +686,7 @@ const styles = StyleSheet.create({
     padding: 10,
     marginBottom: 10,
     backgroundColor: Colors.light.backgroundSecondary,
-    color: Colors.light.text
+    color: Colors.light.text,
   },
   assigneeRow: {
     flexDirection: "row",
@@ -694,7 +696,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.light.border,
     borderRadius: 8,
-    backgroundColor: Colors.light.background
+    backgroundColor: Colors.light.background,
   },
   assignBtn: {
     backgroundColor: Colors.light.primary,
@@ -719,13 +721,17 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0,0,0,0.5)",
     padding: 20,
   },
-  modalContent: { backgroundColor: Colors.light.background, borderRadius: 15, padding: 20 },
+  modalContent: {
+    backgroundColor: Colors.light.background,
+    borderRadius: 15,
+    padding: 20,
+  },
   modalTitle: {
     fontSize: 18,
     fontWeight: "bold",
     textAlign: "center",
     marginBottom: 10,
-    color: Colors.light.text
+    color: Colors.light.text,
   },
   profileRow: {
     paddingVertical: 10,

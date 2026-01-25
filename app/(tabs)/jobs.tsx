@@ -1,3 +1,4 @@
+import ClapLoading from "@/components/ClapLoading";
 import Colors from "@/constants/Colors";
 import { GlobalStyles } from "@/constants/Styles";
 import { JOB_TITLES } from "@/utils/roles";
@@ -5,16 +6,15 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
-  FlatList,
-  Modal,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  TouchableWithoutFeedback,
-  View,
+    Alert,
+    FlatList,
+    Modal,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    TouchableWithoutFeedback,
+    View,
 } from "react-native";
 import MapView, { Marker, PROVIDER_DEFAULT } from "react-native-maps";
 import { supabase } from "../../lib/supabase";
@@ -30,6 +30,8 @@ type RoleWithProject = {
   category: string;
   tournage_id: string;
   status?: string;
+  is_boosted?: boolean;
+  boost_expires_at?: string;
   tournages: {
     id: string;
     title: string;
@@ -113,6 +115,8 @@ export default function Discover() {
           tournages!inner ( id, title, type, pays, ville, latitude, longitude )
         `,
         )
+        // Prioritize boosted roles, then new ones
+        .order("is_boosted", { ascending: false })
         .order("created_at", { ascending: false });
 
       if (selectedCategory !== "all") {
@@ -141,21 +145,20 @@ export default function Discover() {
 
       // Derive unique projects from roles
       const uniqueProjectsMap = new Map();
-      visible.forEach(role => {
+      visible.forEach((role) => {
         if (role.tournages && !uniqueProjectsMap.has(role.tournages.id)) {
-            uniqueProjectsMap.set(role.tournages.id, {
-                ...role.tournages,
-                roleCount: 1, // Start count
-                roles: [role] // Keep track of roles
-            });
+          uniqueProjectsMap.set(role.tournages.id, {
+            ...role.tournages,
+            roleCount: 1, // Start count
+            roles: [role], // Keep track of roles
+          });
         } else if (role.tournages) {
-            const p = uniqueProjectsMap.get(role.tournages.id);
-            p.roleCount++;
-            p.roles.push(role);
+          const p = uniqueProjectsMap.get(role.tournages.id);
+          p.roleCount++;
+          p.roles.push(role);
         }
       });
       setProjects(Array.from(uniqueProjectsMap.values()));
-
     } catch (error) {
       Alert.alert("Erreur", (error as Error).message);
     } finally {
@@ -170,41 +173,54 @@ export default function Discover() {
         onPress={() => router.push(`/project/${item.id}`)}
       >
         <View style={styles.cardHeader}>
-          <View style={{flex: 1}}>
-            <Text style={[styles.projectTitle, { fontSize: 18, marginBottom: 4 }]}>
+          <View style={{ flex: 1 }}>
+            <Text
+              style={[styles.projectTitle, { fontSize: 18, marginBottom: 4 }]}
+            >
               {item.title || "Projet Inconnu"}
             </Text>
             <Text style={styles.projectSubtitle}>
               {item.type?.replace("_", " ")} • {item.ville || "Lieu N/C"}
             </Text>
           </View>
-          <View style={[styles.badge, { backgroundColor: Colors.light.tint + '20' }]}>
-            <Text style={[styles.badgeText, { color: Colors.light.tint, fontSize: 12 }]}>
-                {item.roleCount} OFFRE{item.roleCount > 1 ? 'S' : ''}
+          <View
+            style={[
+              styles.badge,
+              { backgroundColor: Colors.light.tint + "20" },
+            ]}
+          >
+            <Text
+              style={[
+                styles.badgeText,
+                { color: Colors.light.tint, fontSize: 12 },
+              ]}
+            >
+              {item.roleCount} OFFRE{item.roleCount > 1 ? "S" : ""}
             </Text>
           </View>
         </View>
 
         <View style={styles.divider} />
 
-        <View style={{flexDirection: 'row', flexWrap: 'wrap', gap: 8}}>
-            {item.roles.slice(0, 3).map((r: any) => (
-                <View key={r.id} style={{
-                    backgroundColor: '#f5f5f5',
-                    paddingHorizontal: 8,
-                    paddingVertical: 4,
-                    borderRadius: 4
-                }}>
-                    <Text style={{fontSize: 10, color: '#666'}}>
-                        {r.title}
-                    </Text>
-                </View>
-            ))}
-            {item.roles.length > 3 && (
-                <Text style={{fontSize: 10, color: '#999', alignSelf: 'center'}}>
-                    +{item.roles.length - 3} autres
-                </Text>
-            )}
+        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+          {item.roles.slice(0, 3).map((r: any) => (
+            <View
+              key={r.id}
+              style={{
+                backgroundColor: "#f5f5f5",
+                paddingHorizontal: 8,
+                paddingVertical: 4,
+                borderRadius: 4,
+              }}
+            >
+              <Text style={{ fontSize: 10, color: "#666" }}>{r.title}</Text>
+            </View>
+          ))}
+          {item.roles.length > 3 && (
+            <Text style={{ fontSize: 10, color: "#999", alignSelf: "center" }}>
+              +{item.roles.length - 3} autres
+            </Text>
+          )}
         </View>
 
         <Text style={styles.ctaText}>Voir le projet →</Text>
@@ -213,17 +229,46 @@ export default function Discover() {
   }
 
   function renderRole({ item }: { item: RoleWithProject }) {
+    const isBoosted = item.is_boosted;
+
     return (
       <TouchableOpacity
-        style={GlobalStyles.card}
+        style={[
+          GlobalStyles.card,
+          isBoosted && {
+            borderColor: "#FFD700",
+            borderWidth: 1,
+            backgroundColor: "#FFFBE6", // Very light yellow
+          },
+        ]}
         onPress={() => router.push(`/project/role/${item.id}`)}
       >
         {/* En-tête avec le nom du PROJET */}
         <View style={styles.cardHeader}>
           <View>
-            <Text style={styles.projectTitle}>
-              {item.tournages?.title || "Projet Inconnu"}
-            </Text>
+            <View
+              style={{ flexDirection: "row", alignItems: "center", gap: 6 }}
+            >
+              <Text style={styles.projectTitle}>
+                {item.tournages?.title || "Projet Inconnu"}
+              </Text>
+              {isBoosted && (
+                <View
+                  style={{
+                    backgroundColor: "#FFD700",
+                    paddingHorizontal: 6,
+                    paddingVertical: 2,
+                    borderRadius: 4,
+                  }}
+                >
+                  <Text
+                    style={{ fontSize: 8, fontWeight: "bold", color: "white" }}
+                  >
+                    SPONSORISÉ
+                  </Text>
+                </View>
+              )}
+            </View>
             <Text style={styles.projectSubtitle}>
               {item.tournages?.type?.replace("_", " ")} •{" "}
               {item.tournages?.pays || "Pays ?"}{" "}
@@ -238,7 +283,9 @@ export default function Discover() {
         <View style={styles.divider} />
 
         {/* Corps avec le RÔLE recherché */}
-        <Text style={[GlobalStyles.title2, { color: Colors.light.primary }]}>{item.title}</Text>
+        <Text style={[GlobalStyles.title2, { color: Colors.light.primary }]}>
+          {item.title}
+        </Text>
 
         {item.description ? (
           <Text style={GlobalStyles.body} numberOfLines={2}>
@@ -268,45 +315,73 @@ export default function Discover() {
       {/* HEADER */}
       <View style={styles.header}>
         {/* TABS: ROLES vs PROJETS */}
-        <View style={{ flexDirection: 'row', backgroundColor: Colors.light.backgroundSecondary, borderRadius: 8, padding: 4, marginBottom: 15 }}>
-            <TouchableOpacity
-                onPress={() => setContentType("roles")}
-                style={{
-                    flex: 1,
-                    paddingVertical: 8,
-                    borderRadius: 6,
-                    backgroundColor: contentType === "roles" ? "white" : "transparent",
-                    ...((contentType === "roles") ? {
-                        shadowColor: "#000",
-                        shadowOffset: { width: 0, height: 2 },
-                        shadowOpacity: 0.1,
-                        shadowRadius: 3,
-                        elevation: 2
-                    } : {}),
-                    alignItems: 'center'
-                }}
+        <View
+          style={{
+            flexDirection: "row",
+            backgroundColor: Colors.light.backgroundSecondary,
+            borderRadius: 8,
+            padding: 4,
+            marginBottom: 15,
+          }}
+        >
+          <TouchableOpacity
+            onPress={() => setContentType("roles")}
+            style={{
+              flex: 1,
+              paddingVertical: 8,
+              borderRadius: 6,
+              backgroundColor:
+                contentType === "roles" ? "white" : "transparent",
+              ...(contentType === "roles"
+                ? {
+                    shadowColor: "#000",
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.1,
+                    shadowRadius: 3,
+                    elevation: 2,
+                  }
+                : {}),
+              alignItems: "center",
+            }}
+          >
+            <Text
+              style={{
+                fontWeight: "600",
+                color: contentType === "roles" ? Colors.light.text : "#999",
+              }}
             >
-                <Text style={{ fontWeight: "600", color: contentType === "roles" ? Colors.light.text : "#999" }}>Offres</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-                onPress={() => setContentType("projects")}
-                style={{
-                    flex: 1,
-                    paddingVertical: 8,
-                    borderRadius: 6,
-                    backgroundColor: contentType === "projects" ? "white" : "transparent",
-                    ...((contentType === "projects") ? {
-                        shadowColor: "#000",
-                        shadowOffset: { width: 0, height: 2 },
-                        shadowOpacity: 0.1,
-                        shadowRadius: 3,
-                        elevation: 2
-                    } : {}),
-                    alignItems: 'center'
-                }}
+              Offres
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => setContentType("projects")}
+            style={{
+              flex: 1,
+              paddingVertical: 8,
+              borderRadius: 6,
+              backgroundColor:
+                contentType === "projects" ? "white" : "transparent",
+              ...(contentType === "projects"
+                ? {
+                    shadowColor: "#000",
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.1,
+                    shadowRadius: 3,
+                    elevation: 2,
+                  }
+                : {}),
+              alignItems: "center",
+            }}
+          >
+            <Text
+              style={{
+                fontWeight: "600",
+                color: contentType === "projects" ? Colors.light.text : "#999",
+              }}
             >
-                <Text style={{ fontWeight: "600", color: contentType === "projects" ? Colors.light.text : "#999" }}>Tournages</Text>
-            </TouchableOpacity>
+              Tournages
+            </Text>
+          </TouchableOpacity>
         </View>
 
         <View
@@ -366,8 +441,8 @@ export default function Discover() {
       </View>
 
       {loading ? (
-        <ActivityIndicator
-          size="large"
+        <ClapLoading
+          size={50}
           color={Colors.light.primary}
           style={{ marginTop: 50 }}
         />
@@ -404,7 +479,15 @@ export default function Discover() {
                   onCalloutPress={() => router.push(`/project/${proj.id}`)}
                 >
                   <View style={styles.customMarker}>
-                    <Text style={{color:'white', fontWeight:'bold', fontSize: 10}}>{proj.roleCount}</Text>
+                    <Text
+                      style={{
+                        color: "white",
+                        fontWeight: "bold",
+                        fontSize: 10,
+                      }}
+                    >
+                      {proj.roleCount}
+                    </Text>
                   </View>
                 </Marker>
               );
@@ -458,7 +541,11 @@ export default function Discover() {
                         : cat.charAt(0).toUpperCase() + cat.slice(1)}
                     </Text>
                     {selectedCategory === cat && (
-                      <Ionicons name="checkmark" size={20} color={Colors.light.primary} />
+                      <Ionicons
+                        name="checkmark"
+                        size={20}
+                        color={Colors.light.primary}
+                      />
                     )}
                   </TouchableOpacity>
                 ))}
@@ -498,7 +585,11 @@ export default function Discover() {
                       {city === "all" ? "Toutes" : city}
                     </Text>
                     {selectedCity === city && (
-                      <Ionicons name="checkmark" size={20} color={Colors.light.primary} />
+                      <Ionicons
+                        name="checkmark"
+                        size={20}
+                        color={Colors.light.primary}
+                      />
                     )}
                   </TouchableOpacity>
                 ))}

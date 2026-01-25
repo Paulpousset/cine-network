@@ -4,22 +4,22 @@ import * as ImagePicker from "expo-image-picker";
 import { Stack, router } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
-  Image,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    Alert,
+    Image,
+    KeyboardAvoidingView,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 
+import ClapLoading from "@/components/ClapLoading";
 import Colors from "@/constants/Colors";
-import { supabase } from "@/lib/supabase";
 import { GlobalStyles } from "@/constants/Styles";
+import { supabase } from "@/lib/supabase";
 
 export default function NewPostScreen() {
   const [content, setContent] = useState("");
@@ -169,29 +169,28 @@ export default function NewPostScreen() {
             textAlignVertical="top"
             placeholderTextColor="#999"
           />
-        
 
-        {image && (
-          <View style={styles.imagePreview}>
-            <Image
-              source={{ uri: image }}
-              style={{ width: "100%", height: 200, borderRadius: 8 }}
-            />
-            <TouchableOpacity
-              style={styles.removeImage}
-              onPress={() => setImage(null)}
-            >
-              <Ionicons name="close-circle" size={24} color="white" />
+          {image && (
+            <View style={styles.imagePreview}>
+              <Image
+                source={{ uri: image }}
+                style={{ width: "100%", height: 200, borderRadius: 8 }}
+              />
+              <TouchableOpacity
+                style={styles.removeImage}
+                onPress={() => setImage(null)}
+              >
+                <Ionicons name="close-circle" size={24} color="white" />
+              </TouchableOpacity>
+            </View>
+          )}
+
+          <View style={styles.actions}>
+            <TouchableOpacity style={styles.actionButton} onPress={pickImage}>
+              <Ionicons name="image" size={24} color={Colors.light.tint} />
+              <Text style={styles.actionText}>Ajouter une photo</Text>
             </TouchableOpacity>
           </View>
-        )}
-
-        <View style={styles.actions}>
-          <TouchableOpacity style={styles.actionButton} onPress={pickImage}>
-            <Ionicons name="image" size={24} color={Colors.light.tint} />
-            <Text style={styles.actionText}>Ajouter une photo</Text>
-          </TouchableOpacity>
-        </View>
         </View>
 
         <View style={[GlobalStyles.card, styles.projectSelect]}>
@@ -268,12 +267,16 @@ export default function NewPostScreen() {
         </View>
 
         <TouchableOpacity
-          style={[GlobalStyles.primaryButton, loading && { opacity: 0.7 }, { marginTop: 20 }]}
+          style={[
+            GlobalStyles.primaryButton,
+            loading && { opacity: 0.7 },
+            { marginTop: 20 },
+          ]}
           onPress={handlePost}
           disabled={loading}
         >
           {loading ? (
-            <ActivityIndicator color="white" />
+            <ClapLoading color="white" size={24} />
           ) : (
             <Text style={GlobalStyles.buttonText}>Publier</Text>
           )}
@@ -345,7 +348,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#666",
     marginBottom: 5,
-    fontWeight: '600'
+    fontWeight: "600",
   },
   pickerContainer: {
     backgroundColor: "#f9f9f9",

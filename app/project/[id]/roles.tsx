@@ -1,25 +1,23 @@
 import RoleFormFields from "@/components/RoleFormFields";
+import Colors from "@/constants/Colors";
 import { fuzzySearch } from "@/utils/search";
 import { Ionicons } from "@expo/vector-icons";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
-  FlatList,
-  Modal,
-  ScrollView,
-  SectionList,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    Alert,
+    FlatList,
+    Modal,
+    ScrollView,
+    SectionList,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { supabase } from "../../../lib/supabase";
 import { JOB_TITLES } from "../../../utils/roles";
-import Colors from "@/constants/Colors";
-import { GlobalStyles } from "@/constants/Styles";
 
 const ROLE_CATEGORIES = [
   "acteur",
@@ -76,7 +74,7 @@ export default function ManageRoles() {
   const router = useRouter();
 
   const [roles, setRoles] = useState<RoleItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [projectTitle, setProjectTitle] = useState("");
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
@@ -146,6 +144,7 @@ export default function ManageRoles() {
   }, [id]);
 
   async function fetchData() {
+    if (!id || id === "undefined") return;
     try {
       setLoading(true);
       // Get project title
@@ -872,7 +871,9 @@ export default function ManageRoles() {
       </View>
 
       {loading ? (
-        <ActivityIndicator style={{ marginTop: 40 }} color="#841584" />
+        <View style={{ marginTop: 40, alignItems: "center" }}>
+          <ClapLoading size={50} color={Colors.light.primary} />
+        </View>
       ) : (
         <SectionList
           sections={[
@@ -1244,7 +1245,7 @@ export default function ManageRoles() {
                   disabled={isSavingRole}
                 >
                   {isSavingRole ? (
-                    <ActivityIndicator color="white" />
+                    <ClapLoading color="white" size={24} />
                   ) : (
                     <Text
                       style={{
@@ -1277,11 +1278,9 @@ export default function ManageRoles() {
                   autoFocus
                 />
                 {searching ? (
-                  <ActivityIndicator
-                    size="large"
-                    color="#841584"
-                    style={{ marginTop: 20 }}
-                  />
+                  <View style={{ marginTop: 20, alignItems: "center" }}>
+                    <ClapLoading size={40} color={Colors.light.primary} />
+                  </View>
                 ) : (
                   <View style={{ marginTop: 10, paddingBottom: 40 }}>
                     {results.length === 0 ? (
@@ -1379,7 +1378,9 @@ export default function ManageRoles() {
             />
 
             {searching ? (
-              <ActivityIndicator style={{ marginVertical: 20 }} />
+              <View style={{ marginVertical: 20, alignItems: "center" }}>
+                <ClapLoading size={40} color={Colors.light.primary} />
+              </View>
             ) : (
               <FlatList
                 data={results}
@@ -1476,7 +1477,7 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     elevation: 2,
     borderWidth: 1,
-    borderColor: Colors.light.border
+    borderColor: Colors.light.border,
   },
   cardHeader: {
     flexDirection: "row",
@@ -1555,7 +1556,7 @@ const styles = StyleSheet.create({
     padding: 10,
     marginVertical: 10,
     textAlign: "center",
-    color: Colors.light.text
+    color: Colors.light.text,
   },
   userRow: {
     paddingVertical: 12,
@@ -1571,7 +1572,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     marginTop: 15,
     textAlign: "center",
-    color: Colors.light.text
+    color: Colors.light.text,
   },
   rowWrap: {
     flexDirection: "row",

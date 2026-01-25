@@ -1,19 +1,19 @@
+import ClapLoading from "@/components/ClapLoading";
 import Colors from "@/constants/Colors";
 import { supabase } from "@/lib/supabase";
 import { Ionicons } from "@expo/vector-icons";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
-    ActivityIndicator,
-    FlatList,
-    KeyboardAvoidingView,
-    Platform,
-    SafeAreaView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  FlatList,
+  KeyboardAvoidingView,
+  Platform,
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 export default function DirectMessageChat() {
@@ -28,7 +28,7 @@ export default function DirectMessageChat() {
 
   useEffect(() => {
     setup();
-    
+
     // Realtime subscription
     const channel = supabase
       .channel("dm_chat")
@@ -48,7 +48,7 @@ export default function DirectMessageChat() {
           ) {
             setMessages((prev) => [newMsg, ...prev]);
           }
-        }
+        },
       )
       .subscribe();
 
@@ -81,16 +81,15 @@ export default function DirectMessageChat() {
         .from("direct_messages")
         .select("*")
         .or(
-          `and(sender_id.eq.${myId},receiver_id.eq.${id}),and(sender_id.eq.${id},receiver_id.eq.${myId})`
+          `and(sender_id.eq.${myId},receiver_id.eq.${id}),and(sender_id.eq.${id},receiver_id.eq.${myId})`,
         )
         .order("created_at", { ascending: false });
 
       if (error) throw error;
       setMessages(data || []);
-      
+
       // Mark as read (optional, simplified)
       // await supabase.from('direct_messages').update({ is_read: true }).eq('sender_id', id).eq('receiver_id', myId);
-      
     } catch (e) {
       console.log(e);
     } finally {
@@ -136,7 +135,7 @@ export default function DirectMessageChat() {
         options={{
           headerTitle: otherUser?.full_name || otherUser?.username || "Chat",
           headerTintColor: Colors.light.tint,
-          headerBackTitleVisible: false,
+          headerBackTitle: "", // Hide the back button text
         }}
       />
 
@@ -146,9 +145,10 @@ export default function DirectMessageChat() {
         style={{ flex: 1 }}
       >
         {loading ? (
-          <ActivityIndicator
+          <ClapLoading
             style={{ flex: 1 }}
             color={Colors.light.primary}
+            size={50}
           />
         ) : (
           <FlatList
@@ -177,7 +177,9 @@ export default function DirectMessageChat() {
                   <Text
                     style={[
                       styles.dateText,
-                      isMe ? { color: "rgba(255,255,255,0.7)" } : { color: "#999" },
+                      isMe
+                        ? { color: "rgba(255,255,255,0.7)" }
+                        : { color: "#999" },
                     ]}
                   >
                     {new Date(item.created_at).toLocaleTimeString([], {

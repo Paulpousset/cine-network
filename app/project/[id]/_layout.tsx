@@ -12,11 +12,17 @@ function CustomProjectTabBar({
   descriptors,
   navigation,
   isVisitor,
-}: BottomTabBarProps & { isVisitor: boolean }) {
+  isOwner,
+}: BottomTabBarProps & { isVisitor: boolean; isOwner: boolean }) {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "light"];
 
-  if (isVisitor) return null; // Or render nothing, though 'display: none' might be safer if controlled by parent
+  if (isVisitor) return null;
+
+  console.log(
+    "Routes available in TabBar:",
+    state.routes.map((r) => r.name),
+  );
 
   return (
     <View
@@ -27,23 +33,15 @@ function CustomProjectTabBar({
     >
       {state.routes.map((route, index) => {
         const { options } = descriptors[route.key];
-        
-        // Hide tabs that have href: null
-        // Note: Expo Router handles href: null by not including them in state.routes usually,
-        // but if it does, we can check options.href or manually filter known hidden routes.
-        // However, BottomTabBarProps.state.routes usually only contains the visible tabs if configured correctly in Expo Router?
-        // Actually, Expo Router might include all defined screens.
-        // Let's rely on the fact that if it's in the state passed to tabBar, it should be rendered,
-        // UNLESS we want to manually hide some like 'settings' which we did via options in the normal Tabs.
-        // The `href: null` in options usually removes it from the array.
-        
-        // However, we see 'settings', 'roles' etc in the previous file having href: null.
-        // Let's double check if they appear in `state.routes`.
-        // If they do, we need to filter them.
-        
-        // Checking options.tabBarButton? options.tabBarItemStyle?
-        // Best way: check if the route name is one of the visible ones we want.
-        const visibleRoutes = ["index", "chat", "calendar"];
+
+        // Filter visible routes
+        let visibleRoutes = ["index", "spaces", "calendar", "logistics"];
+
+        // Add Admin only if owner
+        if (isOwner) {
+          visibleRoutes.push("admin");
+        }
+
         if (!visibleRoutes.includes(route.name)) return null;
 
         const isFocused = state.index === index;
@@ -69,17 +67,15 @@ function CustomProjectTabBar({
               activeOpacity={0.7}
             >
               {options.tabBarIcon?.({ focused: isFocused, color, size: 24 })}
-              <Text style={[styles.tabLabel, { color }]}>
-                {options.title}
-              </Text>
+              <Text style={[styles.tabLabel, { color }]}>{options.title}</Text>
             </TouchableOpacity>
 
             {/* Add divider if not the last visible item. 
                 Since we map, we don't know easily if it's the last *visible* item.
                 Hardcoded check for now or cleaner filter approach.
             */}
-            {route.name !== "calendar" && (
-               <View
+            {route.name !== "admin" && (
+              <View
                 style={[
                   styles.divider,
                   { backgroundColor: colors.tint, opacity: 0.3 },
@@ -98,7 +94,7 @@ export default function ProjectIdLayout() {
   const router = useRouter();
   const [isOwner, setIsOwner] = useState(false);
   const [isMember, setIsMember] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const colorScheme = useColorScheme();
 
   useEffect(() => {
@@ -106,15 +102,17 @@ export default function ProjectIdLayout() {
   }, [id]);
 
   async function checkAccess() {
+    const projectId = Array.isArray(id) ? id[0] : id;
+    if (!projectId || projectId === "undefined") return;
     try {
       setLoading(true);
       const {
         data: { session },
       } = await supabase.auth.getSession();
-      
+
       if (!session) {
-          setLoading(false);
-          return;
+        setLoading(false);
+        return;
       }
 
       const userId = session.user.id;
@@ -123,30 +121,30 @@ export default function ProjectIdLayout() {
       const { data: project } = await supabase
         .from("tournages")
         .select("owner_id")
-        .eq("id", id)
-        .single();
+        .eq("id", projectId)
+        .maybeSingle();
 
       if (project && project.owner_id === userId) {
         setIsOwner(true);
         // Owner is implicitly a member
-        setIsMember(true); 
+        setIsMember(true);
       } else {
         // Check Member
         const { data: membership } = await supabase
-            .from("project_roles")
-            .select("id")
-            .eq("tournage_id", id)
-            .eq("assigned_profile_id", userId)
-            .limit(1);
-        
+          .from("project_roles")
+          .select("id")
+          .eq("tournage_id", projectId)
+          .eq("assigned_profile_id", userId)
+          .limit(1);
+
         if (membership && membership.length > 0) {
-            setIsMember(true);
+          setIsMember(true);
         }
       }
     } catch (e) {
       console.log("Error checking access:", e);
     } finally {
-        setLoading(false);
+      setLoading(false);
     }
   }
 
@@ -156,7 +154,13 @@ export default function ProjectIdLayout() {
     <>
       <Stack.Screen options={{ headerShown: false }} />
       <Tabs
-        tabBar={(props) => <CustomProjectTabBar {...props} isVisitor={isVisitor} />}
+        tabBar={(props) => (
+          <CustomProjectTabBar
+            {...props}
+            isVisitor={isVisitor}
+            isOwner={isOwner}
+          />
+        )}
         screenOptions={{
           headerShown: false,
           tabBarActiveTintColor: Colors[colorScheme ?? "light"].tint,
@@ -177,12 +181,24 @@ export default function ProjectIdLayout() {
           }}
         />
         <Tabs.Screen
-          name="chat"
+          name="breakdown"
           options={{
-            title: "Conversation",
+            href: null,
+          }}
+        />
+        <Tabs.Screen
+          name="production"
+          options={{
+            href: null,
+          }}
+        />
+        <Tabs.Screen
+          name="spaces"
+          options={{
+            title: "Espaces",
             tabBarIcon: ({ color, focused }) => (
               <Ionicons
-                name={focused ? "chatbubbles" : "chatbubbles-outline"}
+                name={focused ? "grid" : "grid-outline"}
                 size={24}
                 color={color}
               />
@@ -196,6 +212,32 @@ export default function ProjectIdLayout() {
             tabBarIcon: ({ color, focused }) => (
               <Ionicons
                 name={focused ? "calendar" : "calendar-outline"}
+                size={24}
+                color={color}
+              />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="logistics"
+          options={{
+            title: "Logistique",
+            tabBarIcon: ({ color, focused }) => (
+              <Ionicons
+                name={focused ? "clipboard" : "clipboard-outline"}
+                size={24}
+                color={color}
+              />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="admin"
+          options={{
+            title: "Admin",
+            tabBarIcon: ({ color, focused }) => (
+              <Ionicons
+                name={focused ? "construct" : "construct-outline"}
                 size={24}
                 color={color}
               />

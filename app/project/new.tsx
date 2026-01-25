@@ -1,24 +1,25 @@
+import ClapLoading from "@/components/ClapLoading";
+import PaymentModal from "@/components/PaymentModal";
+import Colors from "@/constants/Colors";
+import { GlobalStyles } from "@/constants/Styles";
 import { JOB_TITLES } from "@/utils/roles";
 import { useRouter } from "expo-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    Alert,
+    KeyboardAvoidingView,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { supabase } from "../../lib/supabase";
 import AddressAutocomplete from "../components/AddressAutocomplete";
 import CityPicker from "../components/CityPicker";
 import CountryPicker from "../components/CountryPicker";
-import { GlobalStyles } from "@/constants/Styles";
-import Colors from "@/constants/Colors";
 
 export default function CreateTournage() {
   const router = useRouter();
@@ -38,12 +39,92 @@ export default function CreateTournage() {
   });
   const [creating, setCreating] = useState(false);
 
+  // Subscription Restriction
+  const [canCreate, setCanCreate] = useState(true);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+
   type Category = keyof typeof JOB_TITLES;
   type SelectedRole = { category: Category; title: string; quantity: number };
   const [selected, setSelected] = useState<Record<string, SelectedRole>>({});
 
   function roleKey(category: string, title: string) {
     return `${category}|${title}`;
+  }
+
+  useEffect(() => {
+    checkSubscriptionLimits();
+  }, []);
+
+  async function checkSubscriptionLimits() {
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session) return;
+
+      // 1. Get Profile Tier
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("subscription_tier")
+        .eq("id", session.user.id)
+        .single();
+
+      const tier = profile?.subscription_tier || "free";
+
+      if (tier === "studio") {
+        setCanCreate(true);
+        return;
+      }
+
+      // 2. Count Active Projects for Free Users
+      const { count, error } = await supabase
+        .from("tournages")
+        .select("*", { count: "exact", head: true })
+        .eq("owner_id", session.user.id);
+
+      if (error) throw error;
+
+      // Limit: 1 project for free users
+      if ((count || 0) >= 1) {
+        setCanCreate(false);
+        Alert.alert(
+          "Limite atteinte",
+          "Vous avez atteint la limite de 1 projet actif avec le plan Gratuit. Passez au plan Studio pour créer des projets illimités.",
+          [
+            { text: "Annuler", onPress: () => router.back(), style: "cancel" },
+            {
+              text: "Voir les offres",
+              onPress: () => setShowUpgradeModal(true),
+            },
+          ],
+        );
+      }
+    } catch (e) {
+      console.log("Error checking limits:", e);
+    }
+  }
+
+  async function handleUpgradeSuccess() {
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session) return;
+
+      await supabase
+        .from("profiles")
+        .update({ subscription_tier: "studio" })
+        .eq("id", session.user.id);
+
+      setCanCreate(true);
+      setShowUpgradeModal(false);
+      Alert.alert(
+        "Félicitations !",
+        "Vous pouvez maintenant créer des projets illimités.",
+      );
+    } catch (e) {
+      Alert.alert("Erreur", "Mise à jour échouée.");
+    }
   }
 
   // Very simple Nominatim Geocoding
@@ -243,7 +324,12 @@ export default function CreateTournage() {
                 ]}
                 onPress={() => setType(t)}
               >
-                <Text style={{ color: type === t ? "white" : Colors.light.primary, fontWeight: '600' }}>
+                <Text
+                  style={{
+                    color: type === t ? "white" : Colors.light.primary,
+                    fontWeight: "600",
+                  }}
+                >
                   {t === "court_metrage"
                     ? "Court"
                     : t.charAt(0).toUpperCase() + t.slice(1)}
@@ -279,7 +365,7 @@ export default function CreateTournage() {
                         style={{
                           color: active ? "#fff" : Colors.light.primary,
                           marginLeft: 6,
-                          fontWeight: active ? 'bold' : 'normal'
+                          fontWeight: active ? "bold" : "normal",
                         }}
                       >
                         + {job}
@@ -297,16 +383,26 @@ export default function CreateTournage() {
           ))}
 
           {/* Résumé de la sélection */}
-          <View style={{ marginTop: 16, paddingTop: 16, borderTopWidth: 1, borderColor: Colors.light.border }}>
+          <View
+            style={{
+              marginTop: 16,
+              paddingTop: 16,
+              borderTopWidth: 1,
+              borderColor: Colors.light.border,
+            }}
+          >
             <Text style={styles.label}>Sélection</Text>
             {Object.keys(selected).length === 0 ? (
-              <Text style={{ color: "#888", fontStyle: 'italic' }}>Aucun rôle sélectionné.</Text>
+              <Text style={{ color: "#888", fontStyle: "italic" }}>
+                Aucun rôle sélectionné.
+              </Text>
             ) : (
               <View style={{ gap: 8 }}>
                 {Object.entries(selected).map(([k, r]) => (
                   <View key={k} style={styles.selectionRow}>
                     <Text style={{ flex: 1, color: Colors.light.text }}>
-                      <Text style={{ fontWeight: 'bold' }}>{r.title}</Text> • {r.category}
+                      <Text style={{ fontWeight: "bold" }}>{r.title}</Text> •{" "}
+                      {r.category}
                     </Text>
                     <View style={styles.qtyControls}>
                       <TouchableOpacity
@@ -317,7 +413,13 @@ export default function CreateTournage() {
                           −
                         </Text>
                       </TouchableOpacity>
-                      <Text style={{ minWidth: 18, textAlign: "center", color: Colors.light.text }}>
+                      <Text
+                        style={{
+                          minWidth: 18,
+                          textAlign: "center",
+                          color: Colors.light.text,
+                        }}
+                      >
                         {r.quantity}
                       </Text>
                       <TouchableOpacity
@@ -350,7 +452,7 @@ export default function CreateTournage() {
             disabled={creating}
           >
             {creating ? (
-              <ActivityIndicator color="#fff" />
+              <ClapLoading color="#fff" size={24} />
             ) : (
               <Text style={GlobalStyles.buttonText}>Créer le tournage</Text>
             )}
@@ -358,6 +460,17 @@ export default function CreateTournage() {
         </View>
         <View style={{ height: 40 }} />
       </ScrollView>
+
+      <PaymentModal
+        visible={showUpgradeModal}
+        amount={29.0}
+        label="Passer Studio (Projets Illimités)"
+        onClose={() => {
+          setShowUpgradeModal(false);
+          if (!canCreate) router.back(); // If they closed without paying and were blocked, go back
+        }}
+        onSuccess={handleUpgradeSuccess}
+      />
     </KeyboardAvoidingView>
   );
 }
@@ -453,7 +566,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.light.backgroundSecondary,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: Colors.light.border
+    borderColor: Colors.light.border,
   },
   qtyControls: {
     flexDirection: "row",

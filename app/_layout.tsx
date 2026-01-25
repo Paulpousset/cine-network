@@ -1,7 +1,8 @@
+import ClapLoading from "@/components/ClapLoading";
 import { Session } from "@supabase/supabase-js";
 import { Stack, usePathname, useRouter, useSegments } from "expo-router";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, View } from "react-native";
+import { View } from "react-native";
 import { supabase } from "../lib/supabase";
 
 export default function RootLayout() {
@@ -54,7 +55,7 @@ export default function RootLayout() {
   if (!initialized) {
     return (
       <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-        <ActivityIndicator size="large" color="#841584" />
+        <ClapLoading size={50} color="#841584" />
       </View>
     );
   }

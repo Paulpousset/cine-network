@@ -1,20 +1,20 @@
+import ClapLoading from "@/components/ClapLoading";
+import Colors from "@/constants/Colors";
+import { GlobalStyles } from "@/constants/Styles";
 import { Ionicons } from "@expo/vector-icons";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
-  Image,
-  Linking,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    Alert,
+    Image,
+    Linking,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { supabase } from "../../lib/supabase";
-import { GlobalStyles } from "@/constants/Styles";
-import Colors from "@/constants/Colors";
 
 export default function ProfileDetail() {
   const { id } = useLocalSearchParams();
@@ -290,7 +290,13 @@ export default function ProfileDetail() {
   }
 
   if (loading)
-    return <ActivityIndicator style={{ marginTop: 50 }} color={Colors.light.primary} />;
+    return (
+      <ClapLoading
+        style={{ marginTop: 50 }}
+        color={Colors.light.primary}
+        size={50}
+      />
+    );
 
   return (
     <>
@@ -349,7 +355,7 @@ export default function ProfileDetail() {
               gap: 10,
               marginTop: 15,
               flexWrap: "wrap",
-              justifyContent: 'center'
+              justifyContent: "center",
             }}
           >
             {/* CLAP BUTTON */}
@@ -414,7 +420,10 @@ export default function ProfileDetail() {
             )}
 
             <TouchableOpacity
-              style={[styles.actionButton, { backgroundColor: Colors.light.tint }]}
+              style={[
+                styles.actionButton,
+                { backgroundColor: Colors.light.tint },
+              ]}
               onPress={() =>
                 router.push({
                   pathname: "/direct-messages/[id]",
@@ -422,12 +431,19 @@ export default function ProfileDetail() {
                 })
               }
             >
-              <Ionicons name="chatbubble-ellipses-outline" size={20} color="white" />
+              <Ionicons
+                name="chatbubble-ellipses-outline"
+                size={20}
+                color="white"
+              />
               <Text style={styles.actionButtonText}>Message</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.actionButton, { backgroundColor: Colors.light.tint }]}
+              style={[
+                styles.actionButton,
+                { backgroundColor: Colors.light.tint },
+              ]}
               onPress={() =>
                 router.push({
                   pathname: "/profile/posts",
@@ -475,9 +491,7 @@ export default function ProfileDetail() {
         {(profile?.equipment || profile?.software) && (
           <View style={styles.section}>
             <Text style={GlobalStyles.title2}>Matériel & Outils</Text>
-            <View
-              style={GlobalStyles.card}
-            >
+            <View style={GlobalStyles.card}>
               {profile.equipment && (
                 <View style={{ marginBottom: 12 }}>
                   <Text style={styles.attrLabel}>Matériel</Text>
@@ -502,9 +516,7 @@ export default function ProfileDetail() {
         {profile?.specialties && (
           <View style={styles.section}>
             <Text style={GlobalStyles.title2}>Spécialités</Text>
-            <View
-              style={GlobalStyles.card}
-            >
+            <View style={GlobalStyles.card}>
               <Text style={[styles.attrValue, { fontWeight: "400" }]}>
                 {profile.specialties}
               </Text>
@@ -702,7 +714,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.03,
     shadowRadius: 3,
     borderWidth: 1,
-    borderColor: Colors.light.border
+    borderColor: Colors.light.border,
   },
   attributeItem: {
     alignItems: "center",
@@ -724,7 +736,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: Colors.light.border
+    borderColor: Colors.light.border,
   },
   bookImage: {
     width: 100,
@@ -760,7 +772,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.03,
     elevation: 1,
     borderWidth: 1,
-    borderColor: Colors.light.border
+    borderColor: Colors.light.border,
   },
   participationCard: {
     backgroundColor: "#fff",
@@ -770,7 +782,7 @@ const styles = StyleSheet.create({
     borderLeftWidth: 3,
     borderLeftColor: "#ccc",
     borderWidth: 1,
-    borderColor: Colors.light.border
+    borderColor: Colors.light.border,
   },
   projectTitle: {
     fontWeight: "700",

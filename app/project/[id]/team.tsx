@@ -1,8 +1,10 @@
+import ClapLoading from "@/components/ClapLoading";
+import Colors from "@/constants/Colors";
+import { GlobalStyles } from "@/constants/Styles";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
   FlatList,
   StyleSheet,
   Text,
@@ -10,13 +12,11 @@ import {
   View,
 } from "react-native";
 import { supabase } from "../../../lib/supabase";
-import { GlobalStyles } from "@/constants/Styles";
-import Colors from "@/constants/Colors";
 
 export default function ProjectTeam() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [team, setTeam] = useState<any[]>([]);
 
   useEffect(() => {
@@ -24,6 +24,7 @@ export default function ProjectTeam() {
   }, [id]);
 
   async function fetchTeam() {
+    if (!id || id === "undefined") return;
     try {
       setLoading(true);
       // Fetch roles that have an assigned profile
@@ -34,7 +35,7 @@ export default function ProjectTeam() {
           id,
           title,
           category,
-          assigned_profile:profiles!project_roles_assigned_profile_id_fkey (
+          assigned_profile:profiles (
             id,
             full_name,
             username,
@@ -106,8 +107,8 @@ export default function ProjectTeam() {
       </View>
 
       {loading ? (
-        <ActivityIndicator
-          size="large"
+        <ClapLoading
+          size={50}
           color={Colors.light.primary}
           style={{ marginTop: 50 }}
         />
@@ -157,7 +158,7 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     borderRadius: 4,
     borderWidth: 1,
-    borderColor: Colors.light.border
+    borderColor: Colors.light.border,
   },
   badgeText: { fontSize: 10, color: Colors.light.text, fontWeight: "600" },
   cityText: { fontSize: 12, color: "#999" },

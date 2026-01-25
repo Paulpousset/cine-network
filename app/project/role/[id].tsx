@@ -1,26 +1,27 @@
+import ClapLoading from "@/components/ClapLoading";
+import Colors from "@/constants/Colors";
+import { GlobalStyles } from "@/constants/Styles";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
   Alert,
   Image,
+  Modal,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
-  Modal,
   TouchableOpacity,
   View,
 } from "react-native";
 import { supabase } from "../../../lib/supabase";
-import { GlobalStyles } from "@/constants/Styles";
-import Colors from "@/constants/Colors";
 
 export default function RoleDetails() {
-  const { id } = useLocalSearchParams();
+  const { id: rawId } = useLocalSearchParams();
+  const id = Array.isArray(rawId) ? rawId[0] : rawId;
   const router = useRouter();
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [role, setRole] = useState<any>(null);
   const [hasApplied, setHasApplied] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
@@ -103,6 +104,7 @@ export default function RoleDetails() {
   }
 
   async function fetchRoleDetails() {
+    if (!id || id === "undefined") return;
     try {
       setLoading(true);
       const { data, error } = await supabase
@@ -116,11 +118,17 @@ export default function RoleDetails() {
         `,
         )
         .eq("id", id)
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
+      if (!data) {
+        Alert.alert("Erreur", "Offre introuvable.");
+        router.back();
+        return;
+      }
       setRole(data);
     } catch (e) {
+      console.error("fetchRoleDetails error:", e);
       Alert.alert("Erreur", (e as Error).message);
       router.back();
     } finally {
@@ -131,7 +139,7 @@ export default function RoleDetails() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={Colors.light.primary} />
+        <ClapLoading size={50} color={Colors.light.primary} />
       </View>
     );
   }
@@ -233,7 +241,9 @@ export default function RoleDetails() {
 
           {/* ROLE DETAILS */}
           <View style={styles.detailsContainer}>
-            <Text style={[GlobalStyles.title2, { marginTop: 20 }]}>Détails du poste</Text>
+            <Text style={[GlobalStyles.title2, { marginTop: 20 }]}>
+              Détails du poste
+            </Text>
 
             {role.description && (
               <Text style={styles.descriptionText}>{role.description}</Text>
@@ -330,7 +340,7 @@ export default function RoleDetails() {
           disabled={hasApplied || applying}
         >
           {applying ? (
-            <ActivityIndicator color="white" />
+            <ClapLoading color="white" size={24} />
           ) : (
             <Text style={GlobalStyles.buttonText}>
               {hasApplied ? "Candidature envoyée" : "Postuler"}
@@ -380,7 +390,11 @@ export default function RoleDetails() {
               }}
             >
               <TextInput
-                style={{ flex: 1, textAlignVertical: "top", color: Colors.light.text }}
+                style={{
+                  flex: 1,
+                  textAlignVertical: "top",
+                  color: Colors.light.text,
+                }}
                 placeholder="Bonjour, je suis très intéressé par ce rôle..."
                 multiline
                 value={applicationMessage}
@@ -395,9 +409,11 @@ export default function RoleDetails() {
               disabled={applying}
             >
               {applying ? (
-                <ActivityIndicator color="white" />
+                <ClapLoading color="white" size={24} />
               ) : (
-                <Text style={GlobalStyles.buttonText}>Envoyer ma candidature</Text>
+                <Text style={GlobalStyles.buttonText}>
+                  Envoyer ma candidature
+                </Text>
               )}
             </TouchableOpacity>
           </View>
@@ -410,7 +426,12 @@ export default function RoleDetails() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.light.backgroundSecondary },
   loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
-  errorText: { fontSize: 18, color: Colors.light.danger, textAlign: "center", marginTop: 50 },
+  errorText: {
+    fontSize: 18,
+    color: Colors.light.danger,
+    textAlign: "center",
+    marginTop: 50,
+  },
 
   imageHeader: { height: 200, backgroundColor: "#333", position: "relative" },
   projectImage: { width: "100%", height: "100%", opacity: 0.8 },
@@ -447,14 +468,20 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 20,
   },
-  roleTitle: { fontSize: 24, fontWeight: "bold", flex: 1, marginRight: 10, color: Colors.light.text },
+  roleTitle: {
+    fontSize: 24,
+    fontWeight: "bold",
+    flex: 1,
+    marginRight: 10,
+    color: Colors.light.text,
+  },
   badge: {
     backgroundColor: Colors.light.background,
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: Colors.light.primary
+    borderColor: Colors.light.primary,
   },
   badgeText: { color: Colors.light.primary, fontWeight: "bold", fontSize: 12 },
 
@@ -485,7 +512,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     minWidth: "45%",
     borderWidth: 1,
-    borderColor: Colors.light.border
+    borderColor: Colors.light.border,
   },
   tagLabel: {
     fontSize: 10,
@@ -502,7 +529,7 @@ const styles = StyleSheet.create({
     width: "100%",
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: Colors.light.border
+    borderColor: Colors.light.border,
   },
 
   footer: {

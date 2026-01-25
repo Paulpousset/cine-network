@@ -1,6 +1,6 @@
+import ClapLoading from "@/components/ClapLoading";
 import React, { useState } from "react";
 import {
-    ActivityIndicator,
     ScrollView,
     StyleSheet,
     Text,
@@ -77,11 +77,7 @@ export default function CountryPicker({
           onChangeText={searchCountries}
         />
         {loading && (
-          <ActivityIndicator
-            size="small"
-            color="#841584"
-            style={styles.loader}
-          />
+          <ClapLoading size={20} color="#841584" style={styles.loader} />
         )}
       </View>
       {showList && suggestions.length > 0 && (

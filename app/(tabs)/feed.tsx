@@ -1,21 +1,22 @@
+import ClapLoading from "@/components/ClapLoading";
 import Colors from "@/constants/Colors";
+import { GlobalStyles } from "@/constants/Styles";
+import { getRecommendedRoles } from "@/lib/matching";
 import { supabase } from "@/lib/supabase";
 import { Ionicons } from "@expo/vector-icons";
 import type { Href } from "expo-router";
 import { Stack, router, useFocusEffect } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    FlatList,
-    Image,
-    Modal,
-    RefreshControl,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  FlatList,
+  Image,
+  Modal,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
-import { GlobalStyles } from "@/constants/Styles";
 
 interface Post {
   id: string;
@@ -83,7 +84,7 @@ const AutoHeightImage = ({
           marginBottom: 10,
         }}
       >
-        <ActivityIndicator color={Colors.light.primary} />
+        <ClapLoading size={30} color={Colors.light.primary} />
       </View>
     );
   }
@@ -120,11 +121,50 @@ export default function FeedScreen() {
   const [feedMode, setFeedMode] = useState<"network" | "all">("network");
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
+  // Recommendations
+  const [recommendations, setRecommendations] = useState<any[]>([]);
+
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user) setUserId(user.id);
+      if (user) {
+        setUserId(user.id);
+        fetchRecommendations(user.id);
+      }
     });
   }, []);
+
+  const fetchRecommendations = async (uid: string) => {
+    try {
+      // 1. Get User Profile
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", uid)
+        .single();
+      if (!profile) return;
+
+      // 2. Get Open Roles
+      const { data: roles } = await supabase
+        .from("project_roles")
+        .select(
+          `
+                *,
+                tournages (*)
+            `,
+        )
+        .eq("status", "published")
+        .is("assigned_profile_id", null)
+        .limit(50); // Limit for performance
+
+      if (!roles) return;
+
+      // 3. Calculate
+      const recs = getRecommendedRoles(profile, roles);
+      setRecommendations(recs.slice(0, 3)); // Top 3
+    } catch (e) {
+      console.log("Error fetching recommendations", e);
+    }
+  };
 
   const fetchPosts = async () => {
     let currentUserId = userId;
@@ -204,6 +244,7 @@ export default function FeedScreen() {
   const onRefresh = () => {
     setRefreshing(true);
     fetchPosts();
+    if (userId) fetchRecommendations(userId);
   };
 
   const renderContent = (content: string) => {
@@ -266,26 +307,34 @@ export default function FeedScreen() {
   const renderItem = ({ item }: { item: Post }) => (
     <View style={GlobalStyles.card}>
       <View style={styles.header}>
-        <TouchableOpacity 
-            onPress={() => router.push({ pathname: "/profile/[id]", params: { id: item.user_id } })}
-            style={{flexDirection: 'row', alignItems: 'center', flex: 1}}
+        <TouchableOpacity
+          onPress={() =>
+            router.push({
+              pathname: "/profile/[id]",
+              params: { id: item.user_id },
+            })
+          }
+          style={{ flexDirection: "row", alignItems: "center", flex: 1 }}
         >
-            <Image
+          <Image
             source={{
-                uri: item.user?.avatar_url || "https://via.placeholder.com/40",
+              uri: item.user?.avatar_url || "https://via.placeholder.com/40",
             }}
             style={styles.avatar}
-            />
-            <View style={{flex: 1}}>
-                <Text style={styles.name}>
-                    {item.user?.full_name || "Utilisateur"}
-                </Text>
-                <Text style={styles.date}>
-                    {new Date(item.created_at).toLocaleDateString()}{" "}
-                    {new Date(item.created_at).getHours()}:
-                    {new Date(item.created_at).getMinutes().toString().padStart(2, "0")}
-                </Text>
-            </View>
+          />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.name}>
+              {item.user?.full_name || "Utilisateur"}
+            </Text>
+            <Text style={styles.date}>
+              {new Date(item.created_at).toLocaleDateString()}{" "}
+              {new Date(item.created_at).getHours()}:
+              {new Date(item.created_at)
+                .getMinutes()
+                .toString()
+                .padStart(2, "0")}
+            </Text>
+          </View>
         </TouchableOpacity>
       </View>
 
@@ -311,31 +360,45 @@ export default function FeedScreen() {
             />
           ) : (
             <View style={styles.projectCardPlaceholder}>
-              <Ionicons name="film" size={24} color={Colors.light.tabIconDefault} />
+              <Ionicons
+                name="film"
+                size={24}
+                color={Colors.light.tabIconDefault}
+              />
             </View>
           )}
 
           <View style={styles.projectCardContent}>
-            <View style={{flexDirection: 'row', alignItems: 'center', gap: 6}}>
-                <Text style={styles.projectCardType}>
+            <View
+              style={{ flexDirection: "row", alignItems: "center", gap: 6 }}
+            >
+              <Text style={styles.projectCardType}>
                 {item.project.type?.replace("_", " ").toUpperCase() || "PROJET"}
+              </Text>
+              {item.project.start_date && (
+                <Text style={styles.projectCardDate}>
+                  •{" "}
+                  {new Date(item.project.start_date).toLocaleDateString(
+                    undefined,
+                    { month: "short", year: "numeric" },
+                  )}
                 </Text>
-                {item.project.start_date && (
-                    <Text style={styles.projectCardDate}>
-                        • {new Date(item.project.start_date).toLocaleDateString(undefined, { month: 'short', year: 'numeric' })}
-                    </Text>
-                )}
+              )}
             </View>
             <Text style={styles.projectCardTitle} numberOfLines={1}>
               {item.project.title}
             </Text>
             <View
-              style={{ flexDirection: "row", alignItems: "center", marginTop: 4 }}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                marginTop: 4,
+              }}
             >
               <Ionicons name="location-outline" size={12} color="#666" />
               <Text style={styles.projectCardMeta}>
                 {item.project.ville || "Lieu non défini"}
-          </Text>
+              </Text>
             </View>
           </View>
 
@@ -370,11 +433,19 @@ export default function FeedScreen() {
                   })
                 }
               >
-                <Ionicons name="documents-outline" size={24} color={Colors.light.text} />
+                <Ionicons
+                  name="documents-outline"
+                  size={24}
+                  color={Colors.light.text}
+                />
               </TouchableOpacity>
 
               <TouchableOpacity onPress={() => router.push("/post/new")}>
-                <Ionicons name="add-circle-outline" size={24} color={Colors.light.text} />
+                <Ionicons
+                  name="add-circle-outline"
+                  size={24}
+                  color={Colors.light.text}
+                />
               </TouchableOpacity>
             </View>
           ),
@@ -424,8 +495,93 @@ export default function FeedScreen() {
         </TouchableOpacity>
       </View>
 
+      {/* RECOMMENDATIONS SECTION */}
+      {recommendations.length > 0 && (
+        <View
+          style={{
+            padding: 15,
+            backgroundColor: "#f0f4ff",
+            borderBottomWidth: 1,
+            borderColor: "#e0e0e0",
+          }}
+        >
+          <Text
+            style={{
+              fontWeight: "bold",
+              fontSize: 16,
+              marginBottom: 10,
+              color: Colors.light.primary,
+            }}
+          >
+            ✨ Recommandé pour vous
+          </Text>
+          <FlatList
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            data={recommendations}
+            keyExtractor={(item) => item.id}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                onPress={() => router.push(`/project/role/${item.id}`)}
+                style={{
+                  backgroundColor: "white",
+                  padding: 10,
+                  borderRadius: 8,
+                  marginRight: 10,
+                  width: 200,
+                  shadowColor: "#000",
+                  shadowOffset: { width: 0, height: 1 },
+                  shadowOpacity: 0.1,
+                  shadowRadius: 2,
+                  elevation: 2,
+                }}
+              >
+                <Text
+                  style={{ fontWeight: "bold", marginBottom: 2 }}
+                  numberOfLines={1}
+                >
+                  {item.title}
+                </Text>
+                <Text
+                  style={{ fontSize: 10, color: "#666", marginBottom: 5 }}
+                  numberOfLines={1}
+                >
+                  {item.tournages?.title} • {item.matchScore}% Match
+                </Text>
+                <View
+                  style={{
+                    flexDirection: "row",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontSize: 10,
+                      color: Colors.light.primary,
+                      fontWeight: "bold",
+                    }}
+                  >
+                    {item.category}
+                  </Text>
+                  <Ionicons
+                    name="arrow-forward-circle"
+                    size={20}
+                    color={Colors.light.tint}
+                  />
+                </View>
+              </TouchableOpacity>
+            )}
+          />
+        </View>
+      )}
+
       {loading && !refreshing ? (
-        <ActivityIndicator style={{ marginTop: 20 }} color={Colors.light.primary} />
+        <ClapLoading
+          style={{ marginTop: 20 }}
+          color={Colors.light.primary}
+          size={40}
+        />
       ) : (
         <FlatList
           data={posts}
@@ -490,7 +646,7 @@ const styles = StyleSheet.create({
   name: {
     fontWeight: "bold",
     fontSize: 16,
-    color: Colors.light.text
+    color: Colors.light.text,
   },
   date: {
     color: "#666",
@@ -571,8 +727,8 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   projectCardDate: {
-      fontSize: 10,
-      color: '#888'
+    fontSize: 10,
+    color: "#888",
   },
   footer: {
     marginTop: 5,

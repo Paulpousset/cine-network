@@ -1,5 +1,5 @@
-import { StyleSheet, ViewStyle, TextStyle, Platform } from 'react-native';
-import Colors from '@/constants/Colors';
+import Colors from "@/constants/Colors";
+import { Platform, StyleSheet } from "react-native";
 
 const shadowStyle = Platform.select({
   ios: {
@@ -20,28 +20,28 @@ export const GlobalStyles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 24,
     borderRadius: 12, // Arrondi intermédiaire (Mix Creative/Minimal)
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     ...shadowStyle,
   },
   secondaryButton: {
-    backgroundColor: 'transparent',
+    backgroundColor: "transparent",
     paddingVertical: 14,
     paddingHorizontal: 24,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: Colors.light.border,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   buttonText: {
-    color: '#FFFFFF',
-    fontWeight: '600',
+    color: "#FFFFFF",
+    fontWeight: "600",
     fontSize: 16,
   },
   secondaryButtonText: {
     color: Colors.light.text,
-    fontWeight: '600',
+    fontWeight: "600",
     fontSize: 16,
   },
 
@@ -54,15 +54,15 @@ export const GlobalStyles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.light.border,
     ...Platform.select({
-        ios: {
-            shadowColor: Colors.light.shadow,
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.05, // Ombre très légère (Minimal)
-            shadowRadius: 8,
-        },
-        android: {
-            elevation: 2,
-        },
+      ios: {
+        shadowColor: Colors.light.shadow,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05, // Ombre très légère (Minimal)
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 2,
+      },
     }),
   },
 
@@ -75,7 +75,7 @@ export const GlobalStyles = StyleSheet.create({
     fontSize: 16,
     color: Colors.light.text,
     borderWidth: 1,
-    borderColor: 'transparent', // Bordure transparente par défaut
+    borderColor: "transparent", // Bordure transparente par défaut
   },
   inputActive: {
     borderColor: Colors.light.primary,
@@ -85,25 +85,37 @@ export const GlobalStyles = StyleSheet.create({
   // Typography
   title1: {
     fontSize: 28,
-    fontWeight: '700',
+    fontWeight: "700",
     color: Colors.light.text,
     marginBottom: 8,
     letterSpacing: -0.5, // Côté moderne/minimal
   },
   title2: {
     fontSize: 22,
-    fontWeight: '600',
+    fontWeight: "600",
     color: Colors.light.text,
     marginBottom: 6,
   },
   body: {
     fontSize: 16,
-    color: '#4B5563', // Gris moyen
+    color: "#4B5563", // Gris moyen
     lineHeight: 24,
   },
   caption: {
     fontSize: 14,
-    color: '#9CA3AF',
+    color: "#9CA3AF",
     marginBottom: 4,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: Colors.light.text,
+    marginBottom: 20,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: Colors.light.text,
+    marginBottom: 8,
   },
 });

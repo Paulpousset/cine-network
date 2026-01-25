@@ -1,9 +1,11 @@
+import ClapLoading from "@/components/ClapLoading";
+import Colors from "@/constants/Colors";
+import { GlobalStyles } from "@/constants/Styles";
 import { useUserMode } from "@/hooks/useUserMode";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useRouter } from "expo-router"; // <--- IMPORT useRouter
 import React, { useCallback, useState } from "react";
 import {
-    ActivityIndicator,
     Alert,
     SectionList,
     StyleSheet,
@@ -12,8 +14,6 @@ import {
     View,
 } from "react-native";
 import { supabase } from "../../lib/supabase";
-import { GlobalStyles } from "@/constants/Styles";
-import Colors from "@/constants/Colors";
 
 type Project = {
   id: string;
@@ -152,7 +152,9 @@ export default function MyProjects() {
       <Text numberOfLines={2} style={GlobalStyles.body}>
         {item.description || "Pas de description"}
       </Text>
-      <Text style={[GlobalStyles.caption, { textAlign: 'right', marginTop: 8 }]}>
+      <Text
+        style={[GlobalStyles.caption, { textAlign: "right", marginTop: 8 }]}
+      >
         Créé le {new Date(item.created_at).toLocaleDateString()}
       </Text>
     </TouchableOpacity>
@@ -161,8 +163,8 @@ export default function MyProjects() {
   return (
     <View style={styles.container}>
       {loading ? (
-        <ActivityIndicator
-          size="large"
+        <ClapLoading
+          size={50}
           color={Colors.light.primary}
           style={{ marginTop: 50 }}
         />
@@ -202,14 +204,14 @@ const styles = StyleSheet.create({
     marginTop: 20,
     marginBottom: 10,
     color: Colors.light.text,
-    backgroundColor: Colors.light.backgroundSecondary, 
+    backgroundColor: Colors.light.backgroundSecondary,
   },
   listContent: { padding: 15, paddingBottom: 100 },
   cardHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     marginBottom: 5,
-    alignItems: 'center'
+    alignItems: "center",
   },
   cardType: {
     fontSize: 12,
@@ -218,7 +220,7 @@ const styles = StyleSheet.create({
     padding: 6,
     borderRadius: 8,
     overflow: "hidden",
-    fontWeight: '600'
+    fontWeight: "600",
   },
   emptyText: {
     textAlign: "center",

@@ -1,24 +1,24 @@
+import ClapLoading from "@/components/ClapLoading";
+import Colors from "@/constants/Colors";
+import { GlobalStyles } from "@/constants/Styles";
 import { JOB_TITLES } from "@/utils/roles";
 import { fuzzySearch } from "@/utils/search";
 import { Ionicons } from "@expo/vector-icons";
 import { Stack, useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
-  FlatList,
-  Image,
-  Modal,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  TouchableWithoutFeedback,
-  View,
+    Alert,
+    FlatList,
+    Image,
+    Modal,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    TouchableWithoutFeedback,
+    View,
 } from "react-native";
 import { supabase } from "../../lib/supabase";
-import { GlobalStyles } from "@/constants/Styles";
-import Colors from "@/constants/Colors";
 
 const ROLE_CATEGORIES = ["all", ...Object.keys(JOB_TITLES)];
 
@@ -204,7 +204,9 @@ export default function DiscoverProfiles() {
                   <Ionicons
                     name="notifications"
                     size={24}
-                    color={pendingCount > 0 ? Colors.light.danger : Colors.light.text}
+                    color={
+                      pendingCount > 0 ? Colors.light.danger : Colors.light.text
+                    }
                   />
                   {pendingCount > 0 && (
                     <View
@@ -226,7 +228,12 @@ export default function DiscoverProfiles() {
         }}
       />
       {/* HEADER FILTERS */}
-      <View style={{ backgroundColor: Colors.light.background, paddingVertical: 10 }}>
+      <View
+        style={{
+          backgroundColor: Colors.light.background,
+          paddingVertical: 10,
+        }}
+      >
         <View style={styles.filtersRow}>
           {renderFilterButton(
             "Catégorie",
@@ -255,8 +262,8 @@ export default function DiscoverProfiles() {
       </View>
 
       {loading ? (
-        <ActivityIndicator
-          size="large"
+        <ClapLoading
+          size={50}
           color={Colors.light.primary}
           style={{ marginTop: 30 }}
         />
@@ -309,7 +316,11 @@ export default function DiscoverProfiles() {
                         : item.charAt(0).toUpperCase() + item.slice(1)}
                     </Text>
                     {selectedRole === item && (
-                      <Ionicons name="checkmark" size={18} color={Colors.light.primary} />
+                      <Ionicons
+                        name="checkmark"
+                        size={18}
+                        color={Colors.light.primary}
+                      />
                     )}
                   </TouchableOpacity>
                 )}
@@ -350,7 +361,11 @@ export default function DiscoverProfiles() {
                       {item === "all" ? "Toutes" : item}
                     </Text>
                     {selectedCity === item && (
-                      <Ionicons name="checkmark" size={18} color={Colors.light.primary} />
+                      <Ionicons
+                        name="checkmark"
+                        size={18}
+                        color={Colors.light.primary}
+                      />
                     )}
                   </TouchableOpacity>
                 )}
@@ -397,7 +412,7 @@ const styles = StyleSheet.create({
   },
   searchRow: { paddingHorizontal: 20, paddingBottom: 10 },
   searchInput: {
-      backgroundColor: Colors.light.backgroundSecondary
+    backgroundColor: Colors.light.backgroundSecondary,
   },
   role: { marginTop: 4, fontWeight: "600" },
   cta: { color: Colors.light.primary, fontWeight: "700" },
@@ -431,7 +446,7 @@ const styles = StyleSheet.create({
   },
   modalItemText: { fontSize: 16, color: "#333" },
   modalItemTextSelected: { color: Colors.light.primary, fontWeight: "bold" },
-  
+
   avatar: {
     width: 50,
     height: 50,

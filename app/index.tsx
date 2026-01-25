@@ -1,18 +1,18 @@
+import ClapLoading from "@/components/ClapLoading";
+import Colors from "@/constants/Colors"; // Import Colors
+import { GlobalStyles } from "@/constants/Styles"; // Import GlobalStyles
 import { JOB_TITLES } from "@/utils/roles";
 import React, { useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    Alert,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { supabase } from "../lib/supabase";
-import { GlobalStyles } from "@/constants/Styles"; // Import GlobalStyles
-import Colors from "@/constants/Colors"; // Import Colors
 
 const ROLES = Object.keys(JOB_TITLES);
 
@@ -64,7 +64,9 @@ export default function AuthScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Text style={[GlobalStyles.title1, { textAlign: 'center', marginBottom: 30 }]}>
+      <Text
+        style={[GlobalStyles.title1, { textAlign: "center", marginBottom: 30 }]}
+      >
         {isLogin ? "Connexion 🎬" : "Rejoindre le Cast 📝"}
       </Text>
 
@@ -129,15 +131,15 @@ export default function AuthScreen() {
 
       {/* --- BOUTON D'ACTION PRINCIPAL --- */}
       {loading ? (
-        <ActivityIndicator size="large" color={Colors.light.primary} />
+        <ClapLoading size={40} color={Colors.light.primary} />
       ) : (
         <TouchableOpacity
-            style={GlobalStyles.primaryButton}
+          style={GlobalStyles.primaryButton}
           onPress={isLogin ? signIn : signUp}
         >
-            <Text style={GlobalStyles.buttonText}>
-                {isLogin ? "Se connecter" : "S'inscrire"}
-            </Text>
+          <Text style={GlobalStyles.buttonText}>
+            {isLogin ? "Se connecter" : "S'inscrire"}
+          </Text>
         </TouchableOpacity>
       )}
 
@@ -157,12 +159,22 @@ export default function AuthScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flexGrow: 1, justifyContent: "center", padding: 20, backgroundColor: Colors.light.background },
+  container: {
+    flexGrow: 1,
+    justifyContent: "center",
+    padding: 20,
+    backgroundColor: Colors.light.background,
+  },
   inputMargin: {
-      marginBottom: 12
+    marginBottom: 12,
   },
   spacer: { height: 20 },
-  rolesContainer: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: 10 },
+  rolesContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+    marginTop: 10,
+  },
   roleButton: {
     paddingVertical: 8,
     paddingHorizontal: 16,

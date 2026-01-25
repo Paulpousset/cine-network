@@ -4,22 +4,21 @@ import * as ImagePicker from "expo-image-picker";
 import { Stack, router, useLocalSearchParams } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
-  Image,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    Alert,
+    Image,
+    KeyboardAvoidingView,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 
 import Colors from "@/constants/Colors";
-import { supabase } from "@/lib/supabase";
 import { GlobalStyles } from "@/constants/Styles";
+import { supabase } from "@/lib/supabase";
 
 export default function EditPostScreen() {
   const { id } = useLocalSearchParams();
@@ -179,8 +178,8 @@ export default function EditPostScreen() {
 
   if (loading) {
     return (
-      <View style={{ flex: 1, justifyContent: "center" }}>
-        <ActivityIndicator color={Colors.light.primary} />
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+        <ClapLoading size={50} color={Colors.light.primary} />
       </View>
     );
   }
@@ -204,29 +203,28 @@ export default function EditPostScreen() {
             textAlignVertical="top"
             placeholderTextColor="#999"
           />
-        
 
-        {image && (
-          <View style={styles.imagePreview}>
-            <Image
-              source={{ uri: image }}
-              style={{ width: "100%", height: 200, borderRadius: 8 }}
-            />
-            <TouchableOpacity
-              style={styles.removeImage}
-              onPress={() => setImage(null)}
-            >
-              <Ionicons name="close-circle" size={24} color="white" />
+          {image && (
+            <View style={styles.imagePreview}>
+              <Image
+                source={{ uri: image }}
+                style={{ width: "100%", height: 200, borderRadius: 8 }}
+              />
+              <TouchableOpacity
+                style={styles.removeImage}
+                onPress={() => setImage(null)}
+              >
+                <Ionicons name="close-circle" size={24} color="white" />
+              </TouchableOpacity>
+            </View>
+          )}
+
+          <View style={styles.actions}>
+            <TouchableOpacity style={styles.actionButton} onPress={pickImage}>
+              <Ionicons name="image" size={24} color={Colors.light.tint} />
+              <Text style={styles.actionText}>Changer / Ajouter une photo</Text>
             </TouchableOpacity>
           </View>
-        )}
-
-        <View style={styles.actions}>
-          <TouchableOpacity style={styles.actionButton} onPress={pickImage}>
-            <Ionicons name="image" size={24} color={Colors.light.tint} />
-            <Text style={styles.actionText}>Changer / Ajouter une photo</Text>
-          </TouchableOpacity>
-        </View>
         </View>
 
         <View style={[GlobalStyles.card, styles.projectSelect]}>
@@ -302,12 +300,16 @@ export default function EditPostScreen() {
         </View>
 
         <TouchableOpacity
-          style={[GlobalStyles.primaryButton, saving && { opacity: 0.7 }, { marginTop: 20 }]}
+          style={[
+            GlobalStyles.primaryButton,
+            saving && { opacity: 0.7 },
+            { marginTop: 20 },
+          ]}
           onPress={handleUpdate}
           disabled={saving}
         >
           {saving ? (
-            <ActivityIndicator color="white" />
+            <ClapLoading color="white" size={24} />
           ) : (
             <Text style={GlobalStyles.buttonText}>Enregistrer</Text>
           )}
@@ -354,7 +356,7 @@ const styles = StyleSheet.create({
   projectSelect: {
     // marginTop: 20
   },
-  label: { fontSize: 14, color: "#666", marginBottom: 5, fontWeight: '600' },
+  label: { fontSize: 14, color: "#666", marginBottom: 5, fontWeight: "600" },
   pickerContainer: {
     backgroundColor: "#f9f9f9",
     borderRadius: 8,

@@ -1,20 +1,20 @@
+import ClapLoading from "@/components/ClapLoading";
+import Colors from "@/constants/Colors";
+import { GlobalStyles } from "@/constants/Styles";
 import { supabase } from "@/lib/supabase";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
-  FlatList,
-  Image,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    Alert,
+    FlatList,
+    Image,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
-import { GlobalStyles } from "@/constants/Styles";
-import Colors from "@/constants/Colors";
 
 interface Post {
   id: string;
@@ -171,7 +171,11 @@ export default function UserPostsScreen() {
       />
 
       {loading ? (
-        <ActivityIndicator style={{ marginTop: 20 }} color={Colors.light.primary} />
+        <ClapLoading
+          style={{ marginTop: 20 }}
+          color={Colors.light.primary}
+          size={40}
+        />
       ) : (
         <FlatList
           data={posts}
@@ -210,7 +214,7 @@ const styles = StyleSheet.create({
   name: {
     fontWeight: "bold",
     fontSize: 16,
-    color: Colors.light.text
+    color: Colors.light.text,
   },
   date: {
     color: "#666",

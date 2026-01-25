@@ -1,10 +1,10 @@
+import ClapLoading from "@/components/ClapLoading";
 import Colors from "@/constants/Colors";
 import { supabase } from "@/lib/supabase";
 import { Ionicons } from "@expo/vector-icons";
 import { Stack, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
     FlatList,
     Image,
     RefreshControl,
@@ -51,7 +51,7 @@ export default function DirectMessagesList() {
             // Let's re-fetch for now to ensure data consistency, it's fast enough.
             fetchConversations();
           }
-        }
+        },
       )
       .subscribe();
 
@@ -74,12 +74,12 @@ export default function DirectMessagesList() {
       // Since Supabase doesn't support DISTINCT ON in JS client easily for this complex join,
       // we'll fetch latest messages and process in JS or use a stored procedure.
       // Let's try to fetch unique interlocutors from connections first? No, we want existing chats.
-      
+
       // Better approach:
       // 1. Get all messages involving me
       // 2. Group by the OTHER user_id
       // 3. Sort by latest message
-      
+
       const { data: messages, error } = await supabase
         .from("direct_messages")
         .select("*") // Get raw messages without join first
@@ -91,22 +91,27 @@ export default function DirectMessagesList() {
       // Process messages to get unique conversations
       // Fetch user details manually for safety
       const interlocutorIds = new Set();
-      messages?.forEach(msg => {
-          interlocutorIds.add(msg.sender_id === userId ? msg.receiver_id : msg.sender_id);
+      messages?.forEach((msg) => {
+        interlocutorIds.add(
+          msg.sender_id === userId ? msg.receiver_id : msg.sender_id,
+        );
       });
-      
-      const { data: profiles } = await supabase.from('profiles').select('*').in('id', Array.from(interlocutorIds));
+
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("*")
+        .in("id", Array.from(interlocutorIds));
       const profileMap = new Map();
-      profiles?.forEach(p => profileMap.set(p.id, p));
+      profiles?.forEach((p) => profileMap.set(p.id, p));
 
       const convMap = new Map();
       messages?.forEach((msg) => {
         const isMeSender = msg.sender_id === userId;
         const otherUserId = isMeSender ? msg.receiver_id : msg.sender_id; // Use raw ID
-        
+
         // Retrieve profile from manual fetch
         const otherUser = profileMap.get(otherUserId);
-        
+
         // Skip if user data is missing (e.g. deleted user)
         if (!otherUser) return;
 
@@ -139,7 +144,7 @@ export default function DirectMessagesList() {
 
       {loading && !refreshing ? (
         <View style={styles.center}>
-          <ActivityIndicator size="large" color={Colors.light.primary} />
+          <ClapLoading size={50} color={Colors.light.primary} />
         </View>
       ) : (
         <FlatList
@@ -223,7 +228,12 @@ export default function DirectMessagesList() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.light.background },
-  center: { flex: 1, justifyContent: "center", alignItems: "center", padding: 20 },
+  center: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
   card: {
     flexDirection: "row",
     alignItems: "center",

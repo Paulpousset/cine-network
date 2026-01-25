@@ -1,3 +1,4 @@
+import PaymentModal from "@/components/PaymentModal";
 import RoleFormFields from "@/components/RoleFormFields";
 import Colors from "@/constants/Colors";
 import { GlobalStyles } from "@/constants/Styles";
@@ -24,13 +25,23 @@ import {
 import { supabase } from "../../../lib/supabase";
 
 // --- Showcase Component (Vitrine pour non-membres) ---
-function ProjectShowcase({ project, roles }: { project: any; roles: any[] }) {
+function ProjectShowcase({
+  project,
+  roles,
+  isLiked,
+  onToggleLike,
+}: {
+  project: any;
+  roles: any[];
+  isLiked: boolean;
+  onToggleLike: () => void;
+}) {
   const router = useRouter();
-  
+
   // Filter only published roles that are not assigned
   // We align with the logic that if it's not draft and not assigned, it's open.
   const openRoles = roles.filter(
-    (r) => r.status !== "draft" && !r.assigned_profile_id
+    (r) => r.status !== "draft" && !r.assigned_profile_id,
   );
 
   return (
@@ -66,36 +77,82 @@ function ProjectShowcase({ project, roles }: { project: any; roles: any[] }) {
             justifyContent: "flex-end",
           }}
         >
-            <Text style={{color: 'white', fontSize: 12, fontWeight: 'bold', textTransform: 'uppercase', marginBottom: 4}}>
-                {project.type?.replace('_', ' ') || 'PROJET'}
-            </Text>
-            <Text style={{color: 'white', fontSize: 24, fontWeight: 'bold'}}>
-                {project.title}
-            </Text>
+          <Text
+            style={{
+              color: "white",
+              fontSize: 12,
+              fontWeight: "bold",
+              textTransform: "uppercase",
+              marginBottom: 4,
+            }}
+          >
+            {project.type?.replace("_", " ") || "PROJET"}
+          </Text>
+          <Text style={{ color: "white", fontSize: 24, fontWeight: "bold" }}>
+            {project.title}
+          </Text>
         </View>
+
+        {/* LIKE BUTTON */}
+        <TouchableOpacity
+          onPress={onToggleLike}
+          style={{
+            position: "absolute",
+            top: 20,
+            right: 20,
+            backgroundColor: "rgba(255,255,255,0.2)",
+            borderRadius: 25,
+            width: 50,
+            height: 50,
+            justifyContent: "center",
+            alignItems: "center",
+            backdropFilter: "blur(10px)",
+          }}
+        >
+          <Ionicons
+            name={isLiked ? "heart" : "heart-outline"}
+            size={30}
+            color={isLiked ? "#E91E63" : "white"}
+          />
+        </TouchableOpacity>
       </View>
 
       <View style={{ padding: 20 }}>
         {/* Info Bar */}
-        <View style={{flexDirection: 'row', gap: 15, marginBottom: 20}}>
-            <View style={{flexDirection: 'row', alignItems: 'center', gap: 5}}>
-                <Ionicons name="location-outline" size={16} color="#666" />
-                <Text style={{color: '#666'}}>{project.ville || "Lieu inconnu"}</Text>
+        <View style={{ flexDirection: "row", gap: 15, marginBottom: 20 }}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
+            <Ionicons name="location-outline" size={16} color="#666" />
+            <Text style={{ color: "#666" }}>
+              {project.ville || "Lieu inconnu"}
+            </Text>
+          </View>
+          {project.start_date && (
+            <View
+              style={{ flexDirection: "row", alignItems: "center", gap: 5 }}
+            >
+              <Ionicons name="calendar-outline" size={16} color="#666" />
+              <Text style={{ color: "#666" }}>
+                {new Date(project.start_date).toLocaleDateString(undefined, {
+                  month: "long",
+                  year: "numeric",
+                })}
+              </Text>
             </View>
-            {project.start_date && (
-                <View style={{flexDirection: 'row', alignItems: 'center', gap: 5}}>
-                    <Ionicons name="calendar-outline" size={16} color="#666" />
-                    <Text style={{color: '#666'}}>
-                        {new Date(project.start_date).toLocaleDateString(undefined, {month: 'long', year: 'numeric'})}
-                    </Text>
-                </View>
-            )}
+          )}
         </View>
 
         {/* Synopsis */}
         <Text style={GlobalStyles.title2}>Synopsis</Text>
-        <Text style={{ fontSize: 16, lineHeight: 24, color: "#444", marginBottom: 30 }}>
-          {project.description || "Aucune description disponible pour ce projet."}
+        <Text
+          style={{
+            fontSize: 16,
+            lineHeight: 24,
+            color: "#444",
+            marginBottom: 30,
+          }}
+        >
+          {project.description ||
+            "Aucune description disponible pour ce projet."}
         </Text>
 
         {/* Open Roles */}
@@ -123,29 +180,51 @@ function ProjectShowcase({ project, roles }: { project: any; roles: any[] }) {
                   elevation: 2,
                 }}
               >
-                <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start'}}>
-                    <View style={{flex: 1}}>
-                         <Text
-                            style={{
-                                fontSize: 10,
-                                color: Colors.light.primary,
-                                fontWeight: "bold",
-                                textTransform: "uppercase",
-                                marginBottom: 4
-                            }}
-                        >
-                            {role.category}
-                        </Text>
-                        <Text style={{ fontSize: 18, fontWeight: "bold", marginBottom: 5 }}>
-                        {role.title}
-                        </Text>
-                        <Text style={{ color: "#666" }} numberOfLines={2}>
-                        {role.description}
-                        </Text>
-                    </View>
-                    <View style={{backgroundColor: Colors.light.backgroundSecondary, padding: 8, borderRadius: 8}}>
-                         <Ionicons name="chevron-forward" size={20} color={Colors.light.text} />
-                    </View>
+                <View
+                  style={{
+                    flexDirection: "row",
+                    justifyContent: "space-between",
+                    alignItems: "flex-start",
+                  }}
+                >
+                  <View style={{ flex: 1 }}>
+                    <Text
+                      style={{
+                        fontSize: 10,
+                        color: Colors.light.primary,
+                        fontWeight: "bold",
+                        textTransform: "uppercase",
+                        marginBottom: 4,
+                      }}
+                    >
+                      {role.category}
+                    </Text>
+                    <Text
+                      style={{
+                        fontSize: 18,
+                        fontWeight: "bold",
+                        marginBottom: 5,
+                      }}
+                    >
+                      {role.title}
+                    </Text>
+                    <Text style={{ color: "#666" }} numberOfLines={2}>
+                      {role.description}
+                    </Text>
+                  </View>
+                  <View
+                    style={{
+                      backgroundColor: Colors.light.backgroundSecondary,
+                      padding: 8,
+                      borderRadius: 8,
+                    }}
+                  >
+                    <Ionicons
+                      name="chevron-forward"
+                      size={20}
+                      color={Colors.light.text}
+                    />
+                  </View>
                 </View>
               </TouchableOpacity>
             ))}
@@ -224,7 +303,7 @@ export default function ProjectDetails() {
 
   const [project, setProject] = useState<any>(null);
   const [roles, setRoles] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [isVisitor, setIsVisitor] = useState(false); // New state to track visitor status
 
@@ -272,6 +351,14 @@ export default function ProjectDetails() {
   const [applicationsModalVisible, setApplicationsModalVisible] =
     useState(false);
 
+  // Boost Logic
+  const [boostModalVisible, setBoostModalVisible] = useState(false);
+  const [roleToBoost, setRoleToBoost] = useState<any>(null);
+  const savedManageRole = useRef<any>(null);
+
+  // Like Logic
+  const [isLiked, setIsLiked] = useState(false);
+
   const toArray = (value: any): string[] => {
     if (Array.isArray(value)) return value;
     if (!value) return [];
@@ -297,7 +384,59 @@ export default function ProjectDetails() {
     fetchProjectDetails();
   }, [id]);
 
+  useEffect(() => {
+    if (currentUserId) {
+      checkIfLiked();
+    }
+  }, [currentUserId, id]);
+
+  async function checkIfLiked() {
+    try {
+      const { data } = await supabase
+        .from("project_likes")
+        .select("*")
+        .eq("project_id", id)
+        .eq("user_id", currentUserId)
+        .maybeSingle();
+
+      setIsLiked(!!data);
+    } catch (e) {
+      console.log("Error checking like:", e);
+    }
+  }
+
+  async function toggleLike() {
+    if (!currentUserId) {
+      Alert.alert(
+        "Connexion requise",
+        "Vous devez être connecté pour aimer un projet.",
+      );
+      return;
+    }
+
+    try {
+      if (isLiked) {
+        await supabase
+          .from("project_likes")
+          .delete()
+          .eq("project_id", id)
+          .eq("user_id", currentUserId);
+        setIsLiked(false);
+      } else {
+        await supabase
+          .from("project_likes")
+          .insert({ project_id: id, user_id: currentUserId });
+        setIsLiked(true);
+      }
+    } catch (e) {
+      console.log("Error toggling like:", e);
+      Alert.alert("Erreur", "Impossible de modifier le like.");
+    }
+  }
+
   async function fetchProjectDetails() {
+    const projectId = Array.isArray(id) ? id[0] : id;
+    if (!projectId || projectId === "undefined") return;
     try {
       setLoading(true);
       const {
@@ -307,9 +446,14 @@ export default function ProjectDetails() {
       const { data: proj, error: errProj } = await supabase
         .from("tournages")
         .select("*")
-        .eq("id", id)
-        .single();
+        .eq("id", projectId)
+        .maybeSingle();
+
       if (errProj) throw errProj;
+      if (!proj) {
+        router.back();
+        return;
+      }
       setProject(proj);
 
       const userId = session?.user?.id;
@@ -318,17 +462,17 @@ export default function ProjectDetails() {
       // Check membership
       let isMember = false;
       if (userId) {
-          if (userId === ownerId) {
-              isMember = true;
-          } else {
-            const { data: memberData } = await supabase
-                .from("project_roles")
-                .select("id")
-                .eq("tournage_id", id)
-                .eq("assigned_profile_id", userId)
-                .limit(1);
-            if (memberData && memberData.length > 0) isMember = true;
-          }
+        if (userId === ownerId) {
+          isMember = true;
+        } else {
+          const { data: memberData } = await supabase
+            .from("project_roles")
+            .select("id")
+            .eq("tournage_id", projectId)
+            .eq("assigned_profile_id", userId)
+            .limit(1);
+          if (memberData && memberData.length > 0) isMember = true;
+        }
       }
 
       setIsVisitor(!isMember);
@@ -347,6 +491,7 @@ export default function ProjectDetails() {
   }
 
   async function fetchApplications() {
+    const projectId = Array.isArray(id) ? id[0] : id;
     const { data: apps, error } = await supabase
       .from("applications" as any)
       .select(
@@ -365,7 +510,7 @@ export default function ProjectDetails() {
         )
       `,
       )
-      .eq("project_roles.tournage_id", id)
+      .eq("project_roles.tournage_id", projectId)
       .eq("status", "pending"); // We only care about pending for the notification/list initially
 
     if (!error && apps) {
@@ -374,11 +519,12 @@ export default function ProjectDetails() {
   }
 
   async function fetchRoles() {
+    const projectId = Array.isArray(id) ? id[0] : id;
     // We assume fetchProjectDetails handles loading
     const { data: rolesData, error: errRoles } = await supabase
       .from("project_roles")
       .select("*")
-      .eq("tournage_id", id)
+      .eq("tournage_id", projectId)
       .order("created_at", { ascending: true });
 
     if (errRoles) throw errRoles;
@@ -1001,6 +1147,51 @@ export default function ProjectDetails() {
     }
   }
 
+  async function handleBoostSuccess() {
+    if (!roleToBoost) return;
+    try {
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + 2); // +48h
+
+      const { error } = await supabase
+        .from("project_roles")
+        .update({
+          is_boosted: true,
+          boost_expires_at: expiresAt.toISOString(),
+        })
+        .eq("id", roleToBoost.id);
+
+      if (error) throw error;
+
+      Alert.alert("Succès", "Votre annonce est boostée pour 48h !");
+
+      // Close Boost Modal
+      setBoostModalVisible(false);
+      setRoleToBoost(null);
+
+      // Refresh data
+      await fetchRoles();
+
+      // Restore Group Modal if it was open
+      if (savedManageRole.current) {
+        // We need to update the group data because one item inside it changed
+        // Since fetchRoles() updates the 'roles' state, we need to re-find the group
+        // But 'manageRole' is a disconnected state object.
+        // We should ideally re-construct it from the new 'roles' state, but for now let's just restore it
+        // and maybe the user will see the old state until they close/reopen?
+        // To fix visual state: manually update the item in savedManageRole.current
+        const updatedGroup = { ...savedManageRole.current };
+        updatedGroup.items = updatedGroup.items.map((i: any) =>
+          i.id === roleToBoost.id ? { ...i, is_boosted: true } : i,
+        );
+        setTimeout(() => setManageRole(updatedGroup), 300);
+        savedManageRole.current = null;
+      }
+    } catch (e) {
+      Alert.alert("Erreur", "Le boost n'a pas pu être activé.");
+    }
+  }
+
   const isOwner =
     project?.owner_id && currentUserId && project.owner_id === currentUserId;
 
@@ -1084,12 +1275,17 @@ export default function ProjectDetails() {
     );
 
   if (isVisitor && project) {
-      return (
-          <View style={styles.container}>
-              <Stack.Screen options={{ headerShown: false }} />
-              <ProjectShowcase project={project} roles={roles} />
-          </View>
-      )
+    return (
+      <View style={styles.container}>
+        <Stack.Screen options={{ headerShown: false }} />
+        <ProjectShowcase
+          project={project}
+          roles={roles}
+          isLiked={isLiked}
+          onToggleLike={toggleLike}
+        />
+      </View>
+    );
   }
 
   return (
@@ -1992,6 +2188,82 @@ export default function ProjectDetails() {
                           </Text>
                         </TouchableOpacity>
 
+                        {/* BOOST BUTTON */}
+                        {!isDraft && !assignedUser && (
+                          <View
+                            style={{
+                              flexDirection: "row",
+                              alignItems: "center",
+                              marginBottom: 10,
+                              gap: 8,
+                            }}
+                          >
+                            <TouchableOpacity
+                              onPress={() => {
+                                // 1. Save and Close Group Modal
+                                savedManageRole.current = manageRole;
+                                setManageRole(null);
+
+                                // 2. Open Boost Modal (delayed)
+                                setRoleToBoost(roleItem);
+                                setTimeout(
+                                  () => setBoostModalVisible(true),
+                                  100,
+                                );
+                              }}
+                              style={{
+                                flexDirection: "row",
+                                alignItems: "center",
+                                backgroundColor: roleItem.is_boosted
+                                  ? "#FFF8E1"
+                                  : "transparent",
+                                borderWidth: 1,
+                                borderColor: "#FFD700",
+                                padding: 6,
+                                borderRadius: 4,
+                                alignSelf: "flex-start",
+                              }}
+                              disabled={roleItem.is_boosted}
+                            >
+                              <Ionicons
+                                name="flash"
+                                size={16}
+                                color="#FFD700"
+                              />
+                              <Text
+                                style={{
+                                  marginLeft: 6,
+                                  fontSize: 12,
+                                  fontWeight: "600",
+                                  color: "#DAA520",
+                                }}
+                              >
+                                {roleItem.is_boosted
+                                  ? "Boost Actif"
+                                  : "Booster (5€)"}
+                              </Text>
+                            </TouchableOpacity>
+
+                            {!roleItem.is_boosted && (
+                              <TouchableOpacity
+                                onPress={() =>
+                                  Alert.alert(
+                                    "Booster une annonce",
+                                    "Le boost permet d'afficher votre annonce en tête des résultats de recherche pendant 48h. Elle sera mise en valeur avec un badge 'Sponsorisé'.",
+                                  )
+                                }
+                                style={{ padding: 4 }}
+                              >
+                                <Ionicons
+                                  name="information-circle-outline"
+                                  size={20}
+                                  color="#999"
+                                />
+                              </TouchableOpacity>
+                            )}
+                          </View>
+                        )}
+
                         {/* Assignment */}
                         <View>
                           {assignedUser ? (
@@ -2204,12 +2476,19 @@ export default function ProjectDetails() {
                 <View style={{ marginBottom: 10 }}>
                   <TouchableOpacity
                     onPress={() => {
-                        setApplicationsModalVisible(false);
-                        router.push(`/profile/${item.candidate_id}`);
+                      setApplicationsModalVisible(false);
+                      router.push(`/profile/${item.candidate_id}`);
                     }}
                   >
-                    <Text style={{ fontWeight: "bold", fontSize: 16, color: Colors.light.primary, textDecorationLine: 'underline' }}>
-                        {item.profiles?.full_name || item.profiles?.username}
+                    <Text
+                      style={{
+                        fontWeight: "bold",
+                        fontSize: 16,
+                        color: Colors.light.primary,
+                        textDecorationLine: "underline",
+                      }}
+                    >
+                      {item.profiles?.full_name || item.profiles?.username}
                     </Text>
                   </TouchableOpacity>
                   <Text style={{ color: "#666" }}>
@@ -2258,6 +2537,23 @@ export default function ProjectDetails() {
           />
         </View>
       </Modal>
+
+      <PaymentModal
+        visible={boostModalVisible}
+        amount={5.0}
+        label={`Booster l'annonce "${roleToBoost?.title}"`}
+        onClose={() => {
+          setBoostModalVisible(false);
+          // Restore Group Modal on cancel too
+          setTimeout(() => {
+            if (savedManageRole.current) {
+              setManageRole(savedManageRole.current);
+              savedManageRole.current = null;
+            }
+          }, 300);
+        }}
+        onSuccess={handleBoostSuccess}
+      />
     </View>
   );
 }
@@ -2271,7 +2567,12 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderColor: Colors.light.border,
   },
-  title: { fontSize: 18, fontWeight: "bold", textAlign: "center", color: Colors.light.text },
+  title: {
+    fontSize: 18,
+    fontWeight: "bold",
+    textAlign: "center",
+    color: Colors.light.text,
+  },
   subtitle: { color: "#666", marginTop: 5, textAlign: "center" },
   sectionHeader: {
     flexDirection: "row",
@@ -2293,7 +2594,7 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     elevation: 2,
     borderWidth: 1,
-    borderColor: Colors.light.border
+    borderColor: Colors.light.border,
   },
   roleCategoryTag: {
     fontSize: 10,
@@ -2334,7 +2635,7 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     marginBottom: 15,
     textAlign: "center",
-    color: Colors.light.text
+    color: Colors.light.text,
   },
   input: {
     borderWidth: 1,
@@ -2344,7 +2645,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     backgroundColor: Colors.light.backgroundSecondary,
     textAlign: "center",
-    color: Colors.light.text
+    color: Colors.light.text,
   },
   label: {
     marginBottom: 8,
@@ -2360,7 +2661,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 20,
     marginRight: 8,
-    borderColor: Colors.light.border
+    borderColor: Colors.light.border,
   },
   rowWrap: {
     flexDirection: "row",
@@ -2381,7 +2682,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     borderRadius: 15,
     borderWidth: 1,
-    borderColor: Colors.light.border
+    borderColor: Colors.light.border,
   },
   jobChipSelected: { backgroundColor: Colors.light.primary },
 });

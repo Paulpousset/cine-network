@@ -1,8 +1,10 @@
+import ClapLoading from "@/components/ClapLoading";
+import Colors from "@/constants/Colors";
+import { GlobalStyles } from "@/constants/Styles";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
   Alert,
   SectionList,
   StyleSheet,
@@ -12,13 +14,11 @@ import {
   View,
 } from "react-native";
 import { supabase } from "../../../lib/supabase";
-import { GlobalStyles } from "@/constants/Styles";
-import Colors from "@/constants/Colors";
 
 export default function ManageTeam() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [sections, setSections] = useState<any[]>([]);
   const [isOwner, setIsOwner] = useState(false);
 
@@ -27,6 +27,7 @@ export default function ManageTeam() {
   }, [id]);
 
   async function checkOwnerAndFetch() {
+    if (!id || id === "undefined") return;
     try {
       setLoading(true);
       const {
@@ -133,11 +134,17 @@ export default function ManageTeam() {
             paddingVertical: 8,
             borderRadius: 20,
             borderWidth: 1,
-            borderColor: Colors.light.border
+            borderColor: Colors.light.border,
           }}
         >
           <Ionicons name="home" size={18} color={Colors.light.text} />
-          <Text style={{ fontSize: 12, fontWeight: "600", color: Colors.light.text }}>
+          <Text
+            style={{
+              fontSize: 12,
+              fontWeight: "600",
+              color: Colors.light.text,
+            }}
+          >
             Accueil
           </Text>
         </TouchableOpacity>
@@ -151,8 +158,8 @@ export default function ManageTeam() {
       </Text>
 
       {loading ? (
-        <ActivityIndicator
-          size="large"
+        <ClapLoading
+          size={50}
           color={Colors.light.primary}
           style={{ marginTop: 50 }}
         />
@@ -184,7 +191,9 @@ export default function ManageTeam() {
                     toggleAdmin(item.id, item.is_category_admin)
                   }
                   trackColor={{ false: "#767577", true: Colors.light.primary }}
-                  thumbColor={item.is_category_admin ? Colors.light.tint : "#f4f3f4"}
+                  thumbColor={
+                    item.is_category_admin ? Colors.light.tint : "#f4f3f4"
+                  }
                 />
               </View>
             </View>
@@ -201,7 +210,11 @@ export default function ManageTeam() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.light.backgroundSecondary, padding: 20 },
+  container: {
+    flex: 1,
+    backgroundColor: Colors.light.backgroundSecondary,
+    padding: 20,
+  },
   headerRow: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -227,7 +240,12 @@ const styles = StyleSheet.create({
     color: "#555",
     fontSize: 14,
   },
-  name: { fontWeight: "bold", fontSize: 16, marginBottom: 4, color: Colors.light.text },
+  name: {
+    fontWeight: "bold",
+    fontSize: 16,
+    marginBottom: 4,
+    color: Colors.light.text,
+  },
   role: { color: "#666", fontSize: 14 },
   switchLabel: { fontSize: 10, color: "#888", marginBottom: 2 },
   emptyText: { textAlign: "center", marginTop: 30, color: "#999" },

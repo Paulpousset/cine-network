@@ -1,12 +1,12 @@
+import ClapLoading from "@/components/ClapLoading";
 import React, { useState } from "react";
 import {
-    ActivityIndicator,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 type CityPickerProps = {
@@ -70,11 +70,7 @@ export default function CityPicker({
           onChangeText={searchCities}
         />
         {loading && (
-          <ActivityIndicator
-            size="small"
-            color="#841584"
-            style={styles.loader}
-          />
+          <ClapLoading size={20} color="#841584" style={styles.loader} />
         )}
       </View>
 
