@@ -1,6 +1,8 @@
+import ClapLoading from "@/components/ClapLoading";
+import Colors from "@/constants/Colors";
+import { GlobalStyles } from "@/constants/Styles";
 import React, { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
     ScrollView,
     StyleSheet,
     Text,
@@ -8,12 +10,10 @@ import {
     TouchableOpacity,
     View,
 } from "react-native";
-import { GlobalStyles } from "@/constants/Styles";
-import Colors from "@/constants/Colors";
 
 type AddressAutocompleteProps = {
   city?: string;
-  onSelect: (address: string, lat?: number, lon?: number) => void;
+  onSelect: (address: string, lat?: number, lon?: number, city?: string, zipcode?: string) => void;
   currentValue?: string;
   placeholder?: string;
 };
@@ -69,13 +69,15 @@ export default function AddressAutocomplete({
 
   function handleSelect(item: any) {
     const streetPart = item.properties.name || item.properties.label;
+    const itemCity = item.properties.city;
+    const itemZipcode = item.properties.postcode;
 
     setQuery(streetPart);
     setShowList(false);
     setSuggestions([]);
 
     const [lon, lat] = item.geometry.coordinates;
-    onSelect(streetPart, lat, lon);
+    onSelect(streetPart, lat, lon, itemCity, itemZipcode);
   }
 
   return (
@@ -89,8 +91,8 @@ export default function AddressAutocomplete({
           onChangeText={searchAddress}
         />
         {loading && (
-          <ActivityIndicator
-            size="small"
+          <ClapLoading
+            size={20}
             color={Colors.light.tint}
             style={styles.loader}
           />
@@ -99,7 +101,7 @@ export default function AddressAutocomplete({
 
       {showList && suggestions.length > 0 && (
         <View style={styles.suggestionsBox}>
-          <ScrollView keyboardShouldPersistTaps="handled">
+          <ScrollView keyboardShouldPersistTaps="always" nestedScrollEnabled={true}>
             {suggestions.map((item, index) => (
               <TouchableOpacity
                 key={item.properties.id || index}
