@@ -5,7 +5,14 @@ import { Ionicons } from "@expo/vector-icons";
 import { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { Stack, Tabs, useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import {
+  Platform,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+  useWindowDimensions,
+} from "react-native";
 
 function CustomProjectTabBar({
   state,
@@ -16,6 +23,12 @@ function CustomProjectTabBar({
 }: BottomTabBarProps & { isVisitor: boolean; isOwner: boolean }) {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "light"];
+  const { width } = useWindowDimensions();
+
+  // Hide on desktop web as we have the sidebar
+  if (Platform.OS === "web" && width >= 768) {
+    return null;
+  }
 
   if (isVisitor) return null;
 

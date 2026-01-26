@@ -1,14 +1,17 @@
 import ClapLoading from "@/components/ClapLoading";
+import Sidebar from "@/components/Sidebar";
 import { Session } from "@supabase/supabase-js";
 import { Stack, usePathname, useRouter, useSegments } from "expo-router";
 import { useEffect, useState } from "react";
-import { View } from "react-native";
+import { Platform, useWindowDimensions, View } from "react-native";
 import { supabase } from "../lib/supabase";
 
 export default function RootLayout() {
   const [session, setSession] = useState<Session | null>(null);
   const [initialized, setInitialized] = useState(false);
 
+  const { width } = useWindowDimensions();
+  const isWebLarge = Platform.OS === "web" && width >= 768;
   const segments = useSegments();
   const pathname = usePathname();
   const router = useRouter();
@@ -60,22 +63,31 @@ export default function RootLayout() {
     );
   }
 
+  // Hide sidebar on landing/login page
+  const showSidebar = isWebLarge && session && pathname !== "/";
+
   return (
-    <Stack>
-      <Stack.Screen name="index" options={{ headerShown: false }} />
-      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      <Stack.Screen name="project" options={{ headerShown: false }} />
-      <Stack.Screen name="network" options={{ headerShown: false }} />
-      {/* 
-        Si 'profile' est un dossier contenant [id].tsx sans _layout ni index, 
-        il ne faut pas le déclarer comme screen ici, ou alors il faut qu'il ait un index.
-        Expo Router gère souvent profile/[id] automatiquement si on ne le contraint pas.
-        Mais pour éviter le warning, on peut cibler le fichier spécifique si on veut le styler ici,
-        ou simplement laisser Expo Router faire.
-        Cependant, dans votre cas, le warning dit 'No route named profile'.
-        On va changer 'profile' par 'profile/[id]' pour matcher le fichier existant.
-      */}
-      <Stack.Screen name="profile/[id]" options={{ headerShown: false }} />
-    </Stack>
+    <View style={{ flex: 1, flexDirection: isWebLarge ? "row" : "column" }}>
+      {showSidebar ? <Sidebar /> : null}
+      <View
+        style={{
+          flex: 1,
+          paddingLeft: showSidebar ? 250 : 0,
+        }}
+      >
+        <Stack
+          screenOptions={{
+            // On web, we often want to hide the nested stack headers to let the browser or a custom web nav manage it
+            headerShown: Platform.OS !== "web",
+          }}
+        >
+          <Stack.Screen name="index" options={{ headerShown: false }} />
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen name="project" options={{ headerShown: false }} />
+          <Stack.Screen name="network" options={{ headerShown: false }} />
+          <Stack.Screen name="profile/[id]" options={{ headerShown: false }} />
+        </Stack>
+      </View>
+    </View>
   );
 }

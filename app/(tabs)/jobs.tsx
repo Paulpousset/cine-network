@@ -1,3 +1,4 @@
+import AppMap, { Marker, PROVIDER_DEFAULT } from "@/components/AppMap";
 import ClapLoading from "@/components/ClapLoading";
 import Colors from "@/constants/Colors";
 import { GlobalStyles } from "@/constants/Styles";
@@ -6,17 +7,16 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-    Alert,
-    FlatList,
-    Modal,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    TouchableWithoutFeedback,
-    View,
+  Alert,
+  FlatList,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
+  View,
 } from "react-native";
-import MapView, { Marker, PROVIDER_DEFAULT } from "react-native-maps";
 import { supabase } from "../../lib/supabase";
 
 // On récupère les clés de ton fichier rolesList.ts
@@ -448,7 +448,7 @@ export default function Discover() {
         />
       ) : viewMode === "map" ? (
         <View style={{ flex: 1 }}>
-          <MapView
+          <AppMap
             style={{ width: "100%", height: "100%" }}
             provider={PROVIDER_DEFAULT}
             initialRegion={{
@@ -492,7 +492,7 @@ export default function Discover() {
                 </Marker>
               );
             })}
-          </MapView>
+          </AppMap>
         </View>
       ) : (
         <FlatList

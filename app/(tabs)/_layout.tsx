@@ -2,11 +2,19 @@ import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { Link, Tabs } from "expo-router";
 import React from "react";
-import { Pressable, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import {
+    Pressable,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
+} from "react-native";
 
-import { useClientOnlyValue } from "@/components/useClientOnlyValue";
 import { useColorScheme } from "@/components/useColorScheme";
 import Colors from "@/constants/Colors";
+import { Platform, useWindowDimensions } from "react-native";
+
+// ...
 
 // You can explore the built-in icon families and icons on the web at https://icons.expo.fyi/
 function TabBarIcon(props: {
@@ -19,6 +27,13 @@ function TabBarIcon(props: {
 function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "light"];
+  const { width } = useWindowDimensions();
+
+  // On Web, if the screen is large enough, the Sidebar is already showing.
+  // We hide the bottom tab bar to avoid redundancy.
+  if (Platform.OS === "web" && width >= 768) {
+    return null;
+  }
 
   return (
     <View
@@ -52,9 +67,7 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
               activeOpacity={0.7}
             >
               {options.tabBarIcon?.({ focused: isFocused, color, size: 24 })}
-              <Text style={[styles.tabLabel, { color }]}>
-                {options.title}
-              </Text>
+              <Text style={[styles.tabLabel, { color }]}>{options.title}</Text>
             </TouchableOpacity>
 
             {index < state.routes.length - 1 && (
@@ -80,7 +93,7 @@ export default function TabLayout() {
       tabBar={(props) => <CustomTabBar {...props} />}
       screenOptions={{
         tabBarActiveTintColor: Colors[colorScheme ?? "light"].tint,
-        headerShown: useClientOnlyValue(false, true),
+        headerShown: Platform.OS !== "web",
         headerStyle: {
           backgroundColor: Colors[colorScheme ?? "light"].background,
           elevation: 0,
@@ -100,34 +113,43 @@ export default function TabLayout() {
         options={{
           title: "Mes Projets 🎬",
           tabBarIcon: ({ color }) => <TabBarIcon name="film" color={color} />,
-          headerLeft: () => (
-            <Link href="/account" asChild>
-              <Pressable>
-                {({ pressed }) => (
-                  <FontAwesome
-                    name="user-circle"
-                    size={25}
-                    color={Colors[colorScheme ?? "light"].text}
-                    style={{ marginLeft: 15, opacity: pressed ? 0.5 : 1 }}
-                  />
-                )}
-              </Pressable>
-            </Link>
-          ),
-          headerRight: () => (
-            <Link href="/direct-messages" asChild>
-              <Pressable>
-                {({ pressed }) => (
-                  <FontAwesome
-                    name="comments"
-                    size={24}
-                    color={Colors[colorScheme ?? "light"].text}
-                    style={{ marginRight: 15, opacity: pressed ? 0.5 : 1 }}
-                  />
-                )}
-              </Pressable>
-            </Link>
-          ),
+          headerLeft:
+            Platform.OS === "web"
+              ? undefined
+              : () => (
+                  <Link href="/account" asChild>
+                    <Pressable>
+                      {({ pressed }) => (
+                        <FontAwesome
+                          name="user-circle"
+                          size={25}
+                          color={Colors[colorScheme ?? "light"].text}
+                          style={{ marginLeft: 15, opacity: pressed ? 0.5 : 1 }}
+                        />
+                      )}
+                    </Pressable>
+                  </Link>
+                ),
+          headerRight:
+            Platform.OS === "web"
+              ? undefined
+              : () => (
+                  <Link href="/direct-messages" asChild>
+                    <Pressable>
+                      {({ pressed }) => (
+                        <FontAwesome
+                          name="comments"
+                          size={24}
+                          color={Colors[colorScheme ?? "light"].text}
+                          style={{
+                            marginRight: 15,
+                            opacity: pressed ? 0.5 : 1,
+                          }}
+                        />
+                      )}
+                    </Pressable>
+                  </Link>
+                ),
         }}
       />
 
@@ -138,34 +160,43 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => (
             <TabBarIcon name="briefcase" color={color} />
           ),
-          headerLeft: () => (
-            <Link href="/account" asChild>
-              <Pressable>
-                {({ pressed }) => (
-                  <FontAwesome
-                    name="user-circle"
-                    size={25}
-                    color={Colors[colorScheme ?? "light"].text}
-                    style={{ marginLeft: 15, opacity: pressed ? 0.5 : 1 }}
-                  />
-                )}
-              </Pressable>
-            </Link>
-          ),
-          headerRight: () => (
-            <Link href="/direct-messages" asChild>
-              <Pressable>
-                {({ pressed }) => (
-                  <FontAwesome
-                    name="comments"
-                    size={24}
-                    color={Colors[colorScheme ?? "light"].text}
-                    style={{ marginRight: 15, opacity: pressed ? 0.5 : 1 }}
-                  />
-                )}
-              </Pressable>
-            </Link>
-          ),
+          headerLeft:
+            Platform.OS === "web"
+              ? undefined
+              : () => (
+                  <Link href="/account" asChild>
+                    <Pressable>
+                      {({ pressed }) => (
+                        <FontAwesome
+                          name="user-circle"
+                          size={25}
+                          color={Colors[colorScheme ?? "light"].text}
+                          style={{ marginLeft: 15, opacity: pressed ? 0.5 : 1 }}
+                        />
+                      )}
+                    </Pressable>
+                  </Link>
+                ),
+          headerRight:
+            Platform.OS === "web"
+              ? undefined
+              : () => (
+                  <Link href="/direct-messages" asChild>
+                    <Pressable>
+                      {({ pressed }) => (
+                        <FontAwesome
+                          name="comments"
+                          size={24}
+                          color={Colors[colorScheme ?? "light"].text}
+                          style={{
+                            marginRight: 15,
+                            opacity: pressed ? 0.5 : 1,
+                          }}
+                        />
+                      )}
+                    </Pressable>
+                  </Link>
+                ),
         }}
       />
 
@@ -174,34 +205,43 @@ export default function TabLayout() {
         options={{
           title: "Réseau",
           tabBarIcon: ({ color }) => <TabBarIcon name="user" color={color} />,
-          headerLeft: () => (
-            <Link href="/account" asChild>
-              <Pressable>
-                {({ pressed }) => (
-                  <FontAwesome
-                    name="user-circle"
-                    size={25}
-                    color={Colors[colorScheme ?? "light"].text}
-                    style={{ marginLeft: 15, opacity: pressed ? 0.5 : 1 }}
-                  />
-                )}
-              </Pressable>
-            </Link>
-          ),
-          headerRight: () => (
-            <Link href="/direct-messages" asChild>
-              <Pressable>
-                {({ pressed }) => (
-                  <FontAwesome
-                    name="comments"
-                    size={24}
-                    color={Colors[colorScheme ?? "light"].text}
-                    style={{ marginRight: 15, opacity: pressed ? 0.5 : 1 }}
-                  />
-                )}
-              </Pressable>
-            </Link>
-          ),
+          headerLeft:
+            Platform.OS === "web"
+              ? undefined
+              : () => (
+                  <Link href="/account" asChild>
+                    <Pressable>
+                      {({ pressed }) => (
+                        <FontAwesome
+                          name="user-circle"
+                          size={25}
+                          color={Colors[colorScheme ?? "light"].text}
+                          style={{ marginLeft: 15, opacity: pressed ? 0.5 : 1 }}
+                        />
+                      )}
+                    </Pressable>
+                  </Link>
+                ),
+          headerRight:
+            Platform.OS === "web"
+              ? undefined
+              : () => (
+                  <Link href="/direct-messages" asChild>
+                    <Pressable>
+                      {({ pressed }) => (
+                        <FontAwesome
+                          name="comments"
+                          size={24}
+                          color={Colors[colorScheme ?? "light"].text}
+                          style={{
+                            marginRight: 15,
+                            opacity: pressed ? 0.5 : 1,
+                          }}
+                        />
+                      )}
+                    </Pressable>
+                  </Link>
+                ),
         }}
       />
 
@@ -212,34 +252,43 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => (
             <TabBarIcon name="newspaper-o" color={color} />
           ),
-          headerLeft: () => (
-            <Link href="/account" asChild>
-              <Pressable>
-                {({ pressed }) => (
-                  <FontAwesome
-                    name="user-circle"
-                    size={25}
-                    color={Colors[colorScheme ?? "light"].text}
-                    style={{ marginLeft: 15, opacity: pressed ? 0.5 : 1 }}
-                  />
-                )}
-              </Pressable>
-            </Link>
-          ),
-          headerRight: () => (
-            <Link href="/direct-messages" asChild>
-              <Pressable>
-                {({ pressed }) => (
-                  <FontAwesome
-                    name="comments"
-                    size={24}
-                    color={Colors[colorScheme ?? "light"].text}
-                    style={{ marginRight: 15, opacity: pressed ? 0.5 : 1 }}
-                  />
-                )}
-              </Pressable>
-            </Link>
-          ),
+          headerLeft:
+            Platform.OS === "web"
+              ? undefined
+              : () => (
+                  <Link href="/account" asChild>
+                    <Pressable>
+                      {({ pressed }) => (
+                        <FontAwesome
+                          name="user-circle"
+                          size={25}
+                          color={Colors[colorScheme ?? "light"].text}
+                          style={{ marginLeft: 15, opacity: pressed ? 0.5 : 1 }}
+                        />
+                      )}
+                    </Pressable>
+                  </Link>
+                ),
+          headerRight:
+            Platform.OS === "web"
+              ? undefined
+              : () => (
+                  <Link href="/direct-messages" asChild>
+                    <Pressable>
+                      {({ pressed }) => (
+                        <FontAwesome
+                          name="comments"
+                          size={24}
+                          color={Colors[colorScheme ?? "light"].text}
+                          style={{
+                            marginRight: 15,
+                            opacity: pressed ? 0.5 : 1,
+                          }}
+                        />
+                      )}
+                    </Pressable>
+                  </Link>
+                ),
         }}
       />
     </Tabs>
