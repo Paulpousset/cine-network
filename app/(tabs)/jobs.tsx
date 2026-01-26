@@ -10,11 +10,14 @@ import {
   Alert,
   FlatList,
   Modal,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   TouchableWithoutFeedback,
+  useWindowDimensions,
   View,
 } from "react-native";
 import { supabase } from "../../lib/supabase";
@@ -45,8 +48,11 @@ type RoleWithProject = {
 
 export default function Discover() {
   const router = useRouter();
+  const { width } = useWindowDimensions();
+  const isWebLarge = Platform.OS === "web" && width >= 768;
+  const [allRoles, setAllRoles] = useState<RoleWithProject[]>([]);
   const [roles, setRoles] = useState<RoleWithProject[]>([]);
-  const [projects, setProjects] = useState<any[]>([]); // New state for projects
+  const [projects, setProjects] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   // View Content Type: 'roles' (Jobs) or 'projects' (Tournages)
@@ -55,6 +61,7 @@ export default function Discover() {
   const [viewMode, setViewMode] = useState<"list" | "map">("list");
 
   // Filters
+  const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [selectedCity, setSelectedCity] = useState<string>("all");
 
@@ -65,18 +72,22 @@ export default function Discover() {
   // Data for filters
   const [availableCities, setAvailableCities] = useState<string[]>([]);
 
+  // 1. Fetch data from DB when category/city changes
   useEffect(() => {
     fetchRoles();
-    fetchCities();
   }, [selectedCategory, selectedCity]);
+
+  // 2. Filter data globally when search query changes (client-side for better reactive feel)
+  useEffect(() => {
+    applyFilters();
+  }, [searchQuery, allRoles]);
+
+  useEffect(() => {
+    fetchCities();
+  }, []);
 
   async function fetchCities() {
     try {
-      // Fetch distinct cities from tournages that have active roles
-      // This is a bit complex in one query, so we'll fetch all active tournages for simplicity
-      // or just extract from loaded roles if we were loading all.
-      // Better: distinct select on tournages.
-
       const { data, error } = await supabase
         .from("tournages")
         .select("ville")
@@ -84,7 +95,6 @@ export default function Discover() {
 
       if (error) throw error;
 
-      // Extract unique cities
       const cities = Array.from(
         new Set(
           data
@@ -104,9 +114,6 @@ export default function Discover() {
     try {
       setLoading(true);
 
-      // 1. LA REQUÊTE MAGIQUE (JOINTURE)
-      // On sélectionne les rôles ET les infos du tournage lié
-      // Utilisation de !inner pour filtrer sur la table jointe si besoin
       let query = supabase
         .from("project_roles")
         .select(
@@ -115,7 +122,6 @@ export default function Discover() {
           tournages!inner ( id, title, type, pays, ville, latitude, longitude )
         `,
         )
-        // Prioritize boosted roles, then new ones
         .order("is_boosted", { ascending: false })
         .order("created_at", { ascending: false });
 
@@ -130,40 +136,56 @@ export default function Discover() {
       const { data, error } = await query;
       if (error) throw error;
 
-      console.log(
-        "Roles fetched:",
-        data?.length,
-        "Sample:",
-        JSON.stringify(data?.[0]?.tournages, null, 2),
-      );
-
-      // Filter out draft roles client-side to handle nulls gracefully
+      // Filter out draft roles client-side
       const visible = ((data as any[]) || []).filter(
         (r) => r.status !== "draft",
       );
-      setRoles(visible);
-
-      // Derive unique projects from roles
-      const uniqueProjectsMap = new Map();
-      visible.forEach((role) => {
-        if (role.tournages && !uniqueProjectsMap.has(role.tournages.id)) {
-          uniqueProjectsMap.set(role.tournages.id, {
-            ...role.tournages,
-            roleCount: 1, // Start count
-            roles: [role], // Keep track of roles
-          });
-        } else if (role.tournages) {
-          const p = uniqueProjectsMap.get(role.tournages.id);
-          p.roleCount++;
-          p.roles.push(role);
-        }
-      });
-      setProjects(Array.from(uniqueProjectsMap.values()));
+      setAllRoles(visible);
     } catch (error) {
       Alert.alert("Erreur", (error as Error).message);
     } finally {
       setLoading(false);
     }
+  }
+
+  function applyFilters() {
+    let filtered = [...allRoles];
+
+    if (searchQuery.trim()) {
+      const s = searchQuery.toLowerCase().trim();
+      filtered = filtered.filter((r) => {
+        const roleTitle = (r.title || "").toLowerCase();
+        const roleDesc = (r.description || "").toLowerCase();
+        const projectTitle = (r.tournages?.title || "").toLowerCase();
+        const projectVille = (r.tournages?.ville || "").toLowerCase();
+
+        return (
+          roleTitle.includes(s) ||
+          roleDesc.includes(s) ||
+          projectTitle.includes(s) ||
+          projectVille.includes(s)
+        );
+      });
+    }
+
+    setRoles(filtered);
+
+    // Derive unique projects from filtered roles
+    const uniqueProjectsMap = new Map();
+    filtered.forEach((role) => {
+      if (role.tournages && !uniqueProjectsMap.has(role.tournages.id)) {
+        uniqueProjectsMap.set(role.tournages.id, {
+          ...role.tournages,
+          roleCount: 1,
+          roles: [role],
+        });
+      } else if (role.tournages) {
+        const p = uniqueProjectsMap.get(role.tournages.id);
+        p.roleCount++;
+        p.roles.push(role);
+      }
+    });
+    setProjects(Array.from(uniqueProjectsMap.values()));
   }
 
   function renderProject({ item }: { item: any }) {
@@ -313,7 +335,37 @@ export default function Discover() {
   return (
     <View style={styles.container}>
       {/* HEADER */}
+      {isWebLarge && (
+        <View style={styles.webHeader}>
+          <Text style={styles.webHeaderTitle}>Offres & Tournages</Text>
+        </View>
+      )}
+
       <View style={styles.header}>
+        {/* Barre de recherche */}
+        <View style={styles.searchContainer}>
+          <Ionicons
+            name="search"
+            size={20}
+            color="#999"
+            style={styles.searchIcon}
+          />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Rechercher un poste, un projet..."
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholderTextColor="#999"
+            returnKeyType="search"
+            autoCorrect={false}
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity onPress={() => setSearchQuery("")}>
+              <Ionicons name="close-circle" size={18} color="#999" />
+            </TouchableOpacity>
+          )}
+        </View>
+
         {/* TABS: ROLES vs PROJETS */}
         <View
           style={{
@@ -604,6 +656,18 @@ export default function Discover() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.light.backgroundSecondary },
+  webHeader: {
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+    backgroundColor: "white",
+    borderBottomWidth: 1,
+    borderBottomColor: "#eee",
+  },
+  webHeaderTitle: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: Colors.light.text,
+  },
   header: {
     backgroundColor: Colors.light.background,
     paddingTop: 24,
@@ -611,6 +675,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     borderBottomWidth: 1,
     borderColor: Colors.light.border,
+  },
+  searchContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: Colors.light.backgroundSecondary,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    marginBottom: 15,
+    height: 44,
+  },
+  searchIcon: {
+    marginRight: 8,
+  },
+  searchInput: {
+    flex: 1,
+    height: "100%",
+    fontSize: 16,
+    color: "#333",
   },
   headerTitle: {
     fontSize: 28,

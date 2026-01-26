@@ -5,19 +5,19 @@ import { supabase } from "@/lib/supabase";
 import { generateContract } from "@/utils/pdfGenerator";
 import { Ionicons } from "@expo/vector-icons";
 import {
-  useFocusEffect,
-  useGlobalSearchParams,
-  useLocalSearchParams,
-  useRouter,
+    useFocusEffect,
+    useGlobalSearchParams,
+    useLocalSearchParams,
+    useRouter,
 } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
-  Alert,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    Alert,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -254,6 +254,13 @@ export default function AdminScreen() {
           >
             <Ionicons name="people-outline" size={24} color="#333" />
             <Text style={styles.quickActionText}>Admins</Text>
+          </TouchableOpacity>
+           <TouchableOpacity
+            style={[styles.quickAction, { backgroundColor: '#FEF2F2', borderColor: '#FECACA' }]}
+            onPress={() => router.push(`/project/${projectId}/close`)}
+          >
+            <Ionicons name="trophy-outline" size={24} color={Colors.light.danger} />
+            <Text style={[styles.quickActionText, { color: Colors.light.danger }]}>Clôturer</Text>
           </TouchableOpacity>
         </View>
 

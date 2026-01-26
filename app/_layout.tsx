@@ -1,4 +1,6 @@
 import ClapLoading from "@/components/ClapLoading";
+import GlobalRealtimeListener from "@/components/GlobalRealtimeListener";
+import NotificationToast from "@/components/NotificationToast";
 import Sidebar from "@/components/Sidebar";
 import { Session } from "@supabase/supabase-js";
 import { Stack, usePathname, useRouter, useSegments } from "expo-router";
@@ -68,6 +70,8 @@ export default function RootLayout() {
 
   return (
     <View style={{ flex: 1, flexDirection: isWebLarge ? "row" : "column" }}>
+      {session && <GlobalRealtimeListener />}
+      <NotificationToast />
       {showSidebar ? <Sidebar /> : null}
       <View
         style={{

@@ -7,17 +7,17 @@ import { Ionicons } from "@expo/vector-icons";
 import { Stack, useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
-  Alert,
-  FlatList,
-  Image,
-  Modal,
-  Platform,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  TouchableWithoutFeedback,
-  View,
+    Alert,
+    FlatList,
+    Image,
+    Modal,
+    Platform,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    TouchableWithoutFeedback,
+    View,
 } from "react-native";
 import { supabase } from "../../lib/supabase";
 
@@ -336,7 +336,7 @@ export default function DiscoverProfiles() {
     );
   }
 
-  const ListHeader = () => (
+  const listHeader = (
     <View>
       {/* En-tête spécifique au Web car le header natif est masqué */}
       {Platform.OS === "web" && (
@@ -480,7 +480,7 @@ export default function DiscoverProfiles() {
         />
       ) : (
         <FlatList
-          ListHeaderComponent={ListHeader}
+          ListHeaderComponent={listHeader}
           data={profiles}
           keyExtractor={(item) => item.id}
           renderItem={renderProfile}

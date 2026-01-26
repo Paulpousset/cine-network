@@ -1,3 +1,4 @@
+import CityAutocomplete from "@/components/CityAutocomplete";
 import ClapLoading from "@/components/ClapLoading";
 import PaymentModal from "@/components/PaymentModal";
 import Colors from "@/constants/Colors";
@@ -10,15 +11,15 @@ import * as ImagePicker from "expo-image-picker";
 import { Stack, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-  Alert,
-  Image,
-  ScrollView,
-  StyleSheet,
-  Switch,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    Alert,
+    Image,
+    ScrollView,
+    StyleSheet,
+    Switch,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 
 // --- CONSTANTS ---
@@ -58,6 +59,8 @@ export default function Account() {
   const [full_name, setFullName] = useState("");
   const [username, setUsername] = useState("");
   const [city, setCity] = useState("");
+  const [gender, setGender] = useState("");
+  const [age, setAge] = useState("");
   const [website, setWebsite] = useState("");
   const [bio, setBio] = useState("");
   const [role, setRole] = useState(""); // Main "titre" (e.g. Acteur, Réa...)
@@ -145,6 +148,8 @@ export default function Account() {
         setCvUrl(data.cv_url || null);
         setBookUrls(data.book_urls || []);
         setShowreelUrl(data.showreel_url || "");
+        setGender(data.gender || "");
+        setAge(data.age ? data.age.toString() : "");
       }
 
       // Fetch visibility settings
@@ -398,6 +403,8 @@ export default function Account() {
         book_urls,
         showreel_url,
         avatar_url,
+        gender,
+        age: age ? parseInt(age) : null,
         updated_at: new Date().toISOString(),
       };
 
@@ -610,13 +617,51 @@ export default function Account() {
           </ScrollView>
 
           <Text style={styles.label}>Ville de résidence</Text>
-          <TextInput
-            style={GlobalStyles.input}
+          <CityAutocomplete
             value={city}
-            onChangeText={setCity}
-            placeholder="Paris, France"
-            placeholderTextColor="#999"
+            onSelect={(val) => setCity(val)}
+            placeholder="Paris (75)"
           />
+
+          <View style={{ flexDirection: "row", gap: 10, marginTop: 15 }}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.label}>Genre</Text>
+              <View style={{ flexDirection: "row", gap: 5 }}>
+                {["Homme", "Femme", "Autre"].map((g) => (
+                    <TouchableOpacity
+                      key={g}
+                      onPress={() => setGender(g)}
+                      style={[
+                        styles.tag,
+                        gender === g && styles.tagSelected,
+                        { flex: 1, justifyContent: "center" }
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.tagText,
+                          gender === g && styles.tagTextSelected,
+                          { textAlign: "center" }
+                        ]}
+                      >
+                        {g}
+                      </Text>
+                    </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+            <View style={{ width: 80 }}>
+              <Text style={styles.label}>Âge</Text>
+              <TextInput
+                style={GlobalStyles.input}
+                value={age}
+                onChangeText={setAge}
+                placeholder="25"
+                keyboardType="numeric"
+                placeholderTextColor="#999"
+              />
+            </View>
+          </View>
 
           <Text style={styles.label}>Bio / Présentation</Text>
           <TextInput
