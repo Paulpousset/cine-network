@@ -3,15 +3,18 @@ import Colors from "@/constants/Colors";
 import { GlobalStyles } from "@/constants/Styles";
 import { useUserMode } from "@/hooks/useUserMode";
 import { Ionicons } from "@expo/vector-icons";
-import { useFocusEffect, useRouter } from "expo-router"; // <--- IMPORT useRouter
+import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useState } from "react";
 import {
-    Alert,
-    SectionList,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Alert,
+  Image,
+  Platform,
+  SectionList,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  useWindowDimensions,
+  View,
 } from "react-native";
 import { supabase } from "../../lib/supabase";
 
@@ -22,11 +25,14 @@ type Project = {
   type: string;
   created_at: string;
   owner_id: string;
+  image_url?: string;
   has_notifications?: boolean;
 };
 
 export default function MyProjects() {
   const router = useRouter(); // <--- Hook de navigation
+  const { width } = useWindowDimensions();
+  const isWebLarge = Platform.OS === "web" && width >= 768;
   const [sections, setSections] = useState<
     { title: string; data: Project[] }[]
   >([]);
@@ -145,23 +151,54 @@ export default function MyProjects() {
           }}
         />
       )}
-      <View style={styles.cardHeader}>
-        <Text style={[GlobalStyles.title2, { flex: 1 }]}>{item.title}</Text>
-        <Text style={styles.cardType}>{item.type.replace("_", " ")}</Text>
+      <View style={{ flexDirection: "row", gap: 15 }}>
+        {item.image_url ? (
+          <Image source={{ uri: item.image_url }} style={styles.projectImage} />
+        ) : (
+          <View style={[styles.projectImage, styles.projectImagePlaceholder]}>
+            <Ionicons name="film-outline" size={24} color="#999" />
+          </View>
+        )}
+        <View style={{ flex: 1 }}>
+          <View style={styles.cardHeader}>
+            <Text style={[GlobalStyles.title2, { flex: 1 }]} numberOfLines={1}>
+              {item.title}
+            </Text>
+            <Text style={styles.cardType}>{item.type.replace("_", " ")}</Text>
+          </View>
+          <Text numberOfLines={2} style={GlobalStyles.body}>
+            {item.description || "Pas de description"}
+          </Text>
+          <Text
+            style={[GlobalStyles.caption, { textAlign: "right", marginTop: 8 }]}
+          >
+            Créé le {new Date(item.created_at).toLocaleDateString()}
+          </Text>
+        </View>
       </View>
-      <Text numberOfLines={2} style={GlobalStyles.body}>
-        {item.description || "Pas de description"}
-      </Text>
-      <Text
-        style={[GlobalStyles.caption, { textAlign: "right", marginTop: 8 }]}
-      >
-        Créé le {new Date(item.created_at).toLocaleDateString()}
-      </Text>
     </TouchableOpacity>
   );
 
   return (
     <View style={styles.container}>
+      {/* En-tête spécifique au Web */}
+      {isWebLarge && (
+        <View style={styles.webHeader}>
+          <Text style={styles.webHeaderTitle}>Mes Projets</Text>
+          <TouchableOpacity
+            onPress={() => router.push("/project/new")}
+            style={styles.webHeaderButton}
+          >
+            <Ionicons
+              name="add-circle"
+              size={24}
+              color={Colors.light.primary}
+            />
+            <Text style={styles.webHeaderButtonText}>Nouveau tournage</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       {loading ? (
         <ClapLoading
           size={50}
@@ -176,7 +213,10 @@ export default function MyProjects() {
           renderSectionHeader={({ section: { title } }) => (
             <Text style={styles.sectionHeader}>{title}</Text>
           )}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[
+            styles.listContent,
+            isWebLarge && { maxWidth: 800, alignSelf: "center", width: "100%" },
+          ]}
           ListEmptyComponent={
             <Text style={styles.emptyText}>Aucun projet pour l'instant.</Text>
           }
@@ -184,7 +224,8 @@ export default function MyProjects() {
         />
       )}
 
-      {mode === "creator" ? (
+      {/* FAB uniquement sur mobile car on a le bouton dans le header sur Web */}
+      {!isWebLarge ? (
         <TouchableOpacity
           style={styles.fab}
           onPress={() => router.push("/project/new")}
@@ -198,6 +239,35 @@ export default function MyProjects() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.light.backgroundSecondary },
+  webHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+    backgroundColor: "white",
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.light.border,
+  },
+  webHeaderTitle: {
+    fontSize: 22,
+    fontWeight: "bold",
+    color: Colors.light.text,
+  },
+  webHeaderButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: Colors.light.primary + "10",
+    paddingVertical: 8,
+    paddingHorizontal: 15,
+    borderRadius: 20,
+    gap: 8,
+  },
+  webHeaderButtonText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: Colors.light.primary,
+  },
   sectionHeader: {
     fontSize: 20,
     fontWeight: "bold",
@@ -221,6 +291,17 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     overflow: "hidden",
     fontWeight: "600",
+  },
+  projectImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 12,
+    backgroundColor: "#eee",
+  },
+  projectImagePlaceholder: {
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#f0f0f0",
   },
   emptyText: {
     textAlign: "center",

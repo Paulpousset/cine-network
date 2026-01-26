@@ -5,16 +5,18 @@ import { getRecommendedRoles } from "@/lib/matching";
 import { supabase } from "@/lib/supabase";
 import { Ionicons } from "@expo/vector-icons";
 import type { Href } from "expo-router";
-import { Stack, router, useFocusEffect } from "expo-router";
+import { router, Stack, useFocusEffect } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   FlatList,
   Image,
   Modal,
+  Platform,
   RefreshControl,
   StyleSheet,
   Text,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from "react-native";
 
@@ -50,6 +52,8 @@ const AutoHeightImage = ({
 }) => {
   const [aspectRatio, setAspectRatio] = useState(1); // Default square
   const [loading, setLoading] = useState(true);
+  const { width: windowWidth } = useWindowDimensions();
+  const isWeb = Platform.OS === "web";
 
   useEffect(() => {
     let isMounted = true;
@@ -89,15 +93,23 @@ const AutoHeightImage = ({
     );
   }
 
+  // Sur Web, on limite la hauteur maximale des images pour éviter qu'elles ne remplissent l'écran
+  const imageContainerStyle: any = {
+    width: "100%",
+    aspectRatio: aspectRatio,
+    marginBottom: 10,
+    maxHeight: isWeb && windowWidth > 768 ? 500 : undefined,
+    overflow: "hidden",
+    borderRadius: 8,
+    alignItems: "center",
+    backgroundColor: Colors.light.backgroundSecondary,
+  };
+
   return (
     <TouchableOpacity
       onPress={onPress}
       activeOpacity={0.9}
-      style={{
-        width: "100%",
-        aspectRatio: aspectRatio,
-        marginBottom: 10,
-      }}
+      style={imageContainerStyle}
     >
       <Image
         source={{ uri }}
@@ -105,9 +117,8 @@ const AutoHeightImage = ({
           width: "100%",
           height: "100%",
           borderRadius: 8,
-          backgroundColor: Colors.light.backgroundSecondary,
         }}
-        resizeMode="cover"
+        resizeMode={isWeb ? "contain" : "cover"}
       />
     </TouchableOpacity>
   );
@@ -336,6 +347,28 @@ export default function FeedScreen() {
             </Text>
           </View>
         </TouchableOpacity>
+
+        {/* Ajout de la photo du tournage dans le header sur Web */}
+        {Platform.OS === "web" && item.project && (
+          <TouchableOpacity
+            onPress={() => router.push(`/project/${item.project!.id}`)}
+            style={styles.webProjectHeaderInfo}
+          >
+            {item.project.image_url ? (
+              <Image
+                source={{ uri: item.project.image_url }}
+                style={styles.webProjectHeaderImage}
+              />
+            ) : (
+              <View style={styles.webProjectHeaderPlaceholder}>
+                <Ionicons name="film" size={14} color="#999" />
+              </View>
+            )}
+            <Text style={styles.webProjectHeaderText} numberOfLines={1}>
+              {item.project.title}
+            </Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {item.content && renderContent(item.content)}
@@ -451,6 +484,44 @@ export default function FeedScreen() {
           ),
         }}
       />
+
+      {/* En-tête spécifique au Web car le header natif est masqué */}
+      {Platform.OS === "web" && (
+        <View style={styles.webHeader}>
+          <Text style={styles.webHeaderTitle}>Fil d'actualité</Text>
+          <View style={{ flexDirection: "row", gap: 20 }}>
+            <TouchableOpacity
+              onPress={() =>
+                userId &&
+                router.push({
+                  pathname: "/profile/posts",
+                  params: { userId: userId, userName: "Moi" },
+                })
+              }
+              style={styles.webHeaderButton}
+            >
+              <Ionicons
+                name="documents-outline"
+                size={22}
+                color={Colors.light.text}
+              />
+              <Text style={styles.webHeaderButtonText}>Mes posts</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => router.push("/post/new")}
+              style={styles.webHeaderButton}
+            >
+              <Ionicons
+                name="add-circle-outline"
+                size={22}
+                color={Colors.light.text}
+              />
+              <Text style={styles.webHeaderButtonText}>Nouveau post</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
 
       {/* Feed Filters */}
       <View
@@ -631,10 +702,63 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.light.backgroundSecondary,
   },
+  webHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+    backgroundColor: "white",
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.light.border,
+  },
+  webHeaderTitle: {
+    fontSize: 22,
+    fontWeight: "bold",
+    color: Colors.light.text,
+  },
+  webHeaderButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  webHeaderButtonText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: Colors.light.text,
+  },
   header: {
     flexDirection: "row",
     alignItems: "center",
     marginBottom: 10,
+    justifyContent: "space-between",
+  },
+  webProjectHeaderInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#f0f0f0",
+    padding: 6,
+    borderRadius: 20,
+    maxWidth: 200,
+    gap: 8,
+  },
+  webProjectHeaderImage: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+  },
+  webProjectHeaderPlaceholder: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: "#ddd",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  webProjectHeaderText: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#444",
   },
   avatar: {
     width: 40,
@@ -687,14 +811,14 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   projectCardImage: {
-    width: 60,
-    height: 60,
+    width: 80,
+    height: 80,
     borderRadius: 8,
     backgroundColor: "#eee",
   },
   projectCardPlaceholder: {
-    width: 60,
-    height: 60,
+    width: 80,
+    height: 80,
     borderRadius: 8,
     backgroundColor: "#e0e0e0",
     justifyContent: "center",
