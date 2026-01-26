@@ -384,27 +384,6 @@ export default function ProjectDetails() {
     fetchProjectDetails();
   }, [id]);
 
-  useEffect(() => {
-    if (currentUserId) {
-      checkIfLiked();
-    }
-  }, [currentUserId, id]);
-
-  async function checkIfLiked() {
-    try {
-      const { data } = await supabase
-        .from("project_likes")
-        .select("*")
-        .eq("project_id", id)
-        .eq("user_id", currentUserId)
-        .maybeSingle();
-
-      setIsLiked(!!data);
-    } catch (e) {
-      console.log("Error checking like:", e);
-    }
-  }
-
   async function toggleLike() {
     if (!currentUserId) {
       Alert.alert(
@@ -414,25 +393,42 @@ export default function ProjectDetails() {
       return;
     }
 
+    const isLikedNow = !isLiked;
+    // Optimistic Update
+    setIsLiked(isLikedNow);
+    setProject((prev: any) => ({
+        ...prev,
+        likes_count: isLikedNow ? (prev?.likes_count || 0) + 1 : Math.max(0, (prev?.likes_count || 1) - 1)
+    }));
+
     try {
       if (isLiked) {
-        await supabase
+        const { error } = await supabase
           .from("project_likes")
           .delete()
           .eq("project_id", id)
           .eq("user_id", currentUserId);
-        setIsLiked(false);
+          
+        if (error) throw error;
       } else {
-        await supabase
+        const { error } = await supabase
           .from("project_likes")
           .insert({ project_id: id, user_id: currentUserId });
-        setIsLiked(true);
+          
+        if (error && error.code !== '23505') throw error;
       }
     } catch (e) {
       console.log("Error toggling like:", e);
+      // Revert optimistic update
+      setIsLiked(!isLikedNow);
+       setProject((prev: any) => ({
+        ...prev,
+        likes_count: !isLikedNow ? (prev?.likes_count || 0) + 1 : Math.max(0, (prev?.likes_count || 1) - 1)
+    }));
       Alert.alert("Erreur", "Impossible de modifier le like.");
     }
   }
+
 
   async function fetchProjectDetails() {
     const projectId = Array.isArray(id) ? id[0] : id;
@@ -445,7 +441,10 @@ export default function ProjectDetails() {
       setCurrentUserId(session?.user?.id ?? null);
       const { data: proj, error: errProj } = await supabase
         .from("tournages")
-        .select("*")
+        .select(`
+            *,
+            project_likes(user_id)
+        `)
         .eq("id", projectId)
         .maybeSingle();
 
@@ -454,9 +453,19 @@ export default function ProjectDetails() {
         router.back();
         return;
       }
-      setProject(proj);
 
       const userId = session?.user?.id;
+      const likes = proj.project_likes || [];
+      
+      const processedProj = {
+          ...proj,
+          likes_count: likes.length,
+          isLiked: userId ? likes.some((l: any) => l.user_id === userId) : false
+      };
+
+      setProject(processedProj);
+      setIsLiked(processedProj.isLiked);
+
       const ownerId = proj.owner_id;
 
       // Check membership

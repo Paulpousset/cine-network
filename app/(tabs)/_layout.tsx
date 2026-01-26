@@ -1,20 +1,14 @@
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { BottomTabBarProps } from "@react-navigation/bottom-tabs";
-import { Link, Tabs } from "expo-router";
+import { Link, Tabs, useRouter } from "expo-router";
 import React from "react";
-import {
-    Pressable,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
-} from "react-native";
+import { Pressable } from "react-native";
 
+import ChatIconWithBadge from "@/components/ChatIconWithBadge";
+import CustomTabBar from "@/components/CustomTabBar"; // Imported
 import { useColorScheme } from "@/components/useColorScheme";
 import Colors from "@/constants/Colors";
-import { Platform, useWindowDimensions } from "react-native";
-
-// ...
+import { Platform } from "react-native";
 
 // You can explore the built-in icon families and icons on the web at https://icons.expo.fyi/
 function TabBarIcon(props: {
@@ -24,73 +18,19 @@ function TabBarIcon(props: {
   return <FontAwesome size={24} style={{ marginBottom: 0 }} {...props} />;
 }
 
-function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
-  const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? "light"];
-  const { width } = useWindowDimensions();
-
-  // On Web, if the screen is large enough, the Sidebar is already showing.
-  // We hide the bottom tab bar to avoid redundancy.
-  if (Platform.OS === "web" && width >= 768) {
-    return null;
-  }
-
-  return (
-    <View
-      style={[
-        styles.tabBarContainer,
-        { backgroundColor: colors.background, borderTopColor: colors.border },
-      ]}
-    >
-      {state.routes.map((route, index) => {
-        const { options } = descriptors[route.key];
-        const isFocused = state.index === index;
-        const color = isFocused ? colors.tint : "#999";
-
-        const onPress = () => {
-          const event = navigation.emit({
-            type: "tabPress",
-            target: route.key,
-            canPreventDefault: true,
-          });
-
-          if (!isFocused && !event.defaultPrevented) {
-            navigation.navigate(route.name, route.params);
-          }
-        };
-
-        return (
-          <React.Fragment key={route.key}>
-            <TouchableOpacity
-              onPress={onPress}
-              style={styles.tabItem}
-              activeOpacity={0.7}
-            >
-              {options.tabBarIcon?.({ focused: isFocused, color, size: 24 })}
-              <Text style={[styles.tabLabel, { color }]}>{options.title}</Text>
-            </TouchableOpacity>
-
-            {index < state.routes.length - 1 && (
-              <View
-                style={[
-                  styles.divider,
-                  { backgroundColor: colors.tint, opacity: 0.3 },
-                ]}
-              />
-            )}
-          </React.Fragment>
-        );
-      })}
-    </View>
-  );
-}
-
 export default function TabLayout() {
   const colorScheme = useColorScheme();
+  const router = useRouter();
+
+  // Stable callback for rendering the tab bar
+  const renderTabBar = React.useCallback(
+    (props: BottomTabBarProps) => <CustomTabBar {...props} />,
+    []
+  );
 
   return (
     <Tabs
-      tabBar={(props) => <CustomTabBar {...props} />}
+      tabBar={renderTabBar}
       screenOptions={{
         tabBarActiveTintColor: Colors[colorScheme ?? "light"].tint,
         headerShown: Platform.OS !== "web",
@@ -102,7 +42,7 @@ export default function TabLayout() {
           borderBottomColor: Colors[colorScheme ?? "light"].border,
         },
         headerTitleStyle: {
-          fontWeight: "700",
+          fontWeight: "700" as const,
           fontSize: 18,
           color: Colors[colorScheme ?? "light"].text,
         },
@@ -133,23 +73,7 @@ export default function TabLayout() {
           headerRight:
             Platform.OS === "web"
               ? undefined
-              : () => (
-                  <Link href="/direct-messages" asChild>
-                    <Pressable>
-                      {({ pressed }) => (
-                        <FontAwesome
-                          name="comments"
-                          size={24}
-                          color={Colors[colorScheme ?? "light"].text}
-                          style={{
-                            marginRight: 15,
-                            opacity: pressed ? 0.5 : 1,
-                          }}
-                        />
-                      )}
-                    </Pressable>
-                  </Link>
-                ),
+              : () => <ChatIconWithBadge />,
         }}
       />
 
@@ -180,23 +104,7 @@ export default function TabLayout() {
           headerRight:
             Platform.OS === "web"
               ? undefined
-              : () => (
-                  <Link href="/direct-messages" asChild>
-                    <Pressable>
-                      {({ pressed }) => (
-                        <FontAwesome
-                          name="comments"
-                          size={24}
-                          color={Colors[colorScheme ?? "light"].text}
-                          style={{
-                            marginRight: 15,
-                            opacity: pressed ? 0.5 : 1,
-                          }}
-                        />
-                      )}
-                    </Pressable>
-                  </Link>
-                ),
+              : () => <ChatIconWithBadge />,
         }}
       />
 
@@ -225,23 +133,7 @@ export default function TabLayout() {
           headerRight:
             Platform.OS === "web"
               ? undefined
-              : () => (
-                  <Link href="/direct-messages" asChild>
-                    <Pressable>
-                      {({ pressed }) => (
-                        <FontAwesome
-                          name="comments"
-                          size={24}
-                          color={Colors[colorScheme ?? "light"].text}
-                          style={{
-                            marginRight: 15,
-                            opacity: pressed ? 0.5 : 1,
-                          }}
-                        />
-                      )}
-                    </Pressable>
-                  </Link>
-                ),
+              : () => <ChatIconWithBadge />,
         }}
       />
 
@@ -272,52 +164,23 @@ export default function TabLayout() {
           headerRight:
             Platform.OS === "web"
               ? undefined
-              : () => (
-                  <Link href="/direct-messages" asChild>
-                    <Pressable>
-                      {({ pressed }) => (
-                        <FontAwesome
-                          name="comments"
-                          size={24}
-                          color={Colors[colorScheme ?? "light"].text}
-                          style={{
-                            marginRight: 15,
-                            opacity: pressed ? 0.5 : 1,
-                          }}
-                        />
-                      )}
-                    </Pressable>
-                  </Link>
-                ),
+              : () => <ChatIconWithBadge />,
+        }}
+      />
+      <Tabs.Screen
+        name="hall-of-fame"
+        options={{
+          title: "Hall of Fame",
+          tabBarIcon: ({ color }) => (
+            <TabBarIcon name="trophy" color={color} />
+          ),
+          headerRight:
+            Platform.OS === "web"
+              ? undefined
+              : () => <ChatIconWithBadge />,
         }}
       />
     </Tabs>
   );
 }
 
-const styles = StyleSheet.create({
-  tabBarContainer: {
-    flexDirection: "row",
-    height: 85,
-    alignItems: "center",
-    borderTopWidth: 1,
-    paddingBottom: 25,
-    paddingTop: 10,
-  },
-  tabItem: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 4,
-  },
-  tabLabel: {
-    fontSize: 10,
-    fontWeight: "600",
-    fontFamily: "System",
-  },
-  divider: {
-    width: 2, // Slightly thicker to show rounded corners better, or keep thin
-    height: 24, // Slightly shorter
-    borderRadius: 2, // Rounded ends
-  },
-});
