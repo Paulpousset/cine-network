@@ -49,7 +49,7 @@ export const GlobalStyles = StyleSheet.create({
   card: {
     backgroundColor: Colors.light.card,
     borderRadius: 16,
-    padding: 20,
+    padding: Platform.OS === "web" ? 16 : 20, // Un peu moins de padding sur web
     marginBottom: 16,
     borderWidth: 1,
     borderColor: Colors.light.border,
@@ -62,6 +62,12 @@ export const GlobalStyles = StyleSheet.create({
       },
       android: {
         elevation: 2,
+      },
+      web: {
+        maxWidth: 600, // Limite la largeur des cartes sur le web
+        alignSelf: "center",
+        width: "100%",
+        boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
       },
     }),
   },
