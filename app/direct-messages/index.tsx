@@ -1,5 +1,6 @@
 import ClapLoading from "@/components/ClapLoading";
 import Colors from "@/constants/Colors";
+import { appEvents, EVENTS } from "@/lib/events";
 import { supabase } from "@/lib/supabase";
 import { Ionicons } from "@expo/vector-icons";
 import { Stack, useRouter } from "expo-router";
@@ -30,33 +31,26 @@ export default function DirectMessagesList() {
       .on(
         "postgres_changes",
         {
-          event: "INSERT",
+          event: "*",
           schema: "public",
           table: "direct_messages",
         },
         async (payload) => {
-          const newMsg = payload.new;
-          // Check if this message involves me
-          const {
-            data: { session },
-          } = await supabase.auth.getSession();
-          const myId = session?.user?.id;
-
-          if (
-            myId &&
-            (newMsg.sender_id === myId || newMsg.receiver_id === myId)
-          ) {
-            // It's for me! Refresh the list to be safe and simple, or manually update state.
-            // Manual update is better for UX but complex because we need the other user profile.
-            // Let's re-fetch for now to ensure data consistency, it's fast enough.
-            fetchConversations();
-          }
+          console.log("DM List: Realtime event", payload.eventType);
+          // Refresh generally to cover all cases (new msg, read status, etc)
+          fetchConversations();
         },
       )
       .subscribe();
 
+    // Listen for read events to update badges instantly
+    const unsubscribeRead = appEvents.on(EVENTS.MESSAGES_READ, () => {
+      fetchConversations();
+    });
+
     return () => {
       supabase.removeChannel(channel);
+      unsubscribeRead();
     };
   }, []);
 
@@ -66,66 +60,34 @@ export default function DirectMessagesList() {
         data: { session },
       } = await supabase.auth.getSession();
       if (!session) return;
-      const userId = session.user.id;
-      setCurrentUserId(userId);
+      setCurrentUserId(session.user.id);
 
-      // Fetch all messages where I am sender or receiver
-      // This is a naive approach. Ideally we use a 'conversations' view or distinct query.
-      // Since Supabase doesn't support DISTINCT ON in JS client easily for this complex join,
-      // we'll fetch latest messages and process in JS or use a stored procedure.
-      // Let's try to fetch unique interlocutors from connections first? No, we want existing chats.
-
-      // Better approach:
-      // 1. Get all messages involving me
-      // 2. Group by the OTHER user_id
-      // 3. Sort by latest message
-
-      const { data: messages, error } = await supabase
-        .from("direct_messages")
-        .select("*") // Get raw messages without join first
-        .or(`sender_id.eq.${userId},receiver_id.eq.${userId}`)
-        .order("created_at", { ascending: false });
+      // Use the efficient Database Function (RPC)
+      const { data: convs, error } = await supabase
+        .rpc("get_conversations");
 
       if (error) throw error;
 
-      // Process messages to get unique conversations
-      // Fetch user details manually for safety
-      const interlocutorIds = new Set();
-      messages?.forEach((msg) => {
-        interlocutorIds.add(
-          msg.sender_id === userId ? msg.receiver_id : msg.sender_id,
-        );
-      });
+      // Transform RPC result to match the expected state format
+      // State expects: { user: { ...profile }, lastMessage: { ...msg } }
+      const formattedConversations = convs.map((c: any) => ({
+        user: {
+          id: c.conversation_user_id,
+          full_name: c.full_name,
+          avatar_url: c.avatar_url,
+        },
+        lastMessage: {
+          content: c.last_message_content,
+          created_at: c.last_message_created_at,
+          is_read: c.is_read,
+          sender_id: c.sender_id,
+          receiver_id: c.receiver_id,
+        },
+      }));
 
-      const { data: profiles } = await supabase
-        .from("profiles")
-        .select("*")
-        .in("id", Array.from(interlocutorIds));
-      const profileMap = new Map();
-      profiles?.forEach((p) => profileMap.set(p.id, p));
-
-      const convMap = new Map();
-      messages?.forEach((msg) => {
-        const isMeSender = msg.sender_id === userId;
-        const otherUserId = isMeSender ? msg.receiver_id : msg.sender_id; // Use raw ID
-
-        // Retrieve profile from manual fetch
-        const otherUser = profileMap.get(otherUserId);
-
-        // Skip if user data is missing (e.g. deleted user)
-        if (!otherUser) return;
-
-        if (!convMap.has(otherUserId)) {
-          convMap.set(otherUserId, {
-            user: otherUser,
-            lastMessage: msg,
-          });
-        }
-      });
-
-      setConversations(Array.from(convMap.values()));
+      setConversations(formattedConversations || []);
     } catch (e) {
-      console.log(e);
+      console.log("Error fetching conversations:", e);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -179,10 +141,27 @@ export default function DirectMessagesList() {
             >
               <Image
                 source={{
-                  uri: item.user.avatar_url || "https://via.placeholder.com/50",
+                  uri: item.user.avatar_url || "https://ui-avatars.com/api/?name=" + (item.user.full_name || "User"),
                 }}
                 style={styles.avatar}
               />
+              {!item.lastMessage.is_read &&
+                item.lastMessage.receiver_id === currentUserId && (
+                  <View
+                    style={{
+                      position: "absolute",
+                      left: 55,
+                      top: 15,
+                      width: 12,
+                      height: 12,
+                      borderRadius: 6,
+                      backgroundColor: Colors.light.tint,
+                      borderWidth: 2,
+                      borderColor: "white",
+                      zIndex: 10,
+                    }}
+                  />
+                )}
               <View style={{ flex: 1 }}>
                 <View
                   style={{

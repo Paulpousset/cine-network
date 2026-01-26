@@ -1,9 +1,15 @@
 import ClapLoading from "@/components/ClapLoading";
 import Colors from "@/constants/Colors";
+import { appEvents, EVENTS } from "@/lib/events";
 import { supabase } from "@/lib/supabase";
 import { Ionicons } from "@expo/vector-icons";
-import { Stack, useLocalSearchParams, useRouter } from "expo-router";
-import React, { useEffect, useRef, useState } from "react";
+import {
+  Stack,
+  useFocusEffect,
+  useLocalSearchParams,
+  useRouter,
+} from "expo-router";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   FlatList,
   KeyboardAvoidingView,
@@ -26,6 +32,79 @@ export default function DirectMessageChat() {
   const [loading, setLoading] = useState(true);
   const flatListRef = useRef<FlatList>(null);
 
+  const isFocusedRef = useRef(false);
+
+  // Mark messages as read when focusing this screen
+  useFocusEffect(
+    useCallback(() => {
+      isFocusedRef.current = true;
+      markAllAsRead();
+      
+      return () => {
+        isFocusedRef.current = false;
+      };
+    }, [id, currentUserId]),
+  );
+
+  async function markAllAsRead() {
+    let myId = currentUserId;
+    if (!myId) {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      myId = session?.user?.id || null;
+      if (myId) setCurrentUserId(myId);
+    }
+
+    if (!myId || !id) {
+      console.log("markAllAsRead: Missing IDs", { myId, id });
+      return;
+    }
+
+    try {
+      // TRIGGER REFRESH IMMEDIATELY to clear notifications
+      // This is crucial for UI responsiveness
+      appEvents.emit(EVENTS.MESSAGES_READ);
+
+      // First, check how many unread messages we have (optional check)
+      const { data: unreadBefore } = await supabase
+        .from("direct_messages")
+        .select("id")
+        .eq("sender_id", id)
+        .eq("receiver_id", myId)
+        .eq("is_read", false);
+
+      if (!unreadBefore || unreadBefore.length === 0) {
+        return; // Nothing to update
+      }
+
+      // Try using the robust RPC function first (server-side logic)
+      const { error: rpcError } = await supabase.rpc("mark_messages_read", {
+        target_sender_id: id,
+      });
+
+      if (rpcError) {
+        console.log("RPC mark_messages_read failed, falling back to direct update", rpcError);
+        
+        // Fallback to direct update (which should now work thanks to RLS fix)
+        const { error } = await supabase
+          .from("direct_messages")
+          .update({ is_read: true } as any)
+          .eq("sender_id", id)
+          .eq("receiver_id", myId)
+          .eq("is_read", false);
+
+        if (error) throw error;
+      }
+      
+      // Emit again to be sure final state is synced
+      appEvents.emit(EVENTS.MESSAGES_READ);
+      
+    } catch (e) {
+      console.log("Error marking messages as read:", e);
+    }
+  }
+
   useEffect(() => {
     setup();
 
@@ -39,7 +118,7 @@ export default function DirectMessageChat() {
           schema: "public",
           table: "direct_messages",
         },
-        (payload) => {
+        async (payload) => {
           const newMsg = payload.new;
           // Check if this message belongs to this conversation
           if (
@@ -47,6 +126,15 @@ export default function DirectMessageChat() {
             (newMsg.sender_id === id && newMsg.receiver_id === currentUserId)
           ) {
             setMessages((prev) => [newMsg, ...prev]);
+
+            // Si le message vient de l'autre personne et qu'on est déjà dans le chat, on le marque comme lu immédiatement
+            // MAIS SEULEMENT SI L'ÉCRAN EST FOCUS
+            if (newMsg.sender_id === id && currentUserId && isFocusedRef.current) {
+              // Use RPC for reliability
+              supabase.rpc("mark_messages_read", { target_sender_id: id }).then(() => {
+                 appEvents.emit(EVENTS.MESSAGES_READ);
+              });
+            }
           }
         },
       )
@@ -88,8 +176,8 @@ export default function DirectMessageChat() {
       if (error) throw error;
       setMessages(data || []);
 
-      // Mark as read (optional, simplified)
-      // await supabase.from('direct_messages').update({ is_read: true }).eq('sender_id', id).eq('receiver_id', myId);
+      // Mark as read - use a more direct approach
+      markAllAsRead();
     } catch (e) {
       console.log(e);
     } finally {
@@ -111,19 +199,9 @@ export default function DirectMessageChat() {
       });
 
       if (error) throw error;
-      // Realtime will handle the update, but for instant feedback we could optimistically add it
-      // Actually, let's rely on realtime or fetch to avoid duplicates if we add logic for that.
-      // For smoothness, we can optimistically add:
-      /*
-      const fakeMsg = {
-          id: Date.now().toString(),
-          sender_id: currentUserId,
-          receiver_id: id,
-          content: content,
-          created_at: new Date().toISOString()
-      };
-      setMessages(prev => [fakeMsg, ...prev]);
-      */
+
+      // En répondant, on marque forcément tout comme lu
+      markAllAsRead();
     } catch (e) {
       console.error(e);
     }
