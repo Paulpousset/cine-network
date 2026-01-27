@@ -1,12 +1,7 @@
 import * as Haptics from "expo-haptics";
 import React, { useRef, useState } from "react";
-import {
-    Animated,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
-} from "react-native";
+import { Animated, StyleSheet, Text, View } from "react-native";
+import { Hoverable } from "./Hoverable";
 
 interface PopcornLikeButtonProps {
   initialLikes?: number;
@@ -23,18 +18,17 @@ export default function PopcornLikeButton({
 }: PopcornLikeButtonProps) {
   const [isLiked, setIsLiked] = useState(liked);
   const [likesCount, setLikesCount] = useState(initialLikes);
-  
+
   // Sync with prop changes
   React.useEffect(() => {
-      setIsLiked(liked);
+    setIsLiked(liked);
   }, [liked]);
-  
+
   // Update local count if initialLikes changes (optional but good practice)
   React.useEffect(() => {
-      setLikesCount(initialLikes);
+    setLikesCount(initialLikes);
   }, [initialLikes]);
 
-  
   // Animation values
   const scale = useRef(new Animated.Value(1)).current;
   const popOpacity = useRef(new Animated.Value(0)).current;
@@ -46,7 +40,7 @@ export default function PopcornLikeButton({
     // Optimistic update
     setIsLiked(newStatus);
     setLikesCount((prev) => (newStatus ? prev + 1 : prev - 1));
-    
+
     if (onLike) onLike(newStatus);
 
     if (newStatus) {
@@ -76,35 +70,40 @@ export default function PopcornLikeButton({
       // Pop element 1 (Left)
       Animated.sequence([
         Animated.parallel([
-            Animated.timing(popOpacity, {
-                toValue: 0,
-                duration: 600,
-                useNativeDriver: true,
-            }),
-            Animated.timing(popTranslateY, {
-                toValue: -50,
-                duration: 600,
-                useNativeDriver: true
-            }),
-             Animated.spring(popScale, {
-                toValue: 1.5,
-                friction: 5,
-                useNativeDriver: true
-             })
-        ])
-      ])
+          Animated.timing(popOpacity, {
+            toValue: 0,
+            duration: 600,
+            useNativeDriver: true,
+          }),
+          Animated.timing(popTranslateY, {
+            toValue: -50,
+            duration: 600,
+            useNativeDriver: true,
+          }),
+          Animated.spring(popScale, {
+            toValue: 1.5,
+            friction: 5,
+            useNativeDriver: true,
+          }),
+        ]),
+      ]),
     ]).start();
   }
 
   return (
-    <TouchableOpacity
-      activeOpacity={0.9}
+    <Hoverable
       onPress={handlePress}
-      style={styles.container}
+      style={({ pressed, hovered }) => [
+        styles.container,
+        {
+          opacity: pressed ? 0.9 : hovered ? 0.9 : 1,
+          transform: [{ scale: hovered ? 1.05 : 1 }],
+        },
+      ]}
     >
       <Animated.View style={{ transform: [{ scale }] }}>
         <View style={[styles.button, isLiked && styles.buttonLiked]}>
-            {/* Main Icon */}
+          {/* Main Icon */}
           <Text style={{ fontSize: size }}>{isLiked ? "🍿" : "🌽"}</Text>
           <Text
             style={[
@@ -127,15 +126,15 @@ export default function PopcornLikeButton({
             transform: [
               { translateY: popTranslateY },
               { scale: popScale },
-              { translateX: -10 }
+              { translateX: -10 },
             ],
           },
         ]}
       >
         <Text style={{ fontSize: size * 0.8 }}>🍿</Text>
       </Animated.View>
-      
-       <Animated.View
+
+      <Animated.View
         style={[
           styles.particle,
           {
@@ -144,15 +143,14 @@ export default function PopcornLikeButton({
               { translateY: popTranslateY },
               { scale: popScale },
               { translateX: 10 },
-              { rotate: '45deg' }
+              { rotate: "45deg" },
             ],
           },
         ]}
       >
         <Text style={{ fontSize: size * 0.6 }}>🍿</Text>
       </Animated.View>
-
-    </TouchableOpacity>
+    </Hoverable>
   );
 }
 

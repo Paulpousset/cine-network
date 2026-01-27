@@ -3,8 +3,9 @@ import { GlobalStyles } from "@/constants/Styles";
 import { PaymentService } from "@/services/PaymentService";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useState } from "react";
-import { Modal, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Modal, StyleSheet, Text, View } from "react-native";
 import ClapLoading from "./ClapLoading";
+import { Hoverable } from "./Hoverable";
 
 type PaymentModalProps = {
   visible: boolean;
@@ -51,9 +52,13 @@ export default function PaymentModal({
     >
       <View style={styles.overlay}>
         <View style={styles.content}>
-          <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+          <Hoverable
+            style={styles.closeButton}
+            onPress={onClose}
+            hoverStyle={{ backgroundColor: "#f0f0f0" }}
+          >
             <Ionicons name="close" size={24} color="#333" />
-          </TouchableOpacity>
+          </Hoverable>
 
           <View style={styles.header}>
             <Ionicons
@@ -76,10 +81,11 @@ export default function PaymentModal({
 
           {error && <Text style={styles.error}>{error}</Text>}
 
-          <TouchableOpacity
+          <Hoverable
             style={[GlobalStyles.primaryButton, styles.payButton]}
             onPress={handlePayment}
             disabled={processing}
+            hoverStyle={{ opacity: 0.9, transform: [{ scale: 1.02 }] }}
           >
             {processing ? (
               <ClapLoading color="white" size={24} />
@@ -88,7 +94,7 @@ export default function PaymentModal({
                 Payer {amount.toFixed(2)} €
               </Text>
             )}
-          </TouchableOpacity>
+          </Hoverable>
         </View>
       </View>
     </Modal>

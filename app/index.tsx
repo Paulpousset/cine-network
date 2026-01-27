@@ -1,4 +1,5 @@
 import ClapLoading from "@/components/ClapLoading";
+import { Hoverable } from "@/components/Hoverable";
 import Colors from "@/constants/Colors"; // Import Colors
 import { GlobalStyles } from "@/constants/Styles"; // Import GlobalStyles
 import { JOB_TITLES } from "@/utils/roles";
@@ -244,14 +245,15 @@ export default function AuthScreen() {
       {loading ? (
         <ClapLoading size={40} color={Colors.light.primary} />
       ) : (
-        <TouchableOpacity
+        <Hoverable
           style={GlobalStyles.primaryButton}
+          hoverStyle={{ opacity: 0.9, transform: [{ scale: 1.02 }] }}
           onPress={isLogin ? signIn : signUp}
         >
           <Text style={GlobalStyles.buttonText}>
             {isLogin ? "Se connecter" : "S'inscrire"}
           </Text>
-        </TouchableOpacity>
+        </Hoverable>
       )}
 
       {/* --- SEPARATOR --- */}
@@ -282,16 +284,17 @@ export default function AuthScreen() {
       </TouchableOpacity>
 
       {/* --- BOUTON POUR CHANGER DE MODE --- */}
-      <TouchableOpacity
+      <Hoverable
         onPress={() => setIsLogin(!isLogin)}
         style={styles.switchButton}
+        hoverStyle={{ opacity: 0.6 }}
       >
         <Text style={styles.switchText}>
           {isLogin
             ? "Pas encore de compte ? Créer un profil"
             : "J'ai déjà un compte ? Me connecter"}
         </Text>
-      </TouchableOpacity>
+      </Hoverable>
     </ScrollView>
   );
 }

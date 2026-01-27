@@ -9,10 +9,10 @@ import {
   Platform,
   StyleSheet,
   Text,
-  TouchableOpacity,
   useWindowDimensions,
   View,
 } from "react-native";
+import { Hoverable } from "./Hoverable";
 
 const NAVIGATION_ITEMS = [
   { name: "Mes Projets", icon: "film", href: "/my-projects", id: "projects" },
@@ -67,7 +67,6 @@ export default function Sidebar() {
     fetchRecentData();
 
     // S'abonner aux changements pour mettre à jour les points rouges en temps réel
-    // MOVED TO GLOBAL LISTENER (GlobalRealtimeListener.tsx)
     // We now rely on appEvents to trigger refresh.
 
     // Listen for read events to update badges instantly (fallback)
@@ -293,8 +292,9 @@ export default function Sidebar() {
 
       <View style={styles.menu}>
         {isInsideProject && (
-          <TouchableOpacity
+          <Hoverable
             onPress={() => router.push("/my-projects")}
+            hoverStyle={{ backgroundColor: "#f5f5f5" }}
             style={{
               flexDirection: "row",
               alignItems: "center",
@@ -309,7 +309,7 @@ export default function Sidebar() {
             <Text style={{ color: "#666", fontWeight: "600" }}>
               Tous mes projets
             </Text>
-          </TouchableOpacity>
+          </Hoverable>
         )}
 
         {currentItems.map((item) => {
@@ -334,8 +334,13 @@ export default function Sidebar() {
 
           return (
             <View key={item.href}>
-              <TouchableOpacity
+              <Hoverable
                 onPress={() => router.push(item.href as any)}
+                hoverStyle={{
+                  backgroundColor: isActive
+                    ? Colors.light.tint + "20"
+                    : "#f5f5f5",
+                }}
                 style={{
                   flexDirection: "row",
                   alignItems: "center",
@@ -397,8 +402,9 @@ export default function Sidebar() {
                   {item.name}
                 </Text>
                 {(isProjects || isChats) && (
-                  <TouchableOpacity
+                  <Hoverable
                     onPress={toggleExpand}
+                    hoverStyle={{ backgroundColor: "#eee", borderRadius: 4 }}
                     style={{
                       padding: 4,
                       paddingRight: 0,
@@ -409,9 +415,9 @@ export default function Sidebar() {
                       size={12}
                       color="#999"
                     />
-                  </TouchableOpacity>
+                  </Hoverable>
                 )}
-              </TouchableOpacity>
+              </Hoverable>
 
               {/* Sous-items Projets */}
               {isProjects && projectsExpanded && recentProjects.length > 0 && (
@@ -426,9 +432,14 @@ export default function Sidebar() {
                   {recentProjects.map((p) => {
                     const isSelected = pathname.includes(`/project/${p.id}`);
                     return (
-                      <TouchableOpacity
+                      <Hoverable
                         key={p.id}
                         onPress={() => router.push(`/project/${p.id}`)}
+                        hoverStyle={{
+                          backgroundColor: isSelected
+                            ? Colors.light.tint + "25"
+                            : "#f0f0f0",
+                        }}
                         style={{
                           flexDirection: "row",
                           alignItems: "center",
@@ -461,7 +472,7 @@ export default function Sidebar() {
                         >
                           {p.title}
                         </Text>
-                      </TouchableOpacity>
+                      </Hoverable>
                     );
                   })}
                 </View>
@@ -486,7 +497,7 @@ export default function Sidebar() {
                       : c.unreadCount || 0;
 
                     return (
-                      <TouchableOpacity
+                      <Hoverable
                         key={c.id}
                         onPress={() =>
                           router.push({
@@ -494,6 +505,11 @@ export default function Sidebar() {
                             params: { id: c.id },
                           })
                         }
+                        hoverStyle={{
+                          backgroundColor: isSelected
+                            ? Colors.light.tint + "25"
+                            : "#f0f0f0",
+                        }}
                         style={{
                           flexDirection: "row",
                           alignItems: "center",
@@ -577,7 +593,7 @@ export default function Sidebar() {
                             </Text>
                           </View>
                         )}
-                      </TouchableOpacity>
+                      </Hoverable>
                     );
                   })}
                 </View>
@@ -590,8 +606,13 @@ export default function Sidebar() {
         <View style={{ flex: 1 }} />
 
         {/* Mon Compte fixé en bas */}
-        <TouchableOpacity
+        <Hoverable
           onPress={() => router.push("/account")}
+          hoverStyle={{
+            backgroundColor: pathname.startsWith("/account")
+              ? Colors.light.tint + "20"
+              : "#f5f5f5",
+          }}
           style={{
             flexDirection: "row",
             alignItems: "center",
@@ -623,7 +644,7 @@ export default function Sidebar() {
           >
             Mon Compte
           </Text>
-        </TouchableOpacity>
+        </Hoverable>
       </View>
 
       <View style={styles.footer}>

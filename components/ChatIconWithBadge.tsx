@@ -4,7 +4,8 @@ import { supabase } from "@/lib/supabase";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { Link } from "expo-router";
 import React, { useEffect, useState } from "react";
-import { Pressable, useColorScheme, View } from "react-native";
+import { useColorScheme, View } from "react-native";
+import { Hoverable } from "./Hoverable";
 
 export default function ChatIconWithBadge() {
   const colorScheme = useColorScheme();
@@ -46,9 +47,11 @@ export default function ChatIconWithBadge() {
 
   return (
     <Link href="/direct-messages" asChild>
-      <Pressable>
-        {({ pressed }) => (
-          <View style={{ marginRight: 15, opacity: pressed ? 0.5 : 1 }}>
+      <Hoverable>
+        {({ pressed, hovered }) => (
+          <View
+            style={{ marginRight: 15, opacity: pressed || hovered ? 0.6 : 1 }}
+          >
             <FontAwesome
               name="comments"
               size={24}
@@ -71,13 +74,20 @@ export default function ChatIconWithBadge() {
                   borderColor: Colors[colorScheme ?? "light"].background,
                 }}
               >
-                  {/* Small dot style if count is high, or just number */}
-                 <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: 'white' }} />
+                {/* Small dot style if count is high, or just number */}
+                <View
+                  style={{
+                    width: 6,
+                    height: 6,
+                    borderRadius: 3,
+                    backgroundColor: "white",
+                  }}
+                />
               </View>
             )}
           </View>
         )}
-      </Pressable>
+      </Hoverable>
     </Link>
   );
 }

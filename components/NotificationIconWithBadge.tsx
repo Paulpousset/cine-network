@@ -3,13 +3,9 @@ import { useNotificationCount } from "@/hooks/useNotificationCount";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { Link } from "expo-router";
 import React from "react";
-import {
-    Pressable,
-    StyleSheet,
-    Text,
-    useColorScheme,
-    View,
-} from "react-native";
+import { StyleSheet, Text, useColorScheme, View } from "react-native";
+
+import { Hoverable } from "./Hoverable";
 
 export default function NotificationIconWithBadge() {
   const colorScheme = useColorScheme();
@@ -17,20 +13,20 @@ export default function NotificationIconWithBadge() {
 
   return (
     <Link href="/notifications" asChild>
-      <Pressable>
-        {({ pressed }) => (
+      <Hoverable>
+        {({ pressed, hovered }) => (
           <View
             style={{
               flexDirection: "row",
               alignItems: "center",
               marginRight: 15,
+              opacity: pressed || hovered ? 0.6 : 1,
             }}
           >
             <FontAwesome
               name="bell"
               size={25}
               color={Colors[colorScheme ?? "light"].text}
-              style={{ opacity: pressed ? 0.5 : 1 }}
             />
             {unreadCount > 0 && (
               <View style={styles.badge}>
@@ -41,7 +37,7 @@ export default function NotificationIconWithBadge() {
             )}
           </View>
         )}
-      </Pressable>
+      </Hoverable>
     </Link>
   );
 }

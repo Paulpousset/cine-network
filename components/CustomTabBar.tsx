@@ -1,3 +1,4 @@
+import { Hoverable } from "@/components/Hoverable";
 import { useColorScheme } from "@/components/useColorScheme";
 import Colors from "@/constants/Colors";
 import { BottomTabBarProps } from "@react-navigation/bottom-tabs";
@@ -6,9 +7,8 @@ import {
     Platform,
     StyleSheet,
     Text,
-    TouchableOpacity,
     useWindowDimensions,
-    View,
+    View
 } from "react-native";
 
 export default function CustomTabBar({
@@ -52,10 +52,13 @@ export default function CustomTabBar({
 
         return (
           <React.Fragment key={route.key}>
-            <TouchableOpacity
+            <Hoverable
               onPress={onPress}
               style={styles.tabItem}
-              activeOpacity={0.7}
+              hoverStyle={{
+                backgroundColor: colors.backgroundSecondary + "80",
+                opacity: 0.8,
+              }}
             >
               {options.tabBarIcon?.({ focused: isFocused, color, size: 24 })}
               {options.tabBarBadge ? (
@@ -85,7 +88,7 @@ export default function CustomTabBar({
                 </View>
               ) : null}
               <Text style={[styles.tabLabel, { color }]}>{options.title}</Text>
-            </TouchableOpacity>
+            </Hoverable>
 
             {index < state.routes.length - 1 && (
               <View
