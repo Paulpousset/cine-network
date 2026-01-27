@@ -3,6 +3,7 @@ import GlobalRealtimeListener from "@/components/GlobalRealtimeListener";
 import NotificationToast from "@/components/NotificationToast";
 import Sidebar from "@/components/Sidebar";
 import { Session } from "@supabase/supabase-js";
+import * as Linking from "expo-linking";
 import { Stack, usePathname, useRouter, useSegments } from "expo-router";
 import { useEffect, useState } from "react";
 import { Platform, useWindowDimensions, View } from "react-native";
@@ -19,16 +20,39 @@ export default function RootLayout() {
   const router = useRouter();
 
   useEffect(() => {
-    // 1. Écouter l'état de l'authentification (Connexion / Déconnexion)
+    // 1. Gérer les liens profonds (Deep Linking) pour l'auth
+    const handleDeepLink = (event: { url: string }) => {
+      const { queryParams } = Linking.parse(event.url.replace("#", "?"));
+      const access_token =
+        queryParams?.access_token || queryParams?.["#access_token"];
+      const refresh_token = queryParams?.refresh_token;
+
+      if (access_token) {
+        supabase.auth.setSession({
+          access_token: access_token as string,
+          refresh_token: (refresh_token as string) || "",
+        });
+      }
+    };
+
+    const subscription = Linking.addEventListener("url", handleDeepLink);
+
+    // Vérifier si l'app a été ouverte via un lien au démarrage
+    Linking.getInitialURL().then((url) => {
+      if (url) handleDeepLink({ url });
+    });
+
+    // 2. Écouter l'état de l'authentification (Connexion / Déconnexion)
     const {
-      data: { subscription },
+      data: { subscription: authSubscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
       setSession(session);
       setInitialized(true);
     });
 
     return () => {
-      subscription.unsubscribe();
+      subscription.remove();
+      authSubscription.unsubscribe();
     };
   }, []);
 
@@ -70,8 +94,7 @@ export default function RootLayout() {
 
   return (
     <View style={{ flex: 1, flexDirection: isWebLarge ? "row" : "column" }}>
-      {session && <GlobalRealtimeListener />}
-      <NotificationToast />
+      {session && <GlobalRealtimeListener user={session.user} />}
       {showSidebar ? <Sidebar /> : null}
       <View
         style={{
@@ -90,8 +113,11 @@ export default function RootLayout() {
           <Stack.Screen name="project" options={{ headerShown: false }} />
           <Stack.Screen name="network" options={{ headerShown: false }} />
           <Stack.Screen name="profile/[id]" options={{ headerShown: false }} />
+          <Stack.Screen name="hall-of-fame" options={{ headerShown: false }} />
+          <Stack.Screen name="my-awards" options={{ headerShown: false }} />
         </Stack>
       </View>
+      <NotificationToast />
     </View>
   );
 }

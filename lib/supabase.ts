@@ -1,22 +1,26 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { createClient } from "@supabase/supabase-js";
 import { Platform } from "react-native";
-import "react-native-url-polyfill/auto";
 
-// REMPLACE ICI AVEC TES INFOS SUPABASE
+// Polyfill uniquement sur mobile
+if (Platform.OS !== "web") {
+  require("react-native-url-polyfill/auto");
+}
+
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!;
 
-const storage =
-  Platform.OS === "web" && typeof window === "undefined"
-    ? undefined
-    : AsyncStorage;
-
+// Sur le web, supabase-js v2 gère automatiquement le localStorage par défaut
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
-    storage: storage,
+    storage: Platform.OS === "web" ? undefined : AsyncStorage,
     autoRefreshToken: true,
     persistSession: true,
-    detectSessionInUrl: false,
+    detectSessionInUrl: true,
+  },
+  realtime: {
+    params: {
+      eventsPerSecond: 10,
+    },
   },
 });

@@ -1,14 +1,20 @@
+import AddressAutocomplete from "@/app/components/AddressAutocomplete";
+import CityPicker from "@/app/components/CityPicker";
+import CountryPicker from "@/app/components/CountryPicker";
 import ClapLoading from "@/components/ClapLoading";
+import WebDatePicker from "@/components/WebDatePicker";
 import Colors from "@/constants/Colors";
 import { GlobalStyles } from "@/constants/Styles";
 import { supabase } from "@/lib/supabase";
 import { Ionicons } from "@expo/vector-icons";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import * as ImagePicker from "expo-image-picker";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   Alert,
   Image,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -40,6 +46,9 @@ export default function ProjectSettings() {
   const [description, setDescription] = useState("");
   const [ville, setVille] = useState("");
   const [pays, setPays] = useState("");
+  const [address, setAddress] = useState("");
+  const [latitude, setLatitude] = useState<number | null>(null);
+  const [longitude, setLongitude] = useState<number | null>(null);
   const [isPublic, setIsPublic] = useState(false);
   // New fields
   const [type, setType] = useState("");
@@ -47,7 +56,34 @@ export default function ProjectSettings() {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
 
+  const [showStartPicker, setShowStartPicker] = useState(false);
+  const [showEndPicker, setShowEndPicker] = useState(false);
+
   const [uploading, setUploading] = useState(false);
+
+  // Geocoding helper
+  async function getCoordinates(fullAddress: string) {
+    try {
+      const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(
+        fullAddress,
+      )}&format=json&limit=1`;
+      const res = await fetch(url, {
+        headers: {
+          "User-Agent": "CineNetwork/1.0",
+        },
+      });
+      const data = await res.json();
+      if (data && data.length > 0) {
+        return {
+          lat: parseFloat(data[0].lat),
+          lon: parseFloat(data[0].lon),
+        };
+      }
+    } catch (e) {
+      console.log("Geocoding error:", e);
+    }
+    return null;
+  }
 
   useEffect(() => {
     fetchData();
@@ -128,6 +164,9 @@ export default function ProjectSettings() {
       setDescription(projectData.description || "");
       setVille(projectData.ville || "");
       setPays(projectData.pays || "");
+      setAddress(projectData.address || "");
+      setLatitude(projectData.latitude || null);
+      setLongitude(projectData.longitude || null);
       setIsPublic(projectData.is_public || false);
       setType(projectData.type || "court_metrage");
       setImageUrl(projectData.image_url || "");
@@ -169,6 +208,29 @@ export default function ProjectSettings() {
   async function handleUpdateInfo() {
     try {
       setSaving(true);
+
+      let lat = latitude;
+      let lon = longitude;
+
+      // Force geocoding if address is present but coords are missing
+      // or if we want to refresh coords from the textual address
+      if (address.trim() && (!lat || !lon)) {
+        const searchParts = [];
+        if (address.trim()) searchParts.push(address.trim());
+        if (ville.trim()) searchParts.push(ville.trim());
+        if (pays.trim()) searchParts.push(pays.trim());
+
+        const searchAddr = searchParts.join(", ");
+
+        if (searchAddr.trim()) {
+          const c = await getCoordinates(searchAddr);
+          if (c) {
+            lat = c.lat;
+            lon = c.lon;
+          }
+        }
+      }
+
       const { error } = await supabase
         .from("tournages")
         .update({
@@ -176,6 +238,9 @@ export default function ProjectSettings() {
           description,
           ville,
           pays,
+          address,
+          latitude: lat ? parseFloat(String(lat)) : null,
+          longitude: lon ? parseFloat(String(lon)) : null,
           is_public: isPublic,
           type,
           image_url: imageUrl,
@@ -185,7 +250,15 @@ export default function ProjectSettings() {
         .eq("id", id);
 
       if (error) throw error;
-      Alert.alert("Succès", "Informations mises à jour");
+
+      let successMsg = "Informations mises à jour !";
+      if (address.trim() && (!lat || !lon)) {
+        successMsg +=
+          "\n\nNote: Nous n'avons pas pu localiser l'adresse précisément sur la carte. Vérifiez l'orthographe ou utilisez une ville connue.";
+      }
+
+      Alert.alert("Succès", successMsg);
+      fetchData();
     } catch (error) {
       Alert.alert("Erreur", (error as Error).message);
     } finally {
@@ -274,6 +347,13 @@ export default function ProjectSettings() {
           style: "destructive",
           onPress: async () => {
             try {
+              // Remove accepted application to allow re-apply
+              await supabase
+                .from("applications")
+                .delete()
+                .eq("role_id", roleId)
+                .eq("status", "accepted");
+
               const { error } = await supabase
                 .from("project_roles")
                 .update({ assigned_profile_id: null, status: "open" })
@@ -321,7 +401,10 @@ export default function ProjectSettings() {
         <Text style={GlobalStyles.title1}>Paramètres du projet</Text>
       </View>
 
-      <ScrollView contentContainerStyle={{ paddingBottom: 50 }}>
+      <ScrollView
+        contentContainerStyle={{ paddingBottom: 50 }}
+        keyboardShouldPersistTaps="handled"
+      >
         {/* --- SECTION 1: VISUELS --- */}
         <View style={GlobalStyles.card}>
           <Text style={GlobalStyles.title2}>Visuel</Text>
@@ -453,23 +536,32 @@ export default function ProjectSettings() {
           <View style={styles.row}>
             <View style={{ flex: 1, marginRight: 10 }}>
               <Text style={styles.label}>Ville</Text>
-              <TextInput
-                style={GlobalStyles.input}
-                value={ville}
-                onChangeText={setVille}
-                placeholderTextColor="#999"
+              <CityPicker
+                currentValue={ville}
+                onSelect={setVille}
+                placeholder="Ex: Paris"
               />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.label}>Pays</Text>
-              <TextInput
-                style={GlobalStyles.input}
-                value={pays}
-                onChangeText={setPays}
-                placeholderTextColor="#999"
+              <CountryPicker
+                currentValue={pays}
+                onSelect={setPays}
+                placeholder="Ex: France"
               />
             </View>
           </View>
+
+          <Text style={[styles.label, { marginTop: 10 }]}>Adresse exacte</Text>
+          <AddressAutocomplete
+            currentValue={address}
+            onSelect={(addr, lat, lon) => {
+              setAddress(addr);
+              setLatitude(lat || null);
+              setLongitude(lon || null);
+            }}
+            placeholder="Rechercher une adresse..."
+          />
         </View>
 
         {/* --- SECTION 3: DATES --- */}
@@ -477,24 +569,100 @@ export default function ProjectSettings() {
           <Text style={GlobalStyles.title2}>Dates de tournage</Text>
           <View style={styles.row}>
             <View style={{ flex: 1, marginRight: 10 }}>
-              <Text style={styles.label}>Début (AAAA-MM-JJ)</Text>
-              <TextInput
-                style={GlobalStyles.input}
-                value={startDate}
-                onChangeText={setStartDate}
-                placeholder="2026-06-15"
-                placeholderTextColor="#999"
-              />
+              <Text style={styles.label}>Début</Text>
+              {Platform.OS === "web" ? (
+                <WebDatePicker value={startDate} onChange={setStartDate} />
+              ) : (
+                <>
+                  <TouchableOpacity
+                    style={GlobalStyles.input}
+                    onPress={() => setShowStartPicker(true)}
+                  >
+                    <Text
+                      style={{ color: startDate ? Colors.light.text : "#999" }}
+                    >
+                      {startDate || "Choisir une date"}
+                    </Text>
+                  </TouchableOpacity>
+                  {showStartPicker && (
+                    <DateTimePicker
+                      value={startDate ? new Date(startDate) : new Date()}
+                      mode="date"
+                      display="default"
+                      onChange={(event, date) => {
+                        if (Platform.OS === "android") {
+                          setShowStartPicker(false);
+                        }
+                        if (date) {
+                          setStartDate(date.toISOString().split("T")[0]);
+                        }
+                      }}
+                    />
+                  )}
+                  {Platform.OS === "ios" && showStartPicker && (
+                    <TouchableOpacity
+                      onPress={() => setShowStartPicker(false)}
+                      style={{
+                        marginTop: 5,
+                        padding: 8,
+                        backgroundColor: "#eee",
+                        borderRadius: 5,
+                        alignItems: "center",
+                      }}
+                    >
+                      <Text style={{ fontSize: 12, color: "#666" }}>OK</Text>
+                    </TouchableOpacity>
+                  )}
+                </>
+              )}
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.label}>Fin (AAAA-MM-JJ)</Text>
-              <TextInput
-                style={GlobalStyles.input}
-                value={endDate}
-                onChangeText={setEndDate}
-                placeholder="2026-06-30"
-                placeholderTextColor="#999"
-              />
+              <Text style={styles.label}>Fin</Text>
+              {Platform.OS === "web" ? (
+                <WebDatePicker value={endDate} onChange={setEndDate} />
+              ) : (
+                <>
+                  <TouchableOpacity
+                    style={GlobalStyles.input}
+                    onPress={() => setShowEndPicker(true)}
+                  >
+                    <Text
+                      style={{ color: endDate ? Colors.light.text : "#999" }}
+                    >
+                      {endDate || "Choisir une date"}
+                    </Text>
+                  </TouchableOpacity>
+                  {showEndPicker && (
+                    <DateTimePicker
+                      value={endDate ? new Date(endDate) : new Date()}
+                      mode="date"
+                      display="default"
+                      onChange={(event, date) => {
+                        if (Platform.OS === "android") {
+                          setShowEndPicker(false);
+                        }
+                        if (date) {
+                          setEndDate(date.toISOString().split("T")[0]);
+                        }
+                      }}
+                    />
+                  )}
+                  {Platform.OS === "ios" && showEndPicker && (
+                    <TouchableOpacity
+                      onPress={() => setShowEndPicker(false)}
+                      style={{
+                        marginTop: 5,
+                        padding: 8,
+                        backgroundColor: "#eee",
+                        borderRadius: 5,
+                        alignItems: "center",
+                      }}
+                    >
+                      <Text style={{ fontSize: 12, color: "#666" }}>OK</Text>
+                    </TouchableOpacity>
+                  )}
+                </>
+              )}
             </View>
           </View>
         </View>

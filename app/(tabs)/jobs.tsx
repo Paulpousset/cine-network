@@ -2,6 +2,7 @@ import AppMap, { Marker, PROVIDER_DEFAULT } from "@/components/AppMap";
 import ClapLoading from "@/components/ClapLoading";
 import Colors from "@/constants/Colors";
 import { GlobalStyles } from "@/constants/Styles";
+import { getRecommendedRoles } from "@/lib/matching";
 import { JOB_TITLES } from "@/utils/roles";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -55,6 +56,10 @@ export default function Discover() {
   const [projects, setProjects] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Recommendations
+  const [recommendations, setRecommendations] = useState<any[]>([]);
+  const [isRecsCollapsed, setIsRecsCollapsed] = useState(false); // State to toggle recommendations visibility
+
   // View Content Type: 'roles' (Jobs) or 'projects' (Tournages)
   const [contentType, setContentType] = useState<"roles" | "projects">("roles");
   // View Mode: 'list' or 'map'
@@ -84,7 +89,46 @@ export default function Discover() {
 
   useEffect(() => {
     fetchCities();
+    fetchRecommendations();
   }, []);
+
+  async function fetchRecommendations() {
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // 1. Get User Profile
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", user.id)
+        .single();
+      if (!profile) return;
+
+      // 2. Get Open Roles
+      const { data: roles } = await supabase
+        .from("project_roles")
+        .select(
+          `
+                *,
+                tournages (*)
+            `,
+        )
+        .eq("status", "published")
+        .is("assigned_profile_id", null)
+        .limit(50); // Limit for performance
+
+      if (!roles) return;
+
+      // 3. Calculate
+      const recs = getRecommendedRoles(profile, roles);
+      setRecommendations(recs.slice(0, 3)); // Top 3
+    } catch (e) {
+      console.log("Error fetching recommendations", e);
+    }
+  }
 
   async function fetchCities() {
     try {
@@ -119,7 +163,7 @@ export default function Discover() {
         .select(
           `
           *,
-          tournages!inner ( id, title, type, pays, ville, latitude, longitude )
+          tournages ( id, title, type, pays, ville, latitude, longitude )
         `,
         )
         .order("is_boosted", { ascending: false })
@@ -136,9 +180,9 @@ export default function Discover() {
       const { data, error } = await query;
       if (error) throw error;
 
-      // Filter out draft roles client-side
+      // Filter out draft and assigned roles client-side
       const visible = ((data as any[]) || []).filter(
-        (r) => r.status !== "draft",
+        (r) => r.status === "published" && r.tournages, // Ensure tournage data is present
       );
       setAllRoles(visible);
     } catch (error) {
@@ -173,16 +217,22 @@ export default function Discover() {
     // Derive unique projects from filtered roles
     const uniqueProjectsMap = new Map();
     filtered.forEach((role) => {
-      if (role.tournages && !uniqueProjectsMap.has(role.tournages.id)) {
-        uniqueProjectsMap.set(role.tournages.id, {
-          ...role.tournages,
-          roleCount: 1,
-          roles: [role],
-        });
-      } else if (role.tournages) {
-        const p = uniqueProjectsMap.get(role.tournages.id);
-        p.roleCount++;
-        p.roles.push(role);
+      // Robustly handle 'tournages' join which might be an object or an array
+      let t = role.tournages;
+      if (Array.isArray(t)) t = t[0];
+
+      if (t && t.id) {
+        if (!uniqueProjectsMap.has(t.id)) {
+          uniqueProjectsMap.set(t.id, {
+            ...t,
+            roleCount: 1,
+            roles: [role],
+          });
+        } else {
+          const p = uniqueProjectsMap.get(t.id);
+          p.roleCount++;
+          p.roles.push(role);
+        }
       }
     });
     setProjects(Array.from(uniqueProjectsMap.values()));
@@ -492,6 +542,113 @@ export default function Discover() {
         </View>
       </View>
 
+      {/* RECOMMENDATIONS SECTION */}
+      {contentType === "roles" && recommendations.length > 0 && (
+        <View style={styles.recsWrapper}>
+          <TouchableOpacity
+            style={[styles.recsSectionHeader, { paddingVertical: 5 }]}
+            onPress={() => setIsRecsCollapsed(!isRecsCollapsed)}
+            activeOpacity={0.7}
+          >
+            <View
+              style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
+            >
+              <Text style={styles.recsSectionTitle}>
+                ✨ Recommandé pour vous
+              </Text>
+              <View
+                style={{
+                  backgroundColor: Colors.light.tint + "20",
+                  paddingHorizontal: 6,
+                  paddingVertical: 2,
+                  borderRadius: 10,
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 10,
+                    fontWeight: "bold",
+                    color: Colors.light.tint,
+                  }}
+                >
+                  {recommendations.length}
+                </Text>
+              </View>
+            </View>
+
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <Text
+                style={{
+                  fontSize: 12,
+                  color: Colors.light.tint,
+                  marginRight: 4,
+                }}
+              >
+                {isRecsCollapsed ? "Afficher" : "Réduire"}
+              </Text>
+              <Ionicons
+                name={isRecsCollapsed ? "chevron-down" : "chevron-up"}
+                size={20}
+                color={Colors.light.tint}
+              />
+            </View>
+          </TouchableOpacity>
+
+          {!isRecsCollapsed && (
+            <FlatList
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              data={recommendations}
+              keyExtractor={(item) => item.id}
+              contentContainerStyle={styles.recsListContent}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  onPress={() => router.push(`/project/role/${item.id}`)}
+                  style={styles.recCard}
+                  activeOpacity={0.9}
+                >
+                  <View style={styles.recCardHeader}>
+                    <View style={styles.matchBadge}>
+                      <Text style={styles.matchBadgeText}>
+                        {item.matchScore}% Match
+                      </Text>
+                    </View>
+                  </View>
+
+                  <Text style={styles.recCardTitle} numberOfLines={1}>
+                    {item.title}
+                  </Text>
+
+                  <Text style={styles.recCardSubtitle} numberOfLines={1}>
+                    {item.tournages?.title}
+                  </Text>
+
+                  <View style={styles.recCardFooter}>
+                    <View
+                      style={{ flexDirection: "row", alignItems: "center" }}
+                    >
+                      <Ionicons
+                        name="location-outline"
+                        size={10}
+                        color="#666"
+                      />
+                      <Text style={styles.recCardMeta}>
+                        {item.tournages?.ville || "N/C"}
+                      </Text>
+                    </View>
+                    <Ionicons
+                      name="chevron-forward"
+                      size={14}
+                      color={Colors.light.tint}
+                    />
+                  </View>
+                </TouchableOpacity>
+              )}
+            />
+          )}
+        </View>
+      )}
+
       {loading ? (
         <ClapLoading
           size={50}
@@ -515,16 +672,20 @@ export default function Discover() {
                 (car tous les rôles d'un projet sont au même endroit).
             */}
             {projects.map((proj) => {
-              if (!proj || !proj.latitude || !proj.longitude) {
+              const lat = parseFloat(String(proj.latitude));
+              const lon = parseFloat(String(proj.longitude));
+
+              if (isNaN(lat) || isNaN(lon)) {
                 return null;
               }
-              const key = `proj-${proj.id}`;
+              // Include lat/lon in key to force re-render if coordinates change
+              const key = `proj-${proj.id}-${lat}-${lon}`;
               return (
                 <Marker
                   key={key}
                   coordinate={{
-                    latitude: proj.latitude,
-                    longitude: proj.longitude,
+                    latitude: lat,
+                    longitude: lon,
                   }}
                   title={proj.title}
                   description={`${proj.roleCount} offre(s) • ${proj.type}`}
@@ -816,5 +977,88 @@ const styles = StyleSheet.create({
     elevation: 4,
     alignItems: "center",
     justifyContent: "center",
+  },
+  recsWrapper: {
+    paddingVertical: 15,
+    backgroundColor: "#f8faff",
+    borderBottomWidth: 1,
+    borderColor: "#eef2ff",
+  },
+  recsSectionHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    marginBottom: 12,
+  },
+  recsSectionTitle: {
+    fontWeight: "800",
+    fontSize: 14,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    color: Colors.light.primary,
+  },
+  recsSeeMore: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: Colors.light.tint,
+  },
+  recsListContent: {
+    paddingHorizontal: 15,
+  },
+  recCard: {
+    backgroundColor: "white",
+    padding: 12,
+    borderRadius: 12,
+    marginHorizontal: 5,
+    width: 220,
+    shadowColor: "#4f46e5",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: "#eef2ff",
+  },
+  recCardHeader: {
+    marginBottom: 8,
+  },
+  matchBadge: {
+    backgroundColor: "#e0e7ff",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    alignSelf: "flex-start",
+  },
+  matchBadgeText: {
+    fontSize: 10,
+    fontWeight: "800",
+    color: "#4f46e5",
+  },
+  recCardTitle: {
+    fontWeight: "700",
+    fontSize: 15,
+    color: "#1e293b",
+    marginBottom: 2,
+  },
+  recCardSubtitle: {
+    fontSize: 12,
+    color: "#64748b",
+    marginBottom: 8,
+  },
+  recCardFooter: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: "auto",
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: "#f1f5f9",
+  },
+  recCardMeta: {
+    fontSize: 10,
+    color: "#64748b",
+    marginLeft: 4,
+    fontWeight: "500",
   },
 });

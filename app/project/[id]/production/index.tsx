@@ -1,29 +1,31 @@
+import AddressAutocomplete from "@/app/components/AddressAutocomplete";
+import CityPicker from "@/app/components/CityPicker";
+import WebDatePicker from "@/components/WebDatePicker";
 import Colors from "@/constants/Colors";
 import { Database } from "@/lib/database.types";
 import { supabase } from "@/lib/supabase";
 import { Ionicons } from "@expo/vector-icons";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import {
-    useGlobalSearchParams,
-    useLocalSearchParams,
-    useRouter,
+  useGlobalSearchParams,
+  useLocalSearchParams,
+  useRouter,
 } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    FlatList,
-    KeyboardAvoidingView,
-    Modal,
-    Platform,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    ScrollView,
-    View,
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
-import DateTimePicker from "@react-native-community/datetimepicker";
-import AddressAutocomplete from "@/app/components/AddressAutocomplete";
 
 type ShootDay = Database["public"]["Tables"]["shoot_days"]["Row"];
 type Scene = Database["public"]["Tables"]["scenes"]["Row"];
@@ -39,39 +41,39 @@ const ALLOWED_ROLES = [
   "Directeur de production",
 ];
 
-const DAY_TYPES = ['SHOOT', 'SCOUT', 'PREP', 'OFF', 'TRAVEL'];
+const DAY_TYPES = ["SHOOT", "SCOUT", "PREP", "OFF", "TRAVEL"];
 
 const Selector = ({
-    options,
-    value,
-    onChange,
-  }: {
-    options: string[];
-    value: string;
-    onChange: (val: string) => void;
-  }) => (
-    <View style={styles.selectorContainer}>
-      {options.map((opt) => (
-        <TouchableOpacity
-          key={opt}
+  options,
+  value,
+  onChange,
+}: {
+  options: string[];
+  value: string;
+  onChange: (val: string) => void;
+}) => (
+  <View style={styles.selectorContainer}>
+    {options.map((opt) => (
+      <TouchableOpacity
+        key={opt}
+        style={[
+          styles.selectorOption,
+          value === opt && styles.selectorOptionSelected,
+        ]}
+        onPress={() => onChange(opt)}
+      >
+        <Text
           style={[
-            styles.selectorOption,
-            value === opt && styles.selectorOptionSelected,
+            styles.selectorText,
+            value === opt && styles.selectorTextSelected,
           ]}
-          onPress={() => onChange(opt)}
         >
-          <Text
-            style={[
-              styles.selectorText,
-              value === opt && styles.selectorTextSelected,
-            ]}
-          >
-            {opt}
-          </Text>
-        </TouchableOpacity>
-      ))}
-    </View>
-  );
+          {opt}
+        </Text>
+      </TouchableOpacity>
+    ))}
+  </View>
+);
 
 export default function ProductionScreen() {
   const router = useRouter();
@@ -103,7 +105,7 @@ export default function ProductionScreen() {
   const [showCallPicker, setShowCallPicker] = useState(false);
   const [showWrapPicker, setShowWrapPicker] = useState(false);
   const [showLunchPicker, setShowLunchPicker] = useState(false);
-  
+
   // Scene Selection State
   const [availableScenes, setAvailableScenes] = useState<Scene[]>([]);
   const [selectedScenes, setSelectedScenes] = useState<string[]>([]);
@@ -183,64 +185,64 @@ export default function ProductionScreen() {
   };
 
   const fetchAvailableScenes = async () => {
-      setLoadingScenes(true);
-      const { data } = await supabase
-        .from("scenes")
-        .select("*")
-        .eq("tournage_id", id)
-        .order("scene_number", { ascending: true }); // Numeric string sort might be tricky, but ok for now
-      
-      setAvailableScenes(data || []);
-      setLoadingScenes(false);
+    setLoadingScenes(true);
+    const { data } = await supabase
+      .from("scenes")
+      .select("*")
+      .eq("tournage_id", id)
+      .order("scene_number", { ascending: true }); // Numeric string sort might be tricky, but ok for now
+
+    setAvailableScenes(data || []);
+    setLoadingScenes(false);
   };
 
   const onDateChange = (event: any, selectedDate?: Date) => {
-    if (Platform.OS === 'android') {
+    if (Platform.OS === "android") {
       setShowDatePicker(false);
     }
-    
+
     if (selectedDate) {
-      const formattedDate = selectedDate.toISOString().split('T')[0];
+      const formattedDate = selectedDate.toISOString().split("T")[0];
       setDate(formattedDate);
     }
   };
 
   const onCallTimeChange = (event: any, selectedDate?: Date) => {
-      if (Platform.OS === 'android') {
-          setShowCallPicker(false);
-      }
-      if (selectedDate) {
-        const hours = selectedDate.getHours().toString().padStart(2, '0');
-        const minutes = selectedDate.getMinutes().toString().padStart(2, '0');
-        setCallTime(`${hours}:${minutes}`);
-      }
+    if (Platform.OS === "android") {
+      setShowCallPicker(false);
+    }
+    if (selectedDate) {
+      const hours = selectedDate.getHours().toString().padStart(2, "0");
+      const minutes = selectedDate.getMinutes().toString().padStart(2, "0");
+      setCallTime(`${hours}:${minutes}`);
+    }
   };
 
   const onWrapTimeChange = (event: any, selectedDate?: Date) => {
-      if (Platform.OS === 'android') {
-          setShowWrapPicker(false);
-      }
-      if (selectedDate) {
-        const hours = selectedDate.getHours().toString().padStart(2, '0');
-        const minutes = selectedDate.getMinutes().toString().padStart(2, '0');
-        setWrapTime(`${hours}:${minutes}`);
-      }
+    if (Platform.OS === "android") {
+      setShowWrapPicker(false);
+    }
+    if (selectedDate) {
+      const hours = selectedDate.getHours().toString().padStart(2, "0");
+      const minutes = selectedDate.getMinutes().toString().padStart(2, "0");
+      setWrapTime(`${hours}:${minutes}`);
+    }
   };
 
   const onLunchTimeChange = (event: any, selectedDate?: Date) => {
-      if (Platform.OS === 'android') {
-          setShowLunchPicker(false);
-      }
-      if (selectedDate) {
-        const hours = selectedDate.getHours().toString().padStart(2, '0');
-        const minutes = selectedDate.getMinutes().toString().padStart(2, '0');
-        setLunchTime(`${hours}:${minutes}`);
-      }
+    if (Platform.OS === "android") {
+      setShowLunchPicker(false);
+    }
+    if (selectedDate) {
+      const hours = selectedDate.getHours().toString().padStart(2, "0");
+      const minutes = selectedDate.getMinutes().toString().padStart(2, "0");
+      setLunchTime(`${hours}:${minutes}`);
+    }
   };
 
   const openAddModal = () => {
-      setModalVisible(true);
-      fetchAvailableScenes();
+    setModalVisible(true);
+    fetchAvailableScenes();
   };
 
   const handleAddDay = async () => {
@@ -258,20 +260,24 @@ export default function ProductionScreen() {
 
     setAdding(true);
 
-    const { data: dayData, error } = await supabase.from("shoot_days").insert({
-      tournage_id: id,
-      date: date,
-      call_time: callTime || null,
-      wrap_time: wrapTime || null,
-      day_type: dayType,
-      location: location || null,
-      address_street: addressStreet || null,
-      address_city: addressCity || null,
-      parking_info: parkingInfo || null,
-      lunch_time: lunchTime || null,
-      catering_info: cateringInfo || null,
-      notes: notes || null,
-    }).select().single();
+    const { data: dayData, error } = await supabase
+      .from("shoot_days")
+      .insert({
+        tournage_id: id,
+        date: date,
+        call_time: callTime || null,
+        wrap_time: wrapTime || null,
+        day_type: dayType,
+        location: location || null,
+        address_street: addressStreet || null,
+        address_city: addressCity || null,
+        parking_info: parkingInfo || null,
+        lunch_time: lunchTime || null,
+        catering_info: cateringInfo || null,
+        notes: notes || null,
+      })
+      .select()
+      .single();
 
     if (error || !dayData) {
       console.error(error);
@@ -279,14 +285,16 @@ export default function ProductionScreen() {
     } else {
       // If scenes were selected, link them
       if (selectedScenes.length > 0) {
-          const links = selectedScenes.map((sceneId, index) => ({
-              shoot_day_id: dayData.id,
-              scene_id: sceneId,
-              order_index: index
-          }));
-          
-          const { error: linkError } = await supabase.from('shoot_day_scenes').insert(links);
-          if (linkError) console.error("Error linking scenes", linkError);
+        const links = selectedScenes.map((sceneId, index) => ({
+          shoot_day_id: dayData.id,
+          scene_id: sceneId,
+          order_index: index,
+        }));
+
+        const { error: linkError } = await supabase
+          .from("shoot_day_scenes")
+          .insert(links);
+        if (linkError) console.error("Error linking scenes", linkError);
       }
 
       setModalVisible(false);
@@ -370,8 +378,12 @@ export default function ProductionScreen() {
           <TouchableOpacity
             onPress={() =>
               router.push({
-                pathname: `/project/${id}/spaces/production`,
-                params: { tab: "tools" },
+                pathname: "/project/[id]/spaces/[category]",
+                params: {
+                  id: id as string,
+                  category: "production",
+                  tab: "tools",
+                },
               })
             }
             style={{ marginRight: 15 }}
@@ -381,10 +393,7 @@ export default function ProductionScreen() {
           <Text style={styles.headerTitle}>Plan de Travail</Text>
         </View>
         {canEdit && (
-          <TouchableOpacity
-            onPress={openAddModal}
-            style={styles.headerButton}
-          >
+          <TouchableOpacity onPress={openAddModal} style={styles.headerButton}>
             <Ionicons name="add-circle" size={32} color={Colors.light.tint} />
           </TouchableOpacity>
         )}
@@ -426,214 +435,380 @@ export default function ProductionScreen() {
               </TouchableOpacity>
             </View>
 
-            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-                <View style={styles.inputGroup}>
-                    <Text style={styles.label}>Type de journée</Text>
-                    <Selector options={DAY_TYPES} value={dayType} onChange={setDayType} />
-                </View>
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+            >
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Type de journée</Text>
+                <Selector
+                  options={DAY_TYPES}
+                  value={dayType}
+                  onChange={setDayType}
+                />
+              </View>
 
-                <View style={styles.inputGroup}>
-                    <Text style={styles.label}>Date</Text>
-                    <TouchableOpacity 
-                        style={[styles.input, { justifyContent: 'center' }]} 
-                        onPress={() => setShowDatePicker(!showDatePicker)}
-                    >
-                        <Text style={{ color: date ? Colors.light.text : '#999' }}>
-                            {date ? new Date(date).toLocaleDateString('fr-FR') : "Sélectionner une date"}
-                        </Text>
-                    </TouchableOpacity>
-                    {showDatePicker && (
-                        <DateTimePicker
-                            value={date ? new Date(date) : new Date()}
-                            mode="date"
-                            display={Platform.OS === 'ios' ? 'inline' : 'default'}
-                            onChange={onDateChange}
-                            textColor={Colors.light.text}
-                        />
-                    )}
-                </View>
-
-                <View style={{flexDirection: 'row', gap: 10}}>
-                    <View style={[styles.inputGroup, {flex: 1}]}>
-                        <Text style={styles.label}>Pâté (Call)</Text>
-                         <TouchableOpacity 
-                            style={[styles.input, { justifyContent: 'center' }]} 
-                            onPress={() => setShowCallPicker(!showCallPicker)}
-                        >
-                            <Text style={{ color: callTime ? Colors.light.text : '#999' }}>
-                                {callTime || "08:00"}
-                            </Text>
-                        </TouchableOpacity>
-                        {showCallPicker && (
-                            <DateTimePicker
-                                value={(() => {
-                                    const d = new Date();
-                                    if(callTime) {
-                                        const [h, m] = callTime.split(':');
-                                        d.setHours(Number(h));
-                                        d.setMinutes(Number(m));
-                                    } else {
-                                        d.setHours(8); d.setMinutes(0);
-                                    }
-                                    return d;
-                                })()}
-                                mode="time"
-                                is24Hour={true}
-                                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                                onChange={onCallTimeChange}
-                            />
-                        )}
-                    </View>
-                    <View style={[styles.inputGroup, {flex: 1}]}>
-                        <Text style={styles.label}>Fin (Wrap)</Text>
-                        <TouchableOpacity 
-                            style={[styles.input, { justifyContent: 'center' }]} 
-                            onPress={() => setShowWrapPicker(!showWrapPicker)}
-                        >
-                            <Text style={{ color: wrapTime ? Colors.light.text : '#999' }}>
-                                {wrapTime || "19:00"}
-                            </Text>
-                        </TouchableOpacity>
-                        {showWrapPicker && (
-                            <DateTimePicker
-                                value={(() => {
-                                    const d = new Date();
-                                    if(wrapTime) {
-                                        const [h, m] = wrapTime.split(':');
-                                        d.setHours(Number(h));
-                                        d.setMinutes(Number(m));
-                                    } else {
-                                        d.setHours(19); d.setMinutes(0);
-                                    }
-                                    return d;
-                                })()}
-                                mode="time"
-                                is24Hour={true}
-                                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                                onChange={onWrapTimeChange}
-                            />
-                        )}
-                    </View>
-                </View>
-
-                <Text style={styles.sectionHeader}>Logistique</Text>
-                <View style={styles.inputGroup}>
-                    <Text style={styles.label}>Lieu principal (Nom)</Text>
-                    <TextInput
-                        style={styles.input}
-                        value={location}
-                        onChangeText={setLocation}
-                        placeholder="Studio, Extérieur..."
-                        placeholderTextColor="#999"
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Date</Text>
+                <TouchableOpacity
+                  style={[styles.input, { justifyContent: "center" }]}
+                  onPress={() => setShowDatePicker(!showDatePicker)}
+                >
+                  <Text style={{ color: date ? Colors.light.text : "#999" }}>
+                    {date
+                      ? new Date(date).toLocaleDateString("fr-FR")
+                      : "Sélectionner une date"}
+                  </Text>
+                </TouchableOpacity>
+                {showDatePicker &&
+                  (Platform.OS === "web" ? (
+                    <WebDatePicker
+                      type="date"
+                      value={date}
+                      onChange={(val) => {
+                        setDate(val);
+                        setShowDatePicker(false);
+                      }}
                     />
-                </View>
-                <View style={[styles.inputGroup, {zIndex: 100}]}>
-                    <Text style={styles.label}>Adresse</Text>
-                    <AddressAutocomplete 
-                        currentValue={addressStreet}
-                        onSelect={(addr, lat, lon, city, zip) => {
-                            setAddressStreet(addr);
-                            if (city) {
-                                // If zip is present, maybe append it or just use city
-                                setAddressCity(zip ? `${zip} ${city}` : city);
-                            }
+                  ) : (
+                    <View style={{ alignItems: "center" }}>
+                      <DateTimePicker
+                        value={date ? new Date(date) : new Date()}
+                        mode="date"
+                        display="default"
+                        onChange={onDateChange}
+                        textColor={Colors.light.text}
+                      />
+                      {Platform.OS === "ios" && (
+                        <TouchableOpacity
+                          onPress={() => setShowDatePicker(false)}
+                          style={{
+                            marginTop: 10,
+                            padding: 10,
+                            backgroundColor: "#eee",
+                            borderRadius: 8,
+                            alignItems: "center",
+                          }}
+                        >
+                          <Text style={{ fontWeight: "bold", color: "#666" }}>
+                            Valider la date
+                          </Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  ))}
+              </View>
+
+              <View style={{ flexDirection: "row", gap: 10 }}>
+                <View style={[styles.inputGroup, { flex: 1 }]}>
+                  <Text style={styles.label}>Pâté (Call)</Text>
+                  <TouchableOpacity
+                    style={[styles.input, { justifyContent: "center" }]}
+                    onPress={() => setShowCallPicker(!showCallPicker)}
+                  >
+                    <Text
+                      style={{ color: callTime ? Colors.light.text : "#999" }}
+                    >
+                      {callTime || "08:00"}
+                    </Text>
+                  </TouchableOpacity>
+                  {showCallPicker &&
+                    (Platform.OS === "web" ? (
+                      <WebDatePicker
+                        type="time"
+                        value={callTime}
+                        onChange={(val) => {
+                          setCallTime(val);
+                          setShowCallPicker(false);
                         }}
-                        placeholder="Rechercher une adresse..."
-                    />
-                </View>
-                 <View style={styles.inputGroup}>
-                    <Text style={styles.label}>Ville</Text>
-                    <TextInput style={styles.input} value={addressCity} onChangeText={setAddressCity} placeholder="Ville..." placeholderTextColor="#999" />
-                </View>
-                 <View style={styles.inputGroup}>
-                    <Text style={styles.label}>Parking</Text>
-                    <TextInput style={styles.input} value={parkingInfo} onChangeText={setParkingInfo} placeholder="Infos parking..." placeholderTextColor="#999" />
-                </View>
-
-                <Text style={styles.sectionHeader}>Repas</Text>
-                <View style={styles.inputGroup}>
-                    <Text style={styles.label}>Heure Déjeuner</Text>
-                     <TouchableOpacity 
-                        style={[styles.input, { justifyContent: 'center' }]} 
-                        onPress={() => setShowLunchPicker(!showLunchPicker)}
-                    >
-                        <Text style={{ color: lunchTime ? Colors.light.text : '#999' }}>
-                            {lunchTime || "13:00"}
-                        </Text>
-                    </TouchableOpacity>
-                    {showLunchPicker && (
+                      />
+                    ) : (
+                      <View style={{ alignItems: "center" }}>
                         <DateTimePicker
-                            value={(() => {
-                                const d = new Date();
-                                if(lunchTime) {
-                                    const [h, m] = lunchTime.split(':');
-                                    d.setHours(Number(h));
-                                    d.setMinutes(Number(m));
-                                } else {
-                                    d.setHours(13); d.setMinutes(0);
-                                }
-                                return d;
-                            })()}
-                            mode="time"
-                            is24Hour={true}
-                            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                            onChange={onLunchTimeChange}
+                          value={(() => {
+                            const d = new Date();
+                            if (callTime) {
+                              const [h, m] = callTime.split(":");
+                              d.setHours(Number(h));
+                              d.setMinutes(Number(m));
+                            } else {
+                              d.setHours(8);
+                              d.setMinutes(0);
+                            }
+                            return d;
+                          })()}
+                          mode="time"
+                          is24Hour={true}
+                          display="spinner"
+                          onChange={onCallTimeChange}
                         />
-                    )}
-                </View>
-                 <View style={styles.inputGroup}>
-                    <Text style={styles.label}>Infos Traiteur</Text>
-                    <TextInput style={styles.input} value={cateringInfo} onChangeText={setCateringInfo} placeholder="Cantine, Resto..." placeholderTextColor="#999" />
-                </View>
-
-                {availableScenes.length > 0 && (
-                <View>
-                    <Text style={styles.sectionHeader}>Dépouillement à tourner ({selectedScenes.length})</Text>
-                     <View style={styles.sceneListContainer}>
-                     {availableScenes.map(scene => (
-                         <TouchableOpacity 
-                            key={scene.id} 
-                            style={[styles.sceneSelectMap, selectedScenes.includes(scene.id) && styles.sceneSelectMapSelected]}
-                            onPress={() => {
-                                if(selectedScenes.includes(scene.id)) setSelectedScenes(selectedScenes.filter(id => id !== scene.id));
-                                else setSelectedScenes([...selectedScenes, scene.id]);
+                        {Platform.OS === "ios" && (
+                          <TouchableOpacity
+                            onPress={() => setShowCallPicker(false)}
+                            style={{
+                              marginTop: 5,
+                              padding: 8,
+                              backgroundColor: "#eee",
+                              borderRadius: 5,
                             }}
-                        >
-                             <Text style={[styles.sceneSelectText, selectedScenes.includes(scene.id) && styles.sceneSelectTextSelected]}>
-                                 {scene.scene_number} - {scene.slugline}
-                             </Text>
-                             {selectedScenes.includes(scene.id) && <Ionicons name="checkmark-circle" size={16} color={Colors.light.tint} />}
-                         </TouchableOpacity>
-                     ))}
-                     </View>
+                          >
+                            <Text style={{ fontSize: 12, color: "#666" }}>
+                              OK
+                            </Text>
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                    ))}
                 </View>
-                )}
+                <View style={[styles.inputGroup, { flex: 1 }]}>
+                  <Text style={styles.label}>Fin (Wrap)</Text>
+                  <TouchableOpacity
+                    style={[styles.input, { justifyContent: "center" }]}
+                    onPress={() => setShowWrapPicker(!showWrapPicker)}
+                  >
+                    <Text
+                      style={{ color: wrapTime ? Colors.light.text : "#999" }}
+                    >
+                      {wrapTime || "19:00"}
+                    </Text>
+                  </TouchableOpacity>
+                  {showWrapPicker &&
+                    (Platform.OS === "web" ? (
+                      <WebDatePicker
+                        type="time"
+                        value={wrapTime}
+                        onChange={(val) => {
+                          setWrapTime(val);
+                          setShowWrapPicker(false);
+                        }}
+                      />
+                    ) : (
+                      <View style={{ alignItems: "center" }}>
+                        <DateTimePicker
+                          value={(() => {
+                            const d = new Date();
+                            if (wrapTime) {
+                              const [h, m] = wrapTime.split(":");
+                              d.setHours(Number(h));
+                              d.setMinutes(Number(m));
+                            } else {
+                              d.setHours(19);
+                              d.setMinutes(0);
+                            }
+                            return d;
+                          })()}
+                          mode="time"
+                          is24Hour={true}
+                          display="spinner"
+                          onChange={onWrapTimeChange}
+                        />
+                        {Platform.OS === "ios" && (
+                          <TouchableOpacity
+                            onPress={() => setShowWrapPicker(false)}
+                            style={{
+                              marginTop: 5,
+                              padding: 8,
+                              backgroundColor: "#eee",
+                              borderRadius: 5,
+                            }}
+                          >
+                            <Text style={{ fontSize: 12, color: "#666" }}>
+                              OK
+                            </Text>
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                    ))}
+                </View>
+              </View>
 
+              <Text style={styles.sectionHeader}>Logistique</Text>
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Lieu principal (Nom)</Text>
+                <TextInput
+                  style={styles.input}
+                  value={location}
+                  onChangeText={setLocation}
+                  placeholder="Studio, Extérieur..."
+                  placeholderTextColor="#999"
+                />
+              </View>
+              <View style={[styles.inputGroup, { zIndex: 100 }]}>
+                <Text style={styles.label}>Adresse</Text>
+                <AddressAutocomplete
+                  currentValue={addressStreet}
+                  onSelect={(addr, lat, lon, city, zip) => {
+                    setAddressStreet(addr);
+                    if (city) {
+                      // If zip is present, maybe append it or just use city
+                      setAddressCity(zip ? `${zip} ${city}` : city);
+                    }
+                  }}
+                  placeholder="Rechercher une adresse..."
+                />
+              </View>
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Ville</Text>
+                <CityPicker
+                  currentValue={addressCity}
+                  onSelect={setAddressCity}
+                  placeholder="Ville..."
+                />
+              </View>
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Parking</Text>
+                <TextInput
+                  style={styles.input}
+                  value={parkingInfo}
+                  onChangeText={setParkingInfo}
+                  placeholder="Infos parking..."
+                  placeholderTextColor="#999"
+                />
+              </View>
 
-                <View style={styles.inputGroup}>
+              <Text style={styles.sectionHeader}>Repas</Text>
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Heure Déjeuner</Text>
+                <TouchableOpacity
+                  style={[styles.input, { justifyContent: "center" }]}
+                  onPress={() => setShowLunchPicker(!showLunchPicker)}
+                >
+                  <Text
+                    style={{ color: lunchTime ? Colors.light.text : "#999" }}
+                  >
+                    {lunchTime || "13:00"}
+                  </Text>
+                </TouchableOpacity>
+                {showLunchPicker &&
+                  (Platform.OS === "web" ? (
+                    <WebDatePicker
+                      type="time"
+                      value={lunchTime}
+                      onChange={(val) => {
+                        setLunchTime(val);
+                        setShowLunchPicker(false);
+                      }}
+                    />
+                  ) : (
+                    <View style={{ alignItems: "center" }}>
+                      <DateTimePicker
+                        value={(() => {
+                          const d = new Date();
+                          if (lunchTime) {
+                            const [h, m] = lunchTime.split(":");
+                            d.setHours(Number(h));
+                            d.setMinutes(Number(m));
+                          } else {
+                            d.setHours(13);
+                            d.setMinutes(0);
+                          }
+                          return d;
+                        })()}
+                        mode="time"
+                        is24Hour={true}
+                        display="spinner"
+                        onChange={onLunchTimeChange}
+                      />
+                      {Platform.OS === "ios" && (
+                        <TouchableOpacity
+                          onPress={() => setShowLunchPicker(false)}
+                          style={{
+                            marginTop: 5,
+                            padding: 8,
+                            backgroundColor: "#eee",
+                            borderRadius: 5,
+                          }}
+                        >
+                          <Text style={{ fontSize: 12, color: "#666" }}>
+                            OK
+                          </Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  ))}
+              </View>
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Infos Traiteur</Text>
+                <TextInput
+                  style={styles.input}
+                  value={cateringInfo}
+                  onChangeText={setCateringInfo}
+                  placeholder="Cantine, Resto..."
+                  placeholderTextColor="#999"
+                />
+              </View>
+
+              {availableScenes.length > 0 && (
+                <View>
+                  <Text style={styles.sectionHeader}>
+                    Dépouillement à tourner ({selectedScenes.length})
+                  </Text>
+                  <View style={styles.sceneListContainer}>
+                    {availableScenes.map((scene) => (
+                      <TouchableOpacity
+                        key={scene.id}
+                        style={[
+                          styles.sceneSelectMap,
+                          selectedScenes.includes(scene.id) &&
+                            styles.sceneSelectMapSelected,
+                        ]}
+                        onPress={() => {
+                          if (selectedScenes.includes(scene.id))
+                            setSelectedScenes(
+                              selectedScenes.filter((id) => id !== scene.id),
+                            );
+                          else setSelectedScenes([...selectedScenes, scene.id]);
+                        }}
+                      >
+                        <Text
+                          style={[
+                            styles.sceneSelectText,
+                            selectedScenes.includes(scene.id) &&
+                              styles.sceneSelectTextSelected,
+                          ]}
+                        >
+                          {scene.scene_number} - {scene.slugline}
+                        </Text>
+                        {selectedScenes.includes(scene.id) && (
+                          <Ionicons
+                            name="checkmark-circle"
+                            size={16}
+                            color={Colors.light.tint}
+                          />
+                        )}
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              )}
+
+              <View style={styles.inputGroup}>
                 <Text style={styles.label}>Notes</Text>
                 <TextInput
-                    style={[styles.input, { height: 60, textAlignVertical: "top" }]}
-                    value={notes}
-                    onChangeText={setNotes}
-                    placeholder="Notes importantes..."
-                    placeholderTextColor="#999"
-                    multiline
+                  style={[
+                    styles.input,
+                    { height: 60, textAlignVertical: "top" },
+                  ]}
+                  value={notes}
+                  onChangeText={setNotes}
+                  placeholder="Notes importantes..."
+                  placeholderTextColor="#999"
+                  multiline
                 />
-                </View>
+              </View>
 
-                <TouchableOpacity
+              <TouchableOpacity
                 style={[styles.saveButton, adding && styles.disabledButton]}
                 onPress={handleAddDay}
                 disabled={adding}
-                >
+              >
                 {adding ? (
-                    <ActivityIndicator color="white" />
+                  <ActivityIndicator color="white" />
                 ) : (
-                    <Text style={styles.saveButtonText}>Ajouter</Text>
+                  <Text style={styles.saveButtonText}>Ajouter</Text>
                 )}
-                </TouchableOpacity>
-                <View style={{height: 20}} />
+              </TouchableOpacity>
+              <View style={{ height: 20 }} />
             </ScrollView>
           </View>
         </KeyboardAvoidingView>
@@ -766,13 +941,13 @@ const styles = StyleSheet.create({
   },
   sectionHeader: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: '#666',
+    fontWeight: "bold",
+    color: "#666",
     marginTop: 10,
     marginBottom: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-    paddingBottom: 5
+    borderBottomColor: "#eee",
+    paddingBottom: 5,
   },
   // Selector Styles
   selectorContainer: {
@@ -780,7 +955,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#f1f3f5",
     borderRadius: 8,
     padding: 4,
-    marginBottom: 10
+    marginBottom: 10,
   },
   selectorOption: {
     flex: 1,
@@ -806,28 +981,28 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   sceneListContainer: {
-      backgroundColor: '#f8f9fa',
-      borderRadius: 8,
-      padding: 10,
-      marginBottom: 10
+    backgroundColor: "#f8f9fa",
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 10,
   },
   sceneSelectMap: {
-      paddingVertical: 10,
-      borderBottomWidth: 1,
-      borderBottomColor: '#eee',
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center'
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#eee",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
   sceneSelectMapSelected: {
-      backgroundColor: 'white'
+    backgroundColor: "white",
   },
   sceneSelectText: {
-      fontSize: 14,
-      color: '#495057'
+    fontSize: 14,
+    color: "#495057",
   },
   sceneSelectTextSelected: {
-      color: Colors.light.tint,
-      fontWeight: '600'
-  }
+    color: Colors.light.tint,
+    fontWeight: "600",
+  },
 });

@@ -1,23 +1,22 @@
 import ClapLoading from "@/components/ClapLoading";
 import Colors from "@/constants/Colors";
 import { GlobalStyles } from "@/constants/Styles";
-import { getRecommendedRoles } from "@/lib/matching";
 import { supabase } from "@/lib/supabase";
 import { Ionicons } from "@expo/vector-icons";
 import type { Href } from "expo-router";
 import { router, Stack, useFocusEffect } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
-  FlatList,
-  Image,
-  Modal,
-  Platform,
-  RefreshControl,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  useWindowDimensions,
-  View,
+    FlatList,
+    Image,
+    Modal,
+    Platform,
+    RefreshControl,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    useWindowDimensions,
+    View,
 } from "react-native";
 
 interface Post {
@@ -132,50 +131,13 @@ export default function FeedScreen() {
   const [feedMode, setFeedMode] = useState<"network" | "all">("network");
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
-  // Recommendations
-  const [recommendations, setRecommendations] = useState<any[]>([]);
-
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (user) {
         setUserId(user.id);
-        fetchRecommendations(user.id);
       }
     });
   }, []);
-
-  const fetchRecommendations = async (uid: string) => {
-    try {
-      // 1. Get User Profile
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", uid)
-        .single();
-      if (!profile) return;
-
-      // 2. Get Open Roles
-      const { data: roles } = await supabase
-        .from("project_roles")
-        .select(
-          `
-                *,
-                tournages (*)
-            `,
-        )
-        .eq("status", "published")
-        .is("assigned_profile_id", null)
-        .limit(50); // Limit for performance
-
-      if (!roles) return;
-
-      // 3. Calculate
-      const recs = getRecommendedRoles(profile, roles);
-      setRecommendations(recs.slice(0, 3)); // Top 3
-    } catch (e) {
-      console.log("Error fetching recommendations", e);
-    }
-  };
 
   const fetchPosts = async () => {
     let currentUserId = userId;
@@ -255,7 +217,6 @@ export default function FeedScreen() {
   const onRefresh = () => {
     setRefreshing(true);
     fetchPosts();
-    if (userId) fetchRecommendations(userId);
   };
 
   const renderContent = (content: string) => {
@@ -279,7 +240,7 @@ export default function FeedScreen() {
               return (
                 <View
                   key={`${index}-${line}`}
-                  style={{ alignItems: "center", marginVertical: 6 }}
+                  style={styles.linkButtonContainer}
                 >
                   <TouchableOpacity
                     onPress={() => {
@@ -316,7 +277,7 @@ export default function FeedScreen() {
   };
 
   const renderItem = ({ item }: { item: Post }) => (
-    <View style={GlobalStyles.card}>
+    <View style={styles.postCard}>
       <View style={styles.header}>
         <TouchableOpacity
           onPress={() =>
@@ -329,7 +290,9 @@ export default function FeedScreen() {
         >
           <Image
             source={{
-              uri: item.user?.avatar_url || "https://via.placeholder.com/40",
+              uri:
+                item.user?.avatar_url ||
+                "https://randomuser.me/api/portraits/lego/1.jpg",
             }}
             style={styles.avatar}
           />
@@ -371,14 +334,16 @@ export default function FeedScreen() {
         )}
       </View>
 
-      {item.content && renderContent(item.content)}
+      <View style={styles.postContentContainer}>
+        {item.content && renderContent(item.content)}
 
-      {item.image_url && (
-        <AutoHeightImage
-          uri={item.image_url}
-          onPress={() => setSelectedImage(item.image_url)}
-        />
-      )}
+        {item.image_url && (
+          <AutoHeightImage
+            uri={item.image_url}
+            onPress={() => setSelectedImage(item.image_url)}
+          />
+        )}
+      </View>
 
       {item.project && (
         <TouchableOpacity
@@ -485,192 +450,108 @@ export default function FeedScreen() {
         }}
       />
 
-      {/* En-tête spécifique au Web car le header natif est masqué */}
-      {Platform.OS === "web" && (
-        <View style={styles.webHeader}>
-          <Text style={styles.webHeaderTitle}>Fil d'actualité</Text>
-          <View style={{ flexDirection: "row", gap: 20 }}>
-            <TouchableOpacity
-              onPress={() =>
-                userId &&
-                router.push({
-                  pathname: "/profile/posts",
-                  params: { userId: userId, userName: "Moi" },
-                })
-              }
-              style={styles.webHeaderButton}
-            >
-              <Ionicons
-                name="documents-outline"
-                size={22}
-                color={Colors.light.text}
-              />
-              <Text style={styles.webHeaderButtonText}>Mes posts</Text>
-            </TouchableOpacity>
+      <View style={styles.feedWrapper}>
+        {/* En-tête spécifique au Web car le header natif est masqué */}
+        {Platform.OS === "web" && (
+          <View style={styles.webHeader}>
+            <Text style={styles.webHeaderTitle}>Fil d'actualité</Text>
+            <View style={{ flexDirection: "row", gap: 12 }}>
+              <TouchableOpacity
+                onPress={() =>
+                  userId &&
+                  router.push({
+                    pathname: "/profile/posts",
+                    params: { userId: userId, userName: "Moi" },
+                  })
+                }
+                style={styles.webHeaderButton}
+              >
+                <Ionicons
+                  name="documents-outline"
+                  size={18}
+                  color={Colors.light.text}
+                />
+                <Text style={styles.webHeaderButtonText}>Mes posts</Text>
+              </TouchableOpacity>
 
+              <TouchableOpacity
+                onPress={() => router.push("/post/new")}
+                style={[
+                  styles.webHeaderButton,
+                  { backgroundColor: Colors.light.tint },
+                ]}
+              >
+                <Ionicons name="add-circle-outline" size={18} color="white" />
+                <Text style={[styles.webHeaderButtonText, { color: "white" }]}>
+                  Nouveau post
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
+        {/* Feed Filters - Segmented Control style */}
+        <View style={styles.filterContainer}>
+          <View style={styles.segmentedControl}>
             <TouchableOpacity
-              onPress={() => router.push("/post/new")}
-              style={styles.webHeaderButton}
+              onPress={() => setFeedMode("network")}
+              style={[
+                styles.filterBtn,
+                feedMode === "network" && styles.filterBtnActive,
+              ]}
             >
-              <Ionicons
-                name="add-circle-outline"
-                size={22}
-                color={Colors.light.text}
-              />
-              <Text style={styles.webHeaderButtonText}>Nouveau post</Text>
+              <Text
+                style={[
+                  styles.filterText,
+                  feedMode === "network" && styles.filterTextActive,
+                ]}
+              >
+                Mon Réseau
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => setFeedMode("all")}
+              style={[
+                styles.filterBtn,
+                feedMode === "all" && styles.filterBtnActive,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.filterText,
+                  feedMode === "all" && styles.filterTextActive,
+                ]}
+              >
+                Global
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
-      )}
 
-      {/* Feed Filters */}
-      <View
-        style={{
-          flexDirection: "row",
-          padding: 10,
-          gap: 10,
-          backgroundColor: Colors.light.background,
-        }}
-      >
-        <TouchableOpacity
-          onPress={() => setFeedMode("network")}
-          style={[
-            styles.filterBtn,
-            feedMode === "network" && styles.filterBtnActive,
-          ]}
-        >
-          <Text
-            style={[
-              styles.filterText,
-              feedMode === "network" && { color: "white" },
-            ]}
-          >
-            Mon Réseau
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={() => setFeedMode("all")}
-          style={[
-            styles.filterBtn,
-            feedMode === "all" && styles.filterBtnActive,
-          ]}
-        >
-          <Text
-            style={[
-              styles.filterText,
-              feedMode === "all" && { color: "white" },
-            ]}
-          >
-            Global
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* RECOMMENDATIONS SECTION */}
-      {recommendations.length > 0 && (
-        <View
-          style={{
-            padding: 15,
-            backgroundColor: "#f0f4ff",
-            borderBottomWidth: 1,
-            borderColor: "#e0e0e0",
-          }}
-        >
-          <Text
-            style={{
-              fontWeight: "bold",
-              fontSize: 16,
-              marginBottom: 10,
-              color: Colors.light.primary,
-            }}
-          >
-            ✨ Recommandé pour vous
-          </Text>
-          <FlatList
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            data={recommendations}
-            keyExtractor={(item) => item.id}
-            renderItem={({ item }) => (
-              <TouchableOpacity
-                onPress={() => router.push(`/project/role/${item.id}`)}
-                style={{
-                  backgroundColor: "white",
-                  padding: 10,
-                  borderRadius: 8,
-                  marginRight: 10,
-                  width: 200,
-                  shadowColor: "#000",
-                  shadowOffset: { width: 0, height: 1 },
-                  shadowOpacity: 0.1,
-                  shadowRadius: 2,
-                  elevation: 2,
-                }}
-              >
-                <Text
-                  style={{ fontWeight: "bold", marginBottom: 2 }}
-                  numberOfLines={1}
-                >
-                  {item.title}
-                </Text>
-                <Text
-                  style={{ fontSize: 10, color: "#666", marginBottom: 5 }}
-                  numberOfLines={1}
-                >
-                  {item.tournages?.title} • {item.matchScore}% Match
-                </Text>
-                <View
-                  style={{
-                    flexDirection: "row",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                  }}
-                >
-                  <Text
-                    style={{
-                      fontSize: 10,
-                      color: Colors.light.primary,
-                      fontWeight: "bold",
-                    }}
-                  >
-                    {item.category}
-                  </Text>
-                  <Ionicons
-                    name="arrow-forward-circle"
-                    size={20}
-                    color={Colors.light.tint}
-                  />
-                </View>
-              </TouchableOpacity>
-            )}
+        {loading && !refreshing ? (
+          <ClapLoading
+            style={{ marginTop: 40 }}
+            color={Colors.light.primary}
+            size={40}
           />
-        </View>
-      )}
-
-      {loading && !refreshing ? (
-        <ClapLoading
-          style={{ marginTop: 20 }}
-          color={Colors.light.primary}
-          size={40}
-        />
-      ) : (
-        <FlatList
-          data={posts}
-          keyExtractor={(item) => item.id}
-          renderItem={renderItem}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-          }
-          contentContainerStyle={{ padding: 10, paddingBottom: 80 }}
-          ListEmptyComponent={
-            <Text style={styles.emptyText}>
-              Aucune actualité pour le moment. Connectez-vous avec d'autres
-              personnes pour voir leurs posts !
-            </Text>
-          }
-        />
-      )}
-
+        ) : (
+          <FlatList
+            data={posts}
+            keyExtractor={(item) => item.id}
+            renderItem={renderItem}
+            refreshControl={
+              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+            }
+            contentContainerStyle={styles.listContent}
+            ListEmptyComponent={
+              <Text style={styles.emptyText}>
+                Aucune actualité pour le moment. Connectez-vous avec d'autres
+                personnes pour voir leurs posts !
+              </Text>
+            }
+          />
+        )}
+      </View>
       {/* Full Screen Image Modal */}
       <Modal
         visible={!!selectedImage}
@@ -700,7 +581,17 @@ export default function FeedScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.light.backgroundSecondary,
+    backgroundColor: "#f8f9fa",
+  },
+  feedWrapper: {
+    flex: 1,
+    width: "100%",
+    maxWidth: 700,
+    alignSelf: "center",
+  },
+  listContent: {
+    padding: 12,
+    paddingBottom: 80,
   },
   webHeader: {
     flexDirection: "row",
@@ -710,71 +601,96 @@ const styles = StyleSheet.create({
     paddingVertical: 15,
     backgroundColor: "white",
     borderBottomWidth: 1,
-    borderBottomColor: Colors.light.border,
+    borderBottomColor: "#eee",
   },
   webHeaderTitle: {
     fontSize: 22,
-    fontWeight: "bold",
+    fontWeight: "800",
     color: Colors.light.text,
   },
   webHeaderButton: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    backgroundColor: "#f0f0f0",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    gap: 6,
   },
   webHeaderButtonText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "600",
     color: Colors.light.text,
+  },
+  filterContainer: {
+    padding: 12,
+    backgroundColor: "white",
+    borderBottomWidth: 1,
+    borderBottomColor: "#eee",
+  },
+  segmentedControl: {
+    flexDirection: "row",
+    backgroundColor: "#f0f0f0",
+    borderRadius: 10,
+    padding: 3,
+  },
+  filterBtn: {
+    flex: 1,
+    paddingVertical: 8,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  filterBtnActive: {
+    backgroundColor: "white",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  filterText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#666",
+  },
+  filterTextActive: {
+    color: Colors.light.tint,
+  },
+  postCard: {
+    backgroundColor: "white",
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 3,
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 10,
-    justifyContent: "space-between",
-  },
-  webProjectHeaderInfo: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#f0f0f0",
-    padding: 6,
-    borderRadius: 20,
-    maxWidth: 200,
-    gap: 8,
-  },
-  webProjectHeaderImage: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-  },
-  webProjectHeaderPlaceholder: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: "#ddd",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  webProjectHeaderText: {
-    fontSize: 11,
-    fontWeight: "600",
-    color: "#444",
+    marginBottom: 12,
+    gap: 10,
   },
   avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    marginRight: 10,
-    backgroundColor: Colors.light.backgroundSecondary,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "#eee",
   },
   name: {
-    fontWeight: "bold",
+    fontWeight: "700",
     fontSize: 16,
     color: Colors.light.text,
   },
   date: {
-    color: "#666",
+    color: "#888",
     fontSize: 12,
+    marginTop: 1,
+  },
+  postContentContainer: {
+    marginBottom: 12,
   },
   contentBlock: {
     marginBottom: 10,
@@ -783,67 +699,73 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: Colors.light.primary,
     textTransform: "uppercase",
+    fontSize: 11,
     letterSpacing: 0.5,
+  },
+  linkButtonContainer: {
+    alignItems: "flex-start",
+    marginTop: 10,
+    marginBottom: 5,
   },
   linkButton: {
     backgroundColor: Colors.light.tint,
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 25,
+    shadowColor: Colors.light.tint,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 4,
   },
   linkButtonText: {
     color: "white",
     fontWeight: "700",
-    textAlign: "center",
-  },
-  projectLink: {
-    // Removed old style
+    fontSize: 14,
   },
   projectCard: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: Colors.light.backgroundSecondary,
+    backgroundColor: "#f9fafb",
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: Colors.light.border,
+    borderColor: "#f0f0f0",
     padding: 10,
-    marginBottom: 10,
     gap: 12,
   },
   projectCardImage: {
-    width: 80,
-    height: 80,
+    width: 60,
+    height: 60,
     borderRadius: 8,
     backgroundColor: "#eee",
   },
   projectCardPlaceholder: {
-    width: 80,
-    height: 80,
+    width: 60,
+    height: 60,
     borderRadius: 8,
-    backgroundColor: "#e0e0e0",
+    backgroundColor: "#f0f0f0",
     justifyContent: "center",
     alignItems: "center",
   },
   projectCardContent: {
     flex: 1,
-    justifyContent: "center",
   },
   projectCardTitle: {
-    fontSize: 16,
-    fontWeight: "bold",
+    fontSize: 15,
+    fontWeight: "700",
     color: Colors.light.text,
-    marginBottom: 2,
   },
   projectCardType: {
-    fontSize: 10,
-    fontWeight: "bold",
+    fontSize: 9,
+    fontWeight: "800",
     color: Colors.light.primary,
-    backgroundColor: Colors.light.background,
-    paddingHorizontal: 4,
+    backgroundColor: "#fff",
+    paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
+    borderWidth: 1,
+    borderColor: Colors.light.primary + "30",
     overflow: "hidden",
-    alignSelf: "flex-start",
   },
   projectCardMeta: {
     fontSize: 12,
@@ -852,30 +774,47 @@ const styles = StyleSheet.create({
   },
   projectCardDate: {
     fontSize: 10,
-    color: "#888",
+    color: "#999",
   },
   footer: {
     marginTop: 5,
   },
   emptyText: {
     textAlign: "center",
-    marginTop: 50,
-    color: "#666",
+    marginTop: 60,
+    color: "#999",
+    fontSize: 15,
     paddingHorizontal: 40,
+    lineHeight: 22,
   },
-  filterBtn: {
-    flex: 1,
-    padding: 8,
+  webProjectHeaderInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#f0f0f0",
+    padding: 4,
+    paddingRight: 10,
     borderRadius: 20,
-    backgroundColor: Colors.light.backgroundSecondary,
+    maxWidth: 150,
+  },
+  webProjectHeaderImage: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    marginRight: 6,
+  },
+  webProjectHeaderPlaceholder: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: "#ddd",
+    marginRight: 6,
+    justifyContent: "center",
     alignItems: "center",
   },
-  filterBtnActive: {
-    backgroundColor: Colors.light.tint,
-  },
-  filterText: {
+  webProjectHeaderText: {
+    fontSize: 11,
     fontWeight: "600",
-    color: "#666",
+    color: "#444",
   },
   modalContainer: {
     flex: 1,

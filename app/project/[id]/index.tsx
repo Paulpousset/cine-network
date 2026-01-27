@@ -325,7 +325,9 @@ export default function ProjectDetails() {
     equipment: string;
     software: string;
     specialties: string;
-    status: "draft" | "published"; // "draft" | "published"
+    status: "draft" | "published" | "assigned"; // "draft" | "published"
+    isPaid: boolean;
+    remunerationAmount: string;
     assignee: { id: string; label: string } | null;
     data: any; // JSONB storage for extra fields
     createPost: boolean;
@@ -397,8 +399,10 @@ export default function ProjectDetails() {
     // Optimistic Update
     setIsLiked(isLikedNow);
     setProject((prev: any) => ({
-        ...prev,
-        likes_count: isLikedNow ? (prev?.likes_count || 0) + 1 : Math.max(0, (prev?.likes_count || 1) - 1)
+      ...prev,
+      likes_count: isLikedNow
+        ? (prev?.likes_count || 0) + 1
+        : Math.max(0, (prev?.likes_count || 1) - 1),
     }));
 
     try {
@@ -408,27 +412,28 @@ export default function ProjectDetails() {
           .delete()
           .eq("project_id", id)
           .eq("user_id", currentUserId);
-          
+
         if (error) throw error;
       } else {
         const { error } = await supabase
           .from("project_likes")
           .insert({ project_id: id, user_id: currentUserId });
-          
-        if (error && error.code !== '23505') throw error;
+
+        if (error && error.code !== "23505") throw error;
       }
     } catch (e) {
       console.log("Error toggling like:", e);
       // Revert optimistic update
       setIsLiked(!isLikedNow);
-       setProject((prev: any) => ({
+      setProject((prev: any) => ({
         ...prev,
-        likes_count: !isLikedNow ? (prev?.likes_count || 0) + 1 : Math.max(0, (prev?.likes_count || 1) - 1)
-    }));
+        likes_count: !isLikedNow
+          ? (prev?.likes_count || 0) + 1
+          : Math.max(0, (prev?.likes_count || 1) - 1),
+      }));
       Alert.alert("Erreur", "Impossible de modifier le like.");
     }
   }
-
 
   async function fetchProjectDetails() {
     const projectId = Array.isArray(id) ? id[0] : id;
@@ -441,10 +446,12 @@ export default function ProjectDetails() {
       setCurrentUserId(session?.user?.id ?? null);
       const { data: proj, error: errProj } = await supabase
         .from("tournages")
-        .select(`
+        .select(
+          `
             *,
             project_likes(user_id)
-        `)
+        `,
+        )
         .eq("id", projectId)
         .maybeSingle();
 
@@ -456,11 +463,11 @@ export default function ProjectDetails() {
 
       const userId = session?.user?.id;
       const likes = proj.project_likes || [];
-      
+
       const processedProj = {
-          ...proj,
-          likes_count: likes.length,
-          isLiked: userId ? likes.some((l: any) => l.user_id === userId) : false
+        ...proj,
+        likes_count: likes.length,
+        isLiked: userId ? likes.some((l: any) => l.user_id === userId) : false,
       };
 
       setProject(processedProj);
@@ -578,6 +585,8 @@ export default function ProjectDetails() {
       ageMin: "",
       ageMax: "",
       status: "draft",
+      isPaid: false,
+      remunerationAmount: "",
       assignee: null,
       height: "",
       hairColor: "",
@@ -630,6 +639,10 @@ export default function ProjectDetails() {
           specialties: role.specialties || "",
           data: role.data || {},
           status: role.status || "draft",
+          isPaid: role.is_paid ?? false,
+          remunerationAmount: role.remuneration_amount
+            ? String(role.remuneration_amount)
+            : "",
           assignee: assignee,
           createPost: false,
         });
@@ -679,6 +692,10 @@ export default function ProjectDetails() {
         equipment: editingRole.equipment || null,
         software: editingRole.software || null,
         specialties: editingRole.specialties || null,
+        is_paid: editingRole.isPaid,
+        remuneration_amount: editingRole.isPaid
+          ? editingRole.remunerationAmount
+          : null,
         status: resolvedStatus,
       };
 
@@ -1081,6 +1098,13 @@ export default function ProjectDetails() {
   async function removeAssignment(role: any) {
     if (!role) return;
     try {
+      // Remove accepted application to allow re-apply
+      await supabase
+        .from("applications")
+        .delete()
+        .eq("role_id", role.id)
+        .eq("status", "accepted");
+
       const { data, error } = await supabase
         .from("project_roles")
         .update({ assigned_profile_id: null, status: "published" })
@@ -1471,7 +1495,8 @@ export default function ProjectDetails() {
                         { color: color, backgroundColor: color + "20" },
                       ]}
                     >
-                      {item.category.toUpperCase()}
+                      {item.category.toUpperCase()} •{" "}
+                      {item.items[0]?.is_paid ? "Rémunéré" : "Bénévole"}
                     </Text>
                     <Text style={styles.roleTitle}>{item.title}</Text>
                     {isOwner && hasDrafts && (
@@ -1825,6 +1850,120 @@ export default function ProjectDetails() {
                   data={editingRole}
                   onChange={setEditingRole} // RoleFormFields expects full object update or I should adapt key/value
                 />
+
+                <Text style={styles.label}>Rémunération</Text>
+                <View style={styles.rowWrap}>
+                  <TouchableOpacity
+                    onPress={() =>
+                      setEditingRole({ ...editingRole, isPaid: true })
+                    }
+                    style={[
+                      styles.catButton,
+                      editingRole.isPaid && {
+                        backgroundColor: "#333",
+                        borderColor: "#333",
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={{
+                        color: editingRole.isPaid ? "white" : "#333",
+                      }}
+                    >
+                      Rémunéré
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() =>
+                      setEditingRole({ ...editingRole, isPaid: false })
+                    }
+                    style={[
+                      styles.catButton,
+                      !editingRole.isPaid && {
+                        backgroundColor: "#333",
+                        borderColor: "#333",
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={{
+                        color: !editingRole.isPaid ? "white" : "#333",
+                      }}
+                    >
+                      Bénévole
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                {editingRole.isPaid && (
+                  <View style={{ marginTop: 10 }}>
+                    <Text style={styles.label}>Montant de la rémunération</Text>
+                    <TextInput
+                      placeholder="Ex: 150€ / jour ou Cachet global"
+                      style={styles.input}
+                      value={editingRole.remunerationAmount}
+                      onChangeText={(t) =>
+                        setEditingRole({
+                          ...editingRole,
+                          remunerationAmount: t,
+                        })
+                      }
+                    />
+                  </View>
+                )}
+
+                {/* STATUS POURVU */}
+                <Text style={styles.label}>Poste déjà pourvu ?</Text>
+                <View style={styles.rowWrap}>
+                  <TouchableOpacity
+                    onPress={() =>
+                      setEditingRole({ ...editingRole, status: "assigned" })
+                    }
+                    style={[
+                      styles.catButton,
+                      editingRole.status === "assigned" && {
+                        backgroundColor: "#333",
+                        borderColor: "#333",
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={{
+                        color:
+                          editingRole.status === "assigned" ? "white" : "#333",
+                      }}
+                    >
+                      Oui
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() =>
+                      setEditingRole({
+                        ...editingRole,
+                        status:
+                          editingRole.status === "assigned"
+                            ? "published"
+                            : editingRole.status,
+                      })
+                    }
+                    style={[
+                      styles.catButton,
+                      editingRole.status !== "assigned" && {
+                        backgroundColor: "#333",
+                        borderColor: "#333",
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={{
+                        color:
+                          editingRole.status !== "assigned" ? "white" : "#333",
+                      }}
+                    >
+                      Non
+                    </Text>
+                  </TouchableOpacity>
+                </View>
 
                 {/* STATUS TOGGLE */}
                 <Text style={styles.label}>Statut de l'annonce</Text>

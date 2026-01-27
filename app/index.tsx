@@ -2,9 +2,14 @@ import ClapLoading from "@/components/ClapLoading";
 import Colors from "@/constants/Colors"; // Import Colors
 import { GlobalStyles } from "@/constants/Styles"; // Import GlobalStyles
 import { JOB_TITLES } from "@/utils/roles";
+import { Ionicons } from "@expo/vector-icons";
+import { makeRedirectUri } from "expo-auth-session";
+import * as Linking from "expo-linking";
+import * as WebBrowser from "expo-web-browser";
 import React, { useState } from "react";
 import {
     Alert,
+    Platform,
     ScrollView,
     StyleSheet,
     Text,
@@ -13,6 +18,8 @@ import {
     View,
 } from "react-native";
 import { supabase } from "../lib/supabase";
+
+WebBrowser.maybeCompleteAuthSession();
 
 const ROLES = Object.keys(JOB_TITLES);
 
@@ -59,6 +66,110 @@ export default function AuthScreen() {
     else if (session)
       Alert.alert("Bienvenue !", `Compte créé en tant que ${role}`);
 
+    setLoading(false);
+  }
+
+  // Fonction connexion Google
+  async function signInWithGoogle() {
+    setLoading(true);
+    try {
+      // Déterminer l'URL de redirection selon si on est sur Expo Go ou en natif
+      const redirectTo = makeRedirectUri({
+        scheme: "cinenetwork",
+        preferLocalhost: true,
+      });
+
+      console.log("Redirect URI used:", redirectTo);
+
+      // Sur le WEB, on laisse Supabase gérer la redirection normalement
+      if (Platform.OS === "web") {
+        const { error } = await supabase.auth.signInWithOAuth({
+          provider: "google",
+          options: {
+            redirectTo,
+            skipBrowserRedirect: false,
+          },
+        });
+        if (error) throw error;
+        return;
+      }
+
+      // Sur MOBILE (Expo Go ou Native)
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo,
+          skipBrowserRedirect: true,
+        },
+      });
+
+      if (error) throw error;
+
+      if (data?.url) {
+        // IMPORTANT: On utilise WebBrowser.openAuthSessionAsync pour capturer le retour
+        const res = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
+
+        console.log("WebBrowser Result:", res);
+
+        if (res.type === "success" && res.url) {
+          // Extraction des tokens
+          const url = res.url.replace("#", "?");
+          const { queryParams } = Linking.parse(url);
+
+          const access_token =
+            queryParams?.access_token || queryParams?.["#access_token"];
+          const refresh_token = queryParams?.refresh_token;
+
+          if (access_token) {
+            const { error: sessionError } = await supabase.auth.setSession({
+              access_token: access_token as string,
+              refresh_token: (refresh_token as string) || "",
+            });
+            if (sessionError) throw sessionError;
+            console.log("Session set successfully via Google");
+          }
+        } else if (res.type === "cancel") {
+          console.log("Login cancelled by user");
+        }
+      }
+    } catch (error: any) {
+      Alert.alert("Erreur Google", error.message);
+      console.error("Google Auth Error:", error);
+    } finally {
+      if (Platform.OS !== "web") setLoading(false);
+    }
+  }
+
+  // Fonction invité
+  async function signInAsGuest() {
+    setLoading(true);
+    const { data, error } = await supabase.auth.signInAnonymously({
+      options: {
+        data: {
+          full_name: "Invité",
+          avatar_url:
+            "https://ui-avatars.com/api/?name=Invité&background=random&color=fff",
+        },
+      },
+    });
+
+    if (error) {
+      Alert.alert(
+        "Erreur",
+        "La connexion invité n'est pas activée ou a échoué.",
+      );
+      console.error(error);
+    } else if (data?.session) {
+      // Force update profile just in case trigger didn't catch metadata
+      await supabase
+        .from("profiles")
+        .update({
+          full_name: "Invité",
+          avatar_url:
+            "https://ui-avatars.com/api/?name=Invité&background=random&color=fff",
+        })
+        .eq("id", data.session.user.id);
+    }
     setLoading(false);
   }
 
@@ -143,6 +254,33 @@ export default function AuthScreen() {
         </TouchableOpacity>
       )}
 
+      {/* --- SEPARATOR --- */}
+      <View style={styles.dividerContainer}>
+        <View style={styles.divider} />
+        <Text style={styles.dividerText}>OU</Text>
+        <View style={styles.divider} />
+      </View>
+
+      {/* --- BOUTON GOOGLE --- */}
+      <TouchableOpacity
+        style={styles.googleButton}
+        onPress={signInWithGoogle}
+        disabled={loading}
+      >
+        <Ionicons name="logo-google" size={20} color="#EA4335" />
+        <Text style={styles.googleButtonText}>Continuer avec Google</Text>
+      </TouchableOpacity>
+
+      {/* --- BOUTON INVITE --- */}
+      <TouchableOpacity
+        style={[styles.googleButton, { marginTop: 10 }]}
+        onPress={signInAsGuest}
+        disabled={loading}
+      >
+        <Ionicons name="person-outline" size={20} color="#374151" />
+        <Text style={styles.googleButtonText}>Continuer en tant qu'invité</Text>
+      </TouchableOpacity>
+
       {/* --- BOUTON POUR CHANGER DE MODE --- */}
       <TouchableOpacity
         onPress={() => setIsLogin(!isLogin)}
@@ -190,4 +328,38 @@ const styles = StyleSheet.create({
   // Style du lien en bas
   switchButton: { marginTop: 20, alignItems: "center" },
   switchText: { color: Colors.light.primary, fontWeight: "bold" },
+
+  // Styles pour Google et Séparateur
+  dividerContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginVertical: 20,
+  },
+  divider: {
+    flex: 1,
+    height: 1,
+    backgroundColor: "#E5E7EB",
+  },
+  dividerText: {
+    marginHorizontal: 10,
+    color: "#9CA3AF",
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  googleButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "white",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    paddingVertical: 12,
+    borderRadius: 12,
+    gap: 10,
+  },
+  googleButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#374151",
+  },
 });

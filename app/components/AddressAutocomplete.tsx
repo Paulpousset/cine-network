@@ -3,17 +3,23 @@ import Colors from "@/constants/Colors";
 import { GlobalStyles } from "@/constants/Styles";
 import React, { useEffect, useState } from "react";
 import {
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 type AddressAutocompleteProps = {
   city?: string;
-  onSelect: (address: string, lat?: number, lon?: number, city?: string, zipcode?: string) => void;
+  onSelect: (
+    address: string,
+    lat?: number,
+    lon?: number,
+    city?: string,
+    zipcode?: string,
+  ) => void;
   currentValue?: string;
   placeholder?: string;
 };
@@ -101,7 +107,10 @@ export default function AddressAutocomplete({
 
       {showList && suggestions.length > 0 && (
         <View style={styles.suggestionsBox}>
-          <ScrollView keyboardShouldPersistTaps="always" nestedScrollEnabled={true}>
+          <ScrollView
+            keyboardShouldPersistTaps="always"
+            nestedScrollEnabled={true}
+          >
             {suggestions.map((item, index) => (
               <TouchableOpacity
                 key={item.properties.id || index}

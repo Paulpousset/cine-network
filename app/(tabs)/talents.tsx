@@ -4,7 +4,7 @@ import { GlobalStyles } from "@/constants/Styles";
 import { JOB_TITLES } from "@/utils/roles";
 import { fuzzySearch } from "@/utils/search";
 import { Ionicons } from "@expo/vector-icons";
-import { Stack, useFocusEffect, useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
     Alert,
@@ -339,7 +339,7 @@ export default function DiscoverProfiles() {
   const listHeader = (
     <View>
       {/* En-tête spécifique au Web car le header natif est masqué */}
-      {Platform.OS === "web" && (
+      {Platform.OS === "web" ? (
         <View style={styles.webHeader}>
           <Text style={styles.webHeaderTitle}>Réseau</Text>
           <View style={{ flexDirection: "row", gap: 20 }}>
@@ -350,26 +350,34 @@ export default function DiscoverProfiles() {
               <Ionicons name="people" size={22} color={Colors.light.text} />
               <Text style={styles.webHeaderButtonText}>Mes relations</Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => router.push("/network/requests")}
-              style={styles.webHeaderButton}
-            >
-              <View>
-                <Ionicons
-                  name="notifications"
-                  size={22}
-                  color={
-                    pendingCount > 0 ? Colors.light.danger : Colors.light.text
-                  }
-                />
-                {pendingCount > 0 && <View style={styles.notificationBadge} />}
-              </View>
-              <Text style={styles.webHeaderButtonText}>
-                Demandes {pendingCount > 0 ? `(${pendingCount})` : ""}
-              </Text>
-            </TouchableOpacity>
           </View>
         </View>
+      ) : (
+        <TouchableOpacity
+          onPress={() => router.push("/network/connections")}
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            padding: 15,
+            backgroundColor: Colors.light.background,
+            borderBottomWidth: 1,
+            borderBottomColor: Colors.light.border,
+          }}
+        >
+          <Ionicons
+            name="people"
+            size={24}
+            color={Colors.light.tint}
+            style={{ marginRight: 10 }}
+          />
+          <Text style={{ fontSize: 16, fontWeight: "600" }}>Mes relations</Text>
+          <Ionicons
+            name="chevron-forward"
+            size={20}
+            color="#ccc"
+            style={{ marginLeft: "auto" }}
+          />
+        </TouchableOpacity>
       )}
 
       {/* SECTION SUGGESTIONS */}
@@ -431,47 +439,6 @@ export default function DiscoverProfiles() {
 
   return (
     <View style={styles.container}>
-      <Stack.Screen
-        options={{
-          headerTitle: "Réseau",
-          headerRight: () => (
-            <View style={{ flexDirection: "row", gap: 15, marginRight: 15 }}>
-              <TouchableOpacity
-                onPress={() => router.push("/network/connections")}
-              >
-                <Ionicons name="people" size={24} color={Colors.light.text} />
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => router.push("/network/requests")}
-              >
-                <View>
-                  <Ionicons
-                    name="notifications"
-                    size={24}
-                    color={
-                      pendingCount > 0 ? Colors.light.danger : Colors.light.text
-                    }
-                  />
-                  {pendingCount > 0 && (
-                    <View
-                      style={{
-                        position: "absolute",
-                        top: -2,
-                        right: -2,
-                        width: 8,
-                        height: 8,
-                        borderRadius: 4,
-                        backgroundColor: Colors.light.danger,
-                      }}
-                    />
-                  )}
-                </View>
-              </TouchableOpacity>
-            </View>
-          ),
-        }}
-      />
-
       {loading ? (
         <ClapLoading
           size={50}

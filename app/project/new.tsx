@@ -1,8 +1,10 @@
 import ClapLoading from "@/components/ClapLoading";
 import PaymentModal from "@/components/PaymentModal";
+import WebDatePicker from "@/components/WebDatePicker";
 import Colors from "@/constants/Colors";
 import { GlobalStyles } from "@/constants/Styles";
 import { JOB_TITLES } from "@/utils/roles";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
@@ -30,6 +32,10 @@ export default function CreateTournage() {
   const [country, setCountry] = useState("");
   const [city, setCity] = useState("");
   const [address, setAddress] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [showStartPicker, setShowStartPicker] = useState(false);
+  const [showEndPicker, setShowEndPicker] = useState(false);
   const [coords, setCoords] = useState<{
     lat: number | null;
     lon: number | null;
@@ -198,13 +204,18 @@ export default function CreateTournage() {
       if (!session) throw new Error("Non connecté");
 
       // Calculate Coordinates
-      // Prefer precise address if available (from autocomplete), otherwise City + Country fallback
       let lat = coords.lat;
       let lon = coords.lon;
 
-      const searchAddress = address.trim() || `${city} ${country}`;
+      // More robust search term combining address, city and country
+      const searchParts = [];
+      if (address.trim()) searchParts.push(address.trim());
+      if (city.trim()) searchParts.push(city.trim());
+      if (country.trim()) searchParts.push(country.trim());
 
-      // Only refetch if we don't have coords yet (e.g. user didn't select from dropdown)
+      const searchAddress = searchParts.join(", ");
+
+      // Only refetch if we don't have coords yet
       if (!lat && !lon && searchAddress.trim()) {
         const c = await getCoordinates(searchAddress);
         if (c) {
@@ -223,8 +234,10 @@ export default function CreateTournage() {
           pays: country.trim() || null,
           ville: city.trim() || null,
           address: address.trim() || null,
-          latitude: lat,
-          longitude: lon,
+          latitude: lat ? parseFloat(String(lat)) : null,
+          longitude: lon ? parseFloat(String(lon)) : null,
+          start_date: startDate || null,
+          end_date: endDate || null,
         })
         .select()
         .single();
@@ -302,9 +315,10 @@ export default function CreateTournage() {
             currentValue={address}
             onSelect={(addr, lat, lon) => {
               setAddress(addr);
-              if (lat && lon) {
-                setCoords({ lat, lon });
-              }
+              setCoords({
+                lat: lat || null,
+                lon: lon || null,
+              });
             }}
             placeholder="Ex: 10 Rue de la Paix"
           />
@@ -312,6 +326,106 @@ export default function CreateTournage() {
             Permet d'afficher le lieu exact sur la carte. Si vide, la ville sera
             utilisée.
           </Text>
+
+          <View style={{ flexDirection: "row", marginTop: 15, gap: 10 }}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.label}>Date de début</Text>
+              {Platform.OS === "web" ? (
+                <WebDatePicker value={startDate} onChange={setStartDate} />
+              ) : (
+                <>
+                  <TouchableOpacity
+                    style={GlobalStyles.input}
+                    onPress={() => setShowStartPicker(true)}
+                  >
+                    <Text
+                      style={{ color: startDate ? Colors.light.text : "#999" }}
+                    >
+                      {startDate || "Choisir une date"}
+                    </Text>
+                  </TouchableOpacity>
+                  {showStartPicker && (
+                    <DateTimePicker
+                      value={startDate ? new Date(startDate) : new Date()}
+                      mode="date"
+                      display="default"
+                      onChange={(event, date) => {
+                        if (Platform.OS === "android") {
+                          setShowStartPicker(false);
+                        }
+                        if (date) {
+                          setStartDate(date.toISOString().split("T")[0]);
+                        }
+                      }}
+                    />
+                  )}
+                  {Platform.OS === "ios" && showStartPicker && (
+                    <TouchableOpacity
+                      onPress={() => setShowStartPicker(false)}
+                      style={{
+                        marginTop: 5,
+                        padding: 8,
+                        backgroundColor: "#eee",
+                        borderRadius: 5,
+                        alignItems: "center",
+                      }}
+                    >
+                      <Text style={{ fontSize: 12, color: "#666" }}>OK</Text>
+                    </TouchableOpacity>
+                  )}
+                </>
+              )}
+            </View>
+
+            <View style={{ flex: 1 }}>
+              <Text style={styles.label}>Date de fin</Text>
+              {Platform.OS === "web" ? (
+                <WebDatePicker value={endDate} onChange={setEndDate} />
+              ) : (
+                <>
+                  <TouchableOpacity
+                    style={GlobalStyles.input}
+                    onPress={() => setShowEndPicker(true)}
+                  >
+                    <Text
+                      style={{ color: endDate ? Colors.light.text : "#999" }}
+                    >
+                      {endDate || "Choisir une date"}
+                    </Text>
+                  </TouchableOpacity>
+                  {showEndPicker && (
+                    <DateTimePicker
+                      value={endDate ? new Date(endDate) : new Date()}
+                      mode="date"
+                      display="default"
+                      onChange={(event, date) => {
+                        if (Platform.OS === "android") {
+                          setShowEndPicker(false);
+                        }
+                        if (date) {
+                          setEndDate(date.toISOString().split("T")[0]);
+                        }
+                      }}
+                    />
+                  )}
+                  {Platform.OS === "ios" && showEndPicker && (
+                    <TouchableOpacity
+                      onPress={() => setShowEndPicker(false)}
+                      style={{
+                        marginTop: 5,
+                        padding: 8,
+                        backgroundColor: "#eee",
+                        borderRadius: 5,
+                        alignItems: "center",
+                      }}
+                    >
+                      <Text style={{ fontSize: 12, color: "#666" }}>OK</Text>
+                    </TouchableOpacity>
+                  )}
+                </>
+              )}
+            </View>
+          </View>
 
           <Text style={styles.label}>Type</Text>
           <View style={styles.typeContainer}>

@@ -6,15 +6,15 @@ import { fuzzySearch } from "@/utils/search";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
-  Alert,
-  Button,
-  FlatList,
-  Modal,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    Alert,
+    Button,
+    FlatList,
+    Modal,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { supabase } from "../../../lib/supabase";
 
@@ -59,6 +59,9 @@ type DraftRole = {
   equipment?: string;
   software?: string;
   specialties?: string;
+  isPaid?: boolean;
+  remunerationAmount?: string;
+  isFilled?: boolean;
   data?: any;
 };
 
@@ -109,6 +112,9 @@ export default function ProjectSetupWizard() {
           equipment: "",
           software: "",
           specialties: "",
+          isPaid: false,
+          remunerationAmount: "",
+          isFilled: false,
           data: {},
         }));
         setDraftRoles(drafts);
@@ -154,6 +160,9 @@ export default function ProjectSetupWizard() {
         equipment: "",
         software: "",
         specialties: "",
+        isPaid: false,
+        remunerationAmount: "",
+        isFilled: false,
         data: {},
       },
     ]);
@@ -276,7 +285,9 @@ export default function ProjectSetupWizard() {
             equipment: r.equipment || null,
             software: r.software || null,
             specialties: r.specialties || null,
-            status: "draft",
+            is_paid: r.isPaid ?? false,
+            remuneration_amount: r.isPaid ? r.remunerationAmount : null,
+            status: r.isFilled || r.assignee?.id ? "assigned" : "draft",
           }));
         });
         const { error: tryErr } = await supabase
@@ -486,6 +497,66 @@ export default function ProjectSetupWizard() {
               data={item}
               onChange={(newData) => updateDraft(item.id, newData)}
             />
+
+            <Text style={styles.label}>Rémunération</Text>
+            <View style={styles.rowWrap}>
+              <TouchableOpacity
+                onPress={() => updateDraft(item.id, { isPaid: true })}
+                style={[styles.catChip, item.isPaid && styles.catChipSelected]}
+              >
+                <Text style={{ color: item.isPaid ? "white" : "#333" }}>
+                  Rémunéré
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => updateDraft(item.id, { isPaid: false })}
+                style={[styles.catChip, !item.isPaid && styles.catChipSelected]}
+              >
+                <Text style={{ color: !item.isPaid ? "white" : "#333" }}>
+                  Bénévole
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {item.isPaid && (
+              <View style={{ marginTop: 10 }}>
+                <Text style={styles.label}>Montant de la rémunération</Text>
+                <TextInput
+                  placeholder="Ex: 150€ / jour ou Cachet global"
+                  style={styles.input}
+                  value={item.remunerationAmount}
+                  onChangeText={(t) =>
+                    updateDraft(item.id, { remunerationAmount: t })
+                  }
+                />
+              </View>
+            )}
+
+            <Text style={styles.label}>Poste déjà pourvu ?</Text>
+            <View style={styles.rowWrap}>
+              <TouchableOpacity
+                onPress={() => updateDraft(item.id, { isFilled: true })}
+                style={[
+                  styles.catChip,
+                  item.isFilled && styles.catChipSelected,
+                ]}
+              >
+                <Text style={{ color: item.isFilled ? "white" : "#333" }}>
+                  Oui
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => updateDraft(item.id, { isFilled: false })}
+                style={[
+                  styles.catChip,
+                  !item.isFilled && styles.catChipSelected,
+                ]}
+              >
+                <Text style={{ color: !item.isFilled ? "white" : "#333" }}>
+                  Non
+                </Text>
+              </TouchableOpacity>
+            </View>
 
             {/* ASSIGNMENT */}
 

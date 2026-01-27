@@ -57,6 +57,8 @@ type RoleItem = {
   height?: number | null;
   hair_color?: string | null;
   eye_color?: string | null;
+  is_paid?: boolean | null;
+  remuneration_amount?: string | null;
   equipment?: string | null;
   software?: string | null;
   specialties?: string | null;
@@ -103,7 +105,9 @@ export default function ManageRoles() {
     equipment: string;
     software: string;
     specialties: string;
-    status: string; // "draft" | "published"
+    status: string; // "draft" | "published" | "assigned"
+    isPaid: boolean;
+    remunerationAmount: string;
     assignee: { id: string; label: string } | null;
     data: any;
     createPost?: boolean;
@@ -225,6 +229,8 @@ export default function ManageRoles() {
       specialties: "",
       data: {},
       status: "draft",
+      isPaid: false,
+      remunerationAmount: "",
       assignee: null,
       createPost: false,
     });
@@ -256,6 +262,10 @@ export default function ManageRoles() {
         specialties: role.specialties || "",
         data: role.data || {},
         status: role.status || "published",
+        isPaid: role.is_paid ?? false,
+        remunerationAmount: role.remuneration_amount
+          ? String(role.remuneration_amount)
+          : "",
         assignee: role.assigned_profile
           ? {
               id: role.assigned_profile_id!,
@@ -284,6 +294,10 @@ export default function ManageRoles() {
     }
 
     if (!editingRole.id) {
+      if (editingRole.status === "assigned") {
+        processSave(false);
+        return;
+      }
       Alert.alert(
         "Publier l'offre",
         "Souhaitez-vous publier cette offre dans Jobs et la partager dans le fil d'actualité ?",
@@ -350,6 +364,10 @@ export default function ManageRoles() {
         equipment: editingRole.equipment || null,
         software: editingRole.software || null,
         specialties: editingRole.specialties || null,
+        is_paid: editingRole.isPaid,
+        remuneration_amount: editingRole.isPaid
+          ? editingRole.remunerationAmount
+          : null,
         // data: editingRole.data,
         assigned_profile_id: editingRole.assignee?.id ?? null,
         status: resolvedStatus,
@@ -756,6 +774,13 @@ export default function ManageRoles() {
 
   async function removeAssignment(roleId: string) {
     try {
+      // Remove any accepted application so the user can re-apply if needed
+      await supabase
+        .from("applications")
+        .delete()
+        .eq("role_id", roleId)
+        .eq("status", "accepted");
+
       const { error } = await supabase
         .from("project_roles")
         .update({ assigned_profile_id: null, status: "published" })
@@ -811,7 +836,8 @@ export default function ManageRoles() {
               <Text style={styles.roleTitle}>{item.title}</Text>
             </View>
             <Text style={styles.categoryText}>
-              {item.category.toUpperCase()}
+              {item.category.toUpperCase()} •{" "}
+              {item.is_paid ? "Rémunéré" : "Bénévole"}
             </Text>
           </View>
           <View style={{ flexDirection: "row", gap: 15 }}>
@@ -839,6 +865,15 @@ export default function ManageRoles() {
               <View style={styles.assignedContainer}>
                 <Ionicons name="checkmark-circle" size={16} color="#4CAF50" />
                 <Text style={styles.assignedText}> {assigneeName}</Text>
+              </View>
+            ) : item.status === "assigned" ? (
+              <View
+                style={[styles.assignedContainer, { backgroundColor: "#eee" }]}
+              >
+                <Ionicons name="checkmark-circle" size={16} color="#999" />
+                <Text style={[styles.assignedText, { color: "#666" }]}>
+                  Pourvu (Manuel)
+                </Text>
               </View>
             ) : (
               <Text style={{ fontSize: 12, color: "#999" }}>Non pourvu</Text>
@@ -1110,6 +1145,110 @@ export default function ManageRoles() {
                   data={editingRole}
                   onChange={setEditingRole}
                 />
+
+                <Text style={styles.label}>Rémunération</Text>
+                <View style={styles.rowWrap}>
+                  <TouchableOpacity
+                    onPress={() =>
+                      setEditingRole({ ...editingRole, isPaid: true })
+                    }
+                    style={[
+                      styles.catChip,
+                      editingRole.isPaid && styles.catChipSelected,
+                    ]}
+                  >
+                    <Text
+                      style={{
+                        color: editingRole.isPaid ? "white" : "#333",
+                      }}
+                    >
+                      Rémunéré
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() =>
+                      setEditingRole({ ...editingRole, isPaid: false })
+                    }
+                    style={[
+                      styles.catChip,
+                      !editingRole.isPaid && styles.catChipSelected,
+                    ]}
+                  >
+                    <Text
+                      style={{
+                        color: !editingRole.isPaid ? "white" : "#333",
+                      }}
+                    >
+                      Bénévole
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                {editingRole.isPaid && (
+                  <View style={{ marginTop: 10 }}>
+                    <Text style={styles.label}>Montant de la rémunération</Text>
+                    <TextInput
+                      placeholder="Ex: 150€ / jour ou Cachet global"
+                      style={styles.input}
+                      value={editingRole.remunerationAmount}
+                      onChangeText={(t) =>
+                        setEditingRole({
+                          ...editingRole,
+                          remunerationAmount: t,
+                        })
+                      }
+                    />
+                  </View>
+                )}
+
+                {/* STATUS POURVU */}
+                <Text style={styles.label}>Poste déjà pourvu ?</Text>
+                <View style={styles.rowWrap}>
+                  <TouchableOpacity
+                    onPress={() =>
+                      setEditingRole({ ...editingRole, status: "assigned" })
+                    }
+                    style={[
+                      styles.catChip,
+                      editingRole.status === "assigned" &&
+                        styles.catChipSelected,
+                    ]}
+                  >
+                    <Text
+                      style={{
+                        color:
+                          editingRole.status === "assigned" ? "white" : "#333",
+                      }}
+                    >
+                      Oui
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() =>
+                      setEditingRole({
+                        ...editingRole,
+                        status:
+                          editingRole.status === "assigned"
+                            ? "published"
+                            : editingRole.status,
+                      })
+                    }
+                    style={[
+                      styles.catChip,
+                      editingRole.status !== "assigned" &&
+                        styles.catChipSelected,
+                    ]}
+                  >
+                    <Text
+                      style={{
+                        color:
+                          editingRole.status !== "assigned" ? "white" : "#333",
+                      }}
+                    >
+                      Non
+                    </Text>
+                  </TouchableOpacity>
+                </View>
 
                 {/* STATUS TOGGLE */}
                 <Text style={styles.label}>Statut de l'annonce</Text>

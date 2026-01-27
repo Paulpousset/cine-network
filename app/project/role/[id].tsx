@@ -5,15 +5,15 @@ import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-  Alert,
-  Image,
-  Modal,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    Alert,
+    Image,
+    Modal,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { supabase } from "../../../lib/supabase";
 
@@ -312,11 +312,18 @@ export default function RoleDetails() {
                 </View>
               )}
 
-              {project.is_paid !== null && (
+              {/* Check role level is_paid first, then project level fallback */}
+              {(role.is_paid !== null || project.is_paid !== null) && (
                 <View style={styles.tag}>
                   <Text style={styles.tagLabel}>Rémunération</Text>
                   <Text style={styles.tagValue}>
-                    {project.is_paid ? "Rémunéré" : "Bénévole"}
+                    {role.is_paid !== null
+                      ? role.is_paid
+                        ? "Rémunéré"
+                        : "Bénévole"
+                      : project.is_paid
+                        ? "Rémunéré"
+                        : "Bénévole"}
                   </Text>
                 </View>
               )}

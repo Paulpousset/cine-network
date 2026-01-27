@@ -6,13 +6,14 @@ import { Ionicons } from "@expo/vector-icons";
 import { Stack, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-    FlatList,
-    Image,
-    RefreshControl,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  FlatList,
+  Image,
+  Platform,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 export default function DirectMessagesList() {
@@ -25,32 +26,33 @@ export default function DirectMessagesList() {
   useEffect(() => {
     fetchConversations();
 
-    // Realtime subscription for new messages
-    const channel = supabase
-      .channel("dm_list")
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "direct_messages",
-        },
-        async (payload) => {
-          console.log("DM List: Realtime event", payload.eventType);
-          // Refresh generally to cover all cases (new msg, read status, etc)
-          fetchConversations();
-        },
-      )
-      .subscribe();
+    // Listen for new messages via GlobalRealtimeListener to update the list immediately
+    const unsubscribeNew = appEvents.on(EVENTS.NEW_MESSAGE, () => {
+      console.log("DM List: New message event received, refreshing list");
+      fetchConversations();
+    });
 
     // Listen for read events to update badges instantly
     const unsubscribeRead = appEvents.on(EVENTS.MESSAGES_READ, () => {
       fetchConversations();
     });
 
+    // Special handling for Web focus to refresh list
+    const onWebFocus = () => {
+      if (Platform.OS === "web") {
+        fetchConversations();
+      }
+    };
+    if (Platform.OS === "web") {
+      window.addEventListener("focus", onWebFocus);
+    }
+
     return () => {
-      supabase.removeChannel(channel);
+      unsubscribeNew();
       unsubscribeRead();
+      if (Platform.OS === "web") {
+        window.removeEventListener("focus", onWebFocus);
+      }
     };
   }, []);
 
@@ -63,8 +65,7 @@ export default function DirectMessagesList() {
       setCurrentUserId(session.user.id);
 
       // Use the efficient Database Function (RPC)
-      const { data: convs, error } = await supabase
-        .rpc("get_conversations");
+      const { data: convs, error } = await supabase.rpc("get_conversations");
 
       if (error) throw error;
 
@@ -141,7 +142,10 @@ export default function DirectMessagesList() {
             >
               <Image
                 source={{
-                  uri: item.user.avatar_url || "https://ui-avatars.com/api/?name=" + (item.user.full_name || "User"),
+                  uri:
+                    item.user.avatar_url ||
+                    "https://ui-avatars.com/api/?name=" +
+                      (item.user.full_name || "User"),
                 }}
                 style={styles.avatar}
               />

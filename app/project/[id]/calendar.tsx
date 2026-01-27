@@ -1,26 +1,27 @@
 import ClapLoading from "@/components/ClapLoading";
+import WebDatePicker from "@/components/WebDatePicker";
 import Colors from "@/constants/Colors";
 import { GlobalStyles } from "@/constants/Styles";
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import {
-  useFocusEffect,
-  useGlobalSearchParams,
-  useLocalSearchParams,
-  useRouter,
+    useFocusEffect,
+    useGlobalSearchParams,
+    useLocalSearchParams,
+    useRouter,
 } from "expo-router";
 import React, { useCallback, useState } from "react";
 import {
-  Alert,
-  Button,
-  FlatList,
-  Modal,
-  Platform,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    Alert,
+    Button,
+    FlatList,
+    Modal,
+    Platform,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { supabase } from "../../../lib/supabase";
 
@@ -783,13 +784,28 @@ export default function ProjectCalendar() {
 
                 {showDatePicker && (
                   <View style={{ alignItems: "center", marginBottom: 15 }}>
-                    <DateTimePicker
-                      value={newEventDate ? new Date(newEventDate) : new Date()}
-                      mode="date"
-                      display={Platform.OS === "ios" ? "inline" : "default"}
-                      onChange={onDateChange}
-                      style={Platform.OS === "ios" ? { width: 320 } : undefined}
-                    />
+                    {Platform.OS === "web" ? (
+                      <WebDatePicker
+                        type="date"
+                        value={newEventDate}
+                        onChange={(val) => {
+                          setNewEventDate(val);
+                          setShowDatePicker(false);
+                        }}
+                      />
+                    ) : (
+                      <DateTimePicker
+                        value={
+                          newEventDate ? new Date(newEventDate) : new Date()
+                        }
+                        mode="date"
+                        display={Platform.OS === "ios" ? "inline" : "default"}
+                        onChange={onDateChange}
+                        style={
+                          Platform.OS === "ios" ? { width: 320 } : undefined
+                        }
+                      />
+                    )}
                     {Platform.OS === "ios" && (
                       <Button
                         title="Fermer le calendrier"
@@ -801,20 +817,33 @@ export default function ProjectCalendar() {
 
                 {showTimePicker && (
                   <View style={{ alignItems: "center", marginBottom: 15 }}>
-                    <DateTimePicker
-                      value={(() => {
-                        const d = new Date();
-                        if (newEventTime) {
-                          const [h, m] = newEventTime.split(":");
-                          d.setHours(parseInt(h), parseInt(m));
+                    {Platform.OS === "web" ? (
+                      <WebDatePicker
+                        type="time"
+                        value={newEventTime}
+                        onChange={(val) => {
+                          setNewEventTime(val);
+                          setShowTimePicker(false);
+                        }}
+                      />
+                    ) : (
+                      <DateTimePicker
+                        value={(() => {
+                          const d = new Date();
+                          if (newEventTime) {
+                            const [h, m] = newEventTime.split(":");
+                            d.setHours(parseInt(h), parseInt(m));
+                          }
+                          return d;
+                        })()}
+                        mode="time"
+                        display={Platform.OS === "ios" ? "spinner" : "default"}
+                        onChange={onTimeChange}
+                        style={
+                          Platform.OS === "ios" ? { width: 320 } : undefined
                         }
-                        return d;
-                      })()}
-                      mode="time"
-                      display={Platform.OS === "ios" ? "spinner" : "default"}
-                      onChange={onTimeChange}
-                      style={Platform.OS === "ios" ? { width: 320 } : undefined}
-                    />
+                      />
+                    )}
                     {Platform.OS === "ios" && (
                       <Button
                         title="Valider l'heure"

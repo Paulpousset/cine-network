@@ -1,9 +1,13 @@
+import Colors from "@/constants/Colors";
+import { GlobalStyles } from "@/constants/Styles";
 import { Ionicons } from "@expo/vector-icons";
 import { Stack, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
     Alert,
     FlatList,
+    Image,
+    Platform,
     RefreshControl,
     StyleSheet,
     Text,
@@ -11,8 +15,6 @@ import {
     View,
 } from "react-native";
 import { supabase } from "../../lib/supabase";
-import { GlobalStyles } from "@/constants/Styles";
-import Colors from "@/constants/Colors";
 
 export default function NetworkConnections() {
   const router = useRouter();
@@ -39,8 +41,8 @@ export default function NetworkConnections() {
         .select(
           `
           *,
-          requester:profiles!requester_id(id, full_name, username, role, ville),
-          receiver:profiles!receiver_id(id, full_name, username, role, ville)
+          requester:profiles!requester_id(id, full_name, username, role, ville, avatar_url),
+          receiver:profiles!receiver_id(id, full_name, username, role, ville, avatar_url)
         `,
         )
         .or(
@@ -60,32 +62,40 @@ export default function NetworkConnections() {
   }
 
   const removeConnection = async (connectionId: string, name: string) => {
-    Alert.alert(
-      "Supprimer",
-      `Voulez-vous vraiment retirer ${name} de votre réseau ?`,
-      [
-        { text: "Annuler", style: "cancel" },
-        {
-          text: "Retirer",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              const { error } = await supabase
-                .from("connections")
-                .delete()
-                .eq("id", connectionId);
-              if (error) throw error;
-              setConnections((prev) =>
-                prev.filter((c) => c.id !== connectionId),
-              );
-            } catch (e) {
-              console.error(e);
-              Alert.alert("Erreur", "Impossible de supprimer la connexion.");
-            }
+    const doDelete = async () => {
+      try {
+        const { error } = await supabase
+          .from("connections")
+          .delete()
+          .eq("id", connectionId);
+        if (error) throw error;
+        setConnections((prev) => prev.filter((c) => c.id !== connectionId));
+      } catch (e) {
+        console.error(e);
+        Alert.alert("Erreur", "Impossible de supprimer la connexion.");
+      }
+    };
+
+    if (Platform.OS === "web") {
+      if (
+        window.confirm(`Voulez-vous vraiment retirer ${name} de votre réseau ?`)
+      ) {
+        doDelete();
+      }
+    } else {
+      Alert.alert(
+        "Supprimer",
+        `Voulez-vous vraiment retirer ${name} de votre réseau ?`,
+        [
+          { text: "Annuler", style: "cancel" },
+          {
+            text: "Retirer",
+            style: "destructive",
+            onPress: doDelete,
           },
-        },
-      ],
-    );
+        ],
+      );
+    }
   };
 
   const renderItem = ({ item }: { item: any }) => {
@@ -103,13 +113,36 @@ export default function NetworkConnections() {
             })
           }
         >
-          <Text style={GlobalStyles.title2}>
-            {otherUser.full_name || otherUser.username}
-          </Text>
-          <Text style={GlobalStyles.caption}>
-            {otherUser.role ? otherUser.role.toUpperCase() : "Membre"} •{" "}
-            {otherUser.ville || "N/A"}
-          </Text>
+          {otherUser.avatar_url ? (
+            <Image
+              source={{ uri: otherUser.avatar_url }}
+              style={styles.avatar}
+            />
+          ) : (
+            <View
+              style={[
+                styles.avatar,
+                {
+                  backgroundColor: "#ccc",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  marginRight: 10,
+                },
+              ]}
+            >
+              <Ionicons name="person" size={24} color="#fff" />
+            </View>
+          )}
+
+          <View style={{ flex: 1 }}>
+            <Text style={GlobalStyles.title2}>
+              {otherUser.full_name || otherUser.username}
+            </Text>
+            <Text style={GlobalStyles.caption}>
+              {otherUser.role ? otherUser.role.toUpperCase() : "Membre"} •{" "}
+              {otherUser.ville || "N/A"}
+            </Text>
+          </View>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -118,7 +151,11 @@ export default function NetworkConnections() {
             removeConnection(item.id, otherUser.full_name || otherUser.username)
           }
         >
-          <Ionicons name="trash-outline" size={20} color={Colors.light.danger} />
+          <Ionicons
+            name="trash-outline"
+            size={20}
+            color={Colors.light.danger}
+          />
         </TouchableOpacity>
       </View>
     );
@@ -161,5 +198,15 @@ export default function NetworkConnections() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.light.backgroundSecondary },
-  info: { flex: 1 },
+  info: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  avatar: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    marginRight: 12,
+  },
 });

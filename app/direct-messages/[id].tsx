@@ -3,6 +3,7 @@ import Colors from "@/constants/Colors";
 import { appEvents, EVENTS } from "@/lib/events";
 import { supabase } from "@/lib/supabase";
 import { Ionicons } from "@expo/vector-icons";
+import { Image } from "expo-image"; // Better image component
 import {
   Stack,
   useFocusEffect,
@@ -11,6 +12,8 @@ import {
 } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
+  Alert,
+  AppState,
   FlatList,
   KeyboardAvoidingView,
   Platform,
@@ -39,7 +42,7 @@ export default function DirectMessageChat() {
     useCallback(() => {
       isFocusedRef.current = true;
       markAllAsRead();
-      
+
       return () => {
         isFocusedRef.current = false;
       };
@@ -84,8 +87,11 @@ export default function DirectMessageChat() {
       });
 
       if (rpcError) {
-        console.log("RPC mark_messages_read failed, falling back to direct update", rpcError);
-        
+        console.log(
+          "RPC mark_messages_read failed, falling back to direct update",
+          rpcError,
+        );
+
         // Fallback to direct update (which should now work thanks to RLS fix)
         const { error } = await supabase
           .from("direct_messages")
@@ -96,10 +102,9 @@ export default function DirectMessageChat() {
 
         if (error) throw error;
       }
-      
+
       // Emit again to be sure final state is synced
       appEvents.emit(EVENTS.MESSAGES_READ);
-      
     } catch (e) {
       console.log("Error marking messages as read:", e);
     }
@@ -108,40 +113,76 @@ export default function DirectMessageChat() {
   useEffect(() => {
     setup();
 
-    // Realtime subscription
-    const channel = supabase
-      .channel("dm_chat")
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "direct_messages",
-        },
-        async (payload) => {
-          const newMsg = payload.new;
-          // Check if this message belongs to this conversation
-          if (
-            (newMsg.sender_id === currentUserId && newMsg.receiver_id === id) ||
-            (newMsg.sender_id === id && newMsg.receiver_id === currentUserId)
-          ) {
-            setMessages((prev) => [newMsg, ...prev]);
+    // Refresh when app comes back to foreground (especially important on Web)
+    const subscription = AppState.addEventListener("change", (nextAppState) => {
+      if (nextAppState === "active") {
+        markAllAsRead();
+        if (currentUserId) fetchMessages(currentUserId);
+      }
+    });
 
-            // Si le message vient de l'autre personne et qu'on est déjà dans le chat, on le marque comme lu immédiatement
-            // MAIS SEULEMENT SI L'ÉCRAN EST FOCUS
-            if (newMsg.sender_id === id && currentUserId && isFocusedRef.current) {
-              // Use RPC for reliability
-              supabase.rpc("mark_messages_read", { target_sender_id: id }).then(() => {
-                 appEvents.emit(EVENTS.MESSAGES_READ);
-              });
-            }
-          }
-        },
-      )
-      .subscribe();
+    // Special handling for Web focus
+    const onWebFocus = () => {
+      if (Platform.OS === "web") {
+        markAllAsRead();
+        if (currentUserId) fetchMessages(currentUserId);
+      }
+    };
+    if (Platform.OS === "web") {
+      window.addEventListener("focus", onWebFocus);
+    }
 
     return () => {
-      supabase.removeChannel(channel);
+      subscription.remove();
+      if (Platform.OS === "web") {
+        window.removeEventListener("focus", onWebFocus);
+      }
+    };
+  }, [id]); // Only depend on id to avoid infinite loops with setup()
+
+  useEffect(() => {
+    if (!id || !currentUserId) return;
+
+    // Listen for new messages via GlobalRealtimeListener
+    const unsubscribeNew = appEvents.on(EVENTS.NEW_MESSAGE, (newMsg: any) => {
+      // If we didn't receive the payload (legacy event call), we can't do smart update
+      if (!newMsg) return;
+
+      // Check if this message belongs to this conversation
+      const isRelevant =
+        (newMsg.sender_id === currentUserId && newMsg.receiver_id === id) ||
+        (newMsg.sender_id === id && newMsg.receiver_id === currentUserId);
+
+      if (!isRelevant) return;
+
+      console.log("[Chat] Message event received:", newMsg.id);
+
+      setMessages((prev) => {
+        // If it exists, update it (e.g. read status change)
+        if (prev.some((m) => m.id === newMsg.id)) {
+          return prev.map((m) => (m.id === newMsg.id ? newMsg : m));
+        }
+        // If not, insert it
+        return [newMsg, ...prev];
+      });
+
+      // Mark as read immediately if it's a new incoming message and focused
+      if (
+        newMsg.sender_id === id &&
+        isFocusedRef.current &&
+        newMsg.is_read === false
+      ) {
+        console.log("[Chat] Marking incoming message as read immediately");
+        supabase
+          .rpc("mark_messages_read", { target_sender_id: id })
+          .then(() => {
+            appEvents.emit(EVENTS.MESSAGES_READ);
+          });
+      }
+    });
+
+    return () => {
+      unsubscribeNew();
     };
   }, [id, currentUserId]);
 
@@ -191,31 +232,147 @@ export default function DirectMessageChat() {
     const content = inputText.trim();
     setTextInput("");
 
+    // Optimistic Update
+    const tempId = Math.random().toString(36).substring(7);
+    const tempMsg = {
+      id: tempId,
+      sender_id: currentUserId,
+      receiver_id: id,
+      content: content,
+      created_at: new Date().toISOString(),
+      is_read: false,
+    };
+
+    setMessages((prev) => [tempMsg, ...prev]);
+
     try {
-      const { error } = await supabase.from("direct_messages").insert({
-        sender_id: currentUserId,
-        receiver_id: id,
-        content: content,
-      });
+      const { data, error } = await supabase
+        .from("direct_messages")
+        .insert({
+          sender_id: currentUserId,
+          receiver_id: id,
+          content: content,
+        })
+        .select()
+        .single();
 
       if (error) throw error;
+
+      // Replace temp message with real one to get correct ID and DB state
+      if (data) {
+        setMessages((prev) => prev.map((m) => (m.id === tempId ? data : m)));
+      }
 
       // En répondant, on marque forcément tout comme lu
       markAllAsRead();
     } catch (e) {
       console.error(e);
+      // Remove temp message on error
+      setMessages((prev) => prev.filter((m) => m.id !== tempId));
+      Alert.alert("Erreur", "Impossible d'envoyer le message");
     }
   }
+
+  // Helper to render the custom header on Web
+  const CustomWebHeader = () => {
+    if (Platform.OS !== "web") return null;
+
+    return (
+      <View
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          padding: 10,
+          borderBottomWidth: 1,
+          borderBottomColor: "#eee",
+          backgroundColor: "#fff",
+          gap: 12,
+        }}
+      >
+        {otherUser?.avatar_url ? (
+          <Image
+            source={{ uri: otherUser.avatar_url }}
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: 20,
+              backgroundColor: "#eee",
+            }}
+            contentFit="cover"
+            transition={200}
+          />
+        ) : (
+          <Ionicons
+            name="person-circle-outline"
+            size={40}
+            color={Colors.light.tabIconDefault}
+          />
+        )}
+        <View>
+          <Text style={{ fontSize: 16, fontWeight: "600" }}>
+            {otherUser?.full_name || otherUser?.username || "Chat"}
+          </Text>
+          {otherUser?.role && (
+            <Text style={{ fontSize: 12, color: "gray" }}>
+              {otherUser.role.toUpperCase()}
+            </Text>
+          )}
+        </View>
+      </View>
+    );
+  };
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: Colors.light.background }}>
       <Stack.Screen
         options={{
-          headerTitle: otherUser?.full_name || otherUser?.username || "Chat",
+          headerTitle: () => (
+            <View
+              style={{ flexDirection: "row", alignItems: "center", gap: 10 }}
+            >
+              {otherUser?.avatar_url ? (
+                <Image
+                  source={{ uri: otherUser.avatar_url }}
+                  style={{
+                    width: 35,
+                    height: 35,
+                    borderRadius: 17.5,
+                    backgroundColor: "#eee",
+                  }}
+                  contentFit="cover"
+                  transition={200}
+                />
+              ) : (
+                <Ionicons
+                  name="person-circle-outline"
+                  size={35}
+                  color={Colors.light.tabIconDefault}
+                />
+              )}
+              <View>
+                <Text style={{ fontSize: 16, fontWeight: "600" }}>
+                  {otherUser?.full_name || otherUser?.username || "Chat"}
+                </Text>
+                {otherUser?.role && (
+                  <Text style={{ fontSize: 10, color: "gray" }}>
+                    {otherUser.role.toUpperCase()}
+                  </Text>
+                )}
+              </View>
+            </View>
+          ),
           headerTintColor: Colors.light.tint,
-          headerBackTitle: "", // Hide the back button text
+          headerBackTitle: "", // Hide back title text on iOS
+          // On Web, default header is often hidden or looks bad in this sidebar layout
+          // We can force it shown, OR we can hide it and render our own View.
+          // Given the user report "I don't see who I am writing to",
+          // and app/_layout.tsx sets headerShown: false for web usually,
+          // Let's force it hidden here for Web and use our CustomWebHeader.
+          headerShown: Platform.OS !== "web",
         }}
       />
+
+      <CustomWebHeader />
 
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -278,6 +435,18 @@ export default function DirectMessageChat() {
             value={inputText}
             onChangeText={setTextInput}
             multiline
+            onKeyPress={(e) => {
+              // Sur le WEB : "Entrée" envoie le message, "Shift+Entrée" fait un saut de ligne
+              if (Platform.OS === "web") {
+                // @ts-ignore: nativeEvent can correspond to web KeyboardEvent
+                if (e.nativeEvent.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault(); // Empêcher le saut de ligne
+                  if (inputText.trim()) {
+                    sendMessage();
+                  }
+                }
+              }
+            }}
           />
           <TouchableOpacity
             onPress={sendMessage}

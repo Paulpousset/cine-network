@@ -1,0 +1,427 @@
+          style={styles.projectCard}
+          activeOpacity={0.9}
+        >
+          {item.project.image_url ? (
+            <Image
+              source={{ uri: item.project.image_url }}
+              style={styles.projectCardImage}
+            />
+          ) : (
+            <View style={styles.projectCardPlaceholder}>
+              <Ionicons
+                name="film"
+                size={24}
+                color={Colors.light.tabIconDefault}
+              />
+            </View>
+          )}
+
+          <View style={styles.projectCardContent}>
+            <View
+              style={{ flexDirection: "row", alignItems: "center", gap: 6 }}
+            >
+              <Text style={styles.projectCardType}>
+                {item.project.type?.replace("_", " ").toUpperCase() || "PROJET"}
+              </Text>
+              {item.project.start_date && (
+                <Text style={styles.projectCardDate}>
+                  •{" "}
+                  {new Date(item.project.start_date).toLocaleDateString(
+                    undefined,
+                    { month: "short", year: "numeric" },
+                  )}
+                </Text>
+              )}
+            </View>
+            <Text style={styles.projectCardTitle} numberOfLines={1}>
+              {item.project.title}
+            </Text>
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                marginTop: 4,
+              }}
+            >
+              <Ionicons name="location-outline" size={12} color="#666" />
+              <Text style={styles.projectCardMeta}>
+                {item.project.ville || "Lieu non défini"}
+              </Text>
+            </View>
+          </View>
+
+          <Ionicons
+            name="chevron-forward"
+            size={20}
+            color={Colors.light.border}
+            style={{ marginRight: 5 }}
+          />
+        </TouchableOpacity>
+      )}
+
+      <View style={styles.footer}>
+        {/* Actions like Like/Comment could go here */}
+      </View>
+    </View>
+  );
+
+  return (
+    <View style={styles.container}>
+      <Stack.Screen
+        options={{
+          headerTitle: "Fil d'actualité",
+          headerRight: () => (
+            <View style={{ flexDirection: "row", gap: 15, marginRight: 15 }}>
+              <TouchableOpacity
+                onPress={() =>
+                  userId &&
+                  router.push({
+                    pathname: "/profile/posts",
+                    params: { userId: userId, userName: "Moi" },
+                  })
+                }
+              >
+                <Ionicons
+                  name="documents-outline"
+                  size={24}
+                  color={Colors.light.text}
+                />
+              </TouchableOpacity>
+
+              <TouchableOpacity onPress={() => router.push("/post/new")}>
+                <Ionicons
+                  name="add-circle-outline"
+                  size={24}
+                  color={Colors.light.text}
+                />
+              </TouchableOpacity>
+            </View>
+          ),
+        }}
+      />
+
+      <View style={styles.feedWrapper}>
+        {/* En-tête spécifique au Web car le header natif est masqué */}
+        {Platform.OS === "web" && (
+          <View style={styles.webHeader}>
+            <Text style={styles.webHeaderTitle}>Fil d'actualité</Text>
+            <View style={{ flexDirection: "row", gap: 12 }}>
+              <TouchableOpacity
+                onPress={() =>
+                  userId &&
+                  router.push({
+                    pathname: "/profile/posts",
+                    params: { userId: userId, userName: "Moi" },
+                  })
+                }
+                style={styles.webHeaderButton}
+              >
+                <Ionicons
+                  name="documents-outline"
+                  size={18}
+                  color={Colors.light.text}
+                />
+                <Text style={styles.webHeaderButtonText}>Mes posts</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => router.push("/post/new")}
+                style={[styles.webHeaderButton, { backgroundColor: Colors.light.tint }]}
+              >
+                <Ionicons
+                  name="add-circle-outline"
+                  size={18}
+                  color="white"
+                />
+                <Text style={[styles.webHeaderButtonText, { color: "white" }]}>Nouveau post</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
+        {/* Feed Filters - Segmented Control style */}
+        <View style={styles.filterContainer}>
+          <View style={styles.segmentedControl}>
+            <TouchableOpacity
+              onPress={() => setFeedMode("network")}
+              style={[
+                styles.filterBtn,
+                feedMode === "network" && styles.filterBtnActive,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.filterText,
+                  feedMode === "network" && styles.filterTextActive,
+                ]}
+              >
+                Mon Réseau
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => setFeedMode("all")}
+              style={[
+                styles.filterBtn,
+                feedMode === "all" && styles.filterBtnActive,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.filterText,
+                  feedMode === "all" && styles.filterTextActive,
+                ]}
+              >
+                Global
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {loading && !refreshing ? (
+          <ClapLoading
+            style={{ marginTop: 40 }}
+            color={Colors.light.primary}
+            size={40}
+          />
+        ) : (
+          <FlatList
+            data={posts}
+            keyExtractor={(item) => item.id}
+            renderItem={renderItem}
+            refreshControl={
+              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+            }
+            contentContainerStyle={styles.listContent}
+            ListEmptyComponent={
+              <Text style={styles.emptyText}>
+                Aucune actualité pour le moment. Connectez-vous avec d'autres
+                personnes pour voir leurs posts !
+              </Text>
+            }
+          />
+        )}
+      </View>
+      {/* Full Screen Image Modal */}
+      <Modal
+        visible={!!selectedImage}
+        transparent={true}
+        onRequestClose={() => setSelectedImage(null)}
+      >
+        <View style={styles.modalContainer}>
+          <TouchableOpacity
+            style={styles.closeButton}
+            onPress={() => setSelectedImage(null)}
+          >
+            <Ionicons name="close" size={30} color="white" />
+          </TouchableOpacity>
+          {selectedImage && (
+            <Image
+              source={{ uri: selectedImage }}
+              style={styles.fullImage}
+              resizeMode="contain"
+            />
+          )}
+        </View>
+      </Modal>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: Colors.light.backgroundSecondary,
+  },
+  webHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+    backgroundColor: "white",
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.light.border,
+  },
+  webHeaderTitle: {
+    fontSize: 22,
+    fontWeight: "bold",
+    color: Colors.light.text,
+  },
+  webHeaderButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  webHeaderButtonText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: Colors.light.text,
+  },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 10,
+    justifyContent: "space-between",
+  },
+  webProjectHeaderInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#f0f0f0",
+    padding: 6,
+    borderRadius: 20,
+    maxWidth: 200,
+    gap: 8,
+  },
+  webProjectHeaderImage: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+  },
+  webProjectHeaderPlaceholder: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: "#ddd",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  webProjectHeaderText: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#444",
+  },
+  avatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginRight: 10,
+    backgroundColor: Colors.light.backgroundSecondary,
+  },
+  name: {
+    fontWeight: "bold",
+    fontSize: 16,
+    color: Colors.light.text,
+  },
+  date: {
+    color: "#666",
+    fontSize: 12,
+  },
+  contentBlock: {
+    marginBottom: 10,
+  },
+  kvKey: {
+    fontWeight: "700",
+    color: Colors.light.primary,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  linkButton: {
+    backgroundColor: Colors.light.tint,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+  },
+  linkButtonText: {
+    color: "white",
+    fontWeight: "700",
+    textAlign: "center",
+  },
+  projectLink: {
+    // Removed old style
+  },
+  projectCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: Colors.light.backgroundSecondary,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.light.border,
+    padding: 10,
+    marginBottom: 10,
+    gap: 12,
+  },
+  projectCardImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 8,
+    backgroundColor: "#eee",
+  },
+  projectCardPlaceholder: {
+    width: 80,
+    height: 80,
+    borderRadius: 8,
+    backgroundColor: "#e0e0e0",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  projectCardContent: {
+    flex: 1,
+    justifyContent: "center",
+  },
+  projectCardTitle: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: Colors.light.text,
+    marginBottom: 2,
+  },
+  projectCardType: {
+    fontSize: 10,
+    fontWeight: "bold",
+    color: Colors.light.primary,
+    backgroundColor: Colors.light.background,
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+    borderRadius: 4,
+    overflow: "hidden",
+    alignSelf: "flex-start",
+  },
+  projectCardMeta: {
+    fontSize: 12,
+    color: "#666",
+    marginLeft: 4,
+  },
+  projectCardDate: {
+    fontSize: 10,
+    color: "#888",
+  },
+  footer: {
+    marginTop: 5,
+  },
+  emptyText: {
+    textAlign: "center",
+    marginTop: 50,
+    color: "#666",
+    paddingHorizontal: 40,
+  },
+  filterBtn: {
+    flex: 1,
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: Colors.light.backgroundSecondary,
+    alignItems: "center",
+  },
+  filterBtnActive: {
+    backgroundColor: Colors.light.tint,
+  },
+  filterText: {
+    fontWeight: "600",
+    color: "#666",
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.9)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  closeButton: {
+    position: "absolute",
+    top: 50,
+    right: 20,
+    zIndex: 1,
+    padding: 10,
+  },
+  fullImage: {
+    width: "100%",
+    height: "100%",
+  },
+});

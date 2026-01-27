@@ -41,32 +41,86 @@ function ChatView({
   const flatListRef = useRef<FlatList>(null);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) setUserId(session.user.id);
-    });
-    fetchMessages();
+    let channel: any = null;
+    const channelId = `chat_space_${projectId}_${category}`;
 
-    console.log(`Subscribing to chat:${projectId}:${category}`);
-    const channel = supabase
-      .channel(`chat:${projectId}:${category}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "project_messages",
-          filter: `project_id=eq.${projectId}`,
-        },
-        (payload) => {
-          if (payload.new.category === category) {
-            addNewMessage(payload.new.id);
+    const setupChannel = () => {
+      console.log(`[SpaceChat] (Re)subscribing to: ${channelId}`);
+      channel = supabase
+        .channel(channelId)
+        .on(
+          "postgres_changes",
+          {
+            event: "INSERT",
+            schema: "public",
+            table: "project_messages",
+            filter: `project_id=eq.${projectId}`,
+          },
+          (payload) => {
+            const newMsg = payload.new as any;
+            if (newMsg.category === category) {
+              console.log(
+                "[SpaceChat] New message received via realtime:",
+                newMsg.id,
+              );
+              addNewMessage(newMsg.id);
+            }
+          },
+        )
+        .subscribe((status) => {
+          console.log(
+            `[SpaceChat] Subscription status for ${channelId}: ${status}`,
+          );
+          if (
+            (status === "CHANNEL_ERROR" || status === "TIMED_OUT") &&
+            Platform.OS === "web"
+          ) {
+            console.warn(`[SpaceChat] Channel ${status} on Web, recreating...`);
+            setTimeout(() => {
+              if (channel) supabase.removeChannel(channel);
+              setupChannel();
+            }, 5000);
           }
-        },
-      )
-      .subscribe();
+        });
+    };
+
+    const startSession = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (session) {
+        setUserId(session.user.id);
+      }
+      fetchMessages();
+
+      // On Web, wait a bit before starting to ensure session is fully propagated
+      if (Platform.OS === "web") {
+        setTimeout(setupChannel, 1500);
+      } else {
+        setupChannel();
+      }
+    };
+
+    startSession();
+
+    // Special handling for Web focus to refresh list
+    const onWebFocus = () => {
+      if (Platform.OS === "web") {
+        fetchMessages();
+      }
+    };
+    if (Platform.OS === "web") {
+      window.addEventListener("focus", onWebFocus);
+    }
 
     return () => {
-      supabase.removeChannel(channel);
+      if (channel) {
+        console.log(`[SpaceChat] Unsubscribing from channel`);
+        supabase.removeChannel(channel);
+      }
+      if (Platform.OS === "web") {
+        window.removeEventListener("focus", onWebFocus);
+      }
     };
   }, [projectId, category]);
 
@@ -92,7 +146,10 @@ function ChatView({
       .single();
 
     if (!error && data) {
-      setMessages((prev) => [...prev, data]);
+      setMessages((prev) => {
+        if (prev.some((m) => m.id === data.id)) return prev;
+        return [...prev, data];
+      });
     }
   }
 
@@ -101,16 +158,40 @@ function ChatView({
     const text = inputText.trim();
     setInputText("");
 
-    const { error } = await supabase.from("project_messages").insert({
+    // Optimistic Update
+    const tempId = Math.random().toString(36).substring(7);
+    const tempMsg = {
+      id: tempId,
       project_id: projectId,
       category: category,
       sender_id: userId,
       content: text,
-    });
+      created_at: new Date().toISOString(),
+      sender: null, // Will be loaded by addNewMessage
+    };
+
+    setMessages((prev) => [...prev, tempMsg]);
+
+    const { error, data } = await supabase
+      .from("project_messages")
+      .insert({
+        project_id: projectId,
+        category: category,
+        sender_id: userId,
+        content: text,
+      })
+      .select()
+      .single();
 
     if (error) {
       Alert.alert("Erreur", "Impossible d'envoyer le message");
       setInputText(text);
+      setMessages((prev) => prev.filter((m) => m.id !== tempId));
+    } else if (data) {
+      // Replace temp message or just let the realtime handles it (deduped by flatlist key)
+      // But since we want the sender info, calling addNewMessage(data.id) or replacing it is better
+      addNewMessage(data.id);
+      setMessages((prev) => prev.filter((m) => m.id !== tempId));
     }
   }
 

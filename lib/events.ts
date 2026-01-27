@@ -13,7 +13,7 @@ class EventEmitter {
       this.listeners.set(event, new Set());
     }
     this.listeners.get(event)!.add(callback);
-    
+
     // Return unsubscribe function
     return () => {
       this.listeners.get(event)?.delete(callback);
@@ -21,7 +21,7 @@ class EventEmitter {
   }
 
   emit(event: string, data?: any) {
-    this.listeners.get(event)?.forEach(callback => callback(data));
+    this.listeners.get(event)?.forEach((callback) => callback(data));
   }
 }
 
@@ -30,7 +30,8 @@ export const appEvents = new EventEmitter();
 
 // Event names
 export const EVENTS = {
-  MESSAGES_READ: 'messages_read',
-  NEW_MESSAGE: 'new_message',
-  SHOW_NOTIFICATION: 'show_notification',
+  MESSAGES_READ: "messages_read",
+  NEW_MESSAGE: "new_message",
+  SHOW_NOTIFICATION: "show_notification",
+  CONNECTIONS_UPDATED: "connections_updated",
 };

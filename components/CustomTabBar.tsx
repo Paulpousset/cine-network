@@ -11,7 +11,11 @@ import {
     View,
 } from "react-native";
 
-export default function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
+export default function CustomTabBar({
+  state,
+  descriptors,
+  navigation,
+}: BottomTabBarProps) {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "light"];
   const { width } = useWindowDimensions();
@@ -54,6 +58,32 @@ export default function CustomTabBar({ state, descriptors, navigation }: BottomT
               activeOpacity={0.7}
             >
               {options.tabBarIcon?.({ focused: isFocused, color, size: 24 })}
+              {options.tabBarBadge ? (
+                <View
+                  style={{
+                    position: "absolute",
+                    top: 5,
+                    right: "30%",
+                    minWidth: 16,
+                    height: 16,
+                    borderRadius: 8,
+                    backgroundColor: Colors[colorScheme ?? "light"].tint,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    borderWidth: 1.5,
+                    borderColor: colors.background,
+                  }}
+                >
+                  <View
+                    style={{
+                      width: 6,
+                      height: 6,
+                      borderRadius: 3,
+                      backgroundColor: "white",
+                    }}
+                  />
+                </View>
+              ) : null}
               <Text style={[styles.tabLabel, { color }]}>{options.title}</Text>
             </TouchableOpacity>
 

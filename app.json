@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "cine-network",
-    "slug": "cine-network",
+    "slug": "tita",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -31,10 +31,24 @@
     },
     "plugins": [
       "expo-router",
-      "expo-video"
+      "expo-video",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "0104688d-5fc8-4c1c-8eed-82044da3a523"
+      }
+    },
+    "owner": "titas-organization",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/0104688d-5fc8-4c1c-8eed-82044da3a523"
     }
   }
 }

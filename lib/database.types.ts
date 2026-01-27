@@ -577,7 +577,9 @@ export type Database = {
           id: string
           is_boosted: boolean | null
           is_category_admin: boolean | null
+          is_paid: boolean | null
           quantity_filled: number | null
+          remuneration_amount: string | null
           software: string | null
           specialties: string | null
           status: string | null
@@ -598,7 +600,9 @@ export type Database = {
           id?: string
           is_boosted?: boolean | null
           is_category_admin?: boolean | null
+          is_paid?: boolean | null
           quantity_filled?: number | null
+          remuneration_amount?: string | null
           software?: string | null
           specialties?: string | null
           status?: string | null
@@ -619,7 +623,9 @@ export type Database = {
           id?: string
           is_boosted?: boolean | null
           is_category_admin?: boolean | null
+          is_paid?: boolean | null
           quantity_filled?: number | null
+          remuneration_amount?: string | null
           software?: string | null
           specialties?: string | null
           status?: string | null

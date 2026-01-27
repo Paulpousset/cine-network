@@ -16,11 +16,12 @@ import {
 
 const NAVIGATION_ITEMS = [
   { name: "Mes Projets", icon: "film", href: "/my-projects", id: "projects" },
-  
+
   { name: "Fil d'actu", icon: "newspaper-o", href: "/feed" },
   { name: "Casting & Jobs", icon: "briefcase", href: "/jobs" },
 
   { name: "Réseau", icon: "user", href: "/talents" },
+  { name: "Notifications", icon: "bell", href: "/notifications" },
   { name: "Hall of Fame", icon: "trophy", href: "/hall-of-fame" }, // New Item
   { name: "Messages", icon: "comments", href: "/direct-messages", id: "chats" },
 ];
@@ -37,6 +38,7 @@ export default function Sidebar() {
   const [recentProjects, setRecentProjects] = useState<any[]>([]);
   const [recentChats, setRecentChats] = useState<any[]>([]);
   const [totalUnread, setTotalUnread] = useState(0);
+  const [pendingConnections, setPendingConnections] = useState(0); // New state
   const [projectsExpanded, setProjectsExpanded] = useState(false);
   const [chatsExpanded, setChatsExpanded] = useState(false);
 
@@ -54,7 +56,8 @@ export default function Sidebar() {
 
   const projectMatch = pathname.match(/^\/project\/([^\/]+)/);
   // Exclude "new" and "role" (job offers) path from triggering project sidebar
-  const isInsideProject = !!projectMatch && !pathname.includes("/new") && !pathname.includes("/role");
+  const isInsideProject =
+    !!projectMatch && !pathname.includes("/new") && !pathname.includes("/role");
   const projectId = projectMatch ? projectMatch[1] : null;
 
   const [isOwner, setIsOwner] = useState(false);
@@ -66,7 +69,7 @@ export default function Sidebar() {
     // S'abonner aux changements pour mettre à jour les points rouges en temps réel
     // MOVED TO GLOBAL LISTENER (GlobalRealtimeListener.tsx)
     // We now rely on appEvents to trigger refresh.
-    
+
     // Listen for read events to update badges instantly (fallback)
     const unsubscribeMessagesRead = appEvents.on(EVENTS.MESSAGES_READ, () => {
       fetchRecentData();
@@ -78,6 +81,14 @@ export default function Sidebar() {
       fetchRecentData();
     });
 
+    // Listen for connection updates
+    const unsubscribeConnections = appEvents.on(
+      EVENTS.CONNECTIONS_UPDATED,
+      () => {
+        fetchRecentData();
+      },
+    );
+
     // Listen for app state changes (background -> foreground) to refresh data
     const subscription = AppState.addEventListener("change", (nextAppState) => {
       if (nextAppState === "active") {
@@ -88,6 +99,8 @@ export default function Sidebar() {
     return () => {
       // supabase.removeChannel(channel); // Channel removed
       unsubscribeMessagesRead();
+      unsubscribeNewMessage();
+      unsubscribeConnections();
       subscription.remove();
     };
   }, []);
@@ -100,25 +113,34 @@ export default function Sidebar() {
       if (!session) return;
       const userId = session.user.id;
 
-      // 1. Projets Récents
+      // 1. Projets Récents (on exclut ceux du Hall of Fame / complétés)
       const { data: projects } = await supabase
         .from("tournages")
         .select("id, title")
         .eq("owner_id", userId)
+        .neq("status", "completed")
         .order("created_at", { ascending: false })
         .limit(4);
       setRecentProjects(projects || []);
-      
+
+      // 1.5 Pending Connections
+      const { count: pendingCount } = await supabase
+        .from("connections")
+        .select("*", { count: "exact", head: true })
+        .eq("receiver_id", userId)
+        .eq("status", "pending");
+      setPendingConnections(pendingCount || 0);
+
       // 2. Chats Récents avec indicateur de non-lu
       const { data: messages, error: msgError } = await supabase
         .from("direct_messages")
-        .select("sender_id, receiver_id, is_read, created_at") 
+        .select("sender_id, receiver_id, is_read, created_at")
         .or(`sender_id.eq.${userId},receiver_id.eq.${userId}`)
         .order("created_at", { ascending: false });
 
       if (msgError) console.error("Sidebar: Error fetching messages", msgError);
-      
-       if (messages) {
+
+      if (messages) {
         const unreadCountMap: Record<string, number> = {};
         const uniqueIdsSet = new Set<string>();
         let unreadTotal = 0;
@@ -129,7 +151,7 @@ export default function Sidebar() {
 
           // On vérifie si l'utilisateur est actuellement sur ce chat
           const isCurrentlyViewing = pathnameRef.current.includes(otherId);
-          
+
           if (!m.is_read && m.receiver_id === userId) {
             // On n'incrémente le compteur que si on n'est pas déjà sur la page
             if (!isCurrentlyViewing) {
@@ -138,9 +160,9 @@ export default function Sidebar() {
             }
           }
         });
-        
+
         setTotalUnread(unreadTotal);
-        
+
         // Take top 5 unique conversations
         const uniqueIds = Array.from(uniqueIdsSet).slice(0, 5);
 
@@ -162,10 +184,10 @@ export default function Sidebar() {
               return null;
             })
             .filter(Boolean);
-            
+
           setRecentChats(sortedProfiles);
         } else {
-             setRecentChats([]);
+          setRecentChats([]);
         }
       }
     } catch (e) {
@@ -265,7 +287,7 @@ export default function Sidebar() {
     <View style={sidebarStyle}>
       <View style={styles.header}>
         <Text style={styles.logo}>
-          {isInsideProject ? "PROJET" : "CINE NETWORK"}
+          {isInsideProject ? "PROJET" : "CINE TITA"}
         </Text>
       </View>
 
@@ -331,7 +353,24 @@ export default function Sidebar() {
                     size={20}
                     color={isActive ? Colors.light.tint : "#666"}
                   />
+                  {/* Badge Chat */}
                   {isChats && !chatsExpanded && totalUnread > 0 && (
+                    <View
+                      style={{
+                        position: "absolute",
+                        top: -2,
+                        right: -2,
+                        width: 10,
+                        height: 10,
+                        borderRadius: 5,
+                        backgroundColor: Colors.light.tint,
+                        borderWidth: 2,
+                        borderColor: "white",
+                      }}
+                    />
+                  )}
+                  {/* Badge Notifications */}
+                  {item.href === "/notifications" && pendingConnections > 0 && (
                     <View
                       style={{
                         position: "absolute",
