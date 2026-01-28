@@ -1,40 +1,71 @@
 import ClapLoading from "@/components/ClapLoading";
 import { Hoverable } from "@/components/Hoverable";
-import Colors from "@/constants/Colors"; // Import Colors
-import { GlobalStyles } from "@/constants/Styles"; // Import GlobalStyles
-import { JOB_TITLES } from "@/utils/roles";
+import Colors from "@/constants/Colors";
 import { Ionicons } from "@expo/vector-icons";
 import { makeRedirectUri } from "expo-auth-session";
+import { LinearGradient } from "expo-linear-gradient";
 import * as Linking from "expo-linking";
 import * as WebBrowser from "expo-web-browser";
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
-    Alert,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  Animated,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { supabase } from "../lib/supabase";
 
 WebBrowser.maybeCompleteAuthSession();
 
-const ROLES = Object.keys(JOB_TITLES);
+const ROLES = [
+  "realisateur",
+  "acteur",
+  "production",
+  "technique_image",
+  "technique_son",
+  "maquillage",
+  "costume",
+  "post_production",
+  "scenariste",
+  "compositeur",
+  "cascadeur",
+  "vfx",
+  "photographe",
+  "autre",
+];
 
 export default function AuthScreen() {
-  // BASCULE : Par défaut on est sur l'écran de CONNEXION (true)
   const [isLogin, setIsLogin] = useState(true);
-
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [role, setRole] = useState("acteur");
   const [loading, setLoading] = useState(false);
 
-  // Fonction connexion
+  // Animation values
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(30)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
+
   async function signIn() {
     setLoading(true);
     const { error } = await supabase.auth.signInWithPassword({
@@ -42,47 +73,85 @@ export default function AuthScreen() {
       password,
     });
     if (error) Alert.alert("Erreur", error.message);
-    // Pas besoin d'alert succès, si ça marche Supabase changera l'écran tout seul
     setLoading(false);
   }
 
-  // Fonction inscription
   async function signUp() {
+    if (!email || !password || !fullName) {
+      Alert.alert("Erreur", "Veuillez remplir tous les champs.");
+      return;
+    }
+
+    if (password.length < 6) {
+      Alert.alert(
+        "Erreur",
+        "Le mot de passe doit contenir au moins 6 caractères.",
+      );
+      return;
+    }
+
     setLoading(true);
-    const {
-      data: { session },
-      error,
-    } = await supabase.auth.signUp({
-      email: email,
-      password: password,
-      options: {
-        data: {
-          full_name: fullName,
-          role: role,
-        },
-      },
+
+    // Create a redirect URL for email confirmation
+    const redirectTo = makeRedirectUri({
+      scheme: "cinenetwork",
+      preferLocalhost: true,
     });
 
-    if (error) Alert.alert("Erreur", error.message);
-    else if (session)
-      Alert.alert("Bienvenue !", `Compte créé en tant que ${role}`);
+    try {
+      const {
+        data: { session, user },
+        error,
+      } = await supabase.auth.signUp({
+        email: email.trim(),
+        password: password,
+        options: {
+          emailRedirectTo: redirectTo,
+          data: {
+            full_name: fullName,
+            role: role,
+          },
+        },
+      });
 
-    setLoading(false);
+      if (error) {
+        console.error("Signup Error Object:", error);
+        if (error.message.includes("rate limit")) {
+          Alert.alert(
+            "Trop de tentatives",
+            "Veuillez patienter un moment avant de réessayer (limite de sécurité atteinte).",
+          );
+        } else {
+          Alert.alert("Erreur Inscription", error.message);
+        }
+      } else if (!session && user) {
+        Alert.alert(
+          "Inscription réussie !",
+          "Un email de validation vous a été envoyé. Veuillez vérifier votre boîte mail (et vos spams) pour confirmer votre compte.",
+        );
+        setIsLogin(true); // Switch back to login
+      } else if (session) {
+        Alert.alert("Bienvenue !", `Compte créé en tant que ${role}`);
+      }
+    } catch (err: any) {
+      console.error("Unexpected Signup Error:", err);
+      Alert.alert(
+        "Erreur Inattendue",
+        err.message || "Une erreur technique est survenue",
+      );
+    } finally {
+      setLoading(false);
+    }
   }
 
-  // Fonction connexion Google
   async function signInWithGoogle() {
     setLoading(true);
     try {
-      // Déterminer l'URL de redirection selon si on est sur Expo Go ou en natif
       const redirectTo = makeRedirectUri({
         scheme: "cinenetwork",
         preferLocalhost: true,
       });
 
-      console.log("Redirect URI used:", redirectTo);
-
-      // Sur le WEB, on laisse Supabase gérer la redirection normalement
       if (Platform.OS === "web") {
         const { error } = await supabase.auth.signInWithOAuth({
           provider: "google",
@@ -95,7 +164,6 @@ export default function AuthScreen() {
         return;
       }
 
-      // Sur MOBILE (Expo Go ou Native)
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
@@ -107,16 +175,10 @@ export default function AuthScreen() {
       if (error) throw error;
 
       if (data?.url) {
-        // IMPORTANT: On utilise WebBrowser.openAuthSessionAsync pour capturer le retour
         const res = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
-
-        console.log("WebBrowser Result:", res);
-
         if (res.type === "success" && res.url) {
-          // Extraction des tokens
           const url = res.url.replace("#", "?");
           const { queryParams } = Linking.parse(url);
-
           const access_token =
             queryParams?.access_token || queryParams?.["#access_token"];
           const refresh_token = queryParams?.refresh_token;
@@ -127,21 +189,16 @@ export default function AuthScreen() {
               refresh_token: (refresh_token as string) || "",
             });
             if (sessionError) throw sessionError;
-            console.log("Session set successfully via Google");
           }
-        } else if (res.type === "cancel") {
-          console.log("Login cancelled by user");
         }
       }
     } catch (error: any) {
       Alert.alert("Erreur Google", error.message);
-      console.error("Google Auth Error:", error);
     } finally {
       if (Platform.OS !== "web") setLoading(false);
     }
   }
 
-  // Fonction invité
   async function signInAsGuest() {
     setLoading(true);
     const { data, error } = await supabase.auth.signInAnonymously({
@@ -155,13 +212,8 @@ export default function AuthScreen() {
     });
 
     if (error) {
-      Alert.alert(
-        "Erreur",
-        "La connexion invité n'est pas activée ou a échoué.",
-      );
-      console.error(error);
+      Alert.alert("Erreur", "La connexion invité n'est pas activée.");
     } else if (data?.session) {
-      // Force update profile just in case trigger didn't catch metadata
       await supabase
         .from("profiles")
         .update({
@@ -175,194 +227,348 @@ export default function AuthScreen() {
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text
-        style={[GlobalStyles.title1, { textAlign: "center", marginBottom: 30 }]}
-      >
-        {isLogin ? "Connexion 🎬" : "Rejoindre le Cast 📝"}
-      </Text>
-
-      {/* --- CHAMPS VISIBLES UNIQUEMENT SI INSCRIPTION --- */}
-      {!isLogin && (
-        <TextInput
-          placeholder="Nom complet"
-          value={fullName}
-          onChangeText={setFullName}
-          style={[GlobalStyles.input, styles.inputMargin]}
-          placeholderTextColor="#9CA3AF"
-        />
-      )}
-
-      {/* --- CHAMPS COMMUNS --- */}
-      <TextInput
-        placeholder="Email"
-        value={email}
-        onChangeText={setEmail}
-        autoCapitalize="none"
-        style={[GlobalStyles.input, styles.inputMargin]}
-        placeholderTextColor="#9CA3AF"
-      />
-      <TextInput
-        placeholder="Mot de passe"
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry
-        style={[GlobalStyles.input, styles.inputMargin]}
-        placeholderTextColor="#9CA3AF"
-      />
-
-      {/* --- SÉLECTEUR DE RÔLE (UNIQUEMENT SI INSCRIPTION) --- */}
-      {!isLogin && (
-        <>
-          <Text style={GlobalStyles.title2}>Je suis :</Text>
-          <View style={styles.rolesContainer}>
-            {ROLES.map((item) => (
-              <TouchableOpacity
-                key={item}
-                onPress={() => setRole(item)}
-                style={[
-                  styles.roleButton,
-                  role === item && styles.roleButtonSelected,
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.roleText,
-                    role === item && styles.roleTextSelected,
-                  ]}
-                >
-                  {item.charAt(0).toUpperCase() + item.slice(1)}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </>
-      )}
-
-      <View style={styles.spacer} />
-
-      {/* --- BOUTON D'ACTION PRINCIPAL --- */}
-      {loading ? (
-        <ClapLoading size={40} color={Colors.light.primary} />
-      ) : (
-        <Hoverable
-          style={GlobalStyles.primaryButton}
-          hoverStyle={{ opacity: 0.9, transform: [{ scale: 1.02 }] }}
-          onPress={isLogin ? signIn : signUp}
+    <LinearGradient
+      colors={[Colors.light.tint, "#2c1a4d"]} // Gradient violet/foncé
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={styles.background}
+    >
+      <ScrollView contentContainerStyle={styles.scrollContainer}>
+        <Animated.View
+          style={[
+            styles.card,
+            { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
+          ]}
         >
-          <Text style={GlobalStyles.buttonText}>
-            {isLogin ? "Se connecter" : "S'inscrire"}
-          </Text>
-        </Hoverable>
-      )}
+          <View style={styles.headerContainer}>
+            <Text style={styles.emojiLogo}>🎬</Text>
+            <Text style={styles.title}>
+              {isLogin ? "Connexion" : "Rejoindre"}
+            </Text>
+            <Text style={styles.subtitle}>
+              {isLogin
+                ? "Heureux de vous revoir sur Cine Network"
+                : "Créez votre compte et rejoignez le cast"}
+            </Text>
+          </View>
 
-      {/* --- SEPARATOR --- */}
-      <View style={styles.dividerContainer}>
-        <View style={styles.divider} />
-        <Text style={styles.dividerText}>OU</Text>
-        <View style={styles.divider} />
-      </View>
+          {/* Form Fields */}
+          <View style={styles.formContainer}>
+            {!isLogin && (
+              <View style={styles.inputWrapper}>
+                <Ionicons
+                  name="person-outline"
+                  size={20}
+                  color="#666"
+                  style={styles.inputIcon}
+                />
+                <TextInput
+                  placeholder="Nom complet"
+                  value={fullName}
+                  onChangeText={setFullName}
+                  style={styles.input}
+                  placeholderTextColor="#999"
+                />
+              </View>
+            )}
 
-      {/* --- BOUTON GOOGLE --- */}
-      <TouchableOpacity
-        style={styles.googleButton}
-        onPress={signInWithGoogle}
-        disabled={loading}
-      >
-        <Ionicons name="logo-google" size={20} color="#EA4335" />
-        <Text style={styles.googleButtonText}>Continuer avec Google</Text>
-      </TouchableOpacity>
+            <View style={styles.inputWrapper}>
+              <Ionicons
+                name="mail-outline"
+                size={20}
+                color="#666"
+                style={styles.inputIcon}
+              />
+              <TextInput
+                placeholder="Email"
+                value={email}
+                onChangeText={setEmail}
+                autoCapitalize="none"
+                style={styles.input}
+                placeholderTextColor="#999"
+              />
+            </View>
 
-      {/* --- BOUTON INVITE --- */}
-      <TouchableOpacity
-        style={[styles.googleButton, { marginTop: 10 }]}
-        onPress={signInAsGuest}
-        disabled={loading}
-      >
-        <Ionicons name="person-outline" size={20} color="#374151" />
-        <Text style={styles.googleButtonText}>Continuer en tant qu'invité</Text>
-      </TouchableOpacity>
+            <View style={styles.inputWrapper}>
+              <Ionicons
+                name="lock-closed-outline"
+                size={20}
+                color="#666"
+                style={styles.inputIcon}
+              />
+              <TextInput
+                placeholder="Mot de passe"
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry
+                style={styles.input}
+                placeholderTextColor="#999"
+              />
+            </View>
 
-      {/* --- BOUTON POUR CHANGER DE MODE --- */}
-      <Hoverable
-        onPress={() => setIsLogin(!isLogin)}
-        style={styles.switchButton}
-        hoverStyle={{ opacity: 0.6 }}
-      >
-        <Text style={styles.switchText}>
-          {isLogin
-            ? "Pas encore de compte ? Créer un profil"
-            : "J'ai déjà un compte ? Me connecter"}
-        </Text>
-      </Hoverable>
-    </ScrollView>
+            {!isLogin && (
+              <View style={styles.rolesSection}>
+                <Text style={styles.roleTitle}>Je suis :</Text>
+                <View style={styles.rolesContainer}>
+                  {ROLES.map((item) => (
+                    <TouchableOpacity
+                      key={item}
+                      onPress={() => setRole(item)}
+                      style={[
+                        styles.roleChip,
+                        role === item && styles.roleChipSelected,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.roleText,
+                          role === item && styles.roleTextSelected,
+                        ]}
+                      >
+                        {item.charAt(0).toUpperCase() + item.slice(1)}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            )}
+
+            <View style={{ height: 20 }} />
+
+            {loading ? (
+              <ClapLoading size={40} color={Colors.light.tint} />
+            ) : (
+              <Hoverable
+                style={styles.primaryButton}
+                hoverStyle={{
+                  opacity: 0.9,
+                  transform: [{ scale: 1.02 }],
+                  shadowOpacity: 0.4,
+                }}
+                onPress={isLogin ? signIn : signUp}
+              >
+                <Text style={styles.primaryButtonText}>
+                  {isLogin ? "Se connecter" : "S'inscrire"}
+                </Text>
+              </Hoverable>
+            )}
+          </View>
+
+          <View style={styles.dividerContainer}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>OU</Text>
+            <View style={styles.dividerLine} />
+          </View>
+
+          <View style={styles.socialButtons}>
+            <Hoverable
+              style={styles.socialButton}
+              hoverStyle={{ backgroundColor: "#f9f9f9" }}
+              onPress={signInWithGoogle}
+              disabled={loading}
+            >
+              <Ionicons name="logo-google" size={20} color="#EA4335" />
+              <Text style={styles.socialButtonText}>Google</Text>
+            </Hoverable>
+
+            <Hoverable
+              style={styles.socialButton}
+              hoverStyle={{ backgroundColor: "#f9f9f9" }}
+              onPress={signInAsGuest}
+              disabled={loading}
+            >
+              <Ionicons name="person-outline" size={20} color="#374151" />
+              <Text style={styles.socialButtonText}>Invité</Text>
+            </Hoverable>
+          </View>
+
+          <View style={styles.footer}>
+            <Text style={styles.footerText}>
+              {isLogin ? "Pas encore de compte ?" : "Déjà un compte ?"}
+            </Text>
+            <TouchableOpacity onPress={() => setIsLogin(!isLogin)}>
+              <Text style={styles.linkText}>
+                {isLogin ? "Créer un compte" : "Se connecter"}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </Animated.View>
+      </ScrollView>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  background: {
+    flex: 1,
+  },
+  scrollContainer: {
     flexGrow: 1,
-    justifyContent: "center",
+    justifyContent: "center", // Center vertically only if content is smaller
+    alignItems: "center",
     padding: 20,
-    backgroundColor: Colors.light.background,
+    minHeight: "100%", // Ensure full height availability
   },
-  inputMargin: {
-    marginBottom: 12,
+  card: {
+    width: "100%",
+    maxWidth: 400,
+    backgroundColor: "rgba(255, 255, 255, 0.95)",
+    borderRadius: 24,
+    padding: 30,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.2,
+    shadowRadius: 20,
+    elevation: 10,
   },
-  spacer: { height: 20 },
+  headerContainer: {
+    alignItems: "center",
+    marginBottom: 30,
+  },
+  emojiLogo: {
+    fontSize: 48,
+    marginBottom: 10,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: "bold",
+    color: "#1a1a1a",
+    marginBottom: 8,
+  },
+  subtitle: {
+    fontSize: 14,
+    color: "#666",
+    textAlign: "center",
+  },
+  formContainer: {
+    width: "100%",
+  },
+  inputWrapper: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#f5f5f5",
+    borderRadius: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "transparent",
+    paddingHorizontal: 12, // Reduced padding to keep icon close
+    height: 50,
+  },
+  inputIcon: {
+    marginRight: 10,
+  },
+  input: {
+    flex: 1,
+    height: "100%",
+    fontSize: 16,
+    color: "#333",
+    ...Platform.select({
+      web: { outlineStyle: "none" } as any,
+    }),
+  },
+  rolesSection: {
+    marginTop: 10,
+    marginBottom: 10,
+  },
+  roleTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#666",
+    marginBottom: 10,
+  },
   rolesContainer: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 10,
-    marginTop: 10,
+    gap: 8,
   },
-  roleButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
+  roleChip: {
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    borderRadius: 20,
+    backgroundColor: "#eee",
     borderWidth: 1,
-    borderColor: Colors.light.primary,
-    borderRadius: 20, // Keep rounded for chips
-    marginBottom: 5,
+    borderColor: "transparent",
   },
-  roleButtonSelected: { backgroundColor: Colors.light.primary },
-  roleText: { color: Colors.light.primary },
-  roleTextSelected: { color: "white", fontWeight: "bold" },
-
-  // Style du lien en bas
-  switchButton: { marginTop: 20, alignItems: "center" },
-  switchText: { color: Colors.light.primary, fontWeight: "bold" },
-
-  // Styles pour Google et Séparateur
+  roleChipSelected: {
+    backgroundColor: Colors.light.tint,
+    borderColor: Colors.light.tint,
+  },
+  roleText: {
+    fontSize: 13,
+    color: "#666",
+    fontWeight: "500",
+  },
+  roleTextSelected: {
+    color: "#fff",
+    fontWeight: "600",
+  },
+  primaryButton: {
+    backgroundColor: Colors.light.tint,
+    borderRadius: 14,
+    height: 52,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: Colors.light.tint,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  primaryButtonText: {
+    color: "white",
+    fontSize: 16,
+    fontWeight: "bold",
+  },
   dividerContainer: {
     flexDirection: "row",
     alignItems: "center",
-    marginVertical: 20,
+    marginVertical: 24,
   },
-  divider: {
+  dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: "#E5E7EB",
+    backgroundColor: "#E0E0E0",
   },
   dividerText: {
-    marginHorizontal: 10,
-    color: "#9CA3AF",
+    marginHorizontal: 16,
+    color: "#999",
     fontSize: 12,
     fontWeight: "600",
   },
-  googleButton: {
+  socialButtons: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  socialButton: {
+    flex: 1,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "white",
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-    paddingVertical: 12,
+    height: 48,
     borderRadius: 12,
-    gap: 10,
+    borderWidth: 1,
+    borderColor: "#E0E0E0",
+    backgroundColor: "white",
+    gap: 8,
   },
-  googleButtonText: {
-    fontSize: 16,
+  socialButtonText: {
+    fontSize: 14,
     fontWeight: "600",
-    color: "#374151",
+    color: "#333",
+  },
+  footer: {
+    flexDirection: "row",
+    justifyContent: "center",
+    marginTop: 30,
+    gap: 6,
+  },
+  footerText: {
+    color: "#666",
+    fontSize: 14,
+  },
+  linkText: {
+    color: Colors.light.tint,
+    fontSize: 14,
+    fontWeight: "bold",
   },
 });

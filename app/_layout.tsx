@@ -1,4 +1,5 @@
 import ClapLoading from "@/components/ClapLoading";
+import FloatingChatWidget from "@/components/FloatingChatWidget";
 import GlobalRealtimeListener from "@/components/GlobalRealtimeListener";
 import NotificationToast from "@/components/NotificationToast";
 import Sidebar from "@/components/Sidebar";
@@ -118,6 +119,7 @@ export default function RootLayout() {
         </Stack>
       </View>
       <NotificationToast />
+      {session && isWebLarge && <FloatingChatWidget userId={session.user.id} />}
     </View>
   );
 }

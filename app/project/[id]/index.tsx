@@ -1,3 +1,4 @@
+import { Hoverable } from "@/components/Hoverable";
 import PaymentModal from "@/components/PaymentModal";
 import RoleFormFields from "@/components/RoleFormFields";
 import Colors from "@/constants/Colors";
@@ -14,12 +15,13 @@ import {
   FlatList,
   Image,
   Modal,
+  Platform,
   ScrollView,
-  SectionList,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from "react-native";
 import { supabase } from "../../../lib/supabase";
@@ -300,6 +302,8 @@ const CATEGORY_COLORS: Record<string, string> = {
 export default function ProjectDetails() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
+  const { width } = useWindowDimensions();
+  const isLargeScreen = width > 768; // Tablet/Desktop breakpoint
 
   const [project, setProject] = useState<any>(null);
   const [roles, setRoles] = useState<any[]>([]);
@@ -1326,881 +1330,1055 @@ export default function ProjectDetails() {
       <Stack.Screen options={{ headerShown: false }} />
       {/* HEADER */}
       <View style={styles.header}>
-        <View
-          style={{
-            flexDirection: "row",
-            justifyContent: "space-between",
-            marginBottom: 10,
-            alignItems: "center",
-          }}
-        >
-          <TouchableOpacity
-            onPress={() => router.replace("/(tabs)/my-projects")}
+        <View style={{ width: "100%", maxWidth: 1000, alignSelf: "center" }}>
+          <View
             style={{
               flexDirection: "row",
+              justifyContent: "space-between",
+              marginBottom: 10,
               alignItems: "center",
-              gap: 5,
-              backgroundColor: "#f0f0f0",
-              paddingHorizontal: 12,
-              paddingVertical: 8,
-              borderRadius: 20,
             }}
           >
-            <Ionicons name="home" size={18} color="#333" />
-            <Text style={{ fontSize: 12, fontWeight: "600", color: "#333" }}>
-              Accueil
-            </Text>
-          </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => router.replace("/(tabs)/my-projects")}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 5,
+                backgroundColor: "#f0f0f0",
+                paddingHorizontal: 12,
+                paddingVertical: 8,
+                borderRadius: 20,
+              }}
+            >
+              <Ionicons name="home" size={18} color="#333" />
+              <Text style={{ fontSize: 12, fontWeight: "600", color: "#333" }}>
+                Accueil
+              </Text>
+            </TouchableOpacity>
 
-          <View style={{ alignItems: "center", flex: 1, marginHorizontal: 10 }}>
-            <Text style={styles.title} numberOfLines={2}>
-              {project?.title}
-            </Text>
-            <Text style={styles.subtitle} numberOfLines={1}>
-              {project?.type} • {project?.ville || "Lieu non défini"}
-            </Text>
-          </View>
-          <View style={{ flexDirection: "row", gap: 15, alignItems: "center" }}>
-            {isOwner && (
-              <>
-                <TouchableOpacity
-                  onPress={() => router.push(`/project/${id}/manage_team`)}
-                  style={{ padding: 5 }}
-                >
-                  <Ionicons
-                    name="shield-checkmark-outline"
-                    size={24}
-                    color="black"
-                  />
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  onPress={() =>
-                    router.push({
-                      pathname: "/project/[id]/settings",
-                      params: { id: typeof id === "string" ? id : id[0] },
-                    })
-                  }
-                  style={{ padding: 5 }}
-                >
-                  <Ionicons name="settings-outline" size={24} color="#841584" />
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  onPress={() => setApplicationsModalVisible(true)}
-                  style={{ position: "relative", padding: 5 }}
-                >
-                  <Ionicons
-                    name="notifications-outline"
-                    size={24}
-                    color="black"
-                  />
-                  {applications.length > 0 && (
-                    <View
-                      style={{
-                        position: "absolute",
-                        right: 5,
-                        top: 5,
-                        backgroundColor: "red",
-                        width: 8,
-                        height: 8,
-                        borderRadius: 4,
-                      }}
+            <View
+              style={{ alignItems: "center", flex: 1, marginHorizontal: 10 }}
+            >
+              <Text style={styles.title} numberOfLines={2}>
+                {project?.title}
+              </Text>
+              <Text style={styles.subtitle} numberOfLines={1}>
+                {project?.type} • {project?.ville || "Lieu non défini"}
+              </Text>
+            </View>
+            <View
+              style={{ flexDirection: "row", gap: 15, alignItems: "center" }}
+            >
+              {isOwner && (
+                <>
+                  <TouchableOpacity
+                    onPress={() => router.push(`/project/${id}/manage_team`)}
+                    style={{ padding: 5 }}
+                  >
+                    <Ionicons
+                      name="shield-checkmark-outline"
+                      size={24}
+                      color="black"
                     />
-                  )}
-                </TouchableOpacity>
-              </>
-            )}
-            {!isOwner && <View style={{ width: 80 }} />}
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    onPress={() =>
+                      router.push({
+                        pathname: "/project/[id]/settings",
+                        params: { id: typeof id === "string" ? id : id[0] },
+                      })
+                    }
+                    style={{ padding: 5 }}
+                  >
+                    <Ionicons
+                      name="settings-outline"
+                      size={24}
+                      color="#841584"
+                    />
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    onPress={() => setApplicationsModalVisible(true)}
+                    style={{ position: "relative", padding: 5 }}
+                  >
+                    <Ionicons
+                      name="notifications-outline"
+                      size={24}
+                      color="black"
+                    />
+                    {applications.length > 0 && (
+                      <View
+                        style={{
+                          position: "absolute",
+                          right: 5,
+                          top: 5,
+                          backgroundColor: "red",
+                          width: 8,
+                          height: 8,
+                          borderRadius: 4,
+                        }}
+                      />
+                    )}
+                  </TouchableOpacity>
+                </>
+              )}
+              {!isOwner && <View style={{ width: 80 }} />}
+            </View>
           </View>
         </View>
       </View>
 
-      <View style={{ flex: 1 }}>
-        <View style={styles.sectionHeader}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.sectionTitle}>
-              Casting & Équipe ({roles.length})
-            </Text>
-          </View>
-
-          {isOwner ? (
-            <TouchableOpacity
-              onPress={openAddRole}
-              style={{
-                backgroundColor: "#841584",
-                paddingHorizontal: 12,
-                paddingVertical: 6,
-                borderRadius: 20,
-              }}
-            >
-              <Text
-                style={{ color: "white", fontWeight: "bold", fontSize: 12 }}
-              >
-                + Ajouter
-              </Text>
-            </TouchableOpacity>
-          ) : null}
-        </View>
-
-        {/* LISTE DES RÔLES DÉJÀ CRÉÉS */}
-        <SectionList
-          sections={groupedRolesSections}
-          keyExtractor={(item: any) => item.key}
-          contentContainerStyle={{ padding: 15, paddingBottom: 50 }}
-          stickySectionHeadersEnabled={false}
-          renderSectionHeader={({ section: { title } }) => (
-            <View style={{ paddingVertical: 10, paddingHorizontal: 5 }}>
-              <Text
-                style={{
-                  fontSize: 14,
-                  fontWeight: "bold",
-                  color: "#666",
-                  textTransform: "uppercase",
-                }}
-              >
-                {title}
+      <View style={{ flex: 1, alignItems: "center" }}>
+        <View style={{ flex: 1, width: "100%", maxWidth: 1000 }}>
+          <View style={styles.sectionHeader}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.sectionTitle}>
+                Casting & Équipe ({roles.length})
               </Text>
             </View>
-          )}
-          renderItem={({ item }) => {
-            const color = CATEGORY_COLORS[item.category] || "#666";
 
-            // Logic to check drafts is still useful for owner indicators
-            const hasDrafts = item.items.some(
-              (r: any) => r.status === "draft" && !r.assigned_profile_id,
-            );
-
-            // Wrapper: TouchableOpacity only if owner
-            const CardWrapper = isOwner ? TouchableOpacity : View;
-
-            return (
-              <CardWrapper
-                style={styles.roleCard}
-                onPress={() => isOwner && setManageRole(item)}
+            {isOwner ? (
+              <Hoverable
+                onPress={openAddRole}
+                style={
+                  {
+                    backgroundColor: "#841584",
+                    paddingHorizontal: 12,
+                    paddingVertical: 6,
+                    borderRadius: 20,
+                    cursor: "pointer",
+                  } as any
+                }
+                hoverStyle={{ opacity: 0.8 }}
               >
-                <View style={{ flex: 1 }}>
-                  <View
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      gap: 8,
-                      flexWrap: "wrap",
-                      marginBottom: 8,
-                    }}
-                  >
+                <Text
+                  style={{ color: "white", fontWeight: "bold", fontSize: 12 }}
+                >
+                  + Ajouter
+                </Text>
+              </Hoverable>
+            ) : null}
+          </View>
+
+          {/* LISTE DES RÔLES DÉJÀ CRÉÉS */}
+          <ScrollView
+            contentContainerStyle={{ padding: 15, paddingBottom: 50 }}
+          >
+            {groupedRolesSections.length === 0 ? (
+              <Text
+                style={{ textAlign: "center", marginTop: 20, color: "#999" }}
+              >
+                Aucun rôle créé pour le moment.
+              </Text>
+            ) : (
+              groupedRolesSections.map((section: any, sectionIndex) => (
+                <View key={section.title + sectionIndex}>
+                  <View style={{ paddingVertical: 10, paddingHorizontal: 5 }}>
                     <Text
-                      style={[
-                        styles.roleCategoryTag,
-                        { color: color, backgroundColor: color + "20" },
-                      ]}
+                      style={{
+                        fontSize: 14,
+                        fontWeight: "bold",
+                        color: "#666",
+                        textTransform: "uppercase",
+                      }}
                     >
-                      {item.category.toUpperCase()} •{" "}
-                      {item.items[0]?.is_paid ? "Rémunéré" : "Bénévole"}
+                      {section.title}
                     </Text>
-                    <Text style={styles.roleTitle}>{item.title}</Text>
-                    {isOwner && hasDrafts && (
-                      <Text
-                        style={{
-                          fontSize: 10,
-                          color: "#FF9800",
-                          fontWeight: "bold",
-                        }}
-                      >
-                        ⚠ Contient des brouillons
-                      </Text>
-                    )}
                   </View>
 
-                  {item.description ? (
-                    <Text
-                      style={[styles.descText, { marginBottom: 10 }]}
-                      numberOfLines={2}
-                    >
-                      {item.description}
-                    </Text>
-                  ) : null}
+                  <View
+                    style={
+                      isLargeScreen
+                        ? { flexDirection: "row", flexWrap: "wrap", gap: 30 }
+                        : { gap: 10 }
+                    }
+                  >
+                    {section.data.map((item: any) => {
+                      const color = CATEGORY_COLORS[item.category] || "#666";
+                      const hasDrafts = item.items.some(
+                        (r: any) =>
+                          r.status === "draft" && !r.assigned_profile_id,
+                      );
 
-                  {/* LIST ALL SLOTS (PARTICIPANTS OR VACAT) */}
-                  <View style={{ gap: 8 }}>
-                    {item.items.map((role: any, index: number) => {
-                      const assignee = role.assigned_profile;
+                      // Card Styles
+                      // User requested max 2 columns with larger gap.
+                      // Adjusting widths to account for larger gap (gap: 30).
+                      // If we have 2 columns with a gap of 30, roughly (100% - gap) / 2
+                      // But using percentage "48%" usually works safely with standard gaps.
+                      // Let's try "47%" to be safe with gap 30.
+                      const cardWidth = isLargeScreen ? "47%" : "100%";
+
                       return (
-                        <View
-                          key={role.id || index}
-                          style={{
-                            flexDirection: "row",
-                            alignItems: "center",
-                            backgroundColor: "#f9f9f9",
-                            padding: 8,
-                            borderRadius: 8,
-                          }}
+                        <Hoverable
+                          key={item.key}
+                          disabled={!isOwner}
+                          style={[
+                            styles.roleCard,
+                            isLargeScreen &&
+                              ({ width: cardWidth, flex: undefined } as any), // Override flex if grid
+                            { marginBottom: isLargeScreen ? 0 : 10 }, // Margin handled by gap if supported, else fallback
+                            isOwner && ({ cursor: "pointer" } as any),
+                          ]}
+                          hoverStyle={
+                            isOwner
+                              ? {
+                                  transform: [{ scale: 1.01 }],
+                                  shadowOpacity: 0.1,
+                                  borderColor: Colors.light.primary,
+                                }
+                              : {}
+                          }
+                          onPress={() => isOwner && setManageRole(item)}
                         >
-                          {assignee ? (
-                            <>
-                              {/* Avatar if available, else initial */}
-                              <View
-                                style={{
-                                  width: 24,
-                                  height: 24,
-                                  borderRadius: 12,
-                                  backgroundColor: color + "40",
-                                  justifyContent: "center",
-                                  alignItems: "center",
-                                  marginRight: 8,
-                                }}
+                          <View style={{ flex: 1 }}>
+                            <View
+                              style={{
+                                flexDirection: "row",
+                                alignItems: "center",
+                                gap: 8,
+                                flexWrap: "wrap",
+                                marginBottom: 8,
+                              }}
+                            >
+                              <Text
+                                style={[
+                                  styles.roleCategoryTag,
+                                  {
+                                    color: color,
+                                    backgroundColor: color + "20",
+                                  },
+                                ]}
                               >
-                                {assignee.avatar_url ? (
-                                  // Assuming Image component is not imported, using View placeholder or text
+                                {item.category.toUpperCase()} •{" "}
+                                {item.items[0]?.is_paid
+                                  ? "Rémunéré"
+                                  : "Bénévole"}
+                              </Text>
+                              <Text style={styles.roleTitle}>{item.title}</Text>
+                              {isOwner && hasDrafts && (
+                                <Text
+                                  style={{
+                                    fontSize: 10,
+                                    color: "#FF9800",
+                                    fontWeight: "bold",
+                                  }}
+                                >
+                                  ⚠ Contient des brouillons
+                                </Text>
+                              )}
+                            </View>
+
+                            {item.description ? (
+                              <Text
+                                style={[styles.descText, { marginBottom: 10 }]}
+                                numberOfLines={2}
+                              >
+                                {item.description}
+                              </Text>
+                            ) : null}
+
+                            {/* LIST ALL SLOTS (PARTICIPANTS OR VACAT) */}
+                            <View style={{ gap: 8 }}>
+                              {item.items.map((role: any, index: number) => {
+                                const assignee = role.assigned_profile;
+                                return (
                                   <View
+                                    key={role.id || index}
                                     style={{
-                                      width: 24,
-                                      height: 24,
-                                      borderRadius: 12,
-                                      backgroundColor: "#ddd",
-                                    }}
-                                  />
-                                ) : (
-                                  // TODO: Use actual Image if imported. I'll stick to Initials for safety or just Icon.
-                                  <Text
-                                    style={{
-                                      fontSize: 10,
-                                      fontWeight: "bold",
-                                      color: color,
+                                      flexDirection: "row",
+                                      alignItems: "center",
+                                      backgroundColor: "#f9f9f9",
+                                      padding: 8,
+                                      borderRadius: 8,
                                     }}
                                   >
-                                    {assignee.full_name?.charAt(0) ||
-                                      assignee.username?.charAt(0) ||
-                                      "?"}
-                                  </Text>
-                                )}
-                              </View>
-                              <Text
-                                style={{ fontWeight: "600", color: "#333" }}
-                              >
-                                {assignee.full_name ||
-                                  assignee.username ||
-                                  "Utilisateur inconnu"}
-                              </Text>
-                            </>
-                          ) : (
-                            <>
-                              <View
-                                style={{
-                                  width: 24,
-                                  height: 24,
-                                  borderRadius: 12,
-                                  borderStyle: "dashed",
-                                  borderWidth: 1,
-                                  borderColor: "#ccc",
-                                  justifyContent: "center",
-                                  alignItems: "center",
-                                  marginRight: 8,
-                                }}
-                              >
-                                <Ionicons
-                                  name="person-outline"
-                                  size={14}
-                                  color="#999"
-                                />
-                              </View>
-                              <Text
-                                style={{ fontStyle: "italic", color: "#888" }}
-                              >
-                                {role.status === "draft"
-                                  ? "Brouillon (Non publié)"
-                                  : "Poste à pourvoir"}
-                              </Text>
-                            </>
+                                    {assignee ? (
+                                      <>
+                                        {/* Avatar if available, else initial */}
+                                        <View
+                                          style={{
+                                            width: 24,
+                                            height: 24,
+                                            borderRadius: 12,
+                                            backgroundColor: color + "40",
+                                            justifyContent: "center",
+                                            alignItems: "center",
+                                            marginRight: 8,
+                                          }}
+                                        >
+                                          {assignee.avatar_url ? (
+                                            <View
+                                              style={{
+                                                width: 24,
+                                                height: 24,
+                                                borderRadius: 12,
+                                                backgroundColor: "#ddd",
+                                              }}
+                                            />
+                                          ) : (
+                                            <Text
+                                              style={{
+                                                fontSize: 10,
+                                                fontWeight: "bold",
+                                                color: color,
+                                              }}
+                                            >
+                                              {assignee.full_name?.charAt(0) ||
+                                                assignee.username?.charAt(0) ||
+                                                "?"}
+                                            </Text>
+                                          )}
+                                        </View>
+                                        <Text
+                                          style={{
+                                            fontWeight: "600",
+                                            color: "#333",
+                                          }}
+                                        >
+                                          {assignee.full_name ||
+                                            assignee.username ||
+                                            "Utilisateur inconnu"}
+                                        </Text>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <View
+                                          style={{
+                                            width: 24,
+                                            height: 24,
+                                            borderRadius: 12,
+                                            borderStyle: "dashed",
+                                            borderWidth: 1,
+                                            borderColor: "#ccc",
+                                            justifyContent: "center",
+                                            alignItems: "center",
+                                            marginRight: 8,
+                                          }}
+                                        >
+                                          <Ionicons
+                                            name="person-outline"
+                                            size={14}
+                                            color="#999"
+                                          />
+                                        </View>
+                                        <Text
+                                          style={{
+                                            fontStyle: "italic",
+                                            color: "#888",
+                                          }}
+                                        >
+                                          {role.status === "draft"
+                                            ? "Brouillon (Non publié)"
+                                            : "Poste à pourvoir"}
+                                        </Text>
+                                      </>
+                                    )}
+                                  </View>
+                                );
+                              })}
+                            </View>
+                          </View>
+                          {isOwner && (
+                            <View
+                              style={{
+                                justifyContent: "center",
+                                paddingLeft: 10,
+                              }}
+                            >
+                              <Ionicons
+                                name="create-outline"
+                                size={24}
+                                color="#841584"
+                              />
+                            </View>
                           )}
-                        </View>
+                        </Hoverable>
                       );
                     })}
                   </View>
                 </View>
-                {isOwner && (
-                  <View style={{ justifyContent: "center", paddingLeft: 10 }}>
-                    <Ionicons name="create-outline" size={24} color="#841584" />
-                  </View>
-                )}
-              </CardWrapper>
-            );
-          }}
-          ListEmptyComponent={
-            <Text style={{ textAlign: "center", marginTop: 20, color: "#999" }}>
-              Aucun rôle créé pour le moment.
-            </Text>
-          }
-        />
+              ))
+            )}
+          </ScrollView>
+        </View>
       </View>
 
       {/* NEW DETAILED ROLE FORM MODAL */}
       <Modal
         visible={roleFormVisible}
         animationType="slide"
+        presentationStyle="pageSheet"
         onRequestClose={() => setRoleFormVisible(false)}
       >
         <View
           style={{
             flex: 1,
             backgroundColor: "white",
-            padding: 20,
-            paddingTop: 60,
+            paddingTop: Platform.OS === "ios" ? 50 : 20,
+            alignItems: "center",
           }}
         >
-          <View
-            style={{
-              flexDirection: "row",
-              justifyContent: "space-between",
-              alignItems: "center",
-              marginBottom: 20,
-            }}
-          >
-            <Text style={{ fontSize: 22, fontWeight: "bold" }}>
-              {editingRole?.id ? "Modifier le rôle" : "Ajouter un rôle"}
-            </Text>
-            <TouchableOpacity onPress={() => setRoleFormVisible(false)}>
-              <Text style={{ fontSize: 16, color: "#007AFF" }}>Fermer</Text>
-            </TouchableOpacity>
-          </View>
+          <View style={{ flex: 1, width: "100%", maxWidth: 800, padding: 20 }}>
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: 20,
+                paddingBottom: 15,
+                borderBottomWidth: 1,
+                borderBottomColor: Colors.light.border,
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 20,
+                  fontWeight: "bold",
+                  color: Colors.light.text,
+                }}
+              >
+                {editingRole?.id ? "Modifier le rôle" : "Ajouter un rôle"}
+              </Text>
+              <Hoverable
+                onPress={() => setRoleFormVisible(false)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                style={{ cursor: "pointer" } as any}
+                hoverStyle={{ opacity: 0.7 }}
+              >
+                <Ionicons name="close" size={24} color={Colors.light.text} />
+              </Hoverable>
+            </View>
 
-          <ScrollView showsVerticalScrollIndicator={false}>
-            {editingRole && !isSearchingProfileInForm && (
-              <>
-                <Text style={styles.label}>Catégorie</Text>
-                <View style={styles.rowWrap}>
-                  {ROLE_CATEGORIES.map((cat) => (
-                    <TouchableOpacity
-                      key={cat}
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={{ paddingBottom: 50 }}
+            >
+              {editingRole && !isSearchingProfileInForm && (
+                <>
+                  <Text style={styles.label}>Catégorie</Text>
+                  <View style={[styles.rowWrap, { marginBottom: 20 }]}>
+                    {ROLE_CATEGORIES.map((cat) => (
+                      <Hoverable
+                        key={cat}
+                        onPress={() =>
+                          setEditingRole({ ...editingRole, category: cat })
+                        }
+                        hoverStyle={{ transform: [{ scale: 1.05 }] }}
+                        style={[
+                          styles.catButton,
+                          {
+                            borderColor: CATEGORY_COLORS[cat] || "#841584",
+                            backgroundColor:
+                              editingRole.category === cat
+                                ? CATEGORY_COLORS[cat] || "#841584"
+                                : "transparent",
+                            cursor: "pointer",
+                          } as any,
+                        ]}
+                      >
+                        <Text
+                          style={{
+                            fontWeight: "600",
+                            color:
+                              editingRole.category === cat
+                                ? "white"
+                                : CATEGORY_COLORS[cat] || "#333",
+                          }}
+                        >
+                          {cat.charAt(0).toUpperCase() +
+                            cat.slice(1).replace("_", " ")}
+                        </Text>
+                      </Hoverable>
+                    ))}
+                  </View>
+
+                  <Text style={styles.label}>Intitulé du poste</Text>
+                  <View style={[styles.rowWrap, { marginBottom: 15 }]}>
+                    {(JOB_TITLES[editingRole.category] || [])
+                      .slice(0, 8)
+                      .map((job) => (
+                        <Hoverable
+                          key={job}
+                          onPress={() =>
+                            setEditingRole({ ...editingRole, title: job })
+                          }
+                          hoverStyle={{
+                            transform: [{ scale: 1.05 }],
+                            opacity: 0.9,
+                          }}
+                          style={[
+                            styles.jobChip,
+                            editingRole.title === job && styles.jobChipSelected,
+                            { cursor: "pointer" } as any,
+                          ]}
+                        >
+                          <Text
+                            style={{
+                              color:
+                                editingRole.title === job
+                                  ? "white"
+                                  : Colors.light.text,
+                            }}
+                          >
+                            {job}
+                          </Text>
+                        </Hoverable>
+                      ))}
+                  </View>
+                  <TextInput
+                    placeholder="Ou un autre titre..."
+                    style={[
+                      styles.input,
+                      { textAlign: "left", paddingLeft: 15 },
+                    ]}
+                    placeholderTextColor="#999"
+                    value={editingRole.title}
+                    onChangeText={(t) =>
+                      setEditingRole({ ...editingRole, title: t })
+                    }
+                  />
+
+                  <View
+                    style={{ flexDirection: "row", gap: 10, marginBottom: 15 }}
+                  >
+                    {!editingRole.id && (
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.label}>Quantité</Text>
+                        <TextInput
+                          keyboardType="numeric"
+                          style={styles.input}
+                          value={editingRole.quantity}
+                          onChangeText={(t) =>
+                            setEditingRole({ ...editingRole, quantity: t })
+                          }
+                        />
+                      </View>
+                    )}
+                    <View style={{ flex: 2 }}>
+                      <Text style={styles.label}>Description</Text>
+                      <TextInput
+                        placeholder="Précisions (optionnel)"
+                        style={[
+                          styles.input,
+                          { textAlign: "left", paddingLeft: 15 },
+                        ]}
+                        placeholderTextColor="#999"
+                        value={editingRole.description}
+                        onChangeText={(t) =>
+                          setEditingRole({ ...editingRole, description: t })
+                        }
+                      />
+                    </View>
+                  </View>
+
+                  {/* Experience */}
+                  <Text style={styles.label}>Expérience recherchée</Text>
+                  <View style={[styles.rowWrap, { marginBottom: 15 }]}>
+                    {["debutant", "intermediaire", "confirme"].map((lvl) => (
+                      <Hoverable
+                        key={lvl}
+                        onPress={() => toggleMultiValue("experience", lvl)}
+                        hoverStyle={{ transform: [{ scale: 1.05 }] }}
+                        style={[
+                          styles.catButton,
+                          toArray(editingRole.experience).includes(lvl) && {
+                            backgroundColor: "#333",
+                            borderColor: "#333",
+                          },
+                          { cursor: "pointer" } as any,
+                        ]}
+                      >
+                        <Text
+                          style={{
+                            color: toArray(editingRole.experience).includes(lvl)
+                              ? "white"
+                              : "#333",
+                          }}
+                        >
+                          {lvl.charAt(0).toUpperCase() + lvl.slice(1)}
+                        </Text>
+                      </Hoverable>
+                    ))}
+                  </View>
+
+                  {/* Gender */}
+                  <Text style={styles.label}>Sexe (optionnel)</Text>
+                  <View style={[styles.rowWrap, { marginBottom: 15 }]}>
+                    {["homme", "femme", "autre"].map((g) => (
+                      <Hoverable
+                        key={g}
+                        onPress={() => toggleMultiValue("gender", g)}
+                        hoverStyle={{ transform: [{ scale: 1.05 }] }}
+                        style={[
+                          styles.catButton,
+                          toArray(editingRole.gender).includes(g) && {
+                            backgroundColor: "#333",
+                            borderColor: "#333",
+                          },
+                          { cursor: "pointer" } as any,
+                        ]}
+                      >
+                        <Text
+                          style={{
+                            color: toArray(editingRole.gender).includes(g)
+                              ? "white"
+                              : "#333",
+                          }}
+                        >
+                          {g.charAt(0).toUpperCase() + g.slice(1)}
+                        </Text>
+                      </Hoverable>
+                    ))}
+                  </View>
+
+                  {/* Age range */}
+                  <View
+                    style={{ flexDirection: "row", gap: 10, paddingBottom: 10 }}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.label}>Âge min.</Text>
+                      <TextInput
+                        keyboardType="numeric"
+                        style={styles.input}
+                        value={editingRole.ageMin}
+                        onChangeText={(t) =>
+                          setEditingRole({ ...editingRole, ageMin: t })
+                        }
+                      />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.label}>Âge max.</Text>
+                      <TextInput
+                        keyboardType="numeric"
+                        style={styles.input}
+                        value={editingRole.ageMax}
+                        onChangeText={(t) =>
+                          setEditingRole({ ...editingRole, ageMax: t })
+                        }
+                      />
+                    </View>
+                  </View>
+
+                  {/* Specific Fields by Category */}
+                  <RoleFormFields
+                    category={editingRole.category}
+                    data={editingRole}
+                    onChange={setEditingRole} // RoleFormFields expects full object update or I should adapt key/value
+                  />
+
+                  <Text style={styles.label}>Rémunération</Text>
+                  <View style={[styles.rowWrap, { marginBottom: 15 }]}>
+                    <Hoverable
                       onPress={() =>
-                        setEditingRole({ ...editingRole, category: cat })
+                        setEditingRole({ ...editingRole, isPaid: true })
                       }
+                      hoverStyle={{ transform: [{ scale: 1.05 }] }}
                       style={[
                         styles.catButton,
-                        {
-                          borderColor: CATEGORY_COLORS[cat] || "#841584",
-                          backgroundColor:
-                            editingRole.category === cat
-                              ? CATEGORY_COLORS[cat] || "#841584"
-                              : "transparent",
+                        editingRole.isPaid && {
+                          backgroundColor: "#333",
+                          borderColor: "#333",
                         },
+                        { cursor: "pointer" } as any,
+                      ]}
+                    >
+                      <Text
+                        style={{
+                          color: editingRole.isPaid ? "white" : "#333",
+                        }}
+                      >
+                        Rémunéré
+                      </Text>
+                    </Hoverable>
+                    <Hoverable
+                      onPress={() =>
+                        setEditingRole({ ...editingRole, isPaid: false })
+                      }
+                      hoverStyle={{ transform: [{ scale: 1.05 }] }}
+                      style={[
+                        styles.catButton,
+                        !editingRole.isPaid && {
+                          backgroundColor: "#333",
+                          borderColor: "#333",
+                        },
+                        { cursor: "pointer" } as any,
+                      ]}
+                    >
+                      <Text
+                        style={{
+                          color: !editingRole.isPaid ? "white" : "#333",
+                        }}
+                      >
+                        Bénévole
+                      </Text>
+                    </Hoverable>
+                  </View>
+
+                  {editingRole.isPaid && (
+                    <View style={{ marginTop: 10 }}>
+                      <Text style={styles.label}>
+                        Montant de la rémunération
+                      </Text>
+                      <TextInput
+                        placeholder="Ex: 150€ / jour ou Cachet global"
+                        style={styles.input}
+                        value={editingRole.remunerationAmount}
+                        onChangeText={(t) =>
+                          setEditingRole({
+                            ...editingRole,
+                            remunerationAmount: t,
+                          })
+                        }
+                      />
+                    </View>
+                  )}
+
+                  {/* STATUS POURVU */}
+                  <Text style={styles.label}>Poste déjà pourvu ?</Text>
+                  <View style={[styles.rowWrap, { marginBottom: 15 }]}>
+                    <Hoverable
+                      onPress={() =>
+                        setEditingRole({ ...editingRole, status: "assigned" })
+                      }
+                      hoverStyle={{ transform: [{ scale: 1.05 }] }}
+                      style={[
+                        styles.catButton,
+                        editingRole.status === "assigned" && {
+                          backgroundColor: "#333",
+                          borderColor: "#333",
+                        },
+                        { cursor: "pointer" } as any,
                       ]}
                     >
                       <Text
                         style={{
                           color:
-                            editingRole.category === cat
+                            editingRole.status === "assigned"
                               ? "white"
-                              : CATEGORY_COLORS[cat] || "#333",
+                              : "#333",
                         }}
                       >
-                        {cat.charAt(0).toUpperCase() +
-                          cat.slice(1).replace("_", " ")}
+                        Oui
                       </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-
-                <Text style={styles.label}>Intitulé du poste</Text>
-                <View style={styles.rowWrap}>
-                  {(JOB_TITLES[editingRole.category] || [])
-                    .slice(0, 8)
-                    .map((job) => (
-                      <TouchableOpacity
-                        key={job}
-                        onPress={() =>
-                          setEditingRole({ ...editingRole, title: job })
-                        }
-                        style={[
-                          styles.jobChip,
-                          editingRole.title === job && styles.jobChipSelected,
-                        ]}
-                      >
-                        <Text
-                          style={{
-                            color: editingRole.title === job ? "white" : "#333",
-                          }}
-                        >
-                          {job}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                </View>
-                <TextInput
-                  placeholder="Ou un autre titre..."
-                  style={styles.input}
-                  value={editingRole.title}
-                  onChangeText={(t) =>
-                    setEditingRole({ ...editingRole, title: t })
-                  }
-                />
-
-                <View style={{ flexDirection: "row", gap: 10 }}>
-                  {!editingRole.id && (
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.label}>Quantité</Text>
-                      <TextInput
-                        keyboardType="numeric"
-                        style={styles.input}
-                        value={editingRole.quantity}
-                        onChangeText={(t) =>
-                          setEditingRole({ ...editingRole, quantity: t })
-                        }
-                      />
-                    </View>
-                  )}
-                  <View style={{ flex: 2 }}>
-                    <Text style={styles.label}>Description</Text>
-                    <TextInput
-                      placeholder="Précisions (optionnel)"
-                      style={styles.input}
-                      value={editingRole.description}
-                      onChangeText={(t) =>
-                        setEditingRole({ ...editingRole, description: t })
-                      }
-                    />
-                  </View>
-                </View>
-
-                {/* Experience */}
-                <Text style={styles.label}>Expérience recherchée</Text>
-                <View style={styles.rowWrap}>
-                  {["debutant", "intermediaire", "confirme"].map((lvl) => (
-                    <TouchableOpacity
-                      key={lvl}
-                      onPress={() => toggleMultiValue("experience", lvl)}
-                      style={[
-                        styles.catButton,
-                        toArray(editingRole.experience).includes(lvl) && {
-                          backgroundColor: "#333",
-                          borderColor: "#333",
-                        },
-                      ]}
-                    >
-                      <Text
-                        style={{
-                          color: toArray(editingRole.experience).includes(lvl)
-                            ? "white"
-                            : "#333",
-                        }}
-                      >
-                        {lvl.charAt(0).toUpperCase() + lvl.slice(1)}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-
-                {/* Gender */}
-                <Text style={styles.label}>Sexe (optionnel)</Text>
-                <View style={styles.rowWrap}>
-                  {["homme", "femme", "autre"].map((g) => (
-                    <TouchableOpacity
-                      key={g}
-                      onPress={() => toggleMultiValue("gender", g)}
-                      style={[
-                        styles.catButton,
-                        toArray(editingRole.gender).includes(g) && {
-                          backgroundColor: "#333",
-                          borderColor: "#333",
-                        },
-                      ]}
-                    >
-                      <Text
-                        style={{
-                          color: toArray(editingRole.gender).includes(g)
-                            ? "white"
-                            : "#333",
-                        }}
-                      >
-                        {g.charAt(0).toUpperCase() + g.slice(1)}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-
-                {/* Age range */}
-                <View style={{ flexDirection: "row", gap: 10 }}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.label}>Âge min.</Text>
-                    <TextInput
-                      keyboardType="numeric"
-                      style={styles.input}
-                      value={editingRole.ageMin}
-                      onChangeText={(t) =>
-                        setEditingRole({ ...editingRole, ageMin: t })
-                      }
-                    />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.label}>Âge max.</Text>
-                    <TextInput
-                      keyboardType="numeric"
-                      style={styles.input}
-                      value={editingRole.ageMax}
-                      onChangeText={(t) =>
-                        setEditingRole({ ...editingRole, ageMax: t })
-                      }
-                    />
-                  </View>
-                </View>
-
-                {/* Specific Fields by Category */}
-                <RoleFormFields
-                  category={editingRole.category}
-                  data={editingRole}
-                  onChange={setEditingRole} // RoleFormFields expects full object update or I should adapt key/value
-                />
-
-                <Text style={styles.label}>Rémunération</Text>
-                <View style={styles.rowWrap}>
-                  <TouchableOpacity
-                    onPress={() =>
-                      setEditingRole({ ...editingRole, isPaid: true })
-                    }
-                    style={[
-                      styles.catButton,
-                      editingRole.isPaid && {
-                        backgroundColor: "#333",
-                        borderColor: "#333",
-                      },
-                    ]}
-                  >
-                    <Text
-                      style={{
-                        color: editingRole.isPaid ? "white" : "#333",
-                      }}
-                    >
-                      Rémunéré
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    onPress={() =>
-                      setEditingRole({ ...editingRole, isPaid: false })
-                    }
-                    style={[
-                      styles.catButton,
-                      !editingRole.isPaid && {
-                        backgroundColor: "#333",
-                        borderColor: "#333",
-                      },
-                    ]}
-                  >
-                    <Text
-                      style={{
-                        color: !editingRole.isPaid ? "white" : "#333",
-                      }}
-                    >
-                      Bénévole
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-
-                {editingRole.isPaid && (
-                  <View style={{ marginTop: 10 }}>
-                    <Text style={styles.label}>Montant de la rémunération</Text>
-                    <TextInput
-                      placeholder="Ex: 150€ / jour ou Cachet global"
-                      style={styles.input}
-                      value={editingRole.remunerationAmount}
-                      onChangeText={(t) =>
+                    </Hoverable>
+                    <Hoverable
+                      onPress={() =>
                         setEditingRole({
                           ...editingRole,
-                          remunerationAmount: t,
+                          status:
+                            editingRole.status === "assigned"
+                              ? "published"
+                              : editingRole.status,
                         })
                       }
-                    />
-                  </View>
-                )}
-
-                {/* STATUS POURVU */}
-                <Text style={styles.label}>Poste déjà pourvu ?</Text>
-                <View style={styles.rowWrap}>
-                  <TouchableOpacity
-                    onPress={() =>
-                      setEditingRole({ ...editingRole, status: "assigned" })
-                    }
-                    style={[
-                      styles.catButton,
-                      editingRole.status === "assigned" && {
-                        backgroundColor: "#333",
-                        borderColor: "#333",
-                      },
-                    ]}
-                  >
-                    <Text
-                      style={{
-                        color:
-                          editingRole.status === "assigned" ? "white" : "#333",
-                      }}
+                      hoverStyle={{ transform: [{ scale: 1.05 }] }}
+                      style={[
+                        styles.catButton,
+                        editingRole.status !== "assigned" && {
+                          backgroundColor: "#333",
+                          borderColor: "#333",
+                        },
+                        { cursor: "pointer" } as any,
+                      ]}
                     >
-                      Oui
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    onPress={() =>
-                      setEditingRole({
-                        ...editingRole,
-                        status:
-                          editingRole.status === "assigned"
-                            ? "published"
-                            : editingRole.status,
-                      })
-                    }
-                    style={[
-                      styles.catButton,
-                      editingRole.status !== "assigned" && {
-                        backgroundColor: "#333",
-                        borderColor: "#333",
-                      },
-                    ]}
-                  >
-                    <Text
-                      style={{
-                        color:
-                          editingRole.status !== "assigned" ? "white" : "#333",
-                      }}
-                    >
-                      Non
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-
-                {/* STATUS TOGGLE */}
-                <Text style={styles.label}>Statut de l'annonce</Text>
-                {editingRole.assignee ? (
-                  <Text
-                    style={{
-                      color: "#666",
-                      fontStyle: "italic",
-                      marginBottom: 10,
-                    }}
-                  >
-                    Ce rôle est assigné. Le statut est verrouillé.
-                  </Text>
-                ) : (
-                  <View style={styles.rowWrap}>
-                    {["draft", "published"].map((st) => (
-                      <TouchableOpacity
-                        key={st}
-                        onPress={() =>
-                          setEditingRole({
-                            ...editingRole,
-                            status: st as any,
-                            ...(st === "draft" ? { createPost: false } : {}),
-                          })
-                        }
-                        style={[
-                          styles.catButton,
-                          editingRole.status === st && {
-                            backgroundColor:
-                              st === "draft" ? "#FF9800" : "#4CAF50",
-                            borderColor: "transparent",
-                          },
-                        ]}
-                      >
-                        <Text
-                          style={{
-                            color: editingRole.status === st ? "white" : "#333",
-                          }}
-                        >
-                          {st === "draft" ? "Brouillon" : "Publié"}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                )}
-
-                <Text style={styles.label}>Diffusion</Text>
-                <View style={styles.rowWrap}>
-                  <TouchableOpacity
-                    onPress={() =>
-                      setEditingRole({ ...editingRole, createPost: false })
-                    }
-                    disabled={editingRole.status !== "published"}
-                    style={[
-                      styles.catButton,
-                      !editingRole.createPost && {
-                        backgroundColor: "#333",
-                        borderColor: "#333",
-                      },
-                      editingRole.status !== "published" && { opacity: 0.5 },
-                    ]}
-                  >
-                    <Text
-                      style={{
-                        color: !editingRole.createPost ? "white" : "#333",
-                      }}
-                    >
-                      Jobs uniquement
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    onPress={() =>
-                      setEditingRole({ ...editingRole, createPost: true })
-                    }
-                    disabled={editingRole.status !== "published"}
-                    style={[
-                      styles.catButton,
-                      editingRole.createPost && {
-                        backgroundColor: "#4CAF50",
-                        borderColor: "#4CAF50",
-                      },
-                      editingRole.status !== "published" && { opacity: 0.5 },
-                    ]}
-                  >
-                    <Text
-                      style={{
-                        color: editingRole.createPost ? "white" : "#333",
-                      }}
-                    >
-                      Jobs + Feed
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-
-                {/* ASSIGNMENT */}
-                <Text style={styles.label}>Assigner quelqu'un (optionnel)</Text>
-                {editingRole.assignee ? (
-                  <View style={styles.assignedCard}>
-                    <Text style={{ fontWeight: "600", flex: 1 }}>
-                      {editingRole.assignee.label}
-                    </Text>
-                    <TouchableOpacity
-                      onPress={() =>
-                        setEditingRole({ ...editingRole, assignee: null })
-                      }
-                    >
-                      <Ionicons name="close-circle" size={20} color="#666" />
-                    </TouchableOpacity>
-                  </View>
-                ) : (
-                  <TouchableOpacity
-                    onPress={() => {
-                      setIsSearchingProfileInForm(true);
-                      searchProfilesForForm("");
-                    }}
-                    style={{
-                      padding: 10,
-                      borderWidth: 1,
-                      borderColor: "#841584",
-                      borderStyle: "dashed",
-                      borderRadius: 8,
-                      alignItems: "center",
-                    }}
-                  >
-                    <Text style={{ color: "#841584", fontWeight: "600" }}>
-                      + Choisir un profil
-                    </Text>
-                  </TouchableOpacity>
-                )}
-
-                <TouchableOpacity
-                  style={{
-                    backgroundColor: "#841584",
-                    padding: 15,
-                    borderRadius: 8,
-                    alignItems: "center",
-                    marginTop: 20,
-                    opacity: isSavingRole ? 0.7 : 1,
-                  }}
-                  onPress={handleSaveRoleForm}
-                  disabled={isSavingRole}
-                >
-                  {isSavingRole ? (
-                    <SpinningClap size={24} color="white" />
-                  ) : (
-                    <Text
-                      style={{
-                        color: "white",
-                        fontWeight: "bold",
-                        fontSize: 16,
-                      }}
-                    >
-                      Enregistrer
-                    </Text>
-                  )}
-                </TouchableOpacity>
-                <View style={{ height: 50 }} />
-              </>
-            )}
-
-            {editingRole && isSearchingProfileInForm && (
-              <View>
-                <TouchableOpacity
-                  onPress={() => setIsSearchingProfileInForm(false)}
-                  style={{ marginBottom: 15 }}
-                >
-                  <Text style={{ color: "#666" }}>← Retour</Text>
-                </TouchableOpacity>
-                <TextInput
-                  placeholder="Rechercher (nom, pseudo, ville)..."
-                  style={styles.input}
-                  value={formSearchQuery}
-                  onChangeText={searchProfilesForForm}
-                  autoFocus
-                />
-                {isFormSearching ? (
-                  <View style={{ padding: 20, alignItems: "center" }}>
-                    <SpinningClap size={30} color="#841584" />
-                  </View>
-                ) : (
-                  <FlatList
-                    data={formSearchResults}
-                    keyExtractor={(item) => item.id}
-                    scrollEnabled={false}
-                    renderItem={({ item }) => (
-                      <TouchableOpacity
+                      <Text
                         style={{
-                          padding: 12,
-                          borderBottomWidth: 1,
-                          borderColor: "#eee",
-                          flexDirection: "row",
-                          justifyContent: "space-between",
-                          alignItems: "center",
+                          color:
+                            editingRole.status !== "assigned"
+                              ? "white"
+                              : "#333",
                         }}
-                        onPress={() => selectProfileInForm(item)}
                       >
-                        <View>
-                          <Text style={{ fontWeight: "600", fontSize: 16 }}>
-                            {item.full_name || item.username}
-                          </Text>
-                          <View
+                        Non
+                      </Text>
+                    </Hoverable>
+                  </View>
+
+                  {/* STATUS TOGGLE */}
+                  <Text style={styles.label}>Statut de l'annonce</Text>
+                  {editingRole.assignee ? (
+                    <Text
+                      style={{
+                        color: "#666",
+                        fontStyle: "italic",
+                        marginBottom: 10,
+                        textAlign: "center",
+                      }}
+                    >
+                      Ce rôle est assigné. Le statut est verrouillé.
+                    </Text>
+                  ) : (
+                    <View style={[styles.rowWrap, { marginBottom: 15 }]}>
+                      {["draft", "published"].map((st) => (
+                        <Hoverable
+                          key={st}
+                          onPress={() =>
+                            setEditingRole({
+                              ...editingRole,
+                              status: st as any,
+                              ...(st === "draft" ? { createPost: false } : {}),
+                            })
+                          }
+                          hoverStyle={{ transform: [{ scale: 1.05 }] }}
+                          style={[
+                            styles.catButton,
+                            editingRole.status === st && {
+                              backgroundColor:
+                                st === "draft" ? "#FF9800" : "#4CAF50",
+                              borderColor: "transparent",
+                            },
+                            { cursor: "pointer" } as any,
+                          ]}
+                        >
+                          <Text
                             style={{
-                              flexDirection: "row",
-                              alignItems: "center",
-                              gap: 6,
+                              color:
+                                editingRole.status === st ? "white" : "#333",
                             }}
                           >
-                            {item.role && (
-                              <Text
-                                style={{
-                                  fontSize: 12,
-                                  color: "#841584",
-                                  fontWeight: "600",
-                                }}
-                              >
-                                {item.role.toUpperCase()}
-                              </Text>
-                            )}
-                            {item.ville ? (
-                              <Text style={{ fontSize: 12, color: "#666" }}>
-                                {item.role ? `• ${item.ville}` : item.ville}
-                              </Text>
-                            ) : null}
-                          </View>
-                        </View>
-                        <Ionicons
-                          name="add-circle-outline"
-                          size={24}
-                          color="#841584"
-                        />
-                      </TouchableOpacity>
+                            {st === "draft" ? "Brouillon" : "Publié"}
+                          </Text>
+                        </Hoverable>
+                      ))}
+                    </View>
+                  )}
+
+                  <Text style={styles.label}>Diffusion</Text>
+                  <View style={[styles.rowWrap, { marginBottom: 15 }]}>
+                    <Hoverable
+                      onPress={() =>
+                        setEditingRole({ ...editingRole, createPost: false })
+                      }
+                      disabled={editingRole.status !== "published"}
+                      style={[
+                        styles.catButton,
+                        !editingRole.createPost && {
+                          backgroundColor: "#333",
+                          borderColor: "#333",
+                        },
+                        editingRole.status !== "published" && { opacity: 0.5 },
+                        {
+                          cursor:
+                            editingRole.status !== "published"
+                              ? "default"
+                              : ("pointer" as any),
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={{
+                          color: !editingRole.createPost ? "white" : "#333",
+                        }}
+                      >
+                        Jobs uniquement
+                      </Text>
+                    </Hoverable>
+                    <Hoverable
+                      onPress={() =>
+                        setEditingRole({ ...editingRole, createPost: true })
+                      }
+                      disabled={editingRole.status !== "published"}
+                      style={[
+                        styles.catButton,
+                        editingRole.createPost && {
+                          backgroundColor: "#4CAF50",
+                          borderColor: "#4CAF50",
+                        },
+                        editingRole.status !== "published" && { opacity: 0.5 },
+                        {
+                          cursor:
+                            editingRole.status !== "published"
+                              ? "default"
+                              : ("pointer" as any),
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={{
+                          color: editingRole.createPost ? "white" : "#333",
+                        }}
+                      >
+                        Jobs + Feed
+                      </Text>
+                    </Hoverable>
+                  </View>
+
+                  {/* ASSIGNMENT */}
+                  <Text style={styles.label}>
+                    Assigner quelqu'un (optionnel)
+                  </Text>
+                  {editingRole.assignee ? (
+                    <View style={styles.assignedCard}>
+                      <Text style={{ fontWeight: "600", flex: 1 }}>
+                        {editingRole.assignee.label}
+                      </Text>
+                      <Hoverable
+                        onPress={() =>
+                          setEditingRole({ ...editingRole, assignee: null })
+                        }
+                        style={{ cursor: "pointer" } as any}
+                      >
+                        <Ionicons name="close-circle" size={20} color="#666" />
+                      </Hoverable>
+                    </View>
+                  ) : (
+                    <Hoverable
+                      onPress={() => {
+                        setIsSearchingProfileInForm(true);
+                        searchProfilesForForm("");
+                      }}
+                      hoverStyle={{ opacity: 0.7 }}
+                      style={
+                        {
+                          padding: 10,
+                          borderWidth: 1,
+                          borderColor: "#841584",
+                          borderStyle: "dashed",
+                          borderRadius: 8,
+                          alignItems: "center",
+                          cursor: "pointer",
+                        } as any
+                      }
+                    >
+                      <Text style={{ color: "#841584", fontWeight: "600" }}>
+                        + Choisir un profil
+                      </Text>
+                    </Hoverable>
+                  )}
+
+                  <Hoverable
+                    style={
+                      {
+                        backgroundColor: "#841584",
+                        padding: 15,
+                        borderRadius: 8,
+                        alignItems: "center",
+                        marginTop: 20,
+                        opacity: isSavingRole ? 0.7 : 1,
+                        cursor: isSavingRole ? "default" : "pointer",
+                      } as any
+                    }
+                    onPress={handleSaveRoleForm}
+                    disabled={isSavingRole}
+                    hoverStyle={{ opacity: 0.9, transform: [{ scale: 1.01 }] }}
+                  >
+                    {isSavingRole ? (
+                      <SpinningClap size={24} color="white" />
+                    ) : (
+                      <Text
+                        style={{
+                          color: "white",
+                          fontWeight: "bold",
+                          fontSize: 16,
+                        }}
+                      >
+                        Enregistrer
+                      </Text>
                     )}
+                  </Hoverable>
+                  <View style={{ height: 50 }} />
+                </>
+              )}
+
+              {editingRole && isSearchingProfileInForm && (
+                <View>
+                  <Hoverable
+                    onPress={() => setIsSearchingProfileInForm(false)}
+                    style={
+                      {
+                        marginBottom: 15,
+                        padding: 5,
+                        alignSelf: "flex-start",
+                        cursor: "pointer",
+                      } as any
+                    }
+                    hoverStyle={{ opacity: 0.7 }}
+                  >
+                    <Text style={{ color: "#666", fontSize: 16 }}>
+                      ← Retour
+                    </Text>
+                  </Hoverable>
+                  <TextInput
+                    placeholder="Rechercher (nom, pseudo, ville)..."
+                    style={[
+                      styles.input,
+                      { textAlign: "left", paddingLeft: 10 },
+                    ]}
+                    value={formSearchQuery}
+                    onChangeText={searchProfilesForForm}
+                    autoFocus
                   />
-                )}
-              </View>
-            )}
-          </ScrollView>
+                  {isFormSearching ? (
+                    <View style={{ padding: 20, alignItems: "center" }}>
+                      <SpinningClap size={30} color="#841584" />
+                    </View>
+                  ) : (
+                    <FlatList
+                      data={formSearchResults}
+                      keyExtractor={(item) => item.id}
+                      scrollEnabled={false}
+                      renderItem={({ item }) => (
+                        <Hoverable
+                          style={
+                            {
+                              padding: 12,
+                              borderBottomWidth: 1,
+                              borderColor: "#eee",
+                              flexDirection: "row",
+                              justifyContent: "space-between",
+                              alignItems: "center",
+                              cursor: "pointer",
+                            } as any
+                          }
+                          onPress={() => selectProfileInForm(item)}
+                          hoverStyle={{
+                            backgroundColor: Colors.light.backgroundSecondary,
+                          }}
+                        >
+                          <View>
+                            <Text style={{ fontWeight: "600", fontSize: 16 }}>
+                              {item.full_name || item.username}
+                            </Text>
+                            <View
+                              style={{
+                                flexDirection: "row",
+                                alignItems: "center",
+                                gap: 6,
+                              }}
+                            >
+                              {item.role && (
+                                <Text
+                                  style={{
+                                    fontSize: 12,
+                                    color: "#841584",
+                                    fontWeight: "600",
+                                  }}
+                                >
+                                  {item.role.toUpperCase()}
+                                </Text>
+                              )}
+                              {item.ville ? (
+                                <Text style={{ fontSize: 12, color: "#666" }}>
+                                  {item.role ? `• ${item.ville}` : item.ville}
+                                </Text>
+                              ) : null}
+                            </View>
+                          </View>
+                          <Ionicons
+                            name="add-circle-outline"
+                            size={24}
+                            color="#841584"
+                          />
+                        </Hoverable>
+                      )}
+                    />
+                  )}
+                </View>
+              )}
+            </ScrollView>
+          </View>
         </View>
       </Modal>
 
@@ -2581,108 +2759,112 @@ export default function ProjectDetails() {
         presentationStyle="pageSheet"
         onRequestClose={() => setApplicationsModalVisible(false)}
       >
-        <View style={{ flex: 1, backgroundColor: "white", padding: 20 }}>
-          <View
-            style={{
-              flexDirection: "row",
-              justifyContent: "space-between",
-              alignItems: "center",
-              marginBottom: 20,
-              marginTop: 20,
-            }}
-          >
-            <Text style={{ fontSize: 22, fontWeight: "bold" }}>
-              Candidatures ({applications.length})
-            </Text>
-            <TouchableOpacity
-              onPress={() => setApplicationsModalVisible(false)}
+        <View
+          style={{ flex: 1, backgroundColor: "white", alignItems: "center" }}
+        >
+          <View style={{ flex: 1, width: "100%", maxWidth: 800, padding: 20 }}>
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: 20,
+                marginTop: 20,
+              }}
             >
-              <Ionicons name="close" size={28} color="black" />
-            </TouchableOpacity>
-          </View>
-
-          <FlatList
-            data={applications}
-            keyExtractor={(item) => item.id}
-            ListEmptyComponent={
-              <Text
-                style={{ textAlign: "center", color: "#666", marginTop: 50 }}
-              >
-                Aucune candidature en attente.
+              <Text style={{ fontSize: 22, fontWeight: "bold" }}>
+                Candidatures ({applications.length})
               </Text>
-            }
-            renderItem={({ item }) => (
-              <View
-                style={{
-                  padding: 15,
-                  borderWidth: 1,
-                  borderColor: "#eee",
-                  borderRadius: 10,
-                  marginBottom: 10,
-                }}
+              <TouchableOpacity
+                onPress={() => setApplicationsModalVisible(false)}
               >
-                <View style={{ marginBottom: 10 }}>
-                  <TouchableOpacity
-                    onPress={() => {
-                      setApplicationsModalVisible(false);
-                      router.push(`/profile/${item.candidate_id}`);
-                    }}
-                  >
-                    <Text
-                      style={{
-                        fontWeight: "bold",
-                        fontSize: 16,
-                        color: Colors.light.primary,
-                        textDecorationLine: "underline",
+                <Ionicons name="close" size={28} color="black" />
+              </TouchableOpacity>
+            </View>
+
+            <FlatList
+              data={applications}
+              keyExtractor={(item) => item.id}
+              ListEmptyComponent={
+                <Text
+                  style={{ textAlign: "center", color: "#666", marginTop: 50 }}
+                >
+                  Aucune candidature en attente.
+                </Text>
+              }
+              renderItem={({ item }) => (
+                <View
+                  style={{
+                    padding: 15,
+                    borderWidth: 1,
+                    borderColor: "#eee",
+                    borderRadius: 10,
+                    marginBottom: 10,
+                  }}
+                >
+                  <View style={{ marginBottom: 10 }}>
+                    <TouchableOpacity
+                      onPress={() => {
+                        setApplicationsModalVisible(false);
+                        router.push(`/profile/${item.candidate_id}`);
                       }}
                     >
-                      {item.profiles?.full_name || item.profiles?.username}
+                      <Text
+                        style={{
+                          fontWeight: "bold",
+                          fontSize: 16,
+                          color: Colors.light.primary,
+                          textDecorationLine: "underline",
+                        }}
+                      >
+                        {item.profiles?.full_name || item.profiles?.username}
+                      </Text>
+                    </TouchableOpacity>
+                    <Text style={{ color: "#666" }}>
+                      Candidat pour :{" "}
+                      <Text style={{ fontWeight: "600", color: "#333" }}>
+                        {item.project_roles?.title}
+                      </Text>
                     </Text>
-                  </TouchableOpacity>
-                  <Text style={{ color: "#666" }}>
-                    Candidat pour :{" "}
-                    <Text style={{ fontWeight: "600", color: "#333" }}>
-                      {item.project_roles?.title}
+                    <Text style={{ fontSize: 12, color: "#999", marginTop: 4 }}>
+                      Message: {item.message || "Aucun message"}
                     </Text>
-                  </Text>
-                  <Text style={{ fontSize: 12, color: "#999", marginTop: 4 }}>
-                    Message: {item.message || "Aucun message"}
-                  </Text>
-                </View>
+                  </View>
 
-                <View style={{ flexDirection: "row", gap: 10 }}>
-                  <TouchableOpacity
-                    onPress={() => handleAcceptApplication(item)}
-                    style={{
-                      flex: 1,
-                      backgroundColor: "#4CAF50",
-                      padding: 10,
-                      borderRadius: 8,
-                      alignItems: "center",
-                    }}
-                  >
-                    <Text style={{ color: "white", fontWeight: "bold" }}>
-                      Accepter
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    onPress={() => handleRefuseApplication(item)}
-                    style={{
-                      flex: 1,
-                      backgroundColor: "#ef5350",
-                      padding: 10,
-                      borderRadius: 8,
-                      alignItems: "center",
-                    }}
-                  >
-                    <Text style={{ color: "white", fontWeight: "bold" }}>
-                      Refuser
-                    </Text>
-                  </TouchableOpacity>
+                  <View style={{ flexDirection: "row", gap: 10 }}>
+                    <TouchableOpacity
+                      onPress={() => handleAcceptApplication(item)}
+                      style={{
+                        flex: 1,
+                        backgroundColor: "#4CAF50",
+                        padding: 10,
+                        borderRadius: 8,
+                        alignItems: "center",
+                      }}
+                    >
+                      <Text style={{ color: "white", fontWeight: "bold" }}>
+                        Accepter
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => handleRefuseApplication(item)}
+                      style={{
+                        flex: 1,
+                        backgroundColor: "#ef5350",
+                        padding: 10,
+                        borderRadius: 8,
+                        alignItems: "center",
+                      }}
+                    >
+                      <Text style={{ color: "white", fontWeight: "bold" }}>
+                        Refuser
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
-              </View>
-            )}
-          />
+              )}
+            />
+          </View>
         </View>
       </Modal>
 
@@ -2738,9 +2920,10 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     alignItems: "center",
     shadowColor: Colors.light.shadow,
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 5,
+    elevation: 3,
     borderWidth: 1,
     borderColor: Colors.light.border,
   },
@@ -2769,6 +2952,7 @@ const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     justifyContent: "center",
+    alignItems: "center",
     backgroundColor: "rgba(0,0,0,0.5)",
     padding: 20,
   },
@@ -2777,6 +2961,8 @@ const styles = StyleSheet.create({
     borderRadius: 15,
     padding: 20,
     maxHeight: "85%",
+    width: "100%",
+    maxWidth: 600,
   },
   modalTitle: {
     fontSize: 20,

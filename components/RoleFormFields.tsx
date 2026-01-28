@@ -1,13 +1,8 @@
-import React from "react";
-import {
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
-} from "react-native";
-import { GlobalStyles } from "@/constants/Styles";
 import Colors from "@/constants/Colors";
+import { GlobalStyles } from "@/constants/Styles";
+import React from "react";
+import { StyleSheet, Text, TextInput, View } from "react-native";
+import { Hoverable } from "./Hoverable";
 
 const HAIR_COLORS = [
   "Brun",
@@ -53,7 +48,9 @@ export default function RoleFormFields({
   if (category === "acteur") {
     return (
       <View>
-        <Text style={GlobalStyles.sectionTitle}>Caractéristiques physiques</Text>
+        <Text style={GlobalStyles.sectionTitle}>
+          Caractéristiques physiques
+        </Text>
 
         <Text style={GlobalStyles.label}>Taille (cm)</Text>
         <TextInput
@@ -68,44 +65,52 @@ export default function RoleFormFields({
         <Text style={GlobalStyles.label}>Cheveux</Text>
         <View style={styles.rowWrap}>
           {HAIR_COLORS.map((c) => (
-            <TouchableOpacity
+            <Hoverable
               key={c}
               onPress={() => toggleMultiSelect("hairColor", c)}
+              hoverStyle={{ transform: [{ scale: 1.05 }] }}
               style={[
                 styles.chip,
                 toArray(data.hairColor).includes(c) && styles.chipSelected,
+                { cursor: "pointer" } as any,
               ]}
             >
               <Text
                 style={{
-                  color: toArray(data.hairColor).includes(c) ? "white" : Colors.light.text,
+                  color: toArray(data.hairColor).includes(c)
+                    ? "white"
+                    : Colors.light.text,
                 }}
               >
                 {c}
               </Text>
-            </TouchableOpacity>
+            </Hoverable>
           ))}
         </View>
 
         <Text style={GlobalStyles.label}>Yeux</Text>
         <View style={styles.rowWrap}>
           {EYE_COLORS.map((c) => (
-            <TouchableOpacity
+            <Hoverable
               key={c}
               onPress={() => toggleMultiSelect("eyeColor", c)}
+              hoverStyle={{ transform: [{ scale: 1.05 }] }}
               style={[
                 styles.chip,
                 toArray(data.eyeColor).includes(c) && styles.chipSelected,
+                { cursor: "pointer" } as any,
               ]}
             >
               <Text
                 style={{
-                  color: toArray(data.eyeColor).includes(c) ? "white" : Colors.light.text,
+                  color: toArray(data.eyeColor).includes(c)
+                    ? "white"
+                    : Colors.light.text,
                 }}
               >
                 {c}
               </Text>
-            </TouchableOpacity>
+            </Hoverable>
           ))}
         </View>
       </View>
