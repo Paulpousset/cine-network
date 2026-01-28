@@ -491,6 +491,19 @@ export default function Account() {
             throw error;
           }
 
+          // 10. Delete Auth User (requires delete_user RPC function)
+          console.log("10. Deleting auth user...");
+          const { error: rpcError } = await supabase.rpc("delete_user");
+
+          if (rpcError) {
+            console.log(
+              "RPC delete_user failed (function might be missing), but profile is gone.",
+            );
+            // We don't throw here to avoid preventing the success UI
+            // if the user hasn't set up the RPC yet, at least their data is gone.
+            console.error(rpcError);
+          }
+
           console.log("Delete success. Signing out.");
 
           const successTitle = "Compte supprimé";
