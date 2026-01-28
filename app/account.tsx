@@ -13,6 +13,7 @@ import React, { useEffect, useState } from "react";
 import {
   Alert,
   Image,
+  Platform,
   ScrollView,
   StyleSheet,
   Switch,
@@ -374,136 +375,150 @@ export default function Account() {
 
   const handleDeleteAccount = async () => {
     console.log("handleDeleteAccount called");
-    Alert.alert(
-      "Supprimer mon compte",
-      "Êtes-vous sûr de vouloir supprimer votre compte ? Cette action est irréversible et supprimera toutes vos données. (Note: Cette action ne supprime que votre profil public, pour une suppression complète des données d'authentification, contactez le support)",
-      [
-        {
-          text: "Annuler",
-          style: "cancel",
-          onPress: () => console.log("Delete canceled"),
-        },
-        {
-          text: "Supprimer",
-          style: "destructive",
-          onPress: async () => {
-            console.log("Delete confirmed, starting process...");
-            setLoading(true);
-            try {
-              const {
-                data: { session },
-              } = await supabase.auth.getSession();
-              if (session?.user) {
-                const userId = session.user.id;
-                console.log("Deleting data for user:", userId);
 
-                // 1. Delete connections (requester or receiver)
-                console.log("1. Deleting connections...");
-                const { error: connectionsError } = await supabase
-                  .from("connections")
-                  .delete()
-                  .or(`requester_id.eq.${userId},receiver_id.eq.${userId}`);
-                if (connectionsError) throw connectionsError;
+    const confirmDelete = async () => {
+      console.log("Delete confirmed, starting process...");
+      setLoading(true);
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        if (session?.user) {
+          const userId = session.user.id;
+          console.log("Deleting data for user:", userId);
 
-                // 2. Delete applications made by user
-                console.log("2. Deleting applications...");
-                const { error: applicationsError } = await supabase
-                  .from("applications")
-                  .delete()
-                  .eq("candidate_id", userId);
-                if (applicationsError) throw applicationsError;
+          // 1. Delete connections (requester or receiver)
+          console.log("1. Deleting connections...");
+          const { error: connectionsError } = await supabase
+            .from("connections")
+            .delete()
+            .or(`requester_id.eq.${userId},receiver_id.eq.${userId}`);
+          if (connectionsError) throw connectionsError;
 
-                // 3. Delete posts
-                console.log("3. Deleting posts...");
-                const { error: postsError } = await supabase
-                  .from("posts")
-                  .delete()
-                  .eq("user_id", userId);
-                if (postsError) throw postsError;
+          // 2. Delete applications made by user
+          console.log("2. Deleting applications...");
+          const { error: applicationsError } = await supabase
+            .from("applications")
+            .delete()
+            .eq("candidate_id", userId);
+          if (applicationsError) throw applicationsError;
 
-                // 4. Delete project likes
-                console.log("4. Deleting likes...");
-                const { error: likesError } = await supabase
-                  .from("project_likes")
-                  .delete()
-                  .eq("user_id", userId);
-                if (likesError) throw likesError;
+          // 3. Delete posts
+          console.log("3. Deleting posts...");
+          const { error: postsError } = await supabase
+            .from("posts")
+            .delete()
+            .eq("user_id", userId);
+          if (postsError) throw postsError;
 
-                // 5. Delete direct messages (sender or receiver)
-                console.log("5. Deleting DMs...");
-                const { error: dmError } = await supabase
-                  .from("direct_messages")
-                  .delete()
-                  .or(`sender_id.eq.${userId},receiver_id.eq.${userId}`);
-                if (dmError) throw dmError;
+          // 4. Delete project likes
+          console.log("4. Deleting likes...");
+          const { error: likesError } = await supabase
+            .from("project_likes")
+            .delete()
+            .eq("user_id", userId);
+          if (likesError) throw likesError;
 
-                // 6. Delete project messages
-                console.log("6. Deleting project messages...");
-                const { error: pmError } = await supabase
-                  .from("project_messages")
-                  .delete()
-                  .eq("sender_id", userId);
-                if (pmError) throw pmError;
+          // 5. Delete direct messages (sender or receiver)
+          console.log("5. Deleting DMs...");
+          const { error: dmError } = await supabase
+            .from("direct_messages")
+            .delete()
+            .or(`sender_id.eq.${userId},receiver_id.eq.${userId}`);
+          if (dmError) throw dmError;
 
-                // 7. Delete project files
-                console.log("7. Deleting project files...");
-                const { error: filesError } = await supabase
-                  .from("project_files")
-                  .delete()
-                  .eq("uploader_id", userId);
-                if (filesError) throw filesError;
+          // 6. Delete project messages
+          console.log("6. Deleting project messages...");
+          const { error: pmError } = await supabase
+            .from("project_messages")
+            .delete()
+            .eq("sender_id", userId);
+          if (pmError) throw pmError;
 
-                // 7.5 Unassign from Project Roles & Inventory
-                console.log("7.5 Unassigning roles & inventory...");
-                const { error: rolesError } = await supabase
-                  .from("project_roles")
-                  .update({ assigned_profile_id: null })
-                  .eq("assigned_profile_id", userId);
-                if (rolesError) throw rolesError;
+          // 7. Delete project files
+          console.log("7. Deleting project files...");
+          const { error: filesError } = await supabase
+            .from("project_files")
+            .delete()
+            .eq("uploader_id", userId);
+          if (filesError) throw filesError;
 
-                const { error: inventoryError } = await supabase
-                  .from("project_inventory")
-                  .update({ assigned_to: null })
-                  .eq("assigned_to", userId);
-                if (inventoryError) throw inventoryError;
+          // 7.5 Unassign from Project Roles & Inventory
+          console.log("7.5 Unassigning roles & inventory...");
+          const { error: rolesError } = await supabase
+            .from("project_roles")
+            .update({ assigned_profile_id: null })
+            .eq("assigned_profile_id", userId);
+          if (rolesError) throw rolesError;
 
-                // 8. Delete projects owned by user
-                console.log("8. Deleting owned projects...");
-                const { error: projectsError } = await supabase
-                  .from("tournages")
-                  .delete()
-                  .eq("owner_id", userId);
-                if (projectsError) throw projectsError;
+          const { error: inventoryError } = await supabase
+            .from("project_inventory")
+            .update({ assigned_to: null })
+            .eq("assigned_to", userId);
+          if (inventoryError) throw inventoryError;
 
-                // 9. Finally delete profile
-                console.log("9. Deleting profile...");
-                const { error } = await supabase
-                  .from("profiles")
-                  .delete()
-                  .eq("id", userId);
+          // 8. Delete projects owned by user
+          console.log("8. Deleting owned projects...");
+          const { error: projectsError } = await supabase
+            .from("tournages")
+            .delete()
+            .eq("owner_id", userId);
+          if (projectsError) throw projectsError;
 
-                if (error) {
-                  console.error("Delete profile error:", error);
-                  throw error;
-                }
+          // 9. Finally delete profile
+          console.log("9. Deleting profile...");
+          const { error } = await supabase
+            .from("profiles")
+            .delete()
+            .eq("id", userId);
 
-                console.log("Delete success. Signing out.");
-                await supabase.auth.signOut();
-                router.replace("/");
-              }
-            } catch (error: any) {
-              console.error("Delete account error:", error);
-              Alert.alert(
-                "Erreur",
-                "Impossible de supprimer le compte: " +
-                  (error.message || JSON.stringify(error)),
-              );
-              setLoading(false);
-            }
+          if (error) {
+            console.error("Delete profile error:", error);
+            throw error;
+          }
+
+          console.log("Delete success. Signing out.");
+          await supabase.auth.signOut();
+          router.replace("/");
+        }
+      } catch (error: any) {
+        console.error("Delete account error:", error);
+        Alert.alert(
+          "Erreur",
+          "Impossible de supprimer le compte: " +
+            (error.message || JSON.stringify(error)),
+        );
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (Platform.OS === "web") {
+      if (
+        window.confirm(
+          "Êtes-vous sûr de vouloir supprimer votre compte ? Cette action est irréversible.",
+        )
+      ) {
+        confirmDelete();
+      }
+    } else {
+      Alert.alert(
+        "Supprimer mon compte",
+        "Êtes-vous sûr de vouloir supprimer votre compte ? Cette action est irréversible et supprimera toutes vos données. (Note: Cette action ne supprime que votre profil public, pour une suppression complète des données d'authentification, contactez le support)",
+        [
+          {
+            text: "Annuler",
+            style: "cancel",
+            onPress: () => console.log("Delete canceled"),
           },
-        },
-      ],
-    );
+          {
+            text: "Supprimer",
+            style: "destructive",
+            onPress: confirmDelete,
+          },
+        ],
+      );
+    }
   };
 
   // --- SAVE ---
