@@ -388,10 +388,69 @@ export default function Account() {
                 data: { session },
               } = await supabase.auth.getSession();
               if (session?.user) {
+                const userId = session.user.id;
+
+                // 1. Delete connections (requester or receiver)
+                const { error: connectionsError } = await supabase
+                  .from("connections")
+                  .delete()
+                  .or(`requester_id.eq.${userId},receiver_id.eq.${userId}`);
+                if (connectionsError) throw connectionsError;
+
+                // 2. Delete applications made by user
+                const { error: applicationsError } = await supabase
+                  .from("applications")
+                  .delete()
+                  .eq("candidate_id", userId);
+                if (applicationsError) throw applicationsError;
+
+                // 3. Delete posts
+                const { error: postsError } = await supabase
+                  .from("posts")
+                  .delete()
+                  .eq("user_id", userId);
+                if (postsError) throw postsError;
+
+                // 4. Delete project likes
+                const { error: likesError } = await supabase
+                  .from("project_likes")
+                  .delete()
+                  .eq("user_id", userId);
+                if (likesError) throw likesError;
+
+                // 5. Delete direct messages (sender or receiver)
+                const { error: dmError } = await supabase
+                  .from("direct_messages")
+                  .delete()
+                  .or(`sender_id.eq.${userId},receiver_id.eq.${userId}`);
+                if (dmError) throw dmError;
+
+                // 6. Delete project messages
+                const { error: pmError } = await supabase
+                  .from("project_messages")
+                  .delete()
+                  .eq("sender_id", userId);
+                if (pmError) throw pmError;
+
+                // 7. Delete project files
+                const { error: filesError } = await supabase
+                  .from("project_files")
+                  .delete()
+                  .eq("uploader_id", userId);
+                if (filesError) throw filesError;
+
+                // 8. Delete projects owned by user
+                const { error: projectsError } = await supabase
+                  .from("tournages")
+                  .delete()
+                  .eq("owner_id", userId);
+                if (projectsError) throw projectsError;
+
+                // 9. Finally delete profile
                 const { error } = await supabase
                   .from("profiles")
                   .delete()
-                  .eq("id", session.user.id);
+                  .eq("id", userId);
 
                 if (error) {
                   console.error("Delete profile error:", error);
