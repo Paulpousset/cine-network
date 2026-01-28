@@ -373,15 +373,21 @@ export default function Account() {
   }
 
   const handleDeleteAccount = async () => {
+    console.log("handleDeleteAccount called");
     Alert.alert(
       "Supprimer mon compte",
       "Êtes-vous sûr de vouloir supprimer votre compte ? Cette action est irréversible et supprimera toutes vos données. (Note: Cette action ne supprime que votre profil public, pour une suppression complète des données d'authentification, contactez le support)",
       [
-        { text: "Annuler", style: "cancel" },
+        {
+          text: "Annuler",
+          style: "cancel",
+          onPress: () => console.log("Delete canceled"),
+        },
         {
           text: "Supprimer",
           style: "destructive",
           onPress: async () => {
+            console.log("Delete confirmed, starting process...");
             setLoading(true);
             try {
               const {
@@ -389,8 +395,10 @@ export default function Account() {
               } = await supabase.auth.getSession();
               if (session?.user) {
                 const userId = session.user.id;
+                console.log("Deleting data for user:", userId);
 
                 // 1. Delete connections (requester or receiver)
+                console.log("1. Deleting connections...");
                 const { error: connectionsError } = await supabase
                   .from("connections")
                   .delete()
@@ -398,6 +406,7 @@ export default function Account() {
                 if (connectionsError) throw connectionsError;
 
                 // 2. Delete applications made by user
+                console.log("2. Deleting applications...");
                 const { error: applicationsError } = await supabase
                   .from("applications")
                   .delete()
@@ -405,6 +414,7 @@ export default function Account() {
                 if (applicationsError) throw applicationsError;
 
                 // 3. Delete posts
+                console.log("3. Deleting posts...");
                 const { error: postsError } = await supabase
                   .from("posts")
                   .delete()
@@ -412,6 +422,7 @@ export default function Account() {
                 if (postsError) throw postsError;
 
                 // 4. Delete project likes
+                console.log("4. Deleting likes...");
                 const { error: likesError } = await supabase
                   .from("project_likes")
                   .delete()
@@ -419,6 +430,7 @@ export default function Account() {
                 if (likesError) throw likesError;
 
                 // 5. Delete direct messages (sender or receiver)
+                console.log("5. Deleting DMs...");
                 const { error: dmError } = await supabase
                   .from("direct_messages")
                   .delete()
@@ -426,6 +438,7 @@ export default function Account() {
                 if (dmError) throw dmError;
 
                 // 6. Delete project messages
+                console.log("6. Deleting project messages...");
                 const { error: pmError } = await supabase
                   .from("project_messages")
                   .delete()
@@ -433,13 +446,29 @@ export default function Account() {
                 if (pmError) throw pmError;
 
                 // 7. Delete project files
+                console.log("7. Deleting project files...");
                 const { error: filesError } = await supabase
                   .from("project_files")
                   .delete()
                   .eq("uploader_id", userId);
                 if (filesError) throw filesError;
 
+                // 7.5 Unassign from Project Roles & Inventory
+                console.log("7.5 Unassigning roles & inventory...");
+                const { error: rolesError } = await supabase
+                  .from("project_roles")
+                  .update({ assigned_profile_id: null })
+                  .eq("assigned_profile_id", userId);
+                if (rolesError) throw rolesError;
+
+                const { error: inventoryError } = await supabase
+                  .from("project_inventory")
+                  .update({ assigned_to: null })
+                  .eq("assigned_to", userId);
+                if (inventoryError) throw inventoryError;
+
                 // 8. Delete projects owned by user
+                console.log("8. Deleting owned projects...");
                 const { error: projectsError } = await supabase
                   .from("tournages")
                   .delete()
@@ -447,6 +476,7 @@ export default function Account() {
                 if (projectsError) throw projectsError;
 
                 // 9. Finally delete profile
+                console.log("9. Deleting profile...");
                 const { error } = await supabase
                   .from("profiles")
                   .delete()
@@ -457,16 +487,17 @@ export default function Account() {
                   throw error;
                 }
 
+                console.log("Delete success. Signing out.");
                 await supabase.auth.signOut();
                 router.replace("/");
               }
-            } catch (error) {
+            } catch (error: any) {
+              console.error("Delete account error:", error);
               Alert.alert(
                 "Erreur",
-                "Impossible de supprimer le compte. Cela peut être dû à des données liées (projets, candidatures, etc.). Veuillez supprimer ces éléments ou contacter le support.",
+                "Impossible de supprimer le compte: " +
+                  (error.message || JSON.stringify(error)),
               );
-              console.error(error);
-            } finally {
               setLoading(false);
             }
           },
