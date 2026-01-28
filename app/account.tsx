@@ -52,6 +52,7 @@ export default function Account() {
   const { mode } = useUserMode(); // Mode is mostly visual/role based
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
   // --- FORM STATE ---
   const [profile, setProfile] = useState<any>({});
@@ -387,6 +388,19 @@ export default function Account() {
           const userId = session.user.id;
           console.log("Deleting data for user:", userId);
 
+          // 0. Delete public profile settings
+          console.log("0. Deleting settings...");
+          const { error: settingsError } = await supabase
+            .from("public_profile_settings")
+            .delete()
+            .eq("id", userId);
+          // Ignore error if not found or already deleted?
+          // But strict error handling is better to catch constraints.
+          if (settingsError && settingsError.code !== "PGRST116") {
+            // Ignore if not found? No, delete doesn't error if not found.
+            if (settingsError) throw settingsError;
+          }
+
           // 1. Delete connections (requester or receiver)
           console.log("1. Deleting connections...");
           const { error: connectionsError } = await supabase
@@ -478,16 +492,35 @@ export default function Account() {
           }
 
           console.log("Delete success. Signing out.");
+
+          const successTitle = "Compte supprimé";
+          const successMsg =
+            "Votre compte et vos données ont été supprimés avec succès.";
+
+          if (Platform.OS === "web") {
+            window.alert(`${successTitle}\n\n${successMsg}`);
+          } else {
+            // On mobile, alert might be interrupted by navigation/signout,
+            // but usually ok.
+            Alert.alert(successTitle, successMsg);
+          }
+
           await supabase.auth.signOut();
           router.replace("/");
         }
       } catch (error: any) {
         console.error("Delete account error:", error);
-        Alert.alert(
-          "Erreur",
+
+        const errTitle = "Erreur";
+        const errMsg =
           "Impossible de supprimer le compte: " +
-            (error.message || JSON.stringify(error)),
-        );
+          (error.message || JSON.stringify(error));
+
+        if (Platform.OS === "web") {
+          window.alert(`${errTitle}\n\n${errMsg}`);
+        } else {
+          Alert.alert(errTitle, errMsg);
+        }
       } finally {
         setLoading(false);
       }
@@ -525,18 +558,16 @@ export default function Account() {
 
   async function saveProfile() {
     // 1. Validation des champs requis
-    const missingFields: string[] = [];
-    if (!full_name?.trim()) missingFields.push("Nom complet");
-    if (!username?.trim()) missingFields.push("Nom d'utilisateur");
-    if (!role?.trim()) missingFields.push("Rôle principal");
-    if (!city?.trim()) missingFields.push("Ville");
+    const newErrors: { [key: string]: string } = {};
+    if (!full_name?.trim()) newErrors.full_name = "Le nom complet est requis";
+    if (!username?.trim())
+      newErrors.username = "Le nom d'utilisateur est requis";
+    if (!role?.trim()) newErrors.role = "Le rôle principal est requis";
+    if (!city?.trim()) newErrors.city = "La ville est requise";
 
-    if (missingFields.length > 0) {
-      Alert.alert(
-        "Informations manquantes",
-        "Pour que votre profil soit complet et visible, veuillez remplir les champs suivants :\n\n- " +
-          missingFields.join("\n- "),
-      );
+    setErrors(newErrors);
+
+    if (Object.keys(newErrors).length > 0) {
       return;
     }
 
@@ -581,21 +612,29 @@ export default function Account() {
       if (error) {
         // Gestion erreur contrainte d'unicité (ex: username déjà pris)
         if (error.code === "23505") {
-          Alert.alert(
-            "Nom d'utilisateur indisponible",
-            "Ce nom d'utilisateur est déjà utilisé par un autre membre. Veuillez en choisir un autre.",
-          );
+          setErrors((prev) => ({
+            ...prev,
+            username: "Ce nom d'utilisateur est déjà utilisé",
+          }));
           return;
         }
         throw error;
       }
-      Alert.alert("Succès", "Votre profil a été mis à jour !");
+
+      if (Platform.OS === "web") {
+        window.alert("Succès\n\nVotre profil a été mis à jour !");
+      } else {
+        Alert.alert("Succès", "Votre profil a été mis à jour !");
+      }
     } catch (e) {
-      Alert.alert(
-        "Erreur de sauvegarde",
+      const message =
         "Une erreur est survenue lors de la sauvegarde.\n" +
-          (e as Error).message,
-      );
+        (e as Error).message;
+      if (Platform.OS === "web") {
+        window.alert(`Erreur de sauvegarde\n\n${message}`);
+      } else {
+        Alert.alert("Erreur de sauvegarde", message);
+      }
     } finally {
       setLoading(false);
     }
@@ -752,6 +791,9 @@ export default function Account() {
             placeholder="Prénom Nom"
             placeholderTextColor="#999"
           />
+          {errors.full_name && (
+            <Text style={styles.errorText}>{errors.full_name}</Text>
+          )}
 
           <Text style={styles.label}>Nom d'utilisateur (Pseudo)</Text>
           <TextInput
@@ -762,6 +804,9 @@ export default function Account() {
             autoCapitalize="none"
             placeholderTextColor="#999"
           />
+          {errors.username && (
+            <Text style={styles.errorText}>{errors.username}</Text>
+          )}
 
           <Text style={styles.label}>Rôle Principal</Text>
           <ScrollView
@@ -790,6 +835,7 @@ export default function Account() {
               </TouchableOpacity>
             ))}
           </ScrollView>
+          {errors.role && <Text style={styles.errorText}>{errors.role}</Text>}
 
           <Text style={styles.label}>Ville de résidence</Text>
           <CityAutocomplete
@@ -797,6 +843,7 @@ export default function Account() {
             onSelect={(val) => setCity(val)}
             placeholder="Paris (75)"
           />
+          {errors.city && <Text style={styles.errorText}>{errors.city}</Text>}
 
           <View style={{ flexDirection: "row", gap: 10, marginTop: 15 }}>
             <View style={{ flex: 1 }}>
@@ -1438,5 +1485,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     padding: 10,
     borderRadius: 8,
+  },
+  errorText: {
+    color: Colors.light.danger,
+    fontSize: 12,
+    marginTop: 4,
+    marginBottom: 10,
   },
 });
