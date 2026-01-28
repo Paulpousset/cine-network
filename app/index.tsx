@@ -39,6 +39,23 @@ const ROLES = [
   "autre",
 ];
 
+const DB_ROLE_MAPPING: Record<string, string> = {
+  realisateur: "realisateur",
+  acteur: "acteur",
+  production: "production",
+  technique_image: "image",
+  technique_son: "son",
+  maquillage: "hmc",
+  costume: "hmc",
+  post_production: "post_prod",
+  scenariste: "realisateur",
+  compositeur: "son",
+  cascadeur: "acteur",
+  vfx: "post_prod",
+  photographe: "image",
+  autre: "technicien",
+};
+
 export default function AuthScreen() {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
@@ -183,7 +200,7 @@ export default function AuthScreen() {
           emailRedirectTo: redirectTo,
           data: {
             full_name: fullName,
-            role: role,
+            role: DB_ROLE_MAPPING[role] || "technicien",
           },
         },
       });
