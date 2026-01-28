@@ -524,6 +524,22 @@ export default function Account() {
   // --- SAVE ---
 
   async function saveProfile() {
+    // 1. Validation des champs requis
+    const missingFields: string[] = [];
+    if (!full_name?.trim()) missingFields.push("Nom complet");
+    if (!username?.trim()) missingFields.push("Nom d'utilisateur");
+    if (!role?.trim()) missingFields.push("Rôle principal");
+    if (!city?.trim()) missingFields.push("Ville");
+
+    if (missingFields.length > 0) {
+      Alert.alert(
+        "Informations manquantes",
+        "Pour que votre profil soit complet et visible, veuillez remplir les champs suivants :\n\n- " +
+          missingFields.join("\n- "),
+      );
+      return;
+    }
+
     try {
       setLoading(true);
       const {
@@ -562,12 +578,22 @@ export default function Account() {
         .update(updates)
         .eq("id", session.user.id);
 
-      if (error) throw error;
+      if (error) {
+        // Gestion erreur contrainte d'unicité (ex: username déjà pris)
+        if (error.code === "23505") {
+          Alert.alert(
+            "Nom d'utilisateur indisponible",
+            "Ce nom d'utilisateur est déjà utilisé par un autre membre. Veuillez en choisir un autre.",
+          );
+          return;
+        }
+        throw error;
+      }
       Alert.alert("Succès", "Votre profil a été mis à jour !");
     } catch (e) {
       Alert.alert(
         "Erreur de sauvegarde",
-        "Vérifiez que vous avez bien mis à jour la base de données (SQL).\n" +
+        "Une erreur est survenue lors de la sauvegarde.\n" +
           (e as Error).message,
       );
     } finally {

@@ -3,16 +3,24 @@ import FloatingChatWidget from "@/components/FloatingChatWidget";
 import GlobalRealtimeListener from "@/components/GlobalRealtimeListener";
 import NotificationToast from "@/components/NotificationToast";
 import Sidebar from "@/components/Sidebar";
+import Colors from "@/constants/Colors";
 import { Session } from "@supabase/supabase-js";
 import * as Linking from "expo-linking";
 import { Stack, usePathname, useRouter, useSegments } from "expo-router";
 import { useEffect, useState } from "react";
-import { Platform, useWindowDimensions, View } from "react-native";
+import {
+  Platform,
+  Text,
+  TouchableOpacity,
+  useWindowDimensions,
+  View,
+} from "react-native";
 import { supabase } from "../lib/supabase";
 
 export default function RootLayout() {
   const [session, setSession] = useState<Session | null>(null);
   const [initialized, setInitialized] = useState(false);
+  const [isMobileWeb, setIsMobileWeb] = useState(false);
 
   const { width } = useWindowDimensions();
   const isWebLarge = Platform.OS === "web" && width >= 768;
@@ -81,18 +89,18 @@ export default function RootLayout() {
     }
   }, [session, initialized, pathname]);
 
-  // 3. Rediriger vers l'application native si sur mobile web
+  // 3. Bloquer l'accès web sur mobile
   useEffect(() => {
     if (Platform.OS === "web") {
       const userAgent =
         navigator.userAgent || navigator.vendor || (window as any).opera;
       // Détection basique mobile
       if (/android|iPad|iPhone|iPod/i.test(userAgent)) {
+        setIsMobileWeb(true);
+        // Tentative de redirection automatique
         const hasRedirected = sessionStorage.getItem("deepLinkRedirected");
         if (!hasRedirected) {
           sessionStorage.setItem("deepLinkRedirected", "true");
-          // Construction du lien avec le schéma défini dans app.json
-          // On préserve le pathname et les query params
           const cleanPath = pathname.startsWith("/")
             ? pathname.slice(1)
             : pathname;
@@ -110,6 +118,65 @@ export default function RootLayout() {
     return (
       <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
         <ClapLoading size={50} color="#841584" />
+      </View>
+    );
+  }
+
+  // Si on est sur mobile web, on affiche l'écran de blocage
+  if (isMobileWeb) {
+    return (
+      <View
+        style={{
+          flex: 1,
+          justifyContent: "center",
+          alignItems: "center",
+          padding: 20,
+          backgroundColor: "#fff",
+        }}
+      >
+        <Text
+          style={{
+            fontSize: 24,
+            fontWeight: "bold",
+            marginBottom: 20,
+            textAlign: "center",
+          }}
+        >
+          CineNetwork Mobile
+        </Text>
+        <Text
+          style={{
+            fontSize: 16,
+            textAlign: "center",
+            marginBottom: 40,
+            color: "#666",
+            lineHeight: 24,
+          }}
+        >
+          L'expérience web n'est pas disponible sur mobile. Veuillez utiliser
+          notre application dédiée pour une meilleure expérience.
+        </Text>
+
+        <TouchableOpacity
+          onPress={() => {
+            const cleanPath = pathname.startsWith("/")
+              ? pathname.slice(1)
+              : pathname;
+            const deepLink = `cinenetwork://${cleanPath}${window.location.search}`;
+            window.location.href = deepLink;
+          }}
+          style={{
+            backgroundColor: Colors.light.primary,
+            paddingHorizontal: 30,
+            paddingVertical: 15,
+            borderRadius: 25,
+            marginBottom: 20,
+          }}
+        >
+          <Text style={{ color: "#fff", fontWeight: "bold", fontSize: 16 }}>
+            Ouvrir l'application
+          </Text>
+        </TouchableOpacity>
       </View>
     );
   }
