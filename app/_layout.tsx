@@ -81,6 +81,30 @@ export default function RootLayout() {
     }
   }, [session, initialized, pathname]);
 
+  // 3. Rediriger vers l'application native si sur mobile web
+  useEffect(() => {
+    if (Platform.OS === "web") {
+      const userAgent =
+        navigator.userAgent || navigator.vendor || (window as any).opera;
+      // Détection basique mobile
+      if (/android|iPad|iPhone|iPod/i.test(userAgent)) {
+        const hasRedirected = sessionStorage.getItem("deepLinkRedirected");
+        if (!hasRedirected) {
+          sessionStorage.setItem("deepLinkRedirected", "true");
+          // Construction du lien avec le schéma défini dans app.json
+          // On préserve le pathname et les query params
+          const cleanPath = pathname.startsWith("/")
+            ? pathname.slice(1)
+            : pathname;
+          const deepLink = `cinenetwork://${cleanPath}${window.location.search}`;
+
+          console.log("[DeepLink] Attempting redirect to app:", deepLink);
+          window.location.href = deepLink;
+        }
+      }
+    }
+  }, [pathname]);
+
   // Petit écran de chargement au lancement de l'app
   if (!initialized) {
     return (
