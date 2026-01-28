@@ -46,6 +46,7 @@ export default function AuthScreen() {
   const [fullName, setFullName] = useState("");
   const [role, setRole] = useState("acteur");
   const [loading, setLoading] = useState(false);
+  const [formError, setFormError] = useState("");
 
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -66,13 +67,86 @@ export default function AuthScreen() {
     ]).start();
   }, []);
 
+  async function resendConfirmation() {
+    const cleanEmail = email.trim();
+    if (!cleanEmail) return;
+
+    setLoading(true);
+    const redirectTo = makeRedirectUri({
+      scheme: "cinenetwork",
+      preferLocalhost: true,
+    });
+    console.log(
+      "Resending confirmation to:",
+      cleanEmail,
+      "with redirect:",
+      redirectTo,
+    );
+
+    const { error } = await supabase.auth.resend({
+      type: "signup",
+      email: cleanEmail,
+      options: {
+        emailRedirectTo: redirectTo,
+      },
+    });
+
+    setLoading(false);
+
+    if (error) {
+      Alert.alert(
+        "Erreur",
+        "Impossible de renvoyer l'email : " + error.message,
+      );
+    } else {
+      Alert.alert(
+        "Email renvoyé",
+        "Un nouvel email de confirmation a été envoyé. Pensez à vérifier vos spams !",
+      );
+    }
+  }
+
   async function signIn() {
     setLoading(true);
+    setFormError("");
+    const cleanEmail = email.trim();
+    if (!cleanEmail) {
+      setFormError("Veuillez entrer votre email.");
+      Alert.alert("Erreur", "Veuillez entrer votre email.");
+      setLoading(false);
+      return;
+    }
     const { error } = await supabase.auth.signInWithPassword({
-      email,
+      email: cleanEmail,
       password,
     });
-    if (error) Alert.alert("Erreur", error.message);
+    if (error) {
+      console.error("Sign In Error:", error);
+      if (error.message.includes("Email not confirmed")) {
+        setFormError("Email non confirmé. Vérifiez vos spams.");
+        Alert.alert(
+          "Email non confirmé",
+          "Veuillez vérifier votre boîte de réception (et vos spams).",
+          [
+            { text: "Annuler", style: "cancel" },
+            { text: "Renvoyer l'email", onPress: resendConfirmation },
+          ],
+        );
+      } else if (error.message.includes("Invalid login credentials")) {
+        setFormError("Identifiants incorrects ou email non validé.");
+        Alert.alert(
+          "Problème de connexion",
+          "Identifiants incorrects ou email non validé.\n\nSi vous venez de créer votre compte, vérifiez vos emails pour le valider.",
+          [
+            { text: "Ok", style: "cancel" },
+            { text: "Renvoyer l' email", onPress: resendConfirmation },
+          ],
+        );
+      } else {
+        setFormError(error.message);
+        Alert.alert("Erreur de connexion", error.message);
+      }
+    }
     setLoading(false);
   }
 
@@ -120,6 +194,20 @@ export default function AuthScreen() {
           Alert.alert(
             "Trop de tentatives",
             "Veuillez patienter un moment avant de réessayer (limite de sécurité atteinte).",
+          );
+        } else if (
+          error.message.includes("User already registered") ||
+          error.message.includes("already registered")
+        ) {
+          Alert.alert(
+            "Compte existant",
+            "Cette adresse email est déjà liée à un compte.\nVeuillez vous connecter.",
+            [
+              {
+                text: "Se connecter",
+                onPress: () => setIsLogin(true),
+              },
+            ],
           );
         } else {
           Alert.alert("Erreur Inscription", error.message);
@@ -201,6 +289,7 @@ export default function AuthScreen() {
 
   async function signInAsGuest() {
     setLoading(true);
+    setFormError("");
     const { data, error } = await supabase.auth.signInAnonymously({
       options: {
         data: {
@@ -254,6 +343,9 @@ export default function AuthScreen() {
 
           {/* Form Fields */}
           <View style={styles.formContainer}>
+            {formError ? (
+              <Text style={styles.errorText}>{formError}</Text>
+            ) : null}
             {!isLogin && (
               <View style={styles.inputWrapper}>
                 <Ionicons
@@ -284,6 +376,8 @@ export default function AuthScreen() {
                 value={email}
                 onChangeText={setEmail}
                 autoCapitalize="none"
+                autoCorrect={false}
+                keyboardType="email-address"
                 style={styles.input}
                 placeholderTextColor="#999"
               />
@@ -438,6 +532,12 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 14,
     color: "#666",
+    textAlign: "center",
+  },
+  errorText: {
+    color: "#ff3b30",
+    fontSize: 14,
+    marginBottom: 12,
     textAlign: "center",
   },
   formContainer: {

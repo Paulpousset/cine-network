@@ -2,15 +2,16 @@ import Colors from "@/constants/Colors";
 import { appEvents, EVENTS } from "@/lib/events";
 import { supabase } from "@/lib/supabase";
 import { Ionicons } from "@expo/vector-icons";
+import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-    FlatList,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  FlatList,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { Hoverable } from "./Hoverable";
 
@@ -18,15 +19,60 @@ export default function FloatingChatWidget({ userId }: { userId: string }) {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [conversations, setConversations] = useState<any[]>([]);
+  const [projectChannels, setProjectChannels] = useState<any[]>([]);
+  const [activeTab, setActiveTab] = useState<"dm" | "project">("dm");
   const [loading, setLoading] = useState(true);
   const [unreadCount, setUnreadCount] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
 
+  // Chat state
+  const [activeConversation, setActiveConversation] = useState<any | null>(
+    null,
+  );
+  const [messages, setMessages] = useState<any[]>([]);
+  const [inputText, setTextInput] = useState("");
+  const flatListRef = React.useRef<FlatList>(null);
+
   useEffect(() => {
     fetchConversations();
+    fetchProjectChannels();
 
-    const unsubscribeNew = appEvents.on(EVENTS.NEW_MESSAGE, () => {
+    const unsubscribeNew = appEvents.on(EVENTS.NEW_MESSAGE, (newMsg: any) => {
       fetchConversations();
+
+      if (activeConversation && newMsg) {
+        if (activeConversation.type === "channel") {
+          if (
+            newMsg.project_id === activeConversation.projectId &&
+            newMsg.category === activeConversation.category
+          ) {
+            setMessages((prev) => {
+              if (prev.some((m) => m.id === newMsg.id)) return prev;
+              return [newMsg, ...prev];
+            });
+          }
+        } else {
+          // DM Logic
+          // Assume type is 'dm' or legacy undefined
+          const otherId = activeConversation.user?.id;
+          if (otherId) {
+            const isRelevant =
+              (newMsg.sender_id === userId && newMsg.receiver_id === otherId) ||
+              (newMsg.sender_id === otherId && newMsg.receiver_id === userId);
+
+            if (isRelevant) {
+              setMessages((prev) => {
+                if (prev.some((m) => m.id === newMsg.id)) return prev;
+                return [newMsg, ...prev];
+              });
+
+              if (newMsg.sender_id === otherId) {
+                markAsRead(otherId);
+              }
+            }
+          }
+        }
+      }
     });
 
     const unsubscribeRead = appEvents.on(EVENTS.MESSAGES_READ, () => {
@@ -37,7 +83,220 @@ export default function FloatingChatWidget({ userId }: { userId: string }) {
       unsubscribeNew();
       unsubscribeRead();
     };
-  }, [userId]);
+  }, [userId, activeConversation]);
+
+  // When opening a conversation
+  useEffect(() => {
+    if (activeConversation) {
+      if (activeConversation.type === "channel") {
+        fetchChannelMessages(
+          activeConversation.projectId,
+          activeConversation.category,
+        );
+      } else {
+        // Default to DM
+        fetchMessages(activeConversation.user.id);
+        markAsRead(activeConversation.user.id);
+      }
+    }
+  }, [activeConversation]);
+
+  async function fetchProjectChannels() {
+    try {
+      const { data: assignedRoles } = await supabase
+        .from("project_roles")
+        .select(
+          `
+            category,
+            tournage:tournages(id, title, image_url, owner_id)
+            `,
+        )
+        .eq("assigned_profile_id", userId);
+
+      const { data: ownedProjects } = await supabase
+        .from("tournages")
+        .select("id, title, image_url")
+        .eq("owner_id", userId);
+
+      let ownedChannels: any[] = [];
+      if (ownedProjects && ownedProjects.length > 0) {
+        const ownedIds = ownedProjects.map((p: any) => p.id);
+        const { data: rolesInOwned } = await supabase
+          .from("project_roles")
+          .select("category, tournage_id")
+          .in("tournage_id", ownedIds);
+
+        if (rolesInOwned) {
+          ownedChannels = rolesInOwned.map((role: any) => {
+            const project = ownedProjects.find(
+              (p: any) => p.id === role.tournage_id,
+            );
+            return {
+              category: role.category,
+              tournage: project,
+            };
+          });
+        }
+      }
+
+      const all = [...(assignedRoles || []), ...ownedChannels];
+      // Dedup
+      const unique: any[] = [];
+      const keys = new Set();
+      for (const item of all) {
+        // @ts-ignore
+        if (!item.tournage) continue;
+        // @ts-ignore
+        const key = `${item.tournage.id}-${item.category}`;
+        if (!keys.has(key)) {
+          keys.add(key);
+          // @ts-ignore
+          unique.push({
+            ...item,
+            type: "channel",
+            projectId: item.tournage.id,
+            category: item.category,
+            projectTitle: item.tournage.title,
+          });
+        }
+      }
+      setProjectChannels(unique);
+    } catch (e) {
+      console.log("Error fetching channels:", e);
+    }
+  }
+
+  async function fetchChannelMessages(projectId: string, category: string) {
+    try {
+      const { data, error } = await supabase
+        .from("project_messages")
+        .select("*")
+        .eq("project_id", projectId)
+        .eq("category", category)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      setMessages(data || []);
+    } catch (e) {
+      console.log("Error fetching channel messages:", e);
+    }
+  }
+
+  async function fetchMessages(otherUserId: string) {
+    try {
+      const { data, error } = await supabase
+        .from("direct_messages")
+        .select("*")
+        .or(
+          `and(sender_id.eq.${userId},receiver_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},receiver_id.eq.${userId})`,
+        )
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      setMessages(data || []);
+    } catch (e) {
+      console.log("Error fetching messages:", e);
+    }
+  }
+
+  async function markAsRead(otherUserId: string) {
+    try {
+      // Optimistic update
+      appEvents.emit(EVENTS.MESSAGES_READ);
+
+      const { error } = await supabase.rpc("mark_messages_read", {
+        target_sender_id: otherUserId,
+      });
+
+      if (error) {
+        await supabase
+          .from("direct_messages")
+          .update({ is_read: true } as any)
+          .eq("sender_id", otherUserId)
+          .eq("receiver_id", userId)
+          .eq("is_read", false);
+      }
+    } catch (e) {
+      console.log("Error marking read:", e);
+    }
+  }
+
+  async function sendMessage() {
+    if (!inputText.trim() || !activeConversation) return;
+
+    const content = inputText.trim();
+    setTextInput("");
+
+    if (activeConversation.type === "channel") {
+      const { projectId, category } = activeConversation;
+      const tempId = Math.random().toString(36).substring(7);
+      const tempMsg = {
+        id: tempId,
+        project_id: projectId,
+        category: category,
+        sender_id: userId,
+        content: content,
+        created_at: new Date().toISOString(),
+      };
+      setMessages((prev) => [tempMsg, ...prev]);
+
+      try {
+        const { data, error } = await supabase
+          .from("project_messages")
+          .insert({
+            project_id: projectId,
+            category: category,
+            sender_id: userId,
+            content: content,
+          })
+          .select()
+          .single();
+        if (error) throw error;
+        if (data) {
+          setMessages((prev) => prev.map((m) => (m.id === tempId ? data : m)));
+        }
+      } catch (e) {
+        console.error(e);
+        setMessages((prev) => prev.filter((m) => m.id !== tempId));
+      }
+      return;
+    }
+
+    // Direct Message Logic
+    const otherUserId = activeConversation.user.id;
+    const tempId = Math.random().toString(36).substring(7);
+    const tempMsg = {
+      id: tempId,
+      sender_id: userId,
+      receiver_id: otherUserId,
+      content: content,
+      created_at: new Date().toISOString(),
+      is_read: false,
+    };
+
+    setMessages((prev) => [tempMsg, ...prev]);
+
+    try {
+      const { data, error } = await supabase
+        .from("direct_messages")
+        .insert({
+          sender_id: userId,
+          receiver_id: otherUserId,
+          content: content,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      if (data) {
+        setMessages((prev) => prev.map((m) => (m.id === tempId ? data : m)));
+      }
+    } catch (e) {
+      console.error(e);
+      setMessages((prev) => prev.filter((m) => m.id !== tempId));
+    }
+  }
 
   async function fetchConversations() {
     try {
@@ -93,6 +352,14 @@ export default function FloatingChatWidget({ userId }: { userId: string }) {
       c.user.username?.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
+  const filteredChannels = projectChannels.filter(
+    (c) =>
+      (c.tournage?.title || "")
+        .toLowerCase()
+        .includes(searchQuery.toLowerCase()) ||
+      c.category?.toLowerCase().includes(searchQuery.toLowerCase()),
+  );
+
   if (!userId) return null;
 
   return (
@@ -100,148 +367,345 @@ export default function FloatingChatWidget({ userId }: { userId: string }) {
       {isOpen && (
         <View style={styles.popover}>
           <View style={styles.header}>
-            <Text style={styles.headerTitle}>Messages</Text>
-            <TouchableOpacity onPress={() => setIsOpen(false)}>
+            {activeConversation ? (
+              <TouchableOpacity
+                onPress={() => setActiveConversation(null)}
+                style={{ flexDirection: "row", alignItems: "center" }}
+              >
+                <Ionicons
+                  name="arrow-back"
+                  size={24}
+                  color="#333"
+                  style={{ marginRight: 8 }}
+                />
+                <Text
+                  numberOfLines={1}
+                  style={[styles.headerTitle, { maxWidth: 200 }]}
+                >
+                  {activeConversation.type === "channel"
+                    ? `${activeConversation.projectTitle} - ${activeConversation.category}`
+                    : activeConversation.user.full_name ||
+                      activeConversation.user.username}
+                </Text>
+              </TouchableOpacity>
+            ) : (
+              <Text style={styles.headerTitle}>Discussion</Text>
+            )}
+
+            <TouchableOpacity
+              onPress={() => {
+                setIsOpen(false);
+                setActiveConversation(null);
+              }}
+            >
               <Ionicons name="close" size={24} color="#333" />
             </TouchableOpacity>
           </View>
 
-          <View
-            style={{ padding: 10, borderBottomWidth: 1, borderColor: "#eee" }}
-          >
-            <TextInput
-              placeholder="Rechercher une discussion..."
-              style={styles.input}
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-            />
-          </View>
-
-          <FlatList
-            data={filteredConversations}
-            keyExtractor={(item) => item.user.id}
-            contentContainerStyle={{ paddingBottom: 10 }}
-            ListEmptyComponent={
-              <Text
-                style={{ textAlign: "center", marginTop: 20, color: "#999" }}
+          {activeConversation ? (
+            // Conversation View
+            <View style={{ flex: 1 }}>
+              <FlatList
+                ref={flatListRef}
+                data={messages}
+                inverted
+                keyExtractor={(item) => item.id}
+                contentContainerStyle={{ padding: 10 }}
+                renderItem={({ item }) => {
+                  const isMe = item.sender_id === userId;
+                  return (
+                    <View
+                      style={{
+                        alignSelf: isMe ? "flex-end" : "flex-start",
+                        backgroundColor: isMe
+                          ? Colors.light.primary
+                          : "#E5E5EA",
+                        borderRadius: 16,
+                        padding: 10,
+                        marginVertical: 4,
+                        maxWidth: "80%",
+                      }}
+                    >
+                      <Text style={{ color: isMe ? "white" : "black" }}>
+                        {item.content}
+                      </Text>
+                    </View>
+                  );
+                }}
+              />
+              <View style={styles.inputContainer}>
+                <TextInput
+                  style={styles.chatInput}
+                  placeholder="Écrivez un message..."
+                  value={inputText}
+                  onChangeText={setTextInput}
+                  onSubmitEditing={sendMessage}
+                />
+                <TouchableOpacity
+                  onPress={sendMessage}
+                  style={styles.sendButton}
+                >
+                  <Ionicons name="send" size={20} color="white" />
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : (
+            // Lists View
+            <>
+              <View
+                style={{
+                  padding: 10,
+                  borderBottomWidth: 1,
+                  borderColor: "#eee",
+                }}
               >
-                Aucune conversation.
-              </Text>
-            }
-            renderItem={({ item }) => {
-              const isUnread =
-                !item.lastMessage.is_read &&
-                item.lastMessage.receiver_id === userId;
+                <TextInput
+                  placeholder="Rechercher..."
+                  style={styles.input}
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                />
+              </View>
 
-              return (
-                <Hoverable
-                  style={
-                    {
-                      flexDirection: "row",
-                      padding: 12,
-                      alignItems: "center",
-                      borderBottomWidth: 1,
-                      borderColor: "#f5f5f5",
-                      backgroundColor: isUnread ? "#fafafa" : "white",
-                      cursor: "pointer",
-                    } as any
-                  }
-                  hoverStyle={{ backgroundColor: "#f0f0f0" }}
-                  onPress={() => {
-                    setIsOpen(false);
-                    router.push(`/direct-messages/${item.user.id}`);
+              {/* Tabs */}
+              <View
+                style={{
+                  flexDirection: "row",
+                  borderBottomWidth: 1,
+                  borderColor: "#eee",
+                }}
+              >
+                <TouchableOpacity
+                  onPress={() => setActiveTab("dm")}
+                  style={{
+                    flex: 1,
+                    padding: 10,
+                    alignItems: "center",
+                    borderBottomWidth: activeTab === "dm" ? 2 : 0,
+                    borderBottomColor: Colors.light.primary,
                   }}
                 >
-                  <View
+                  <Text
                     style={{
-                      width: 40,
-                      height: 40,
-                      borderRadius: 20,
-                      backgroundColor: "#eee",
-                      marginRight: 10,
-                      justifyContent: "center",
-                      alignItems: "center",
+                      fontWeight: activeTab === "dm" ? "bold" : "normal",
+                      color: activeTab === "dm" ? Colors.light.primary : "#666",
                     }}
                   >
-                    {/* Placeholder Avatar */}
-                    <Text
-                      style={{
-                        fontSize: 16,
-                        fontWeight: "bold",
-                        color: "#666",
-                      }}
-                    >
-                      {item.user.full_name?.[0] ||
-                        item.user.username?.[0] ||
-                        "?"}
-                    </Text>
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <View
-                      style={{
-                        flexDirection: "row",
-                        justifyContent: "space-between",
-                      }}
-                    >
-                      <Text
-                        style={{
-                          fontWeight: isUnread ? "bold" : "600",
-                          fontSize: 14,
-                        }}
-                      >
-                        {item.user.full_name || item.user.username}
-                      </Text>
-                      {item.lastMessage.created_at && (
-                        <Text style={{ fontSize: 10, color: "#999" }}>
-                          {new Date(
-                            item.lastMessage.created_at,
-                          ).toLocaleDateString()}
-                        </Text>
-                      )}
-                    </View>
+                    Privé
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => setActiveTab("project")}
+                  style={{
+                    flex: 1,
+                    padding: 10,
+                    alignItems: "center",
+                    borderBottomWidth: activeTab === "project" ? 2 : 0,
+                    borderBottomColor: Colors.light.primary,
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontWeight: activeTab === "project" ? "bold" : "normal",
+                      color:
+                        activeTab === "project" ? Colors.light.primary : "#666",
+                    }}
+                  >
+                    Projets
+                  </Text>
+                </TouchableOpacity>
+              </View>
 
+              {activeTab === "dm" ? (
+                <FlatList
+                  data={filteredConversations}
+                  keyExtractor={(item) => item.user.id}
+                  contentContainerStyle={{ paddingBottom: 10 }}
+                  ListEmptyComponent={
                     <Text
-                      numberOfLines={1}
                       style={{
-                        color: isUnread ? "#333" : "#888",
-                        fontWeight: isUnread ? "600" : "normal",
-                        fontSize: 12,
-                        marginTop: 2,
+                        textAlign: "center",
+                        marginTop: 20,
+                        color: "#999",
                       }}
                     >
-                      {item.lastMessage.content || "Image"}
+                      Aucune conversation.
                     </Text>
-                  </View>
-                  {isUnread && (
-                    <View
+                  }
+                  renderItem={({ item }) => {
+                    const isUnread =
+                      !item.lastMessage.is_read &&
+                      item.lastMessage.receiver_id === userId;
+                    return (
+                      <Hoverable
+                        style={
+                          {
+                            flexDirection: "row",
+                            padding: 12,
+                            alignItems: "center",
+                            borderBottomWidth: 1,
+                            borderColor: "#f5f5f5",
+                            backgroundColor: isUnread ? "#fafafa" : "white",
+                            cursor: "pointer",
+                          } as any
+                        }
+                        hoverStyle={{ backgroundColor: "#f0f0f0" }}
+                        onPress={() =>
+                          setActiveConversation({ ...item, type: "dm" })
+                        }
+                      >
+                        <View
+                          style={{
+                            width: 40,
+                            height: 40,
+                            borderRadius: 20,
+                            backgroundColor: "#eee",
+                            marginRight: 10,
+                            justifyContent: "center",
+                            alignItems: "center",
+                            overflow: "hidden",
+                          }}
+                        >
+                          {item.user.avatar_url ? (
+                            <Image
+                              source={{ uri: item.user.avatar_url }}
+                              style={{ width: 40, height: 40 }}
+                            />
+                          ) : (
+                            <Text
+                              style={{
+                                fontSize: 16,
+                                fontWeight: "bold",
+                                color: "#666",
+                              }}
+                            >
+                              {item.user.full_name?.[0] ||
+                                item.user.username?.[0] ||
+                                "?"}
+                            </Text>
+                          )}
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <View
+                            style={{
+                              flexDirection: "row",
+                              justifyContent: "space-between",
+                            }}
+                          >
+                            <Text
+                              style={{
+                                fontWeight: isUnread ? "bold" : "600",
+                                fontSize: 14,
+                              }}
+                            >
+                              {item.user.full_name || item.user.username}
+                            </Text>
+                            {item.lastMessage.created_at && (
+                              <Text style={{ fontSize: 10, color: "#999" }}>
+                                {new Date(
+                                  item.lastMessage.created_at,
+                                ).toLocaleDateString()}
+                              </Text>
+                            )}
+                          </View>
+                          <Text
+                            numberOfLines={1}
+                            style={{
+                              color: isUnread ? "#333" : "#888",
+                              fontWeight: isUnread ? "600" : "normal",
+                              fontSize: 12,
+                              marginTop: 2,
+                            }}
+                          >
+                            {item.lastMessage.content || "Image"}
+                          </Text>
+                        </View>
+                        {isUnread && (
+                          <View
+                            style={{
+                              width: 8,
+                              height: 8,
+                              borderRadius: 4,
+                              backgroundColor: "#E91E63",
+                              marginLeft: 8,
+                            }}
+                          />
+                        )}
+                      </Hoverable>
+                    );
+                  }}
+                />
+              ) : (
+                <FlatList
+                  data={filteredChannels}
+                  keyExtractor={(item) =>
+                    `${item.tournage.id}-${item.category}`
+                  }
+                  contentContainerStyle={{ paddingBottom: 10 }}
+                  ListEmptyComponent={
+                    <Text
                       style={{
-                        width: 8,
-                        height: 8,
-                        borderRadius: 4,
-                        backgroundColor: "#E91E63",
-                        marginLeft: 8,
+                        textAlign: "center",
+                        marginTop: 20,
+                        color: "#999",
                       }}
-                    />
-                  )}
-                </Hoverable>
-              );
-            }}
-          />
-          <View style={styles.footer}>
-            <Hoverable
-              onPress={() => {
-                setIsOpen(false);
-                router.push("/direct-messages");
-              }}
-              style={
-                { padding: 10, alignItems: "center", cursor: "pointer" } as any
-              }
-            >
-              <Text style={{ color: Colors.light.primary, fontWeight: "bold" }}>
-                Voir tout
-              </Text>
-            </Hoverable>
-          </View>
+                    >
+                      Aucun espace de projet.
+                    </Text>
+                  }
+                  renderItem={({ item }) => {
+                    return (
+                      <Hoverable
+                        style={
+                          {
+                            flexDirection: "row",
+                            padding: 12,
+                            alignItems: "center",
+                            borderBottomWidth: 1,
+                            borderColor: "#f5f5f5",
+                            backgroundColor: "white",
+                            cursor: "pointer",
+                          } as any
+                        }
+                        hoverStyle={{ backgroundColor: "#f0f0f0" }}
+                        onPress={() => setActiveConversation(item)}
+                      >
+                        <View
+                          style={{
+                            width: 40,
+                            height: 40,
+                            borderRadius: 8,
+                            backgroundColor: "#E0E0E0",
+                            marginRight: 10,
+                            justifyContent: "center",
+                            alignItems: "center",
+                            overflow: "hidden",
+                          }}
+                        >
+                          {item.tournage.image_url ? (
+                            <Image
+                              source={{ uri: item.tournage.image_url }}
+                              style={{ width: 40, height: 40 }}
+                            />
+                          ) : (
+                            <Ionicons name="briefcase" size={20} color="#666" />
+                          )}
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ fontWeight: "600", fontSize: 14 }}>
+                            {item.tournage.title}
+                          </Text>
+                          <Text style={{ fontSize: 12, color: "#666" }}>
+                            #{item.category}
+                          </Text>
+                        </View>
+                      </Hoverable>
+                    );
+                  }}
+                />
+              )}
+            </>
+          )}
         </View>
       )}
 
@@ -337,5 +801,28 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderColor: "#eee",
     backgroundColor: "#fafafa",
+  },
+  inputContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 10,
+    borderTopWidth: 1,
+    borderTopColor: "#eee",
+    backgroundColor: "white",
+  },
+  chatInput: {
+    flex: 1,
+    backgroundColor: "#f5f5f5",
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+    borderRadius: 20,
+    marginRight: 10,
+  },
+  sendButton: {
+    backgroundColor: Colors.light.primary,
+    padding: 10,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
   },
 });

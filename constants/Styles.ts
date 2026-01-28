@@ -14,6 +14,10 @@ const shadowStyle = Platform.select({
 });
 
 export const GlobalStyles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: Colors.light.background,
+  },
   // Boutons
   primaryButton: {
     backgroundColor: Colors.light.primary,

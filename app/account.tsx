@@ -11,15 +11,15 @@ import * as ImagePicker from "expo-image-picker";
 import { Stack, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-    Alert,
-    Image,
-    ScrollView,
-    StyleSheet,
-    Switch,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  Image,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 // --- CONSTANTS ---
@@ -372,6 +372,50 @@ export default function Account() {
     }
   }
 
+  const handleDeleteAccount = async () => {
+    Alert.alert(
+      "Supprimer mon compte",
+      "Êtes-vous sûr de vouloir supprimer votre compte ? Cette action est irréversible et supprimera toutes vos données. (Note: Cette action ne supprime que votre profil public, pour une suppression complète des données d'authentification, contactez le support)",
+      [
+        { text: "Annuler", style: "cancel" },
+        {
+          text: "Supprimer",
+          style: "destructive",
+          onPress: async () => {
+            setLoading(true);
+            try {
+              const {
+                data: { session },
+              } = await supabase.auth.getSession();
+              if (session?.user) {
+                const { error } = await supabase
+                  .from("profiles")
+                  .delete()
+                  .eq("id", session.user.id);
+
+                if (error) {
+                  console.error("Delete profile error:", error);
+                  throw error;
+                }
+
+                await supabase.auth.signOut();
+                router.replace("/");
+              }
+            } catch (error) {
+              Alert.alert(
+                "Erreur",
+                "Impossible de supprimer le compte. Cela peut être dû à des données liées (projets, candidatures, etc.). Veuillez supprimer ces éléments ou contacter le support.",
+              );
+              console.error(error);
+            } finally {
+              setLoading(false);
+            }
+          },
+        },
+      ],
+    );
+  };
+
   // --- SAVE ---
 
   async function saveProfile() {
@@ -628,25 +672,25 @@ export default function Account() {
               <Text style={styles.label}>Genre</Text>
               <View style={{ flexDirection: "row", gap: 5 }}>
                 {["Homme", "Femme", "Autre"].map((g) => (
-                    <TouchableOpacity
-                      key={g}
-                      onPress={() => setGender(g)}
+                  <TouchableOpacity
+                    key={g}
+                    onPress={() => setGender(g)}
+                    style={[
+                      styles.tag,
+                      gender === g && styles.tagSelected,
+                      { flex: 1, justifyContent: "center" },
+                    ]}
+                  >
+                    <Text
                       style={[
-                        styles.tag,
-                        gender === g && styles.tagSelected,
-                        { flex: 1, justifyContent: "center" }
+                        styles.tagText,
+                        gender === g && styles.tagTextSelected,
+                        { textAlign: "center" },
                       ]}
                     >
-                      <Text
-                        style={[
-                          styles.tagText,
-                          gender === g && styles.tagTextSelected,
-                          { textAlign: "center" }
-                        ]}
-                      >
-                        {g}
-                      </Text>
-                    </TouchableOpacity>
+                      {g}
+                    </Text>
+                  </TouchableOpacity>
                 ))}
               </View>
             </View>
@@ -1148,6 +1192,22 @@ export default function Account() {
         >
           <Text style={{ color: "white", fontWeight: "bold" }}>
             Se déconnecter
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          onPress={handleDeleteAccount}
+          style={{
+            marginTop: 15,
+            padding: 15,
+            borderRadius: 12,
+            alignItems: "center",
+            borderWidth: 1,
+            borderColor: Colors.light.danger,
+          }}
+        >
+          <Text style={{ color: Colors.light.danger, fontWeight: "bold" }}>
+            Supprimer mon compte
           </Text>
         </TouchableOpacity>
         <View style={{ height: 50 }} />
