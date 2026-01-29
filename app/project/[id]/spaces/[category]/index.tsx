@@ -1,28 +1,29 @@
 import ClapLoading from "@/components/ClapLoading";
 import Colors from "@/constants/Colors";
+import { ALL_TOOLS, getDefaultTools } from "@/constants/Tools";
 import { supabase } from "@/lib/supabase";
 import { Ionicons } from "@expo/vector-icons";
 import { decode } from "base64-arraybuffer";
 import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system/legacy";
 import {
-    Stack,
-    useGlobalSearchParams,
-    useLocalSearchParams,
-    useRouter,
+  Stack,
+  useGlobalSearchParams,
+  useLocalSearchParams,
+  useRouter,
 } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
 import React, { useEffect, useRef, useState } from "react";
 import {
-    Alert,
-    FlatList,
-    KeyboardAvoidingView,
-    Platform,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  FlatList,
+  KeyboardAvoidingView,
+  Platform,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -312,16 +313,23 @@ function FilesView({
 
       setUploading(true);
 
-      const base64 = await FileSystem.readAsStringAsync(file.uri, {
-        encoding: "base64",
-      });
+      let fileBody;
+      if (Platform.OS === "web") {
+        const res = await fetch(file.uri);
+        fileBody = await res.blob();
+      } else {
+        const base64 = await FileSystem.readAsStringAsync(file.uri, {
+          encoding: "base64",
+        });
+        fileBody = decode(base64);
+      }
 
       const fileName = `${Date.now()}_${file.name.replace(/\s/g, "_")}`;
       const filePath = `${projectId}/${category}/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
         .from("project_files")
-        .upload(filePath, decode(base64), {
+        .upload(filePath, fileBody, {
           contentType: file.mimeType || "application/octet-stream",
         });
 
@@ -436,6 +444,8 @@ function FilesView({
 
 // --- Main Dashboard Component ---
 
+// --- Main Dashboard Component ---
+
 export default function ChannelSpace() {
   const local = useLocalSearchParams();
   const global = useGlobalSearchParams();
@@ -449,57 +459,81 @@ export default function ChannelSpace() {
   );
 
   const [canWrite, setCanWrite] = useState(true);
+  const [isOwner, setIsOwner] = useState(false);
+
+  // Tools state loaded from DB
+  const [availableTools, setAvailableTools] = useState<
+    (keyof typeof ALL_TOOLS)[]
+  >([]);
 
   useEffect(() => {
-    async function checkWritePermission() {
-      if (category !== "general") {
-        setCanWrite(true);
-        return;
-      }
-
-      // Start conservative
-      setCanWrite(false);
-
+    async function checkPermissionsAndTools() {
+      // 1. Session
       const {
         data: { session },
       } = await supabase.auth.getSession();
       if (!session) return;
-
       const userId = session.user.id;
 
-      // 1. Check Owner
+      // 2. Check Owner & Project
       const { data: project } = await supabase
         .from("tournages")
         .select("owner_id")
         .eq("id", id)
         .single();
 
-      if (project?.owner_id === userId) {
-        setCanWrite(true);
-        return;
-      }
+      const owner = project?.owner_id === userId;
+      setIsOwner(owner);
 
-      // 2. Check Admin Role
-      const { data: roles } = await supabase
-        .from("project_roles")
-        .select("is_category_admin")
-        .eq("tournage_id", id)
-        .eq("assigned_profile_id", userId);
-
-      if (roles && roles.some((r) => r.is_category_admin)) {
-        setCanWrite(true);
+      // 3. Write Permissions (Chat)
+      let write = false;
+      if (category !== "general") {
+        write = true;
+      } else {
+        if (owner) write = true;
+        else {
+          const { data: roles } = await supabase
+            .from("project_roles")
+            .select("is_category_admin")
+            .eq("tournage_id", id)
+            .eq("assigned_profile_id", userId);
+          if (roles && roles.some((r) => r.is_category_admin)) write = true;
+        }
       }
+      setCanWrite(write);
+
+      // 4. Fetch Allowed Tools for this Category
+      await fetchToolsForCategory();
     }
-    checkWritePermission();
+
+    checkPermissionsAndTools();
   }, [id, category]);
+
+  async function fetchToolsForCategory() {
+    // First try to get custom permissions from DB
+    const { data, error } = await supabase
+      .from("project_category_permissions")
+      .select("allowed_tools")
+      .eq("project_id", id)
+      // @ts-ignore
+      .eq("category", category)
+      .maybeSingle();
+
+    if (data && data.allowed_tools) {
+      setAvailableTools(data.allowed_tools as any);
+    } else {
+      // Fallback to coded defaults
+      setAvailableTools(getDefaultTools(category) as any);
+    }
+  }
+
+  const hasTools = availableTools.length > 0;
 
   useEffect(() => {
     if (local.tab) {
       setActiveTab(local.tab as any);
     }
   }, [local.tab]);
-
-  const isProduction = category === "production";
 
   const renderTabButton = (
     tab: typeof activeTab,
@@ -530,6 +564,16 @@ export default function ChannelSpace() {
     >
       <Stack.Screen
         options={{
+          headerShown: true,
+          headerTitleAlign: "center",
+          headerLeft: () => (
+            <TouchableOpacity
+              onPress={() => router.back()}
+              style={{ padding: 10 }}
+            >
+              <Ionicons name="arrow-back" size={24} color={Colors.light.text} />
+            </TouchableOpacity>
+          ),
           headerTitle: `Espace ${(category || "").toUpperCase()}`,
         }}
       />
@@ -538,8 +582,7 @@ export default function ChannelSpace() {
       <View style={styles.tabsHeader}>
         {renderTabButton("chat", "Discussion", "chatbubbles-outline")}
         {renderTabButton("files", "Fichiers", "folder-open-outline")}
-        {isProduction &&
-          renderTabButton("tools", "Outils", "construct-outline")}
+        {hasTools && renderTabButton("tools", "Outils", "construct-outline")}
       </View>
 
       {/* Content Area */}
@@ -552,41 +595,41 @@ export default function ChannelSpace() {
           <FilesView projectId={id} category={category} canWrite={canWrite} />
         )}
 
-        {activeTab === "tools" && isProduction && (
+        {activeTab === "tools" && hasTools && (
           <View style={styles.toolsContainer}>
-            <Text style={styles.sectionTitle}>Gestion de la Production</Text>
-
-            <TouchableOpacity
-              style={styles.toolCard}
-              onPress={() => router.push(`/project/${id}/breakdown`)}
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: 15,
+              }}
             >
-              <View style={[styles.iconBox, { backgroundColor: "#e3f2fd" }]}>
-                <Ionicons name="list" size={32} color="#2196F3" />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.toolTitle}>Dépouillement</Text>
-                <Text style={styles.toolDesc}>
-                  Gérez les séquences et le scénario
-                </Text>
-              </View>
-              <Ionicons name="chevron-forward" size={24} color="#ccc" />
-            </TouchableOpacity>
+              <Text style={styles.sectionTitle}>
+                Outils pour {category.toUpperCase()}
+              </Text>
+            </View>
 
-            <TouchableOpacity
-              style={styles.toolCard}
-              onPress={() => router.push(`/project/${id}/production`)}
-            >
-              <View style={[styles.iconBox, { backgroundColor: "#e8f5e9" }]}>
-                <Ionicons name="videocam" size={32} color="#4CAF50" />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.toolTitle}>Plan de Travail</Text>
-                <Text style={styles.toolDesc}>
-                  Planning et feuilles de service
-                </Text>
-              </View>
-              <Ionicons name="chevron-forward" size={24} color="#ccc" />
-            </TouchableOpacity>
+            {availableTools.map((toolKey) => {
+              const tool = ALL_TOOLS[toolKey];
+              if (!tool) return null; // Safety check
+              return (
+                <TouchableOpacity
+                  key={toolKey}
+                  style={styles.toolCard}
+                  onPress={() => router.push(`/project/${id}/${tool.route}`)}
+                >
+                  <View style={[styles.iconBox, { backgroundColor: tool.bg }]}>
+                    <Ionicons name={tool.icon} size={32} color={tool.color} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.toolTitle}>{tool.title}</Text>
+                    <Text style={styles.toolDesc}>{tool.desc}</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={24} color="#ccc" />
+                </TouchableOpacity>
+              );
+            })}
           </View>
         )}
       </View>
@@ -773,14 +816,10 @@ const fileStyles = StyleSheet.create({
     marginTop: 2,
   },
   uploadingOverlay: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: "rgba(255,255,255,0.8)",
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(255, 255, 255, 0.8)",
     zIndex: 10,
-    alignItems: "center",
     justifyContent: "center",
+    alignItems: "center",
   },
 });

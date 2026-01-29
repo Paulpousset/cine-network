@@ -1,3 +1,4 @@
+import { getDefaultTools } from "@/constants/Tools";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { Alert } from "react-native";
@@ -9,6 +10,9 @@ export function useManageTeam() {
   const [loading, setLoading] = useState(false);
   const [sections, setSections] = useState<any[]>([]);
   const [isOwner, setIsOwner] = useState(false);
+  const [categoryPermissions, setCategoryPermissions] = useState<
+    Record<string, string[]>
+  >({});
 
   useEffect(() => {
     checkOwnerAndFetch();
@@ -39,10 +43,11 @@ export function useManageTeam() {
       }
       setIsOwner(true);
 
-      const { data: roles, error } = await supabase
-        .from("project_roles")
-        .select(
-          `
+      const [rolesRes, permsRes] = await Promise.all([
+        supabase
+          .from("project_roles")
+          .select(
+            `
           id,
           title,
           category,
@@ -54,11 +59,17 @@ export function useManageTeam() {
              avatar_url
           )
         `,
-        )
-        .eq("tournage_id", id)
-        .not("assigned_profile_id", "is", null);
+          )
+          .eq("tournage_id", id)
+          .not("assigned_profile_id", "is", null),
+        supabase
+          .from("project_category_permissions")
+          .select("*")
+          .eq("project_id", id),
+      ]);
 
-      if (error) throw error;
+      if (rolesRes.error) throw rolesRes.error;
+      const roles = rolesRes.data;
 
       const grouped = (roles || []).reduce((acc: any, curr: any) => {
         const cat = curr.category || "Autre";
@@ -66,6 +77,23 @@ export function useManageTeam() {
         acc[cat].push(curr);
         return acc;
       }, {});
+
+      // Map permissions with defaults for missing categories
+      const permsMap: Record<string, string[]> = {};
+
+      // 1. Fill from DB
+      permsRes.data?.forEach((p: any) => {
+        permsMap[p.category] = p.allowed_tools || [];
+      });
+
+      // 2. Fill defaults for categories present in roles but missing in DB
+      Object.keys(grouped).forEach((cat) => {
+        if (!(cat in permsMap)) {
+          permsMap[cat] = getDefaultTools(cat);
+        }
+      });
+
+      setCategoryPermissions(permsMap);
 
       const sectionData = Object.keys(grouped).map((key) => ({
         title: key,
@@ -77,6 +105,32 @@ export function useManageTeam() {
       Alert.alert("Erreur", (e as Error).message);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function updateCategoryPermissions(
+    category: string,
+    newTools: string[],
+  ) {
+    try {
+      const { error } = await supabase
+        .from("project_category_permissions")
+        .upsert(
+          {
+            project_id: id,
+            category,
+            allowed_tools: newTools,
+          },
+          { onConflict: "project_id, category" },
+        );
+
+      if (error) throw error;
+      setCategoryPermissions((prev) => ({
+        ...prev,
+        [category]: newTools,
+      }));
+    } catch (e) {
+      Alert.alert("Erreur", "Impossible de mettre à jour les permissions");
     }
   }
 
@@ -107,6 +161,8 @@ export function useManageTeam() {
     sections,
     isOwner,
     toggleAdmin,
+    categoryPermissions,
+    updateCategoryPermissions,
     router,
   };
 }

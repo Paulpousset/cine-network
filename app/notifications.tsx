@@ -143,6 +143,19 @@ export default function NotificationsScreen() {
           type: "request",
         });
       }
+
+      // New Section: Accepted Applications
+      if (newApplications.length > 0) {
+        newSections.push({
+          title: "Candidatures Acceptées",
+          data: newApplications.map((a: any) => ({
+            ...a,
+            type: "application",
+          })),
+          type: "application_accepted",
+        });
+      }
+
       if (sentPending && sentPending.length > 0) {
         newSections.push({
           title: "Invitations Envoyées",
@@ -157,13 +170,10 @@ export default function NotificationsScreen() {
           type: "accepted",
         });
       }
-      if (newApplications.length > 0 || newAssignments.length > 0) {
+      if (newAssignments.length > 0) {
         newSections.push({
           title: "Mises à jour Projets",
-          data: [
-            ...newApplications.map((a: any) => ({ ...a, type: "application" })),
-            ...newAssignments.map((a: any) => ({ ...a, type: "assignment" })),
-          ],
+          data: newAssignments.map((a: any) => ({ ...a, type: "assignment" })),
           type: "project_update",
         });
       }
@@ -218,8 +228,11 @@ export default function NotificationsScreen() {
   };
 
   const renderItem = ({ item, section }: { item: any; section: any }) => {
-    // 1. PROJECT UPDATES
-    if (section.type === "project_update") {
+    // 1. PROJECT UPDATES & ACCEPTED APPLICATIONS
+    if (
+      section.type === "project_update" ||
+      section.type === "application_accepted"
+    ) {
       const isApp = item.type === "application";
       const project = isApp ? item.role?.tournage : item.tournage;
       const roleTitle = isApp ? item.role?.title : item.title;

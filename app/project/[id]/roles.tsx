@@ -7,17 +7,17 @@ import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
-  Alert,
-  FlatList,
-  Modal,
-  Platform,
-  ScrollView,
-  SectionList,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    Alert,
+    FlatList,
+    Modal,
+    Platform,
+    ScrollView,
+    SectionList,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { supabase } from "../../../lib/supabase";
 import { JOB_TITLES } from "../../../utils/roles";
@@ -892,7 +892,16 @@ export default function ManageRoles() {
       <View style={styles.header}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
           <TouchableOpacity
-            onPress={() => router.back()}
+            onPress={() =>
+              router.push({
+                pathname: "/project/[id]/spaces/[category]",
+                params: {
+                  id: id as string,
+                  category: "production",
+                  tab: "tools",
+                },
+              })
+            }
             style={{ padding: 5 }}
           >
             <Ionicons name="arrow-back" size={24} color="black" />

@@ -1,20 +1,55 @@
 import ClapLoading from "@/components/ClapLoading";
 import Colors from "@/constants/Colors";
 import { GlobalStyles } from "@/constants/Styles";
+import { ALL_TOOLS } from "@/constants/Tools";
 import { Ionicons } from "@expo/vector-icons";
-import React from "react";
+import React, { useState } from "react";
 import {
-  SectionList,
-  StyleSheet,
-  Switch,
-  Text,
-  TouchableOpacity,
-  View,
+    Modal,
+    ScrollView,
+    SectionList,
+    StyleSheet,
+    Switch,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { useManageTeam } from "./useManageTeam";
 
 export default function ManageTeam() {
-  const { loading, sections, toggleAdmin, router } = useManageTeam();
+  const {
+    loading,
+    sections,
+    toggleAdmin,
+    router,
+    categoryPermissions,
+    updateCategoryPermissions,
+  } = useManageTeam();
+
+  const [permissionModalVisible, setPermissionModalVisible] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+
+  const openPermissions = (category: string) => {
+    setSelectedCategory(category);
+    setPermissionModalVisible(true);
+  };
+
+  const closePermissions = () => {
+    setPermissionModalVisible(false);
+    setSelectedCategory(null);
+  };
+
+  const toggleTool = (toolId: string) => {
+    if (!selectedCategory) return;
+    const currentTools = categoryPermissions[selectedCategory] || [];
+    let newTools;
+    if (currentTools.includes(toolId)) {
+      newTools = currentTools.filter((t) => t !== toolId);
+    } else {
+      newTools = [...currentTools, toolId];
+    }
+    updateCategoryPermissions(selectedCategory, newTools);
+  };
 
   if (loading) {
     return (
@@ -54,6 +89,13 @@ export default function ManageTeam() {
         renderSectionHeader={({ section: { title } }) => (
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>{title.toUpperCase()}</Text>
+            <TouchableOpacity
+              onPress={() => openPermissions(title)}
+              style={styles.permissionsLink}
+            >
+              <Ionicons name="settings-outline" size={16} color="#666" />
+              <Text style={styles.permissionsLinkText}>Gérer les outils</Text>
+            </TouchableOpacity>
           </View>
         )}
         renderItem={({ item }) => (
@@ -87,6 +129,61 @@ export default function ManageTeam() {
           </Text>
         }
       />
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={permissionModalVisible}
+        onRequestClose={closePermissions}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={closePermissions}
+        >
+          <TouchableOpacity
+            activeOpacity={1}
+            style={styles.modalContent}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>
+                Outils autorisés : {selectedCategory}
+              </Text>
+              <TouchableOpacity onPress={closePermissions}>
+                <Ionicons name="close" size={24} color="#000" />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.modalBody}>
+              {Object.values(ALL_TOOLS).map((tool) => {
+                const isSelected = (
+                  categoryPermissions[selectedCategory!] || []
+                ).includes(tool.id);
+                return (
+                  <View key={tool.id} style={styles.toolRow}>
+                    <View style={styles.toolInfo}>
+                      <Ionicons
+                        name={tool.icon}
+                        size={24}
+                        color={tool.color}
+                        style={{ marginRight: 15 }}
+                      />
+                      <View style={{ flex: 1, paddingRight: 10 }}>
+                        <Text style={styles.toolName}>{tool.title}</Text>
+                        <Text style={styles.toolDesc}>{tool.desc}</Text>
+                      </View>
+                    </View>
+                    <Switch
+                      value={isSelected}
+                      onValueChange={() => toggleTool(tool.id)}
+                      trackColor={{ false: "#767577", true: Colors.light.tint }}
+                    />
+                  </View>
+                );
+              })}
+            </ScrollView>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }
@@ -132,11 +229,71 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     marginTop: 15,
     borderRadius: 5,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
   sectionTitle: {
     fontWeight: "bold",
     color: "#555",
     fontSize: 14,
+  },
+  permissionsLink: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+  },
+  permissionsLinkText: {
+    fontSize: 12,
+    color: "#666",
+    textDecorationLine: "underline",
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "flex-end",
+  },
+  modalContent: {
+    backgroundColor: "white",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 24,
+    maxHeight: "80%",
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+  },
+  modalBody: {
+    width: "100%",
+  },
+  toolRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f0f0f0",
+  },
+  toolInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+  },
+  toolName: {
+    fontSize: 16,
+    fontWeight: "600",
+    marginBottom: 4,
+  },
+  toolDesc: {
+    fontSize: 12,
+    color: "#666",
   },
   name: {
     fontWeight: "bold",

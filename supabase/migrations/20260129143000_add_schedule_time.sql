@@ -1,0 +1,1 @@
+alter table "public"."shoot_day_scenes" add column "schedule_time" text;

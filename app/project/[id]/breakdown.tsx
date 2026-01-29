@@ -3,27 +3,30 @@ import { Database } from "@/lib/database.types";
 import { supabase } from "@/lib/supabase";
 import { Ionicons } from "@expo/vector-icons";
 import {
-    useGlobalSearchParams,
-    useLocalSearchParams,
-    useRouter,
+  useGlobalSearchParams,
+  useLocalSearchParams,
+  useRouter,
 } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    FlatList,
-    KeyboardAvoidingView,
-    Modal,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 type Scene = Database["public"]["Tables"]["scenes"]["Row"];
+type ProjectCharacter =
+  Database["public"]["Tables"]["project_characters"]["Row"];
+type ProjectSet = Database["public"]["Tables"]["project_sets"]["Row"];
 
 const INT_EXT_OPTIONS = ["INT", "EXT", "INT/EXT"];
 const DAY_NIGHT_OPTIONS = ["DAY", "NIGHT", "DAWN", "DUSK"];
@@ -57,13 +60,19 @@ export default function BreakdownScreen() {
   const id = local.id || global.id;
 
   const [scenes, setScenes] = useState<Scene[]>([]);
+  const [availableCharacters, setAvailableCharacters] = useState<
+    ProjectCharacter[]
+  >([]);
+  const [projectSets, setProjectSets] = useState<ProjectSet[]>([]);
   const [loading, setLoading] = useState(true);
   const [canEdit, setCanEdit] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [adding, setAdding] = useState(false);
+  const [editingSceneId, setEditingSceneId] = useState<string | null>(null);
 
   // Form State
   const [sceneNumber, setSceneNumber] = useState("");
+  const [title, setTitle] = useState("");
   const [slugline, setSlugline] = useState("");
   const [intExt, setIntExt] = useState("INT");
   const [dayNight, setDayNight] = useState("DAY");
@@ -71,7 +80,7 @@ export default function BreakdownScreen() {
   const [scriptPages, setScriptPages] = useState("");
 
   // New States
-  const [characters, setCharacters] = useState("");
+  const [selectedCharacters, setSelectedCharacters] = useState<string[]>([]);
   const [extras, setExtras] = useState("");
   const [locationType, setLocationType] = useState("REAL");
   const [complexity, setComplexity] = useState("SIMPLE");
@@ -88,6 +97,8 @@ export default function BreakdownScreen() {
     if (id) {
       checkPermissions();
       fetchScenes();
+      fetchCharacters();
+      fetchSets();
     } else {
       console.log("[Breakdown] No ID found, stopping loading");
       setLoading(false);
@@ -156,6 +167,96 @@ export default function BreakdownScreen() {
     console.log("[Breakdown] fetchScenes finished, loading set to false");
   };
 
+  const fetchCharacters = async () => {
+    const { data } = await supabase
+      .from("project_characters")
+      .select("*")
+      .eq("project_id", id)
+      .order("name", { ascending: true });
+
+    if (data) {
+      setAvailableCharacters(data);
+    }
+  };
+
+  const fetchSets = async () => {
+    const { data } = await supabase
+      .from("project_sets")
+      .select("*")
+      .eq("project_id", id)
+      .order("name", { ascending: true });
+
+    if (data) {
+      setProjectSets(data);
+    }
+  };
+
+  const handleEditScene = (scene: Scene) => {
+    setEditingSceneId(scene.id);
+    setSceneNumber(scene.scene_number || "");
+    setTitle(scene.title || "");
+    setSlugline(scene.slugline || "");
+    setIntExt(scene.int_ext || "INT");
+    setDayNight(scene.day_night || "DAY");
+    setDescription(scene.description || "");
+    setScriptPages(scene.script_pages ? scene.script_pages.toString() : "");
+
+    // New fields
+    setSelectedCharacters(scene.characters || []);
+    setExtras(scene.extras || "");
+    setLocationType(scene.location_type || "REAL");
+    setComplexity(scene.complexity || "SIMPLE");
+    setPriority(scene.priority || "NORMAL");
+    setProps(scene.props || "");
+    setEstimatedDuration(
+      scene.estimated_duration ? scene.estimated_duration.toString() : "",
+    );
+    setSelectedConstraints(scene.constraints || []);
+    setSelectedSound(scene.sound_type || []);
+
+    setModalVisible(true);
+  };
+
+  const handleUpdateScene = async () => {
+    if (!editingSceneId || !sceneNumber || !slugline) return;
+
+    setAdding(true);
+    const pages = parseFloat(scriptPages.replace(",", ".")) || 0;
+    const duration = parseInt(estimatedDuration) || null;
+
+    const { error } = await supabase
+      .from("scenes")
+      .update({
+        scene_number: sceneNumber,
+        title: title,
+        slugline: slugline,
+        int_ext: intExt,
+        day_night: dayNight,
+        description: description,
+        script_pages: pages,
+        characters: selectedCharacters,
+        extras: extras,
+        location_type: locationType,
+        complexity: complexity,
+        priority: priority,
+        props: props,
+        estimated_duration: duration,
+        constraints: selectedConstraints,
+        sound_type: selectedSound,
+      })
+      .eq("id", editingSceneId);
+
+    if (error) {
+      console.error(error);
+      Alert.alert("Erreur", "Impossible de modifier la séquence.");
+    } else {
+      setModalVisible(false);
+      resetForm();
+      fetchScenes();
+    }
+    setAdding(false);
+  };
+
   const handleAddScene = async () => {
     if (!sceneNumber || !slugline) {
       Alert.alert(
@@ -168,21 +269,18 @@ export default function BreakdownScreen() {
     setAdding(true);
     const pages = parseFloat(scriptPages.replace(",", ".")) || 0;
     const duration = parseInt(estimatedDuration) || null;
-    const charsArray = characters
-      .split(",")
-      .map((c) => c.trim())
-      .filter((c) => c.length > 0);
 
     const { error } = await supabase.from("scenes").insert({
       tournage_id: id,
       scene_number: sceneNumber,
+      title: title,
       slugline: slugline,
       int_ext: intExt,
       day_night: dayNight,
       description: description,
       script_pages: pages,
       // New fields
-      characters: charsArray,
+      characters: selectedCharacters,
       extras: extras,
       location_type: locationType,
       complexity: complexity,
@@ -205,14 +303,16 @@ export default function BreakdownScreen() {
   };
 
   const resetForm = () => {
+    setEditingSceneId(null);
     setSceneNumber("");
+    setTitle("");
     setSlugline("");
     setIntExt("INT");
     setDayNight("DAY");
     setDescription("");
     setScriptPages("");
 
-    setCharacters("");
+    setSelectedCharacters([]);
     setExtras("");
     setLocationType("REAL");
     setComplexity("SIMPLE");
@@ -236,18 +336,47 @@ export default function BreakdownScreen() {
   };
 
   const renderSceneItem = ({ item }: { item: Scene & any }) => (
-    <View style={styles.sceneItem}>
+    <TouchableOpacity
+      style={styles.sceneItem}
+      onPress={() => canEdit && handleEditScene(item)}
+      activeOpacity={canEdit ? 0.7 : 1}
+    >
       <View style={styles.sceneHeader}>
-        <View style={styles.sceneTitleRow}>
-          <Text style={styles.sceneNumber}>SC. {item.scene_number}</Text>
+        {/* LEFT COLUMN: Number+Title, then Slugline */}
+        <View style={{ flex: 1, marginRight: 8 }}>
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              marginBottom: 4,
+              flexWrap: "wrap",
+            }}
+          >
+            <Text style={styles.sceneNumber}>SC. {item.scene_number}</Text>
+            {item.title ? (
+              <Text
+                style={{
+                  fontWeight: "bold",
+                  fontSize: 16,
+                  color: "#000",
+                  marginLeft: 8,
+                }}
+              >
+                {item.title.toUpperCase()}
+              </Text>
+            ) : null}
+          </View>
+
           <Text style={styles.sceneSlugline}>
-            - {item.int_ext} {item.slugline} - {item.day_night}
+            {item.int_ext} {item.slugline} - {item.day_night}
           </Text>
         </View>
+
+        {/* RIGHT COLUMN: Pages + Duration */}
         <View style={{ alignItems: "flex-end" }}>
           <Text style={styles.scenePages}>{item.script_pages} p</Text>
           {item.estimated_duration && (
-            <Text style={{ fontSize: 10, color: "#666" }}>
+            <Text style={{ fontSize: 10, color: "#666", marginTop: 2 }}>
               {item.estimated_duration} min
             </Text>
           )}
@@ -305,7 +434,7 @@ export default function BreakdownScreen() {
           {item.description}
         </Text>
       ) : null}
-    </View>
+    </TouchableOpacity>
   );
 
   const Selector = ({
@@ -348,8 +477,8 @@ export default function BreakdownScreen() {
           <TouchableOpacity
             onPress={() =>
               router.push({
-                pathname: `/project/${id}/spaces/production`,
-                params: { tab: "tools" },
+                pathname: "/project/[id]/spaces/[category]",
+                params: { id: id, category: "production", tab: "tools" },
               })
             }
             style={{ marginRight: 15 }}
@@ -360,7 +489,10 @@ export default function BreakdownScreen() {
         </View>
         {canEdit && (
           <TouchableOpacity
-            onPress={() => setModalVisible(true)}
+            onPress={() => {
+              resetForm();
+              setModalVisible(true);
+            }}
             style={styles.headerButton}
           >
             <Ionicons name="add-circle" size={32} color={Colors.light.tint} />
@@ -398,90 +530,183 @@ export default function BreakdownScreen() {
           style={{ flex: 1 }}
         >
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Nouvelle Séquence</Text>
+            <Text style={styles.modalTitle}>
+              {editingSceneId ? "Modifier la Séquence" : "Nouvelle Séquence"}
+            </Text>
             <TouchableOpacity onPress={() => setModalVisible(false)}>
               <Text style={styles.cancelText}>Annuler</Text>
             </TouchableOpacity>
           </View>
 
           <ScrollView contentContainerStyle={styles.modalContent}>
+            <View style={styles.formRow}>
+              <View style={[styles.inputGroup, { flex: 1 }]}>
+                <Text style={styles.label}>Numéro de séquence</Text>
+                <TextInput
+                  style={styles.input}
+                  value={sceneNumber}
+                  onChangeText={setSceneNumber}
+                  placeholder="Ex: 1, 12A"
+                  autoCapitalize="characters"
+                />
+              </View>
+
+              <View style={[styles.inputGroup, { flex: 3 }]}>
+                <Text style={styles.label}>Décor (Slugline)</Text>
+                <TextInput
+                  style={styles.input}
+                  value={slugline}
+                  onChangeText={setSlugline}
+                  placeholder="Ex: CHAMBRE DE PAUL"
+                  autoCapitalize="characters"
+                />
+
+                {projectSets.length > 0 && (
+                  <View style={{ marginTop: 8 }}>
+                    <Text
+                      style={[styles.label, { fontSize: 12, marginBottom: 4 }]}
+                    >
+                      Nos décors :
+                    </Text>
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                    >
+                      {projectSets.map((set) => (
+                        <TouchableOpacity
+                          key={set.id}
+                          style={{
+                            backgroundColor: Colors.light.backgroundSecondary,
+                            paddingHorizontal: 10,
+                            paddingVertical: 6,
+                            borderRadius: 16,
+                            marginRight: 8,
+                            borderWidth: 1,
+                            borderColor: Colors.light.border,
+                          }}
+                          onPress={() => setSlugline(set.name.toUpperCase())}
+                        >
+                          <Text style={{ fontSize: 12, color: "#333" }}>
+                            {set.name}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </View>
+                )}
+              </View>
+            </View>
+
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Numéro de séquence</Text>
+              <Text style={styles.label}>Titre (Optionnel)</Text>
               <TextInput
                 style={styles.input}
-                value={sceneNumber}
-                onChangeText={setSceneNumber}
-                placeholder="Ex: 1, 12A"
-                autoCapitalize="characters"
+                value={title}
+                onChangeText={setTitle}
+                placeholder="Ex: Rencontre avec le boss"
               />
             </View>
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Décor (Slugline)</Text>
-              <TextInput
-                style={styles.input}
-                value={slugline}
-                onChangeText={setSlugline}
-                placeholder="Ex: CHAMBRE DE PAUL"
-                autoCapitalize="characters"
-              />
+            <View style={styles.formRow}>
+              <View style={[styles.inputGroup, { flex: 1 }]}>
+                <Text style={styles.label}>Location</Text>
+                <Selector
+                  options={INT_EXT_OPTIONS}
+                  value={intExt}
+                  onChange={setIntExt}
+                />
+              </View>
+
+              <View style={[styles.inputGroup, { flex: 1 }]}>
+                <Text style={styles.label}>Lumière</Text>
+                <Selector
+                  options={DAY_NIGHT_OPTIONS}
+                  value={dayNight}
+                  onChange={setDayNight}
+                />
+              </View>
             </View>
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Location</Text>
-              <Selector
-                options={INT_EXT_OPTIONS}
-                value={intExt}
-                onChange={setIntExt}
-              />
+            <View style={styles.formRow}>
+              <View style={[styles.inputGroup, { flex: 1 }]}>
+                <Text style={styles.label}>Nbre de pages</Text>
+                <TextInput
+                  style={styles.input}
+                  value={scriptPages}
+                  keyboardType="numeric"
+                  onChangeText={setScriptPages}
+                  placeholder="Ex: 1.5"
+                  placeholderTextColor="#999"
+                />
+              </View>
+
+              <View style={[styles.inputGroup, { flex: 1 }]}>
+                <Text style={styles.label}>Durée estimée (min)</Text>
+                <TextInput
+                  style={styles.input}
+                  value={estimatedDuration}
+                  onChangeText={setEstimatedDuration}
+                  keyboardType="numeric"
+                  placeholder="Ex: 45"
+                  placeholderTextColor="#999"
+                />
+              </View>
             </View>
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Lumière</Text>
-              <Selector
-                options={DAY_NIGHT_OPTIONS}
-                value={dayNight}
-                onChange={setDayNight}
-              />
+            <View style={styles.formRow}>
+              <View style={[styles.inputGroup, { flex: 2 }]}>
+                <Text style={styles.label}>Personnages</Text>
+                <View
+                  style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}
+                >
+                  {availableCharacters.map((char) => (
+                    <TouchableOpacity
+                      key={char.id}
+                      onPress={() =>
+                        toggleSelection(
+                          char.name,
+                          selectedCharacters,
+                          setSelectedCharacters,
+                        )
+                      }
+                      style={[
+                        styles.chip,
+                        selectedCharacters.includes(char.name) &&
+                          styles.chipSelected,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.chipText,
+                          selectedCharacters.includes(char.name) &&
+                            styles.chipTextSelected,
+                        ]}
+                      >
+                        {char.name}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                  {availableCharacters.length === 0 && (
+                    <Text style={{ color: "#999", fontStyle: "italic" }}>
+                      Aucun personnage créé. Allez dans Outils &gt; Casting.
+                    </Text>
+                  )}
+                </View>
+              </View>
+
+              <View style={[styles.inputGroup, { flex: 1 }]}>
+                <Text style={styles.label}>Figuration</Text>
+                <TextInput
+                  style={styles.input}
+                  value={extras}
+                  onChangeText={setExtras}
+                  placeholder="Ex: 10 passants"
+                  placeholderTextColor="#999"
+                />
+              </View>
             </View>
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Nbre de pages</Text>
-              <TextInput
-                style={styles.input}
-                value={scriptPages}
-                keyboardType="numeric"
-                onChangeText={setScriptPages}
-                placeholder="Ex: 1.5"
-                placeholderTextColor="#999"
-              />
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>
-                Personnages (séparés par des virgules)
-              </Text>
-              <TextInput
-                style={styles.input}
-                value={characters}
-                onChangeText={setCharacters}
-                placeholder="PAUL, MARIE, ..."
-                placeholderTextColor="#999"
-              />
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Figuration</Text>
-              <TextInput
-                style={styles.input}
-                value={extras}
-                onChangeText={setExtras}
-                placeholder="Aucun / 10 passants / ..."
-                placeholderTextColor="#999"
-              />
-            </View>
-
-            <View style={{ flexDirection: "row", gap: 10 }}>
+            <View style={styles.formRow}>
               <View style={[styles.inputGroup, { flex: 1 }]}>
                 <Text style={styles.label}>Décor</Text>
                 <Selector
@@ -496,6 +721,14 @@ export default function BreakdownScreen() {
                   options={COMPLEXITY_OPTIONS}
                   value={complexity}
                   onChange={setComplexity}
+                />
+              </View>
+              <View style={[styles.inputGroup, { flex: 1 }]}>
+                <Text style={styles.label}>Priorité</Text>
+                <Selector
+                  options={PRIORITY_OPTIONS}
+                  value={priority}
+                  onChange={setPriority}
                 />
               </View>
             </View>
@@ -571,33 +804,12 @@ export default function BreakdownScreen() {
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Durée estimée (minutes)</Text>
-              <TextInput
-                style={styles.input}
-                value={estimatedDuration}
-                onChangeText={setEstimatedDuration}
-                keyboardType="numeric"
-                placeholder="Ex: 45"
-                placeholderTextColor="#999"
-              />
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Priorité</Text>
-              <Selector
-                options={PRIORITY_OPTIONS}
-                value={priority}
-                onChange={setPriority}
-              />
-            </View>
-
-            <View style={styles.inputGroup}>
               <Text style={styles.label}>Description</Text>
               <TextInput
                 style={[styles.input, styles.textArea]}
                 value={description}
                 onChangeText={setDescription}
-                placeholder="Brève description de l'action..."
+                placeholder="Description de la scène..."
                 multiline
                 numberOfLines={3}
               />
@@ -605,11 +817,15 @@ export default function BreakdownScreen() {
 
             <TouchableOpacity
               style={[styles.saveButton, adding && styles.disabledButton]}
-              onPress={handleAddScene}
+              onPress={editingSceneId ? handleUpdateScene : handleAddScene}
               disabled={adding}
             >
               <Text style={styles.saveButtonText}>
-                {adding ? "Enregistrement..." : "Enregistrer"}
+                {adding
+                  ? "Enregistrement..."
+                  : editingSceneId
+                    ? "Mettre à jour"
+                    : "Enregistrer"}
               </Text>
             </TouchableOpacity>
           </ScrollView>
@@ -724,6 +940,15 @@ const styles = StyleSheet.create({
     color: "#364fc7",
     fontWeight: "600",
   },
+  badge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  badgeText: {
+    fontSize: 10,
+    fontWeight: "bold",
+  },
   // Modal Styles
   modalHeader: {
     flexDirection: "row",
@@ -744,6 +969,13 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     padding: 20,
+    width: "100%",
+    maxWidth: Platform.OS === "web" ? 800 : undefined,
+    alignSelf: "center",
+  },
+  formRow: {
+    flexDirection: Platform.OS === "web" ? "row" : "column",
+    gap: 16,
   },
   inputGroup: {
     marginBottom: 20,
@@ -783,13 +1015,13 @@ const styles = StyleSheet.create({
   // Selector Styles
   selectorContainer: {
     flexDirection: "row",
-    backgroundColor: "#f1f3f5",
+    backgroundColor: "#e9ecef",
     borderRadius: 8,
     padding: 4,
   },
   selectorOption: {
     flex: 1,
-    paddingVertical: 8,
+    paddingVertical: 10,
     alignItems: "center",
     borderRadius: 6,
   },

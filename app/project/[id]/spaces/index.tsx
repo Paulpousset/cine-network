@@ -5,11 +5,11 @@ import { Ionicons } from "@expo/vector-icons";
 import { Stack, useGlobalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-    FlatList,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  FlatList,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { supabase } from "../../../../lib/supabase";
 
@@ -134,7 +134,7 @@ export default function ChatList() {
     <View style={GlobalStyles.container}>
       <Stack.Screen
         options={{
-          headerShown: true,
+          headerShown: false,
           headerTitle: "Espaces de Travail",
           headerShadowVisible: false,
           headerTitleAlign: "center",

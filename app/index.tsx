@@ -216,6 +216,12 @@ export default function AuthScreen() {
       return;
     }
 
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      Alert.alert("Erreur", "Veuillez entrer une adresse email valide.");
+      return;
+    }
+
     if (password.length < 6) {
       Alert.alert(
         "Erreur",

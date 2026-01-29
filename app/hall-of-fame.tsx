@@ -10,19 +10,19 @@ import { useVideoPlayer, VideoView } from "expo-video";
 import React, { useEffect, useState } from "react";
 
 import {
-  Alert,
-  FlatList,
-  Image,
-  Linking,
-  Modal,
-  Platform,
-  RefreshControl,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  useWindowDimensions,
-  View,
+    Alert,
+    FlatList,
+    Image,
+    Linking,
+    Modal,
+    Platform,
+    RefreshControl,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    useWindowDimensions,
+    View,
 } from "react-native";
 
 export default function HallOfFameScreen({
@@ -192,7 +192,7 @@ export default function HallOfFameScreen({
   async function pickVideoForEdit() {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Videos,
+        mediaTypes: ["videos"],
         allowsEditing: true,
         quality: 1,
       });

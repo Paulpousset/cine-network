@@ -119,64 +119,72 @@ export default function GlobalRealtimeListener({ user }: { user: User }) {
         .on(
           "postgres_changes",
           {
-            event: "INSERT",
+            event: "*",
             schema: "public",
             table: "project_messages",
           },
           async (payload) => {
             const newMsg = payload.new as any;
-            console.log("GlobalRealtimeListener: Space event", newMsg?.id);
+            console.log(
+              "GlobalRealtimeListener: Space event",
+              payload.eventType,
+              newMsg?.id,
+            );
             if (!newMsg) return;
 
             // Always trigger NEW_MESSAGE event so UI indicators can update (sidebar dots, etc.)
             appEvents.emit(EVENTS.NEW_MESSAGE, newMsg);
 
-            // Show notification if it is an incoming message and not from me
-            if (newMsg.sender_id !== user.id) {
-              // Check if we are already viewing this space to avoid double notifications
-              const isViewingThisSpace = pathnameRef.current.includes(
-                `/project/${newMsg.project_id}/spaces/${newMsg.category}`,
-              );
-              if (isViewingThisSpace) return;
+            if (payload.eventType === "INSERT") {
+              // Show notification if it is an incoming message and not from me
+              if (newMsg.sender_id !== user.id) {
+                // Check if we are already viewing this space to avoid double notifications
+                const isViewingThisSpace = pathnameRef.current.includes(
+                  `/project/${newMsg.project_id}/spaces/${newMsg.category}`,
+                );
+                if (isViewingThisSpace) return;
 
-              // Fetch Project Title & Owner for context and security check
-              const { data: project } = await supabase
-                .from("tournages")
-                .select("title, owner_id")
-                .eq("id", newMsg.project_id)
-                .single();
+                // Fetch Project Title & Owner for context and security check
+                const { data: project } = await supabase
+                  .from("tournages")
+                  .select("title, owner_id")
+                  .eq("id", newMsg.project_id)
+                  .single();
 
-              // If project is not found or not accessible, do not show notification
-              if (!project) return;
+                // If project is not found or not accessible, do not show notification
+                if (!project) return;
 
-              // Extra verification: am I the owner or a member of this project?
-              const isOwner = project.owner_id === user.id;
-              let isMember = isOwner;
+                // Extra verification: am I the owner or a member of this project?
+                const isOwner = project.owner_id === user.id;
+                let isMember = isOwner;
 
-              if (!isMember) {
-                const { data: role } = await supabase
-                  .from("project_roles")
-                  .select("id")
-                  .eq("tournage_id", newMsg.project_id)
-                  .eq("assigned_profile_id", user.id)
-                  .maybeSingle();
-                if (role) isMember = true;
+                if (!isMember) {
+                  const { data: role } = await supabase
+                    .from("project_roles")
+                    .select("id")
+                    .eq("tournage_id", newMsg.project_id)
+                    .eq("assigned_profile_id", user.id)
+                    .maybeSingle();
+                  if (role) isMember = true;
+                }
+
+                if (!isMember) return;
+
+                // Fetch sender details
+                const { data: profile } = await supabase
+                  .from("profiles")
+                  .select("full_name")
+                  .eq("id", newMsg.sender_id)
+                  .single();
+
+                appEvents.emit(EVENTS.SHOW_NOTIFICATION, {
+                  title: `${project?.title || "Projet"} • ${
+                    profile?.full_name || "Membre"
+                  }`,
+                  body: newMsg.content,
+                  link: `/project/${newMsg.project_id}/spaces/${newMsg.category}?tab=chat`,
+                });
               }
-
-              if (!isMember) return;
-
-              // Fetch sender details
-              const { data: profile } = await supabase
-                .from("profiles")
-                .select("full_name")
-                .eq("id", newMsg.sender_id)
-                .single();
-
-              appEvents.emit(EVENTS.SHOW_NOTIFICATION, {
-                title: `${project?.title || "Projet"} • ${profile?.full_name || "Membre"}`,
-                body: newMsg.content,
-                link: `/project/${newMsg.project_id}/spaces/${newMsg.category}?tab=chat`,
-              });
             }
           },
         )

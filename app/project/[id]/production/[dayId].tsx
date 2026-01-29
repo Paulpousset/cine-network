@@ -3,26 +3,27 @@ import CityPicker from "@/app/components/CityPicker";
 import WebDatePicker from "@/components/WebDatePicker";
 import Colors from "@/constants/Colors";
 import { supabase } from "@/lib/supabase";
+import { getWeatherCodeInfo, WeatherService } from "@/services/WeatherService";
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import {
-    useGlobalSearchParams,
-    useLocalSearchParams,
-    useRouter,
+  useGlobalSearchParams,
+  useLocalSearchParams,
+  useRouter,
 } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    FlatList,
-    Modal,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  Modal,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 const DAY_TYPES = ["SHOOT", "SCOUT", "PREP", "OFF", "TRAVEL"];
@@ -154,11 +155,208 @@ export default function DayDetailScreen() {
     new Set(roles.map((r) => r.category).filter(Boolean)),
   );
 
+  // Weather & Locations
+  const [projectSets, setProjectSets] = useState<any[]>([]);
+  const [weatherData, setWeatherData] = useState<Record<string, any>>({});
+  const [dayWeather, setDayWeather] = useState<any>(null);
+
+  const allLocations = React.useMemo(() => {
+    if (!day) return [];
+
+    const locations: {
+      name: string;
+      address_street: string;
+      address_city: string;
+      isMain: boolean;
+    }[] = [];
+
+    // 1. Add day location
+    if (day.location || day.address_street) {
+      locations.push({
+        name: day.location || "Lieu principal",
+        address_street: day.address_street || "",
+        address_city: day.address_city || "",
+        isMain: true,
+      });
+    }
+
+    // 2. Add locations from scenes
+    linkedScenes.forEach((ls) => {
+      const scene = ls.scene;
+      if (!scene?.slugline) return;
+
+      const slug = scene.slugline.toLowerCase().trim();
+      const matchingSet = projectSets.find((s) => {
+        const setName = s.name?.toLowerCase().trim();
+        return setName && (slug === setName || slug.includes(setName));
+      });
+
+      if (matchingSet && matchingSet.address) {
+        // Avoid duplicates
+        const alreadyExists = locations.some(
+          (loc) =>
+            loc.address_street?.toLowerCase().trim() ===
+              matchingSet.address?.toLowerCase().trim() ||
+            loc.name?.toLowerCase().trim() ===
+              matchingSet.name?.toLowerCase().trim(),
+        );
+
+        if (!alreadyExists) {
+          locations.push({
+            name: matchingSet.name,
+            address_street: matchingSet.address,
+            address_city: "",
+            isMain: false,
+          });
+        }
+      }
+    });
+
+    return locations;
+  }, [day, linkedScenes, projectSets]);
+
   useEffect(() => {
     fetchDayDetails();
     fetchCalls();
     fetchLinkedScenes();
+    fetchProjectSets();
   }, [dayId]);
+
+  useEffect(() => {
+    if (day?.date) {
+      fetchScenesWeather();
+      fetchDayWeather();
+    }
+  }, [day, linkedScenes, projectSets]);
+
+  async function fetchProjectSets() {
+    const { data } = await supabase
+      .from("project_sets")
+      .select("*")
+      .eq("project_id", id);
+    if (data) setProjectSets(data);
+  }
+
+  async function fetchDayWeather() {
+    if (!day || !day.date) return;
+
+    let address = "";
+    if (day.address_city || day.address_street) {
+      if (day.address_city && day.address_street) {
+        address = `${day.address_street}, ${day.address_city}`;
+      } else {
+        address = day.address_city || day.address_street || "";
+      }
+    } else if (day.location) {
+      address = day.location;
+    }
+
+    // Fallback: If no day address, try first scene's set
+    if (!address && linkedScenes.length > 0) {
+      for (const item of linkedScenes) {
+        const scene = item.scene;
+        if (scene?.slugline && projectSets.length > 0) {
+          const slug = scene.slugline.toLowerCase().trim();
+          const matchingSet = projectSets.find((s) => {
+            const setName = s.name?.toLowerCase().trim();
+            return setName && (slug === setName || slug.includes(setName));
+          });
+          if (matchingSet && matchingSet.address) {
+            address = matchingSet.address;
+            break;
+          }
+        }
+      }
+    }
+
+    if (!address) return;
+
+    const geo = await WeatherService.geocode(address);
+    if (geo) {
+      // Use consistent 12:00 for general day weather view
+      const weather = await WeatherService.getForecast(
+        geo.latitude,
+        geo.longitude,
+        day.date,
+        "12:00",
+      );
+      if (weather) {
+        setDayWeather(weather);
+      }
+    }
+  }
+
+  async function fetchScenesWeather() {
+    if (!day || !day.date) return;
+
+    // Cache locations to avoid repeated geocoding
+    const locationCache: Record<string, { lat: number; lon: number }> = {};
+    const newWeather: Record<string, any> = {};
+
+    for (const item of linkedScenes) {
+      const scene = item.scene;
+      if (!scene) continue;
+
+      let addressToGeocode = "";
+      let locationSource = ""; // To debug/show user
+
+      // 1. Try to find matching Set (More robust matching)
+      if (projectSets.length > 0 && scene.slugline) {
+        const slug = scene.slugline.toLowerCase().trim();
+        // Check exact match or inclusion
+        const matchingSet = projectSets.find((s) => {
+          const setName = s.name?.toLowerCase().trim();
+          return setName && (slug === setName || slug.includes(setName));
+        });
+
+        if (matchingSet && matchingSet.address) {
+          addressToGeocode = matchingSet.address;
+          locationSource = matchingSet.name;
+        }
+      }
+
+      // 2. Fallback to Day Location if scene set not found
+      if (!addressToGeocode) {
+        if (day.address_city) {
+          addressToGeocode = day.address_city;
+          if (day.address_street)
+            addressToGeocode = `${day.address_street}, ${addressToGeocode}`;
+          locationSource = "Lieu du jour";
+        } else if (day.location) {
+          addressToGeocode = day.location;
+          locationSource = "Lieu du jour";
+        }
+      }
+
+      if (!addressToGeocode) continue;
+
+      // Geocode
+      let coords = locationCache[addressToGeocode];
+      if (!coords) {
+        const geo = await WeatherService.geocode(addressToGeocode);
+        if (geo) {
+          coords = { lat: geo.latitude, lon: geo.longitude };
+          locationCache[addressToGeocode] = coords;
+        }
+      }
+
+      if (coords) {
+        // Use the specific schedule time for scene weather if available
+        const time = item.schedule_time || "12:00";
+        const weather = await WeatherService.getForecast(
+          coords.lat,
+          coords.lon,
+          day.date,
+          time,
+        );
+        if (weather) {
+          newWeather[item.id] = { ...weather, locationSource };
+        }
+      }
+    }
+
+    setWeatherData(newWeather);
+  }
 
   async function fetchDayDetails() {
     const { data, error } = await supabase
@@ -218,6 +416,7 @@ export default function DayDetailScreen() {
       .select(
         `
             id,
+            schedule_time,
             scene:scenes (*)
         `,
       )
@@ -258,11 +457,29 @@ export default function DayDetailScreen() {
   }
 
   async function handleUnlinkScene(linkId: string) {
-    const { error } = await supabase
-      .from("shoot_day_scenes")
-      .delete()
-      .eq("id", linkId);
-    if (!error) fetchLinkedScenes();
+    const performUnlink = async () => {
+      const { error } = await supabase
+        .from("shoot_day_scenes")
+        .delete()
+        .eq("id", linkId);
+      if (!error) fetchLinkedScenes();
+    };
+
+    if (Platform.OS === "web") {
+      if (window.confirm("Retirer cette séquence de la journée ?")) {
+        performUnlink();
+      }
+      return;
+    }
+
+    Alert.alert("Retirer", "Retirer cette séquence de la journée ?", [
+      { text: "Annuler", style: "cancel" },
+      {
+        text: "Retirer",
+        style: "destructive",
+        onPress: performUnlink,
+      },
+    ]);
   }
 
   async function handleUpdateDay() {
@@ -292,6 +509,52 @@ export default function DayDetailScreen() {
       setEditing(false);
       fetchDayDetails();
     }
+  }
+
+  async function handleDeleteDay() {
+    if (Platform.OS === "web") {
+      if (
+        window.confirm(
+          "Êtes-vous sûr de vouloir supprimer cette journée de tournage ? Cette action est irréversible.",
+        )
+      ) {
+        const { error } = await supabase
+          .from("shoot_days")
+          .delete()
+          .eq("id", dayId);
+
+        if (error) {
+          window.alert("Impossible de supprimer la journée.");
+        } else {
+          router.back();
+        }
+      }
+      return;
+    }
+
+    Alert.alert(
+      "Supprimer la journée",
+      "Êtes-vous sûr de vouloir supprimer cette journée de tournage ? Cette action est irréversible.",
+      [
+        { text: "Annuler", style: "cancel" },
+        {
+          text: "Supprimer",
+          style: "destructive",
+          onPress: async () => {
+            const { error } = await supabase
+              .from("shoot_days")
+              .delete()
+              .eq("id", dayId);
+
+            if (error) {
+              Alert.alert("Erreur", "Impossible de supprimer la journée.");
+            } else {
+              router.back();
+            }
+          },
+        },
+      ],
+    );
   }
 
   // --- Helpers for Arrays (Tags) ---
@@ -355,11 +618,31 @@ export default function DayDetailScreen() {
   }
 
   async function handleDeleteCall(callId: string) {
-    const { error } = await supabase
-      .from("day_calls")
-      .delete()
-      .eq("id", callId);
-    if (!error) fetchCalls();
+    if (Platform.OS === "web") {
+      if (window.confirm("Supprimer cette convocation ?")) {
+        const { error } = await supabase
+          .from("day_calls")
+          .delete()
+          .eq("id", callId);
+        if (!error) fetchCalls();
+      }
+      return;
+    }
+
+    Alert.alert("Supprimer", "Supprimer cette convocation ?", [
+      { text: "Annuler", style: "cancel" },
+      {
+        text: "Supprimer",
+        style: "destructive",
+        onPress: async () => {
+          const { error } = await supabase
+            .from("day_calls")
+            .delete()
+            .eq("id", callId);
+          if (!error) fetchCalls();
+        },
+      },
+    ]);
   }
 
   function openCallModal() {
@@ -393,15 +676,31 @@ export default function DayDetailScreen() {
           <Ionicons name="arrow-back" size={24} color="#000" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>
-          {day.date
-            ? new Date(day.date).toLocaleDateString()
-            : "Nouvelle Journée"}
+          {(() => {
+            if (!day.date) return "Nouvelle Journée";
+            if (day.date.includes("-")) {
+              const [y, m, d] = day.date.split("-");
+              return `${m}/${d}/${y}`;
+            }
+            return day.date;
+          })()}
         </Text>
-        <TouchableOpacity onPress={() => setEditing(!editing)}>
-          <Text style={{ color: Colors.light.tint, fontWeight: "600" }}>
-            {editing ? "Annuler" : "Modifier"}
-          </Text>
-        </TouchableOpacity>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 15 }}>
+          {!editing && (
+            <TouchableOpacity onPress={handleDeleteDay}>
+              <Ionicons
+                name="trash-outline"
+                size={24}
+                color={Colors.light.tint}
+              />
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity onPress={() => setEditing(!editing)}>
+            <Text style={{ color: Colors.light.tint, fontWeight: "600" }}>
+              {editing ? "Annuler" : "Modifier"}
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView
@@ -518,6 +817,29 @@ export default function DayDetailScreen() {
               <View style={styles.badge}>
                 <Text style={styles.badgeText}>{day.day_type}</Text>
               </View>
+              {dayWeather && (
+                <View
+                  style={[
+                    styles.badge,
+                    {
+                      backgroundColor: "#e7f5ff",
+                      flexDirection: "row",
+                      gap: 6,
+                    },
+                  ]}
+                >
+                  <Ionicons
+                    name={
+                      getWeatherCodeInfo(dayWeather.weathercode).icon as any
+                    }
+                    size={16}
+                    color="#1c7ed6"
+                  />
+                  <Text style={[styles.badgeText, { color: "#1c7ed6" }]}>
+                    {Math.round(dayWeather.temperature_2m)}°C
+                  </Text>
+                </View>
+              )}
               <Text style={styles.infoText}>
                 Call: {day.call_time || "--:--"} {"->"} Wrap:{" "}
                 {day.wrap_time || "--:--"}
@@ -527,66 +849,138 @@ export default function DayDetailScreen() {
         </View>
 
         {/* 2. ORGANIZATION (SCENES) */}
-        {!editing && (
-          <View style={styles.card}>
-            <View
-              style={{ flexDirection: "row", justifyContent: "space-between" }}
-            >
-              <Text style={styles.cardTitle}>
-                Organisation ({linkedScenes.length} seq)
-              </Text>
-              <TouchableOpacity onPress={fetchAvailableScenes}>
-                <Ionicons
-                  name="add-circle-outline"
-                  size={24}
-                  color={Colors.light.tint}
-                />
+        {/* EDITING MODE: Include Scenes in Edit Logic if requested, but for now user wants to edit day details.
+            User asked to MATCH the CREATE form. The CREATE form has Scenes in the middle.
+            Current logic hides Scenes when Editing (!editing && ...).
+            We should SHOW scenes when editing, or at least provided a way to manage them.
+            The user said "le formulaire de modifier... pour qu'il match avec la nouvelle création".
+            In Creation we pick scenes. Here we already have linked scenes.
+            If we enable Scene Linking inside the "Edit Form", it's a big UI change.
+            However, seeing the screenshot, the "Organisation" block is GONE in edit mode.
+            The fix is likely to display the Organization block even in editing mode,
+            or make it editable.
+            Given the request, I will enable the "Organisation" block to be visible in Edit Mode
+            so it matches the "Creation" flow where everything is visible.
+        */}
+        <View style={styles.card}>
+          <View
+            style={{ flexDirection: "row", justifyContent: "space-between" }}
+          >
+            <Text style={styles.cardTitle}>
+              Organisation ({linkedScenes.length} seq)
+            </Text>
+            <TouchableOpacity onPress={fetchAvailableScenes}>
+              <Ionicons
+                name="add-circle-outline"
+                size={24}
+                color={Colors.light.tint}
+              />
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.statsRow}>
+            <Text style={styles.statText}>Pages: {totalPages}</Text>
+            <Text style={styles.statText}>
+              Est: {Math.floor(totalEstMinutes / 60)}h{totalEstMinutes % 60}
+            </Text>
+          </View>
+
+          {linkedScenes.map((item, index) => (
+            <View key={item.id} style={styles.sceneItem}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.sceneTitle}>
+                  <Text
+                    style={{
+                      fontWeight: "600",
+                      color: item.schedule_time ? "#000" : "#999",
+                      fontSize: 13,
+                      marginRight: 8,
+                    }}
+                  >
+                    {item.schedule_time
+                      ? item.schedule_time.slice(0, 5)
+                      : "--:--"}
+                    {"   |   "}
+                  </Text>
+                  <Text
+                    style={{ fontWeight: "bold", color: Colors.light.tint }}
+                  >
+                    SC. {item.scene?.scene_number}
+                  </Text>
+                  {item.scene?.title && (
+                    <Text style={{ fontWeight: "bold", color: "#000" }}>
+                      {" - "}
+                      {item.scene.title.toUpperCase()}
+                    </Text>
+                  )}
+                </Text>
+                <Text style={{ color: "#333", marginTop: 2 }}>
+                  {item.scene?.int_ext} {item.scene?.slugline} -{" "}
+                  {item.scene?.day_night}
+                </Text>
+                <View style={{ flexDirection: "row", gap: 5, marginTop: 4 }}>
+                  {weatherData[item.id] && (
+                    <View
+                      style={[
+                        styles.miniTag,
+                        {
+                          flexDirection: "row",
+                          alignItems: "center",
+                          gap: 4,
+                          backgroundColor: "#e7f5ff",
+                        },
+                      ]}
+                    >
+                      <Ionicons
+                        name={
+                          getWeatherCodeInfo(weatherData[item.id].weathercode)
+                            .icon as any
+                        }
+                        size={12}
+                        color="#1c7ed6"
+                      />
+                      <Text
+                        style={{
+                          fontSize: 10,
+                          fontWeight: "bold",
+                          color: "#1c7ed6",
+                        }}
+                      >
+                        {Math.round(weatherData[item.id].temperature_2m)}°C
+                      </Text>
+                    </View>
+                  )}
+                  {item.scene?.location_type && (
+                    <Text style={styles.miniTag}>
+                      {item.scene.location_type}
+                    </Text>
+                  )}
+                  {item.scene?.script_pages && (
+                    <Text style={styles.miniTag}>
+                      {item.scene.script_pages} p
+                    </Text>
+                  )}
+                </View>
+              </View>
+              {/* Always allow unlinking/editing if we are in this view, 
+                    or maybe restrict to "editing" mode? 
+                    Actually, the original code had !editing wrapper. 
+                    I'm removing the wrapper so it's always visible.
+                    But in "Edit Mode" (editing=true), maybe we want to allow reordering?
+                    For now, just showing it makes it "match" the full view.
+                 */}
+              <TouchableOpacity onPress={() => handleUnlinkScene(item.id)}>
+                <Ionicons name="close-circle" size={20} color="#adb5bd" />
               </TouchableOpacity>
             </View>
+          ))}
 
-            <View style={styles.statsRow}>
-              <Text style={styles.statText}>Pages: {totalPages}</Text>
-              <Text style={styles.statText}>
-                Est: {Math.floor(totalEstMinutes / 60)}h{totalEstMinutes % 60}
-              </Text>
-            </View>
-
-            {linkedScenes.map((item, index) => (
-              <View key={item.id} style={styles.sceneItem}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.sceneTitle}>
-                    <Text
-                      style={{ fontWeight: "bold", color: Colors.light.tint }}
-                    >
-                      {item.scene?.scene_number}
-                    </Text>
-                    {" - "}
-                    {item.scene?.slugline}
-                  </Text>
-                  <View style={{ flexDirection: "row", gap: 5, marginTop: 4 }}>
-                    {item.scene?.location_type && (
-                      <Text style={styles.miniTag}>
-                        {item.scene.location_type}
-                      </Text>
-                    )}
-                    {item.scene?.day_night && (
-                      <Text style={styles.miniTag}>{item.scene.day_night}</Text>
-                    )}
-                  </View>
-                </View>
-                <TouchableOpacity onPress={() => handleUnlinkScene(item.id)}>
-                  <Ionicons name="close-circle" size={20} color="#adb5bd" />
-                </TouchableOpacity>
-              </View>
-            ))}
-
-            {linkedScenes.length === 0 && (
-              <Text style={{ color: "#999", fontStyle: "italic" }}>
-                Aucune séquence liée.
-              </Text>
-            )}
-          </View>
-        )}
+          {linkedScenes.length === 0 && (
+            <Text style={{ color: "#999", fontStyle: "italic" }}>
+              Aucune séquence liée.
+            </Text>
+          )}
+        </View>
 
         {/* 3. LOGISTICS */}
         <View style={styles.card}>
@@ -678,17 +1072,35 @@ export default function DayDetailScreen() {
             </>
           ) : (
             <>
-              <View style={styles.infoRow}>
-                <Ionicons name="location" size={18} color="#666" />
-                <Text style={styles.infoText}>
-                  {day.location || "Lieu non défini"}
-                </Text>
-              </View>
-              {day.address_street && (
-                <Text style={styles.subInfo}>
-                  {day.address_street}, {day.address_city}
-                </Text>
+              {allLocations.length > 0 ? (
+                allLocations.map((loc, idx) => (
+                  <View
+                    key={idx}
+                    style={{
+                      marginBottom: idx < allLocations.length - 1 ? 15 : 10,
+                    }}
+                  >
+                    <View style={styles.infoRow}>
+                      <Ionicons name="location" size={18} color="#666" />
+                      <Text style={styles.infoText}>
+                        {loc.name || "Lieu non défini"}
+                      </Text>
+                    </View>
+                    {loc.address_street ? (
+                      <Text style={styles.subInfo}>
+                        {loc.address_street}
+                        {loc.address_city ? `, ${loc.address_city}` : ""}
+                      </Text>
+                    ) : null}
+                  </View>
+                ))
+              ) : (
+                <View style={styles.infoRow}>
+                  <Ionicons name="location" size={18} color="#666" />
+                  <Text style={styles.infoText}>Lieu non défini</Text>
+                </View>
               )}
+
               {day.base_camp_location && (
                 <View style={styles.infoRow}>
                   <Ionicons name="bus" size={18} color="#666" />
@@ -873,14 +1285,28 @@ export default function DayDetailScreen() {
 
         {/* SAVE BUTTON */}
         {editing && (
-          <TouchableOpacity
-            style={styles.mainSaveButton}
-            onPress={handleUpdateDay}
-          >
-            <Text style={styles.mainSaveButtonText}>
-              Enregistrer les modifications
-            </Text>
-          </TouchableOpacity>
+          <View>
+            <TouchableOpacity
+              style={styles.mainSaveButton}
+              onPress={handleUpdateDay}
+            >
+              <Text style={styles.mainSaveButtonText}>
+                Enregistrer les modifications
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.mainSaveButton,
+                { backgroundColor: "#fff0f6", marginTop: -10 },
+              ]}
+              onPress={handleDeleteDay}
+            >
+              <Text style={[styles.mainSaveButtonText, { color: "#c92a2a" }]}>
+                Supprimer la journée
+              </Text>
+            </TouchableOpacity>
+          </View>
         )}
 
         {/* 6. CALLS */}

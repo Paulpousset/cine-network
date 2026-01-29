@@ -9,11 +9,11 @@ import * as Linking from "expo-linking";
 import { Stack, usePathname, useRouter, useSegments } from "expo-router";
 import { useEffect, useState } from "react";
 import {
-    Platform,
-    Text,
-    TouchableOpacity,
-    useWindowDimensions,
-    View,
+  Platform,
+  Text,
+  TouchableOpacity,
+  useWindowDimensions,
+  View,
 } from "react-native";
 import { supabase } from "../lib/supabase";
 
@@ -25,7 +25,7 @@ export default function RootLayout() {
   const { width } = useWindowDimensions();
   const isWebLarge = Platform.OS === "web" && width >= 768;
   const segments = useSegments();
-  const pathname = usePathname();
+  const pathname = usePathname() as string;
   const router = useRouter();
 
   useEffect(() => {
@@ -218,6 +218,7 @@ export default function RootLayout() {
       {session &&
         isWebLarge &&
         !pathname.includes("direct-messages") &&
+        !pathname.includes("spaces") &&
         !pathname.includes("update-password") && (
           <FloatingChatWidget userId={session.user.id} />
         )}
