@@ -14,6 +14,7 @@ import {
 import { supabase } from "../../../../lib/supabase";
 
 const CATEGORY_COLORS: Record<string, string> = {
+  general: "#78909C",
   realisateur: "#E91E63",
   acteur: "#9C27B0",
   image: "#2196F3",
@@ -96,7 +97,7 @@ export default function ChatList() {
         const allUsedCategories = Array.from(
           new Set(roles.map((r: any) => r.category)),
         );
-        setChannels(allUsedCategories);
+        setChannels(["general", ...allUsedCategories]);
         setDebugInfo(
           `${debugMsg}\nCategories (Owner): ${allUsedCategories.length}`,
         );
@@ -107,7 +108,11 @@ export default function ChatList() {
         const myCategories = myRoles.map((r: any) => r.category);
         const accessible = Array.from(new Set(myCategories));
 
-        setChannels(accessible as string[]);
+        if (accessible.length > 0) {
+          setChannels(["general", ...(accessible as string[])]);
+        } else {
+          setChannels([]);
+        }
         setDebugInfo(`${debugMsg}\nMy Roles: ${myRoles.length}`);
       }
     } catch (e: any) {
@@ -220,7 +225,9 @@ export default function ChatList() {
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.channelTitle}>
-                  Équipe {item.toUpperCase()}
+                  {item === "general"
+                    ? "Espace Général"
+                    : `Équipe ${item.toUpperCase()}`}
                 </Text>
                 <Text
                   style={{ fontSize: 12, color: Colors.light.tabIconDefault }}

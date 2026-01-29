@@ -23,6 +23,16 @@ import AddressAutocomplete from "../components/AddressAutocomplete";
 import CityPicker from "../components/CityPicker";
 import CountryPicker from "../components/CountryPicker";
 
+const PROJECT_TYPES = [
+  { value: "court_metrage", label: "Court-métrage" },
+  { value: "long_metrage", label: "Long-métrage" },
+  { value: "serie", label: "Série" },
+  { value: "clip", label: "Clip" },
+  { value: "publicite", label: "Pub" },
+  { value: "documentaire", label: "Docu" },
+  { value: "etudiant", label: "Étudiant" },
+];
+
 export default function CreateTournage() {
   const router = useRouter();
 
@@ -429,24 +439,22 @@ export default function CreateTournage() {
 
           <Text style={styles.label}>Type</Text>
           <View style={styles.typeContainer}>
-            {["court_metrage", "clip", "serie"].map((t) => (
+            {PROJECT_TYPES.map((t) => (
               <TouchableOpacity
-                key={t}
+                key={t.value}
                 style={[
                   styles.typeButton,
-                  type === t && styles.typeButtonSelected,
+                  type === t.value && styles.typeButtonSelected,
                 ]}
-                onPress={() => setType(t)}
+                onPress={() => setType(t.value)}
               >
                 <Text
                   style={{
-                    color: type === t ? "white" : Colors.light.primary,
+                    color: type === t.value ? "white" : Colors.light.primary,
                     fontWeight: "600",
                   }}
                 >
-                  {t === "court_metrage"
-                    ? "Court"
-                    : t.charAt(0).toUpperCase() + t.slice(1)}
+                  {t.label}
                 </Text>
               </TouchableOpacity>
             ))}
@@ -621,6 +629,7 @@ const styles = StyleSheet.create({
   },
   typeContainer: {
     flexDirection: "row",
+    flexWrap: "wrap",
     gap: 10,
     marginTop: 8,
   },

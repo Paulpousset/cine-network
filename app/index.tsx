@@ -58,12 +58,14 @@ const DB_ROLE_MAPPING: Record<string, string> = {
 
 export default function AuthScreen() {
   const [isLogin, setIsLogin] = useState(true);
+  const [isReset, setIsReset] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [role, setRole] = useState("acteur");
   const [loading, setLoading] = useState(false);
   const [formError, setFormError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
 
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -91,7 +93,6 @@ export default function AuthScreen() {
     setLoading(true);
     const redirectTo = makeRedirectUri({
       scheme: "cinenetwork",
-      preferLocalhost: true,
     });
     console.log(
       "Resending confirmation to:",
@@ -123,8 +124,47 @@ export default function AuthScreen() {
     }
   }
 
+  async function resetPassword() {
+    const cleanEmail = email.trim();
+    if (!cleanEmail) {
+      Alert.alert("Erreur", "Veuillez entrer votre email.");
+      return;
+    }
+
+    setLoading(true);
+    setFormError("");
+    setSuccessMessage("");
+
+    const redirectTo =
+      Platform.OS === "web"
+        ? `${window.location.origin}/update-password`
+        : makeRedirectUri({
+            scheme: "cinenetwork",
+            path: "update-password",
+          });
+
+    const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
+      redirectTo,
+    });
+
+    setLoading(false);
+
+    if (error) {
+      setFormError(error.message);
+      Alert.alert("Erreur", error.message);
+    } else {
+      const msg = "Un email de réinitialisation a été envoyé.";
+      setSuccessMessage(msg);
+      Alert.alert("Succès", msg);
+      // Optional: switch back to login after success
+      // setIsReset(false);
+      // setIsLogin(true);
+    }
+  }
+
   async function signIn() {
     setLoading(true);
+    setSuccessMessage("");
     setFormError("");
     const cleanEmail = email.trim();
     if (!cleanEmail) {
@@ -168,6 +208,9 @@ export default function AuthScreen() {
   }
 
   async function signUp() {
+    setFormError("");
+    setSuccessMessage("");
+
     if (!email || !password || !fullName) {
       Alert.alert("Erreur", "Veuillez remplir tous les champs.");
       return;
@@ -183,13 +226,13 @@ export default function AuthScreen() {
 
     setLoading(true);
 
-    // Create a redirect URL for email confirmation
+    // Retour à la configuration automatique pour éviter le blocage de l'envoi
     const redirectTo = makeRedirectUri({
       scheme: "cinenetwork",
-      preferLocalhost: true,
     });
 
     try {
+      console.log("Calling supabase.auth.signUp with:", email, role);
       const {
         data: { session, user },
         error,
@@ -204,6 +247,8 @@ export default function AuthScreen() {
           },
         },
       });
+
+      console.log("Supabase response:", { session, user, error });
 
       if (error) {
         console.error("Signup Error Object:", error);
@@ -230,10 +275,10 @@ export default function AuthScreen() {
           Alert.alert("Erreur Inscription", error.message);
         }
       } else if (!session && user) {
-        Alert.alert(
-          "Inscription réussie !",
-          "Un email de validation vous a été envoyé. Veuillez vérifier votre boîte mail (et vos spams) pour confirmer votre compte.",
-        );
+        const msg =
+          "Un email de validation vous a été envoyé. Veuillez vérifier votre boîte mail (et vos spams) pour confirmer votre compte.";
+        Alert.alert("Inscription réussie !", msg);
+        setSuccessMessage(msg);
         setIsLogin(true); // Switch back to login
       } else if (session) {
         Alert.alert("Bienvenue !", `Compte créé en tant que ${role}`);
@@ -254,7 +299,6 @@ export default function AuthScreen() {
     try {
       const redirectTo = makeRedirectUri({
         scheme: "cinenetwork",
-        preferLocalhost: true,
       });
 
       if (Platform.OS === "web") {
@@ -332,6 +376,26 @@ export default function AuthScreen() {
     setLoading(false);
   }
 
+  // --- Render content based on mode ---
+
+  const titleText = isReset
+    ? "Mot de passe"
+    : isLogin
+      ? "Connexion"
+      : "Rejoindre";
+  const subtitleText = isReset
+    ? "Entrez votre email pour réinitialiser."
+    : isLogin
+      ? "Heureux de vous revoir sur Cine Network"
+      : "Créez votre compte et rejoignez le cast";
+
+  const buttonAction = isReset ? resetPassword : isLogin ? signIn : signUp;
+  const buttonText = isReset
+    ? "Envoyer le lien"
+    : isLogin
+      ? "Se connecter"
+      : "S'inscrire";
+
   return (
     <LinearGradient
       colors={[Colors.light.tint, "#2c1a4d"]} // Gradient violet/foncé
@@ -348,22 +412,40 @@ export default function AuthScreen() {
         >
           <View style={styles.headerContainer}>
             <Text style={styles.emojiLogo}>🎬</Text>
-            <Text style={styles.title}>
-              {isLogin ? "Connexion" : "Rejoindre"}
-            </Text>
-            <Text style={styles.subtitle}>
-              {isLogin
-                ? "Heureux de vous revoir sur Cine Network"
-                : "Créez votre compte et rejoignez le cast"}
-            </Text>
+            <Text style={styles.title}>{titleText}</Text>
+            <Text style={styles.subtitle}>{subtitleText}</Text>
           </View>
 
           {/* Form Fields */}
           <View style={styles.formContainer}>
+            {successMessage ? (
+              <View
+                style={{
+                  backgroundColor: "#e8f5e9",
+                  padding: 10,
+                  borderRadius: 8,
+                  marginBottom: 15,
+                  borderWidth: 1,
+                  borderColor: "#c8e6c9",
+                }}
+              >
+                <Text
+                  style={{
+                    color: "#2e7d32",
+                    fontSize: 14,
+                    textAlign: "center",
+                  }}
+                >
+                  {successMessage}
+                </Text>
+              </View>
+            ) : null}
+
             {formError ? (
               <Text style={styles.errorText}>{formError}</Text>
             ) : null}
-            {!isLogin && (
+
+            {!isLogin && !isReset && (
               <View style={styles.inputWrapper}>
                 <Ionicons
                   name="person-outline"
@@ -400,24 +482,48 @@ export default function AuthScreen() {
               />
             </View>
 
-            <View style={styles.inputWrapper}>
-              <Ionicons
-                name="lock-closed-outline"
-                size={20}
-                color="#666"
-                style={styles.inputIcon}
-              />
-              <TextInput
-                placeholder="Mot de passe"
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry
-                style={styles.input}
-                placeholderTextColor="#999"
-              />
-            </View>
+            {!isReset && (
+              <View>
+                <View style={styles.inputWrapper}>
+                  <Ionicons
+                    name="lock-closed-outline"
+                    size={20}
+                    color="#666"
+                    style={styles.inputIcon}
+                  />
+                  <TextInput
+                    placeholder="Mot de passe"
+                    value={password}
+                    onChangeText={setPassword}
+                    secureTextEntry
+                    style={styles.input}
+                    placeholderTextColor="#999"
+                  />
+                </View>
+                {isLogin && (
+                  <TouchableOpacity
+                    onPress={() => {
+                      setIsReset(true);
+                      setSuccessMessage("");
+                      setFormError("");
+                    }}
+                    style={{ alignSelf: "flex-end", marginBottom: 15 }}
+                  >
+                    <Text
+                      style={{
+                        color: Colors.light.tint,
+                        fontSize: 12,
+                        fontWeight: "600",
+                      }}
+                    >
+                      Mot de passe oublié ?
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
 
-            {!isLogin && (
+            {!isLogin && !isReset && (
               <View style={styles.rolesSection}>
                 <Text style={styles.roleTitle}>Je suis :</Text>
                 <View style={styles.rolesContainer}>
@@ -456,53 +562,67 @@ export default function AuthScreen() {
                   transform: [{ scale: 1.02 }],
                   shadowOpacity: 0.4,
                 }}
-                onPress={isLogin ? signIn : signUp}
+                onPress={buttonAction}
               >
-                <Text style={styles.primaryButtonText}>
-                  {isLogin ? "Se connecter" : "S'inscrire"}
-                </Text>
+                <Text style={styles.primaryButtonText}>{buttonText}</Text>
               </Hoverable>
             )}
           </View>
 
-          <View style={styles.dividerContainer}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>OU</Text>
-            <View style={styles.dividerLine} />
-          </View>
+          {!isReset ? (
+            <>
+              <View style={styles.dividerContainer}>
+                <View style={styles.dividerLine} />
+                <Text style={styles.dividerText}>OU</Text>
+                <View style={styles.dividerLine} />
+              </View>
 
-          <View style={styles.socialButtons}>
-            <Hoverable
-              style={styles.socialButton}
-              hoverStyle={{ backgroundColor: "#f9f9f9" }}
-              onPress={signInWithGoogle}
-              disabled={loading}
-            >
-              <Ionicons name="logo-google" size={20} color="#EA4335" />
-              <Text style={styles.socialButtonText}>Google</Text>
-            </Hoverable>
+              <View style={styles.socialButtons}>
+                <Hoverable
+                  style={styles.socialButton}
+                  hoverStyle={{ backgroundColor: "#f9f9f9" }}
+                  onPress={signInWithGoogle}
+                  disabled={loading}
+                >
+                  <Ionicons name="logo-google" size={20} color="#EA4335" />
+                  <Text style={styles.socialButtonText}>Google</Text>
+                </Hoverable>
 
-            <Hoverable
-              style={styles.socialButton}
-              hoverStyle={{ backgroundColor: "#f9f9f9" }}
-              onPress={signInAsGuest}
-              disabled={loading}
-            >
-              <Ionicons name="person-outline" size={20} color="#374151" />
-              <Text style={styles.socialButtonText}>Invité</Text>
-            </Hoverable>
-          </View>
+                <Hoverable
+                  style={styles.socialButton}
+                  hoverStyle={{ backgroundColor: "#f9f9f9" }}
+                  onPress={signInAsGuest}
+                  disabled={loading}
+                >
+                  <Ionicons name="person-outline" size={20} color="#374151" />
+                  <Text style={styles.socialButtonText}>Invité</Text>
+                </Hoverable>
+              </View>
 
-          <View style={styles.footer}>
-            <Text style={styles.footerText}>
-              {isLogin ? "Pas encore de compte ?" : "Déjà un compte ?"}
-            </Text>
-            <TouchableOpacity onPress={() => setIsLogin(!isLogin)}>
-              <Text style={styles.linkText}>
-                {isLogin ? "Créer un compte" : "Se connecter"}
-              </Text>
-            </TouchableOpacity>
-          </View>
+              <View style={styles.footer}>
+                <Text style={styles.footerText}>
+                  {isLogin ? "Pas encore de compte ?" : "Déjà un compte ?"}
+                </Text>
+                <TouchableOpacity onPress={() => setIsLogin(!isLogin)}>
+                  <Text style={styles.linkText}>
+                    {isLogin ? "Créer un compte" : "Se connecter"}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </>
+          ) : (
+            <View style={styles.footer}>
+              <TouchableOpacity
+                onPress={() => {
+                  setIsReset(false);
+                  setSuccessMessage("");
+                  setFormError("");
+                }}
+              >
+                <Text style={styles.linkText}>Retour à la connexion</Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </Animated.View>
       </ScrollView>
     </LinearGradient>

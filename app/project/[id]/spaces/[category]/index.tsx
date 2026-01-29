@@ -30,9 +30,11 @@ import { SafeAreaView } from "react-native-safe-area-context";
 function ChatView({
   projectId,
   category,
+  canWrite,
 }: {
   projectId: string;
   category: string;
+  canWrite: boolean;
 }) {
   const [messages, setMessages] = useState<any[]>([]);
   const [inputText, setInputText] = useState("");
@@ -238,18 +240,26 @@ function ChatView({
           }}
         />
       )}
-      <View style={styles.inputContainer}>
-        <TextInput
-          style={styles.input}
-          value={inputText}
-          onChangeText={setInputText}
-          placeholder="Écrivez un message..."
-          placeholderTextColor="#999"
-        />
-        <TouchableOpacity onPress={sendMessage} style={styles.sendButton}>
-          <Ionicons name="send" size={20} color="white" />
-        </TouchableOpacity>
-      </View>
+      {canWrite ? (
+        <View style={styles.inputContainer}>
+          <TextInput
+            style={styles.input}
+            value={inputText}
+            onChangeText={setInputText}
+            placeholder="Écrivez un message..."
+            placeholderTextColor="#999"
+          />
+          <TouchableOpacity onPress={sendMessage} style={styles.sendButton}>
+            <Ionicons name="send" size={20} color="white" />
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <View style={[styles.inputContainer, { justifyContent: "center" }]}>
+          <Text style={{ color: "#999", fontStyle: "italic" }}>
+            Seuls les admins peuvent écrire dans ce canal.
+          </Text>
+        </View>
+      )}
     </KeyboardAvoidingView>
   );
 }
@@ -257,9 +267,11 @@ function ChatView({
 function FilesView({
   projectId,
   category,
+  canWrite,
 }: {
   projectId: string;
   category: string;
+  canWrite: boolean;
 }) {
   const [files, setFiles] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -378,13 +390,15 @@ function FilesView({
         </View>
       )}
 
-      <TouchableOpacity
-        style={fileStyles.uploadButton}
-        onPress={pickAndUploadFile}
-      >
-        <Ionicons name="cloud-upload-outline" size={24} color="#fff" />
-        <Text style={fileStyles.uploadButtonText}>Ajouter un fichier</Text>
-      </TouchableOpacity>
+      {canWrite && (
+        <TouchableOpacity
+          style={fileStyles.uploadButton}
+          onPress={pickAndUploadFile}
+        >
+          <Ionicons name="cloud-upload-outline" size={24} color="#fff" />
+          <Text style={fileStyles.uploadButtonText}>Ajouter un fichier</Text>
+        </TouchableOpacity>
+      )}
 
       {loading ? (
         <ClapLoading />
@@ -433,6 +447,51 @@ export default function ChannelSpace() {
   const [activeTab, setActiveTab] = useState<"chat" | "files" | "tools">(
     (local.tab as any) || "chat",
   );
+
+  const [canWrite, setCanWrite] = useState(true);
+
+  useEffect(() => {
+    async function checkWritePermission() {
+      if (category !== "general") {
+        setCanWrite(true);
+        return;
+      }
+
+      // Start conservative
+      setCanWrite(false);
+
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const userId = session.user.id;
+
+      // 1. Check Owner
+      const { data: project } = await supabase
+        .from("tournages")
+        .select("owner_id")
+        .eq("id", id)
+        .single();
+
+      if (project?.owner_id === userId) {
+        setCanWrite(true);
+        return;
+      }
+
+      // 2. Check Admin Role
+      const { data: roles } = await supabase
+        .from("project_roles")
+        .select("is_category_admin")
+        .eq("tournage_id", id)
+        .eq("assigned_profile_id", userId);
+
+      if (roles && roles.some((r) => r.is_category_admin)) {
+        setCanWrite(true);
+      }
+    }
+    checkWritePermission();
+  }, [id, category]);
 
   useEffect(() => {
     if (local.tab) {
@@ -486,11 +545,11 @@ export default function ChannelSpace() {
       {/* Content Area */}
       <View style={{ flex: 1 }}>
         {activeTab === "chat" && (
-          <ChatView projectId={id} category={category} />
+          <ChatView projectId={id} category={category} canWrite={canWrite} />
         )}
 
         {activeTab === "files" && (
-          <FilesView projectId={id} category={category} />
+          <FilesView projectId={id} category={category} canWrite={canWrite} />
         )}
 
         {activeTab === "tools" && isProduction && (

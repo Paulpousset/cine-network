@@ -5,24 +5,24 @@ import { supabase } from "@/lib/supabase";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image"; // Better image component
 import {
-  Stack,
-  useFocusEffect,
-  useLocalSearchParams,
-  useRouter,
+    Stack,
+    useFocusEffect,
+    useLocalSearchParams,
+    useRouter,
 } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
-  Alert,
-  AppState,
-  FlatList,
-  KeyboardAvoidingView,
-  Platform,
-  SafeAreaView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    Alert,
+    AppState,
+    FlatList,
+    KeyboardAvoidingView,
+    Platform,
+    SafeAreaView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 
 export default function DirectMessageChat() {
@@ -468,9 +468,10 @@ export default function DirectMessageChat() {
 const styles = StyleSheet.create({
   bubble: {
     maxWidth: "80%",
-    padding: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     borderRadius: 16,
-    marginBottom: 10,
+    marginBottom: 4,
   },
   bubbleMe: {
     alignSelf: "flex-end",
@@ -487,12 +488,12 @@ const styles = StyleSheet.create({
   },
   dateText: {
     fontSize: 10,
-    marginTop: 4,
+    marginTop: 2,
     alignSelf: "flex-end",
   },
   inputContainer: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-end",
     padding: 10,
     borderTopWidth: 1,
     borderTopColor: Colors.light.border,
@@ -505,5 +506,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
     paddingVertical: 10,
     maxHeight: 100,
+    minHeight: 40,
   },
 });

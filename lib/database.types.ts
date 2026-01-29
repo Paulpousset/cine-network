@@ -1,6 +1,3 @@
-Need to install the following packages:
-supabase@2.72.9
-Ok to proceed? (y) 
 export type Json =
   | string
   | number
@@ -959,6 +956,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      delete_user: { Args: never; Returns: undefined }
       get_conversations: {
         Args: never
         Returns: {

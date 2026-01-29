@@ -210,7 +210,9 @@ export default function RootLayout() {
         </Stack>
       </View>
       <NotificationToast />
-      {session && isWebLarge && <FloatingChatWidget userId={session.user.id} />}
+      {session && isWebLarge && !pathname.includes("direct-messages") && (
+        <FloatingChatWidget userId={session.user.id} />
+      )}
     </View>
   );
 }

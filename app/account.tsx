@@ -675,7 +675,9 @@ export default function Account() {
           <Ionicons name="arrow-back" size={24} color={Colors.light.text} />
         </TouchableOpacity>
         <Text style={[GlobalStyles.title2, { marginBottom: 0 }]}>
-          Mon Profil
+          {/* put the full name here  */}
+
+          {profile.full_name || "Mon Profil"}
         </Text>
         <TouchableOpacity
           onPress={saveProfile}
