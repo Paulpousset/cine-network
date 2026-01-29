@@ -9,11 +9,11 @@ import * as Linking from "expo-linking";
 import { Stack, usePathname, useRouter, useSegments } from "expo-router";
 import { useEffect, useState } from "react";
 import {
-  Platform,
-  Text,
-  TouchableOpacity,
-  useWindowDimensions,
-  View,
+    Platform,
+    Text,
+    TouchableOpacity,
+    useWindowDimensions,
+    View,
 } from "react-native";
 import { supabase } from "../lib/supabase";
 
@@ -70,7 +70,8 @@ export default function RootLayout() {
 
     // Définir la page de login comme étant la racine
     // On utilise pathname pour éviter les soucis avec segments vide lors des transitions
-    const inLoginPage = pathname === "/" || pathname === "";
+    const inLoginPage =
+      pathname === "/" || pathname === "" || pathname === "/update-password";
 
     console.log("Auth Check:", {
       hasSession: !!session,
@@ -83,8 +84,8 @@ export default function RootLayout() {
     if (!session && !inLoginPage) {
       router.replace("/"); // Hop, retour à l'accueil
     }
-    // SCÉNARIO 2 : Connecté mais encore sur la page de login
-    else if (session && inLoginPage) {
+    // SCÉNARIO 2 : Connecté mais encore sur la page de login (et pas update-password)
+    else if (session && pathname === "/" && pathname !== "/update-password") {
       router.replace("/my-projects"); // Hop, direction mes projets
     }
   }, [session, initialized, pathname]);
@@ -181,8 +182,12 @@ export default function RootLayout() {
     );
   }
 
-  // Hide sidebar on landing/login page
-  const showSidebar = isWebLarge && session && pathname !== "/";
+  // Hide sidebar on landing/login page and update-password page
+  const showSidebar =
+    isWebLarge &&
+    session &&
+    pathname !== "/" &&
+    pathname !== "/update-password";
 
   return (
     <View style={{ flex: 1, flexDirection: isWebLarge ? "row" : "column" }}>
@@ -210,9 +215,12 @@ export default function RootLayout() {
         </Stack>
       </View>
       <NotificationToast />
-      {session && isWebLarge && !pathname.includes("direct-messages") && (
-        <FloatingChatWidget userId={session.user.id} />
-      )}
+      {session &&
+        isWebLarge &&
+        !pathname.includes("direct-messages") &&
+        !pathname.includes("update-password") && (
+          <FloatingChatWidget userId={session.user.id} />
+        )}
     </View>
   );
 }
