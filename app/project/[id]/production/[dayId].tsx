@@ -2,28 +2,29 @@ import AddressAutocomplete from "@/app/components/AddressAutocomplete";
 import CityPicker from "@/app/components/CityPicker";
 import WebDatePicker from "@/components/WebDatePicker";
 import Colors from "@/constants/Colors";
+import { useUserMode } from "@/hooks/useUserMode";
 import { supabase } from "@/lib/supabase";
 import { getWeatherCodeInfo, WeatherService } from "@/services/WeatherService";
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import {
-  useGlobalSearchParams,
-  useLocalSearchParams,
-  useRouter,
+    useGlobalSearchParams,
+    useLocalSearchParams,
+    useRouter,
 } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
-  FlatList,
-  Modal,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    FlatList,
+    Modal,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 
 const DAY_TYPES = ["SHOOT", "SCOUT", "PREP", "OFF", "TRAVEL"];
@@ -73,6 +74,7 @@ const Selector = ({
 export default function DayDetailScreen() {
   const local = useLocalSearchParams();
   const global = useGlobalSearchParams();
+  const { mode } = useUserMode();
   const id = local.id || global.id; // Project ID
   const dayId = local.dayId; // Shoot Day ID
   const router = useRouter();
@@ -669,12 +671,14 @@ export default function DayDetailScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={{ marginRight: 15 }}
-        >
-          <Ionicons name="arrow-back" size={24} color="#000" />
-        </TouchableOpacity>
+        {mode !== "studio" && (
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={{ marginRight: 15 }}
+          >
+            <Ionicons name="arrow-back" size={24} color="#000" />
+          </TouchableOpacity>
+        )}
         <Text style={styles.headerTitle}>
           {(() => {
             if (!day.date) return "Nouvelle Journée";

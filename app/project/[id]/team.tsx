@@ -1,18 +1,19 @@
 import ClapLoading from "@/components/ClapLoading";
 import Colors from "@/constants/Colors";
 import { GlobalStyles } from "@/constants/Styles";
+import { useUserMode } from "@/hooks/useUserMode";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-  Image,
-  Platform,
-  SectionList,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-  useWindowDimensions,
+    Image,
+    Platform,
+    SectionList,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
+    useWindowDimensions,
 } from "react-native";
 import { supabase } from "../../../lib/supabase";
 
@@ -20,6 +21,7 @@ export default function ProjectTeam() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
   const { width } = useWindowDimensions();
+  const { mode } = useUserMode();
   const isWebLarge = Platform.OS === "web" && width >= 768;
   const [loading, setLoading] = useState(false);
   const [sections, setSections] = useState<any[]>([]);
@@ -127,7 +129,7 @@ export default function ProjectTeam() {
   return (
     <View style={styles.container}>
       <View style={[styles.header, isWebLarge && { paddingTop: 20 }]}>
-        {!isWebLarge && (
+        {!isWebLarge && mode !== "studio" && (
           <TouchableOpacity
             onPress={() => router.back()}
             style={styles.backButton}

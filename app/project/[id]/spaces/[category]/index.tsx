@@ -1,29 +1,30 @@
 import ClapLoading from "@/components/ClapLoading";
 import Colors from "@/constants/Colors";
 import { ALL_TOOLS, getDefaultTools } from "@/constants/Tools";
+import { useUserMode } from "@/hooks/useUserMode";
 import { supabase } from "@/lib/supabase";
 import { Ionicons } from "@expo/vector-icons";
 import { decode } from "base64-arraybuffer";
 import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system/legacy";
 import {
-  Stack,
-  useGlobalSearchParams,
-  useLocalSearchParams,
-  useRouter,
+    Stack,
+    useGlobalSearchParams,
+    useLocalSearchParams,
+    useRouter,
 } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
 import React, { useEffect, useRef, useState } from "react";
 import {
-  Alert,
-  FlatList,
-  KeyboardAvoidingView,
-  Platform,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    Alert,
+    FlatList,
+    KeyboardAvoidingView,
+    Platform,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -449,6 +450,7 @@ function FilesView({
 export default function ChannelSpace() {
   const local = useLocalSearchParams();
   const global = useGlobalSearchParams();
+  const { mode } = useUserMode();
   // Robust ID retrieval
   const id = (local.id as string) || (global.id as string);
   const category = (local.category as string) || (global.category as string);
@@ -566,14 +568,19 @@ export default function ChannelSpace() {
         options={{
           headerShown: true,
           headerTitleAlign: "center",
-          headerLeft: () => (
-            <TouchableOpacity
-              onPress={() => router.back()}
-              style={{ padding: 10 }}
-            >
-              <Ionicons name="arrow-back" size={24} color={Colors.light.text} />
-            </TouchableOpacity>
-          ),
+          headerLeft: () =>
+            mode !== "studio" ? (
+              <TouchableOpacity
+                onPress={() => router.back()}
+                style={{ padding: 10 }}
+              >
+                <Ionicons
+                  name="arrow-back"
+                  size={24}
+                  color={Colors.light.text}
+                />
+              </TouchableOpacity>
+            ) : null,
           headerTitle: `Espace ${(category || "").toUpperCase()}`,
         }}
       />

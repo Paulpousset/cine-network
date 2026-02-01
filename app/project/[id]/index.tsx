@@ -3,6 +3,7 @@ import PaymentModal from "@/components/PaymentModal";
 import RoleFormFields from "@/components/RoleFormFields";
 import Colors from "@/constants/Colors";
 import { GlobalStyles } from "@/constants/Styles";
+import { useUserMode } from "@/hooks/useUserMode";
 import { JOB_TITLES } from "@/utils/roles";
 import { fuzzySearch } from "@/utils/search";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
@@ -304,6 +305,7 @@ export default function ProjectDetails() {
   const router = useRouter();
   const { width } = useWindowDimensions();
   const isLargeScreen = width > 768; // Tablet/Desktop breakpoint
+  const { mode } = useUserMode();
 
   const [project, setProject] = useState<any>(null);
   const [roles, setRoles] = useState<any[]>([]);
@@ -1340,23 +1342,27 @@ export default function ProjectDetails() {
               alignItems: "center",
             }}
           >
-            <TouchableOpacity
-              onPress={() => router.replace("/(tabs)/my-projects")}
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                gap: 5,
-                backgroundColor: "#f0f0f0",
-                paddingHorizontal: 12,
-                paddingVertical: 8,
-                borderRadius: 20,
-              }}
-            >
-              <Ionicons name="home" size={18} color="#333" />
-              <Text style={{ fontSize: 12, fontWeight: "600", color: "#333" }}>
-                Accueil
-              </Text>
-            </TouchableOpacity>
+            {mode !== "studio" && (
+              <TouchableOpacity
+                onPress={() => router.replace("/(tabs)/my-projects")}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 5,
+                  backgroundColor: "#f0f0f0",
+                  paddingHorizontal: 12,
+                  paddingVertical: 8,
+                  borderRadius: 20,
+                }}
+              >
+                <Ionicons name="home" size={18} color="#333" />
+                <Text
+                  style={{ fontSize: 12, fontWeight: "600", color: "#333" }}
+                >
+                  Accueil
+                </Text>
+              </TouchableOpacity>
+            )}
 
             <View
               style={{ alignItems: "center", flex: 1, marginHorizontal: 10 }}

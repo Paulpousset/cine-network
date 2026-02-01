@@ -1,9 +1,16 @@
 import { useColorScheme } from "@/components/useColorScheme";
 import Colors from "@/constants/Colors";
+import { useUserMode } from "@/hooks/useUserMode";
 import { supabase } from "@/lib/supabase";
 import { Ionicons } from "@expo/vector-icons";
 import { BottomTabBarProps } from "@react-navigation/bottom-tabs";
-import { Stack, Tabs, useLocalSearchParams, useRouter } from "expo-router";
+import {
+  Stack,
+  Tabs,
+  useLocalSearchParams,
+  usePathname,
+  useRouter,
+} from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   Platform,
@@ -104,18 +111,21 @@ function CustomProjectTabBar({
 
 export default function ProjectIdLayout() {
   const { id } = useLocalSearchParams();
+  const projectId = Array.isArray(id) ? id[0] : id;
   const router = useRouter();
+  const { width } = useWindowDimensions();
   const [isOwner, setIsOwner] = useState(false);
   const [isMember, setIsMember] = useState(false);
+  const [userRole, setUserRole] = useState<string | null>(null);
+  const [userCategory, setUserCategory] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const colorScheme = useColorScheme();
 
   useEffect(() => {
     checkAccess();
-  }, [id]);
+  }, [projectId]);
 
   async function checkAccess() {
-    const projectId = Array.isArray(id) ? id[0] : id;
     if (!projectId || projectId === "undefined") return;
     try {
       setLoading(true);
@@ -141,17 +151,20 @@ export default function ProjectIdLayout() {
         setIsOwner(true);
         // Owner is implicitly a member
         setIsMember(true);
+        setUserRole("Administrateur");
       } else {
-        // Check Member
+        // Check Member and Role
         const { data: membership } = await supabase
           .from("project_roles")
-          .select("id")
+          .select("category, title")
           .eq("tournage_id", projectId)
           .eq("assigned_profile_id", userId)
-          .limit(1);
+          .maybeSingle();
 
-        if (membership && membership.length > 0) {
+        if (membership) {
           setIsMember(true);
+          setUserRole(membership.title);
+          setUserCategory(membership.category);
         }
       }
     } catch (e) {
@@ -162,9 +175,12 @@ export default function ProjectIdLayout() {
   }
 
   const isVisitor = !isOwner && !isMember;
+  const { mode } = useUserMode();
+  const isLargeScreen = width > 768;
+  const pathname = usePathname();
 
   return (
-    <>
+    <View style={{ flex: 1 }}>
       <Stack.Screen options={{ headerShown: false }} />
       <Tabs
         tabBar={(props) => (
@@ -288,7 +304,7 @@ export default function ProjectIdLayout() {
           }}
         />
       </Tabs>
-    </>
+    </View>
   );
 }
 

@@ -5,6 +5,7 @@ import ClapLoading from "@/components/ClapLoading";
 import WebDatePicker from "@/components/WebDatePicker";
 import Colors from "@/constants/Colors";
 import { GlobalStyles } from "@/constants/Styles";
+import { useUserMode } from "@/hooks/useUserMode";
 import { supabase } from "@/lib/supabase";
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
@@ -12,15 +13,15 @@ import * as ImagePicker from "expo-image-picker";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-  Alert,
-  Image,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    Alert,
+    Image,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 // @ts-ignore
 
@@ -36,6 +37,7 @@ const PROJECT_TYPES = [
 export default function ProjectSettings() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
+  const { mode } = useUserMode();
   const [project, setProject] = useState<any>(null);
   const [participants, setParticipants] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -392,12 +394,14 @@ export default function ProjectSettings() {
           borderBottomColor: Colors.light.border,
         }}
       >
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={{ marginRight: 10 }}
-        >
-          <Ionicons name="arrow-back" size={24} color={Colors.light.text} />
-        </TouchableOpacity>
+        {mode !== "studio" && (
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={{ marginRight: 10 }}
+          >
+            <Ionicons name="arrow-back" size={24} color={Colors.light.text} />
+          </TouchableOpacity>
+        )}
         <Text style={GlobalStyles.title1}>Paramètres du projet</Text>
       </View>
 

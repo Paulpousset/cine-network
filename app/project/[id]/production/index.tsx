@@ -1,5 +1,6 @@
 import WebDatePicker from "@/components/WebDatePicker";
 import Colors from "@/constants/Colors";
+import { useUserMode } from "@/hooks/useUserMode";
 import { Database } from "@/lib/database.types";
 import { supabase } from "@/lib/supabase";
 import { WeatherService, getWeatherCodeInfo } from "@/services/WeatherService";
@@ -349,6 +350,7 @@ const ShootDayItem = ({
 
 export default function ProductionScreen() {
   const router = useRouter();
+  const { mode } = useUserMode();
   const local = useLocalSearchParams<{ id: string }>();
   const global = useGlobalSearchParams<{ id: string }>();
   const id = local.id || global.id;
@@ -1151,21 +1153,23 @@ export default function ProductionScreen() {
       {/* Custom Header since Tabs/Stack header is hidden */}
       <View style={styles.header}>
         <View style={{ flexDirection: "row", alignItems: "center", flex: 1 }}>
-          <TouchableOpacity
-            onPress={() =>
-              router.push({
-                pathname: "/project/[id]/spaces/[category]",
-                params: {
-                  id: id as string,
-                  category: "production",
-                  tab: "tools",
-                },
-              })
-            }
-            style={{ marginRight: 15 }}
-          >
-            <Ionicons name="arrow-back" size={28} color="#000" />
-          </TouchableOpacity>
+          {mode !== "studio" && (
+            <TouchableOpacity
+              onPress={() =>
+                router.push({
+                  pathname: "/project/[id]/spaces/[category]",
+                  params: {
+                    id: id as string,
+                    category: "production",
+                    tab: "tools",
+                  },
+                })
+              }
+              style={{ marginRight: 15 }}
+            >
+              <Ionicons name="arrow-back" size={28} color="#000" />
+            </TouchableOpacity>
+          )}
           <Text style={styles.headerTitle}>Plan de Travail</Text>
         </View>
         {canEdit && (

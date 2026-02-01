@@ -1,5 +1,6 @@
 import AddressAutocomplete from "@/components/AddressAutocomplete";
 import Colors from "@/constants/Colors";
+import { useUserMode } from "@/hooks/useUserMode";
 import { Database } from "@/lib/database.types";
 import { supabase } from "@/lib/supabase";
 import { Ionicons } from "@expo/vector-icons";
@@ -9,18 +10,18 @@ import * as ImagePicker from "expo-image-picker";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
-  FlatList,
-  Image,
-  Modal,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    FlatList,
+    Image,
+    Modal,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 
 type ProjectSet = Database["public"]["Tables"]["project_sets"]["Row"];
@@ -59,6 +60,7 @@ const SecureImage = ({ path, style }: { path: string; style: any }) => {
 export default function SetsScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
+  const { mode } = useUserMode();
 
   const [loading, setLoading] = useState(true);
   const [sets, setSets] = useState<ProjectSet[]>([]);
@@ -392,22 +394,26 @@ export default function SetsScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() =>
-            router.push({
-              pathname: "/project/[id]/spaces/[category]",
-              params: {
-                id: id as string,
-                category: "production",
-                tab: "tools",
-              },
-            })
-          }
-          style={styles.backButton}
-        >
-          <Ionicons name="arrow-back" size={24} color="#000" />
-        </TouchableOpacity>
-        <Text style={styles.title}>Décors</Text>
+        {mode !== "studio" && (
+          <TouchableOpacity
+            onPress={() =>
+              router.push({
+                pathname: "/project/[id]/spaces/[category]",
+                params: {
+                  id: id as string,
+                  category: "production",
+                  tab: "tools",
+                },
+              })
+            }
+            style={styles.backButton}
+          >
+            <Ionicons name="arrow-back" size={24} color="#000" />
+          </TouchableOpacity>
+        )}
+        <Text style={[styles.title, mode === "studio" && { marginLeft: 15 }]}>
+          Décors
+        </Text>
         {accessLevel === "edit" && (
           <TouchableOpacity onPress={openCreateModal} style={styles.addButton}>
             <Ionicons name="add" size={24} color="#fff" />

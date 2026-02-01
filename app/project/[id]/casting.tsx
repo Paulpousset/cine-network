@@ -1,21 +1,22 @@
 import Colors from "@/constants/Colors";
+import { useUserMode } from "@/hooks/useUserMode";
 import { Database } from "@/lib/database.types";
 import { supabase } from "@/lib/supabase";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
-  FlatList,
-  Image,
-  Modal,
-  Platform,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    FlatList,
+    Image,
+    Modal,
+    Platform,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 
 type ProjectCharacter =
@@ -29,6 +30,7 @@ const FORBIDDEN_TITLES = ["Runner", "Chauffeur", "Cantine", "Runner/Chauffeur"];
 
 export default function CastingScreen() {
   const router = useRouter();
+  const { mode } = useUserMode();
   const { id } = useLocalSearchParams<{ id: string }>();
 
   const [loading, setLoading] = useState(true);
@@ -320,21 +322,23 @@ export default function CastingScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() =>
-            router.push({
-              pathname: "/project/[id]/spaces/[category]",
-              params: {
-                id: id as string,
-                category: "production",
-                tab: "tools",
-              },
-            })
-          }
-          style={{ padding: 4 }}
-        >
-          <Ionicons name="arrow-back" size={24} color="#000" />
-        </TouchableOpacity>
+        {mode !== "studio" && (
+          <TouchableOpacity
+            onPress={() =>
+              router.push({
+                pathname: "/project/[id]/spaces/[category]",
+                params: {
+                  id: id as string,
+                  category: "production",
+                  tab: "tools",
+                },
+              })
+            }
+            style={{ padding: 4 }}
+          >
+            <Ionicons name="arrow-back" size={24} color="#000" />
+          </TouchableOpacity>
+        )}
         <Text style={styles.headerTitle}>Casting & Personnages</Text>
         <TouchableOpacity
           onPress={() => setCreateModalVisible(true)}

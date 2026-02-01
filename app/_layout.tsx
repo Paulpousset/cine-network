@@ -4,18 +4,81 @@ import GlobalRealtimeListener from "@/components/GlobalRealtimeListener";
 import NotificationToast from "@/components/NotificationToast";
 import Sidebar from "@/components/Sidebar";
 import Colors from "@/constants/Colors";
+import {
+    UserModeProvider
+} from "@/providers/UserModeProvider";
 import { Session } from "@supabase/supabase-js";
 import * as Linking from "expo-linking";
 import { Stack, usePathname, useRouter, useSegments } from "expo-router";
 import { useEffect, useState } from "react";
 import {
-  Platform,
-  Text,
-  TouchableOpacity,
-  useWindowDimensions,
-  View,
+    Platform,
+    Text,
+    TouchableOpacity,
+    useWindowDimensions,
+    View,
 } from "react-native";
 import { supabase } from "../lib/supabase";
+
+import { useUserMode } from "@/hooks/useUserMode";
+
+function RootLayoutContent({
+  session,
+  isWebLarge,
+  pathname,
+}: {
+  session: Session | null;
+  isWebLarge: boolean;
+  pathname: string;
+}) {
+  const { isSidebarCollapsed } = useUserMode();
+
+  // Hide sidebar on landing/login page and update-password page
+  const showSidebar =
+    isWebLarge &&
+    session &&
+    pathname !== "/" &&
+    pathname !== "/update-password";
+
+  const sidebarWidth = isSidebarCollapsed ? 80 : 250;
+
+  return (
+    <View style={{ flex: 1, flexDirection: isWebLarge ? "row" : "column" }}>
+      {session && <GlobalRealtimeListener user={session.user} />}
+      {showSidebar ? <Sidebar /> : null}
+      <View
+        style={{
+          flex: 1,
+          paddingLeft: showSidebar ? sidebarWidth : 0,
+          transition: "padding-left 0.2s ease-in-out",
+        }}
+      >
+        <Stack
+          screenOptions={{
+            // On web, we often want to hide the nested stack headers to let the browser or a custom web nav manage it
+            headerShown: Platform.OS !== "web",
+          }}
+        >
+          <Stack.Screen name="index" options={{ headerShown: false }} />
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen name="project" options={{ headerShown: false }} />
+          <Stack.Screen name="network" options={{ headerShown: false }} />
+          <Stack.Screen name="profile/[id]" options={{ headerShown: false }} />
+          <Stack.Screen name="hall-of-fame" options={{ headerShown: false }} />
+          <Stack.Screen name="my-awards" options={{ headerShown: false }} />
+        </Stack>
+      </View>
+      <NotificationToast />
+      {session &&
+        isWebLarge &&
+        !pathname.includes("direct-messages") &&
+        !pathname.includes("spaces") &&
+        !pathname.includes("update-password") && (
+          <FloatingChatWidget userId={session.user.id} />
+        )}
+    </View>
+  );
+}
 
 export default function RootLayout() {
   const [session, setSession] = useState<Session | null>(null);
@@ -182,46 +245,13 @@ export default function RootLayout() {
     );
   }
 
-  // Hide sidebar on landing/login page and update-password page
-  const showSidebar =
-    isWebLarge &&
-    session &&
-    pathname !== "/" &&
-    pathname !== "/update-password";
-
   return (
-    <View style={{ flex: 1, flexDirection: isWebLarge ? "row" : "column" }}>
-      {session && <GlobalRealtimeListener user={session.user} />}
-      {showSidebar ? <Sidebar /> : null}
-      <View
-        style={{
-          flex: 1,
-          paddingLeft: showSidebar ? 250 : 0,
-        }}
-      >
-        <Stack
-          screenOptions={{
-            // On web, we often want to hide the nested stack headers to let the browser or a custom web nav manage it
-            headerShown: Platform.OS !== "web",
-          }}
-        >
-          <Stack.Screen name="index" options={{ headerShown: false }} />
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="project" options={{ headerShown: false }} />
-          <Stack.Screen name="network" options={{ headerShown: false }} />
-          <Stack.Screen name="profile/[id]" options={{ headerShown: false }} />
-          <Stack.Screen name="hall-of-fame" options={{ headerShown: false }} />
-          <Stack.Screen name="my-awards" options={{ headerShown: false }} />
-        </Stack>
-      </View>
-      <NotificationToast />
-      {session &&
-        isWebLarge &&
-        !pathname.includes("direct-messages") &&
-        !pathname.includes("spaces") &&
-        !pathname.includes("update-password") && (
-          <FloatingChatWidget userId={session.user.id} />
-        )}
-    </View>
+    <UserModeProvider>
+      <RootLayoutContent
+        session={session}
+        isWebLarge={isWebLarge}
+        pathname={pathname}
+      />
+    </UserModeProvider>
   );
 }

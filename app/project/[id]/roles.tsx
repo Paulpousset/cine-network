@@ -2,6 +2,7 @@ import ClapLoading from "@/components/ClapLoading";
 import { Hoverable } from "@/components/Hoverable";
 import RoleFormFields from "@/components/RoleFormFields";
 import Colors from "@/constants/Colors";
+import { useUserMode } from "@/hooks/useUserMode";
 import { fuzzySearch } from "@/utils/search";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -77,6 +78,7 @@ type RoleItem = {
 export default function ManageRoles() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
+  const { mode } = useUserMode();
 
   const [roles, setRoles] = useState<RoleItem[]>([]);
   const [loading, setLoading] = useState(false);
@@ -891,21 +893,23 @@ export default function ManageRoles() {
     <View style={styles.container}>
       <View style={styles.header}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-          <TouchableOpacity
-            onPress={() =>
-              router.push({
-                pathname: "/project/[id]/spaces/[category]",
-                params: {
-                  id: id as string,
-                  category: "production",
-                  tab: "tools",
-                },
-              })
-            }
-            style={{ padding: 5 }}
-          >
-            <Ionicons name="arrow-back" size={24} color="black" />
-          </TouchableOpacity>
+          {mode !== "studio" && (
+            <TouchableOpacity
+              onPress={() =>
+                router.push({
+                  pathname: "/project/[id]/spaces/[category]",
+                  params: {
+                    id: id as string,
+                    category: "production",
+                    tab: "tools",
+                  },
+                })
+              }
+              style={{ padding: 5 }}
+            >
+              <Ionicons name="arrow-back" size={24} color="black" />
+            </TouchableOpacity>
+          )}
           <View>
             <Text style={styles.screenTitle}>Gestion des rôles</Text>
             <Text style={styles.subtitle}>{projectTitle}</Text>

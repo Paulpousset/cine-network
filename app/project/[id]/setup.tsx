@@ -1,6 +1,7 @@
 import ClapLoading from "@/components/ClapLoading";
 import RoleFormFields from "@/components/RoleFormFields";
 import Colors from "@/constants/Colors";
+import { useUserMode } from "@/hooks/useUserMode";
 import { JOB_TITLES } from "@/utils/roles";
 import { fuzzySearch } from "@/utils/search";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -69,6 +70,7 @@ export default function ProjectSetupWizard() {
   const params = useLocalSearchParams();
   const { id } = params;
   const router = useRouter();
+  const { mode } = useUserMode();
 
   const [project, setProject] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -317,12 +319,14 @@ export default function ProjectSetupWizard() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={{ marginBottom: 10 }}
-        >
-          <Text style={{ fontSize: 24 }}>←</Text>
-        </TouchableOpacity>
+        {mode !== "studio" && (
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={{ marginBottom: 10 }}
+          >
+            <Text style={{ fontSize: 24 }}>←</Text>
+          </TouchableOpacity>
+        )}
         <Text style={styles.title}>Préparer le tournage</Text>
         <Text style={styles.subtitle}>
           {project?.title} • {project?.type} • {project?.pays || "Pays ?"}{" "}

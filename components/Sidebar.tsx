@@ -1,6 +1,9 @@
 import Colors from "@/constants/Colors";
+import { getStudioTools } from "@/constants/Tools";
+import { useUserMode } from "@/hooks/useUserMode";
 import { appEvents, EVENTS } from "@/lib/events";
 import { supabase } from "@/lib/supabase";
+import { Ionicons } from "@expo/vector-icons";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { usePathname, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
@@ -8,6 +11,7 @@ import {
   AppState,
   Platform,
   StyleSheet,
+  Switch,
   Text,
   useWindowDimensions,
   View,
@@ -30,6 +34,8 @@ export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const { width } = useWindowDimensions();
+  const { mode, setUserMode, isSidebarCollapsed, setSidebarCollapsed } =
+    useUserMode();
 
   // Détection précise de l'ID du chat actuel
   const chatMatch = pathname.match(/\/direct-messages\/([^\/]+)/);
@@ -62,6 +68,11 @@ export default function Sidebar() {
 
   const [isOwner, setIsOwner] = useState(false);
   const [isMember, setIsMember] = useState(false);
+  const [userRole, setUserRole] = useState<string | null>(null);
+  const [userCategory, setUserCategory] = useState<string | null>(null);
+  const [currentProjectTitle, setCurrentProjectTitle] = useState<string | null>(
+    null,
+  );
 
   useEffect(() => {
     fetchRecentData();
@@ -102,7 +113,7 @@ export default function Sidebar() {
       unsubscribeConnections();
       subscription.remove();
     };
-  }, []);
+  }, [mode]);
 
   async function fetchRecentData() {
     try {
@@ -112,15 +123,32 @@ export default function Sidebar() {
       if (!session) return;
       const userId = session.user.id;
 
-      // 1. Projets Récents (on exclut ceux du Hall of Fame / complétés)
-      const { data: projects } = await supabase
+      // 1. Projets Récents (Own + Participations)
+      // Own
+      const { data: ownProjects } = await supabase
         .from("tournages")
         .select("id, title")
         .eq("owner_id", userId)
         .neq("status", "completed")
         .order("created_at", { ascending: false })
-        .limit(4);
-      setRecentProjects(projects || []);
+        .limit(10);
+
+      // Participations
+      const { data: participationData } = await supabase
+        .from("project_roles")
+        .select("tournage:tournages (id, title)")
+        .eq("assigned_profile_id", userId)
+        .not("tournage", "is", null);
+
+      const participatedProjects = (participationData || [])
+        .map((p: any) => p.tournage)
+        .filter(
+          (t: any) =>
+            t && !ownProjects?.some((own: { id: string }) => own.id === t.id),
+        );
+
+      const allProjects = [...(ownProjects || []), ...participatedProjects];
+      setRecentProjects(allProjects);
 
       // 1.5 Pending Connections
       const { count: pendingCount } = await supabase
@@ -214,24 +242,38 @@ export default function Sidebar() {
 
       const { data: project } = await supabase
         .from("tournages")
-        .select("owner_id")
+        .select("owner_id, title")
         .eq("id", projectId)
         .maybeSingle();
 
-      if (project && project.owner_id === userId) {
-        setIsOwner(true);
-        setIsMember(true);
-      } else {
-        const { data: membership } = await supabase
-          .from("project_roles")
-          .select("id")
-          .eq("tournage_id", projectId)
-          .eq("assigned_profile_id", userId)
-          .limit(1);
-
-        if (membership && membership.length > 0) {
+      if (project) {
+        setCurrentProjectTitle(project.title);
+        if (project.owner_id === userId) {
+          setIsOwner(true);
           setIsMember(true);
+          setUserRole("Administrateur");
+        } else {
+          const { data: membership } = await supabase
+            .from("project_roles")
+            .select("category, title")
+            .eq("tournage_id", projectId)
+            .eq("assigned_profile_id", userId)
+            .maybeSingle();
+
+          if (membership) {
+            setIsMember(true);
+            setUserRole(membership.title);
+            setUserCategory(membership.category);
+          } else {
+            setIsMember(false);
+            setUserRole(null);
+            setUserCategory(null);
+          }
         }
+      } else {
+        setCurrentProjectTitle(null);
+        setIsOwner(false);
+        setIsMember(false);
       }
     } catch (e) {
       console.log("Error checking sidebar access:", e);
@@ -250,11 +292,6 @@ export default function Sidebar() {
       icon: "calendar",
       href: `/project/${projectId}/calendar`,
     },
-    {
-      name: "Logistique",
-      icon: "truck",
-      href: `/project/${projectId}/logistics`,
-    },
 
     { name: "Équipe", icon: "users", href: `/project/${projectId}/team` },
   ];
@@ -267,31 +304,160 @@ export default function Sidebar() {
     });
   }
 
-  const currentItems = isInsideProject ? PROJECT_ITEMS : NAVIGATION_ITEMS;
+  const isStudio = mode === "studio";
+
+  // Force l'expansion des projets en mode studio pour un accès rapide
+  useEffect(() => {
+    if (isStudio) {
+      setProjectsExpanded(true);
+    }
+  }, [isStudio]);
+
+  const studioItems = [
+    {
+      name: "Projets",
+      icon: "folder-open",
+      href: "/my-projects",
+      id: "projects",
+    },
+    { name: "Casting & Jobs", icon: "briefcase", href: "/jobs" },
+  ];
+
+  const currentItems =
+    isStudio && isInsideProject && projectId
+      ? getStudioTools(projectId, isOwner, userRole, userCategory).map((t) => ({
+          name: t.label,
+          icon: t.icon,
+          href: t.href,
+          isIonicons: true,
+          shortcut: (t as any).shortcut,
+        }))
+      : isInsideProject && !isStudio
+        ? PROJECT_ITEMS
+        : isStudio
+          ? studioItems
+          : NAVIGATION_ITEMS;
+
+  useEffect(() => {
+    if (Platform.OS !== "web" || !isStudio || !isInsideProject) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (
+        document.activeElement?.tagName === "INPUT" ||
+        document.activeElement?.tagName === "TEXTAREA" ||
+        (document.activeElement as HTMLElement)?.isContentEditable
+      ) {
+        return;
+      }
+
+      const key = e.key.toUpperCase();
+      const item = currentItems.find((i) => (i as any).shortcut === key);
+      if (item) {
+        e.preventDefault();
+        router.push(item.href as any);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isStudio, isInsideProject, currentItems, router]);
 
   const sidebarStyle: any = {
-    width: 250,
+    width: isSidebarCollapsed ? 80 : 250,
     backgroundColor: "#fff",
     borderRightWidth: 1,
     borderRightColor: "#eee",
     height: "100%",
-    padding: 20,
+    padding: isSidebarCollapsed ? 12 : 20,
+    paddingTop: 20,
     zIndex: 100,
     position: "fixed",
     left: 0,
     top: 0,
+    transition: "width 0.2s ease-in-out, padding 0.2s ease-in-out",
   };
 
   return (
     <View style={sidebarStyle}>
-      <View style={styles.header}>
-        <Text style={styles.logo}>
-          {isInsideProject ? "PROJET" : "CINE TITA"}
-        </Text>
+      <View
+        style={[
+          styles.header,
+          isSidebarCollapsed && { alignItems: "center", marginBottom: 20 },
+        ]}
+      >
+        {isSidebarCollapsed ? (
+          <Hoverable onPress={() => router.push("/")}>
+            <Text style={[styles.logo, { fontSize: 28 }]}>T</Text>
+          </Hoverable>
+        ) : isStudio && isInsideProject && currentProjectTitle ? (
+          <View>
+            <Text
+              style={[styles.logo, { fontSize: 16, marginBottom: 4 }]}
+              numberOfLines={2}
+            >
+              {currentProjectTitle.toUpperCase()}
+            </Text>
+            <Hoverable
+              onPress={() => router.push("/my-projects")}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 6,
+              }}
+            >
+              <FontAwesome
+                name="exchange"
+                size={10}
+                color={Colors.light.tint}
+              />
+              <Text
+                style={{
+                  fontSize: 11,
+                  color: Colors.light.tint,
+                  fontWeight: "700",
+                }}
+              >
+                CHANGER DE PROJET
+              </Text>
+            </Hoverable>
+          </View>
+        ) : (
+          <Text style={styles.logo}>
+            {mode === "studio"
+              ? "STUDIO"
+              : isInsideProject
+                ? "PROJET"
+                : "CINE TITA"}
+          </Text>
+        )}
       </View>
 
       <View style={styles.menu}>
-        {isInsideProject && (
+        {mode === "studio" && !isInsideProject && (
+          <Hoverable
+            onPress={() => router.push("/project/new")}
+            hoverStyle={{ backgroundColor: Colors.light.tint + "DD" }}
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: isSidebarCollapsed ? "center" : "flex-start",
+              padding: isSidebarCollapsed ? 12 : 14,
+              borderRadius: 12,
+              gap: isSidebarCollapsed ? 0 : 12,
+              backgroundColor: Colors.light.tint,
+              marginBottom: 15,
+            }}
+          >
+            <FontAwesome name="plus-circle" size={18} color="white" />
+            {!isSidebarCollapsed && (
+              <Text style={{ color: "white", fontWeight: "700", fontSize: 16 }}>
+                Nouveau Projet
+              </Text>
+            )}
+          </Hoverable>
+        )}
+
+        {isInsideProject && mode !== "studio" && !isSidebarCollapsed && (
           <Hoverable
             onPress={() => router.push("/my-projects")}
             hoverStyle={{ backgroundColor: "#f5f5f5" }}
@@ -318,17 +484,18 @@ export default function Sidebar() {
             ? pathname === item.href
             : pathname.startsWith(item.href);
 
-          const isProjects = item.name === "Mes Projets";
-          const isChats = item.name === "Messages";
-          const expanded = isProjects
-            ? projectsExpanded
-            : isChats
-              ? chatsExpanded
-              : false;
+          const isProjects = (item as any).id === "projects";
+          const isChats = (item as any).id === "chats";
+          const isStudio = mode === "studio";
+
+          // Dans le mode studio, on affiche toujours les projets récents expanded pour un accès rapide
+          const expanded =
+            (isProjects && isStudio) ||
+            (isProjects ? projectsExpanded : isChats ? chatsExpanded : false);
 
           const toggleExpand = (e: any) => {
             e.stopPropagation();
-            if (isProjects) setProjectsExpanded(!projectsExpanded);
+            if (isProjects && !isStudio) setProjectsExpanded(!projectsExpanded);
             if (isChats) setChatsExpanded(!chatsExpanded);
           };
 
@@ -344,22 +511,31 @@ export default function Sidebar() {
                 style={{
                   flexDirection: "row",
                   alignItems: "center",
+                  justifyContent: isSidebarCollapsed ? "center" : "flex-start",
                   padding: 12,
                   borderRadius: 8,
-                  gap: 12,
+                  gap: isSidebarCollapsed ? 0 : 12,
                   backgroundColor: isActive
                     ? Colors.light.tint + "10"
                     : "transparent",
                 }}
               >
                 <View style={{ position: "relative" }}>
-                  <FontAwesome
-                    name={item.icon as any}
-                    size={20}
-                    color={isActive ? Colors.light.tint : "#666"}
-                  />
+                  {(item as any).isIonicons ? (
+                    <Ionicons
+                      name={item.icon as any}
+                      size={20}
+                      color={isActive ? Colors.light.tint : "#666"}
+                    />
+                  ) : (
+                    <FontAwesome
+                      name={item.icon as any}
+                      size={20}
+                      color={isActive ? Colors.light.tint : "#666"}
+                    />
+                  )}
                   {/* Badge Chat */}
-                  {isChats && !chatsExpanded && totalUnread > 0 && (
+                  {isChats && !expanded && totalUnread > 0 && (
                     <View
                       style={{
                         position: "absolute",
@@ -391,213 +567,250 @@ export default function Sidebar() {
                     />
                   )}
                 </View>
-                <Text
-                  style={{
-                    fontSize: 16,
-                    fontWeight: isActive ? "600" : "500",
-                    color: isActive ? Colors.light.tint : "#666",
-                    flex: 1,
-                  }}
-                >
-                  {item.name}
-                </Text>
-                {(isProjects || isChats) && (
-                  <Hoverable
-                    onPress={toggleExpand}
-                    hoverStyle={{ backgroundColor: "#eee", borderRadius: 4 }}
-                    style={{
-                      padding: 4,
-                      paddingRight: 0,
-                    }}
-                  >
-                    <FontAwesome
-                      name={expanded ? "chevron-down" : "chevron-right"}
-                      size={12}
-                      color="#999"
-                    />
-                  </Hoverable>
+                {!isSidebarCollapsed && (
+                  <>
+                    <Text
+                      style={{
+                        fontSize: 16,
+                        fontWeight: isActive ? "600" : "500",
+                        color: isActive ? Colors.light.tint : "#666",
+                        flex: 1,
+                      }}
+                    >
+                      {item.name}
+                    </Text>
+                    {isStudio && (item as any).shortcut && (
+                      <View
+                        style={{
+                          backgroundColor: "#f5f5f5",
+                          borderRadius: 4,
+                          paddingHorizontal: 6,
+                          paddingVertical: 2,
+                          borderWidth: 1,
+                          borderColor: "#ddd",
+                          borderBottomWidth: 2,
+                          marginLeft: 4,
+                        }}
+                      >
+                        <Text
+                          style={{
+                            fontSize: 10,
+                            fontWeight: "700",
+                            color: "#999",
+                          }}
+                        >
+                          {(item as any).shortcut}
+                        </Text>
+                      </View>
+                    )}
+                    {(isProjects || isChats) && (
+                      <Hoverable
+                        onPress={toggleExpand}
+                        hoverStyle={{
+                          backgroundColor: "#eee",
+                          borderRadius: 4,
+                        }}
+                        style={{
+                          padding: 4,
+                          paddingRight: 0,
+                        }}
+                      >
+                        <FontAwesome
+                          name={expanded ? "chevron-down" : "chevron-right"}
+                          size={12}
+                          color="#999"
+                        />
+                      </Hoverable>
+                    )}
+                  </>
                 )}
               </Hoverable>
 
               {/* Sous-items Projets */}
-              {isProjects && projectsExpanded && recentProjects.length > 0 && (
-                <View
-                  style={{
-                    marginLeft: 35,
-                    marginTop: 4,
-                    gap: 4,
-                    paddingRight: 5,
-                  }}
-                >
-                  {recentProjects.map((p) => {
-                    const isSelected = pathname.includes(`/project/${p.id}`);
-                    return (
-                      <Hoverable
-                        key={p.id}
-                        onPress={() => router.push(`/project/${p.id}`)}
-                        hoverStyle={{
-                          backgroundColor: isSelected
-                            ? Colors.light.tint + "25"
-                            : "#f0f0f0",
-                        }}
-                        style={{
-                          flexDirection: "row",
-                          alignItems: "center",
-                          paddingVertical: 7,
-                          paddingHorizontal: 10,
-                          backgroundColor: isSelected
-                            ? Colors.light.tint + "15"
-                            : "#fcfcfc",
-                          borderRadius: 6,
-                          gap: 8,
-                          borderLeftWidth: 3,
-                          borderLeftColor: isSelected
-                            ? Colors.light.tint
-                            : "transparent",
-                        }}
-                      >
-                        <FontAwesome
-                          name="film"
-                          size={10}
-                          color={isSelected ? Colors.light.tint : "#999"}
-                        />
-                        <Text
-                          numberOfLines={1}
+              {isProjects &&
+                expanded &&
+                !isSidebarCollapsed &&
+                recentProjects.length > 0 && (
+                  <View
+                    style={{
+                      marginLeft: 15,
+                      marginTop: 4,
+                      gap: 6,
+                      paddingRight: 5,
+                      borderLeftWidth: 2,
+                      borderLeftColor: isStudio
+                        ? Colors.light.tint + "40"
+                        : "#eee",
+                    }}
+                  >
+                    {recentProjects.map((p) => {
+                      const isSelected = pathname.includes(`/project/${p.id}`);
+                      return (
+                        <Hoverable
+                          key={p.id}
+                          onPress={() => router.push(`/project/${p.id}`)}
+                          hoverStyle={{
+                            backgroundColor: isSelected
+                              ? Colors.light.tint + "20"
+                              : "#f5f5f5",
+                          }}
                           style={{
-                            fontSize: 12,
-                            color: isSelected ? Colors.light.tint : "#555",
-                            fontWeight: isSelected ? "700" : "500",
-                            flex: 1,
+                            flexDirection: "row",
+                            alignItems: "center",
+                            paddingVertical: isStudio ? 10 : 7,
+                            paddingHorizontal: 12,
+                            backgroundColor: isSelected
+                              ? Colors.light.tint + "15"
+                              : "transparent",
+                            borderRadius: 8,
+                            gap: 10,
+                            marginLeft: 5,
                           }}
                         >
-                          {p.title}
-                        </Text>
-                      </Hoverable>
-                    );
-                  })}
-                </View>
-              )}
-
-              {/* Sous-items Chats */}
-              {isChats && chatsExpanded && recentChats.length > 0 && (
-                <View
-                  style={{
-                    marginLeft: 35,
-                    marginTop: 4,
-                    gap: 4,
-                    paddingRight: 5,
-                  }}
-                >
-                  {recentChats.map((c) => {
-                    // Comparaison plus robuste de l'ID
-                    const isSelected = currentChatId === c.id;
-                    // Force à 0 si on est déjà sur la discussion pour éviter le lag d'affichage
-                    const displayUnreadCount = isSelected
-                      ? 0
-                      : c.unreadCount || 0;
-
-                    return (
-                      <Hoverable
-                        key={c.id}
-                        onPress={() =>
-                          router.push({
-                            pathname: "/direct-messages/[id]",
-                            params: { id: c.id },
-                          })
-                        }
-                        hoverStyle={{
-                          backgroundColor: isSelected
-                            ? Colors.light.tint + "25"
-                            : "#f0f0f0",
-                        }}
-                        style={{
-                          flexDirection: "row",
-                          alignItems: "center",
-                          paddingVertical: 7,
-                          paddingHorizontal: 10,
-                          backgroundColor: isSelected
-                            ? Colors.light.tint + "15"
-                            : "#fcfcfc",
-                          borderRadius: 6,
-                          gap: 8,
-                          borderLeftWidth: 3,
-                          borderLeftColor: isSelected
-                            ? Colors.light.tint
-                            : "transparent",
-                        }}
-                      >
-                        <View style={{ position: "relative" }}>
-                          <View
+                          <FontAwesome
+                            name="film"
+                            size={isStudio ? 14 : 12}
+                            color={isSelected ? Colors.light.tint : "#888"}
+                          />
+                          <Text
+                            numberOfLines={1}
                             style={{
-                              width: 16,
-                              height: 16,
-                              borderRadius: 8,
-                              backgroundColor: "#ddd",
-                              alignItems: "center",
-                              justifyContent: "center",
+                              fontSize: isStudio ? 14 : 12,
+                              color: isSelected ? Colors.light.tint : "#444",
+                              fontWeight: isSelected ? "700" : "500",
+                              flex: 1,
                             }}
                           >
-                            <FontAwesome name="user" size={8} color="#fff" />
+                            {p.title}
+                          </Text>
+                        </Hoverable>
+                      );
+                    })}
+                  </View>
+                )}
+
+              {/* Sous-items Chats */}
+              {isChats &&
+                expanded &&
+                !isSidebarCollapsed &&
+                recentChats.length > 0 && (
+                  <View
+                    style={{
+                      marginLeft: 20,
+                      marginTop: 4,
+                      gap: 4,
+                      paddingRight: 5,
+                      borderLeftWidth: 1,
+                      borderLeftColor: "#eee",
+                    }}
+                  >
+                    {recentChats.map((c) => {
+                      // Comparaison plus robuste de l'ID
+                      const isSelected = currentChatId === c.id;
+                      // Force à 0 si on est déjà sur la discussion pour éviter le lag d'affichage
+                      const displayUnreadCount = isSelected
+                        ? 0
+                        : c.unreadCount || 0;
+
+                      return (
+                        <Hoverable
+                          key={c.id}
+                          onPress={() =>
+                            router.push({
+                              pathname: "/direct-messages/[id]",
+                              params: { id: c.id },
+                            })
+                          }
+                          hoverStyle={{
+                            backgroundColor: isSelected
+                              ? Colors.light.tint + "25"
+                              : "#f0f0f0",
+                          }}
+                          style={{
+                            flexDirection: "row",
+                            alignItems: "center",
+                            paddingVertical: 7,
+                            paddingHorizontal: 10,
+                            backgroundColor: isSelected
+                              ? Colors.light.tint + "15"
+                              : "transparent",
+                            borderRadius: 6,
+                            gap: 8,
+                            marginLeft: 10,
+                          }}
+                        >
+                          <View style={{ position: "relative" }}>
+                            <View
+                              style={{
+                                width: 16,
+                                height: 16,
+                                borderRadius: 8,
+                                backgroundColor: "#ddd",
+                                alignItems: "center",
+                                justifyContent: "center",
+                              }}
+                            >
+                              <FontAwesome name="user" size={8} color="#fff" />
+                            </View>
+                            {displayUnreadCount > 0 && (
+                              <View
+                                style={{
+                                  position: "absolute",
+                                  top: -2,
+                                  right: -2,
+                                  width: 8,
+                                  height: 8,
+                                  borderRadius: 4,
+                                  backgroundColor: Colors.light.tint,
+                                  borderWidth: 1.5,
+                                  borderColor: "#fcfcfc",
+                                }}
+                              />
+                            )}
                           </View>
+                          <Text
+                            numberOfLines={1}
+                            style={{
+                              fontSize: 12,
+                              color: isSelected ? Colors.light.tint : "#555",
+                              fontWeight:
+                                isSelected || displayUnreadCount > 0
+                                  ? "700"
+                                  : "500",
+                              flex: 1,
+                            }}
+                          >
+                            {c.full_name}
+                          </Text>
                           {displayUnreadCount > 0 && (
                             <View
                               style={{
-                                position: "absolute",
-                                top: -2,
-                                right: -2,
-                                width: 8,
-                                height: 8,
-                                borderRadius: 4,
                                 backgroundColor: Colors.light.tint,
-                                borderWidth: 1.5,
-                                borderColor: "#fcfcfc",
-                              }}
-                            />
-                          )}
-                        </View>
-                        <Text
-                          numberOfLines={1}
-                          style={{
-                            fontSize: 12,
-                            color: isSelected ? Colors.light.tint : "#555",
-                            fontWeight:
-                              isSelected || displayUnreadCount > 0
-                                ? "700"
-                                : "500",
-                            flex: 1,
-                          }}
-                        >
-                          {c.full_name}
-                        </Text>
-                        {displayUnreadCount > 0 && (
-                          <View
-                            style={{
-                              backgroundColor: Colors.light.tint,
-                              borderRadius: 10,
-                              minWidth: 18,
-                              height: 18,
-                              alignItems: "center",
-                              justifyContent: "center",
-                              paddingHorizontal: 4,
-                              marginLeft: "auto", // Pousse le badge à droite
-                            }}
-                          >
-                            <Text
-                              style={{
-                                color: "white",
-                                fontSize: 10,
-                                fontWeight: "bold",
+                                borderRadius: 10,
+                                minWidth: 18,
+                                height: 18,
+                                alignItems: "center",
+                                justifyContent: "center",
+                                paddingHorizontal: 4,
+                                marginLeft: "auto", // Pousse le badge à droite
                               }}
                             >
-                              {displayUnreadCount}
-                            </Text>
-                          </View>
-                        )}
-                      </Hoverable>
-                    );
-                  })}
-                </View>
-              )}
+                              <Text
+                                style={{
+                                  color: "white",
+                                  fontSize: 10,
+                                  fontWeight: "bold",
+                                }}
+                              >
+                                {displayUnreadCount}
+                              </Text>
+                            </View>
+                          )}
+                        </Hoverable>
+                      );
+                    })}
+                  </View>
+                )}
             </View>
           );
         })}
@@ -616,9 +829,10 @@ export default function Sidebar() {
           style={{
             flexDirection: "row",
             alignItems: "center",
+            justifyContent: isSidebarCollapsed ? "center" : "flex-start",
             padding: 12,
             borderRadius: 8,
-            gap: 12,
+            gap: isSidebarCollapsed ? 0 : 12,
             backgroundColor: pathname.startsWith("/account")
               ? Colors.light.tint + "10"
               : "transparent",
@@ -633,22 +847,96 @@ export default function Sidebar() {
             size={20}
             color={pathname.startsWith("/account") ? Colors.light.tint : "#666"}
           />
-          <Text
-            style={{
-              fontSize: 16,
-              fontWeight: pathname.startsWith("/account") ? "600" : "500",
-              color: pathname.startsWith("/account")
-                ? Colors.light.tint
-                : "#666",
-            }}
-          >
-            Mon Compte
-          </Text>
+          {!isSidebarCollapsed && (
+            <Text
+              style={{
+                fontSize: 16,
+                fontWeight: pathname.startsWith("/account") ? "600" : "500",
+                color: pathname.startsWith("/account")
+                  ? Colors.light.tint
+                  : "#666",
+              }}
+            >
+              Mon Compte
+            </Text>
+          )}
         </Hoverable>
       </View>
 
-      <View style={styles.footer}>
-        <Text style={styles.footerText}>© 2026 Cine Network</Text>
+      <View
+        style={[styles.footer, isSidebarCollapsed && { alignItems: "center" }]}
+      >
+        {/* Toggle Collapse/Expand Sidebar */}
+        <Hoverable
+          onPress={() => setSidebarCollapsed(!isSidebarCollapsed)}
+          hoverStyle={{ backgroundColor: "#f5f5f5" }}
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: isSidebarCollapsed ? "center" : "flex-start",
+            padding: 10,
+            borderRadius: 8,
+            gap: 10,
+            marginBottom: 10,
+          }}
+        >
+          <Ionicons
+            name={isSidebarCollapsed ? "chevron-forward" : "chevron-back"}
+            size={20}
+            color="#999"
+          />
+          {!isSidebarCollapsed && (
+            <Text style={{ fontSize: 13, color: "#999", fontWeight: "600" }}>
+              Réduire la barre
+            </Text>
+          )}
+        </Hoverable>
+
+        {/* Switch Mode Studio - Toujours visible sur Web Large */}
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: isSidebarCollapsed ? "center" : "space-between",
+            padding: isSidebarCollapsed ? 12 : 12,
+            backgroundColor:
+              mode === "studio" ? Colors.light.tint + "05" : "transparent",
+            borderRadius: 12,
+            borderWidth: 1,
+            borderColor: mode === "studio" ? Colors.light.tint + "20" : "#eee",
+            marginBottom: 10,
+          }}
+        >
+          {!isSidebarCollapsed && (
+            <Text
+              style={{
+                fontSize: 13,
+                fontWeight: "700",
+                color: mode === "studio" ? Colors.light.tint : "#666",
+              }}
+            >
+              MODE STUDIO
+            </Text>
+          )}
+          <Switch
+            value={mode === "studio"}
+            onValueChange={(val) => setUserMode(val ? "studio" : "search")}
+            trackColor={{ false: "#ccc", true: Colors.light.tint + "80" }}
+            thumbColor={mode === "studio" ? Colors.light.tint : "#f4f3f4"}
+            // @ts-ignore
+            style={
+              Platform.OS === "web"
+                ? {
+                    transform: isSidebarCollapsed ? "scale(0.8)" : "scale(0.8)",
+                  }
+                : {}
+            }
+          />
+        </View>
+
+        {!isSidebarCollapsed && (
+          <Text style={styles.footerText}>© 2026 Cine Network</Text>
+        )}
       </View>
     </View>
   );
