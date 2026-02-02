@@ -153,7 +153,7 @@ export default function CreateTournage() {
       )}&format=json&limit=1`;
       const res = await fetch(url, {
         headers: {
-          "User-Agent": "CineNetwork/1.0", // Nominatim requires a User-Agent
+          "User-Agent": "Tita/1.0", // Nominatim requires a User-Agent
         },
       });
       const data = await res.json();

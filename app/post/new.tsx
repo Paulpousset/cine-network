@@ -20,6 +20,7 @@ import ClapLoading from "@/components/ClapLoading";
 import Colors from "@/constants/Colors";
 import { GlobalStyles } from "@/constants/Styles";
 import { supabase } from "@/lib/supabase";
+import { postSchema } from "@/schemas/post";
 
 export default function NewPostScreen() {
   const [content, setContent] = useState("");
@@ -111,8 +112,15 @@ export default function NewPostScreen() {
   };
 
   const handlePost = async () => {
+    // Basic pre-validation for UI (Zod handles the rest)
     if (!content.trim() && !image) {
       Alert.alert("Erreur", "Veuillez ajouter du texte ou une image.");
+      return;
+    }
+
+    const validation = postSchema.safeParse({ content });
+    if (!validation.success) {
+      Alert.alert("Erreur", validation.error.errors[0].message);
       return;
     }
 

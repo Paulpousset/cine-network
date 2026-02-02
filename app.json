@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "cine-network",
+    "name": "Tita",
     "slug": "tita",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/logoapp.jpg",
-    "scheme": "cinenetwork",
+    "scheme": "tita",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
@@ -16,6 +16,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.titasorganization.tita",
+      "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
@@ -27,14 +28,30 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.titasorganization.tita"
+      "package": "com.titasorganization.tita",
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "bundler": "metro",
       "output": "static",
       "favicon": "./assets/images/logoapp.jpg"
     },
-    "plugins": ["expo-router", "expo-video", "expo-web-browser"],
+    "plugins": [
+      "./plugins/withModularHeaders",
+      "expo-router",
+      "expo-video",
+      "expo-web-browser",
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "useFrameworks": "static"
+          }
+        }
+      ],
+      "@react-native-firebase/app",
+      "@react-native-firebase/crashlytics"
+    ],
     "experiments": {
       "typedRoutes": true
     },

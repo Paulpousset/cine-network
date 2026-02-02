@@ -2,6 +2,7 @@ import ClapLoading from "@/components/ClapLoading";
 import { Hoverable } from "@/components/Hoverable";
 import Colors from "@/constants/Colors";
 import { supabase } from "@/lib/supabase";
+import { updatePasswordSchema } from "@/schemas/auth";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
@@ -14,11 +15,10 @@ export default function UpdatePasswordScreen() {
   const [loading, setLoading] = useState(false);
 
   async function updatePassword() {
-    if (password.length < 6) {
-      Alert.alert(
-        "Erreur",
-        "Le mot de passe doit contenir au moins 6 caractères.",
-      );
+    const result = updatePasswordSchema.safeParse({ password });
+
+    if (!result.success) {
+      Alert.alert("Erreur", result.error.errors[0].message);
       return;
     }
 

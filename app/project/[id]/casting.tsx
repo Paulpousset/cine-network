@@ -6,17 +6,17 @@ import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    FlatList,
-    Image,
-    Modal,
-    Platform,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  Image,
+  Modal,
+  Platform,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 type ProjectCharacter =
@@ -37,6 +37,8 @@ export default function CastingScreen() {
   const [roles, setRoles] = useState<ProjectCharacter[]>([]);
   const [hasAccess, setHasAccess] = useState(false);
   const [checkingAccess, setCheckingAccess] = useState(true);
+
+  const [projectData, setProjectData] = useState<any>(null);
 
   // Modals
   const [createModalVisible, setCreateModalVisible] = useState(false);
@@ -60,8 +62,20 @@ export default function CastingScreen() {
       checkPermissions();
       fetchRoles();
       fetchProjectActors();
+      fetchProjectData();
     }
   }, [id]);
+
+  const fetchProjectData = async () => {
+    const { data, error } = await supabase
+      .from("tournages")
+      .select("*")
+      .eq("id", id)
+      .single();
+    if (!error && data) {
+      setProjectData(data);
+    }
+  };
 
   const fetchProjectActors = async () => {
     // Fetch users who have an "acteur" role in this project
@@ -354,21 +368,18 @@ export default function CastingScreen() {
         </View>
       </View>
 
-      {loading ? (
-        <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color={Colors.light.tint} />
-        </View>
-      ) : (
-        <FlatList
-          data={roles}
-          renderItem={renderRoleItem}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.listContent}
-          ListEmptyComponent={
-            <Text style={styles.emptyText}>Aucun personnage créé.</Text>
-          }
-        />
-      )}
+      <View style={styles.centerContainer}>
+        <ActivityIndicator size="large" color={Colors.light.tint} />
+      </View>
+      <FlatList
+        data={roles}
+        renderItem={renderRoleItem}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={styles.listContent}
+        ListEmptyComponent={
+          <Text style={styles.emptyText}>Aucun personnage créé.</Text>
+        }
+      />
 
       {/* Create Character Modal */}
       <Modal

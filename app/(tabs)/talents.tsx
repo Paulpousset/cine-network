@@ -1,15 +1,14 @@
 import ClapLoading from "@/components/ClapLoading";
+import { TalentCard } from "@/components/TalentCard";
 import Colors from "@/constants/Colors";
 import { GlobalStyles } from "@/constants/Styles";
-import { appEvents, EVENTS } from "@/lib/events";
-import { supabase } from "@/lib/supabase";
+import { useTalents } from "@/hooks/useTalents";
 import { JOB_TITLES } from "@/utils/roles";
-import { fuzzySearch } from "@/utils/search";
 import { Ionicons } from "@expo/vector-icons";
+import { FlashList } from "@shopify/flash-list";
 import { useFocusEffect, useRouter } from "expo-router";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useState } from "react";
 import {
-    Alert,
     FlatList,
     Image,
     Modal,
@@ -26,236 +25,32 @@ const ROLE_CATEGORIES = ["all", ...Object.keys(JOB_TITLES)];
 
 export default function DiscoverProfiles() {
   const router = useRouter();
-  const [allProfiles, setAllProfiles] = useState<any[]>([]);
-  const [profiles, setProfiles] = useState<any[]>([]);
-  const [suggestedProfiles, setSuggestedProfiles] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadingSuggestions, setLoadingSuggestions] = useState(true);
-  const [pendingCount, setPendingCount] = useState(0);
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
-
-  // Filters State
-  const [selectedRole, setSelectedRole] = useState<string>("all");
-  const [selectedCity, setSelectedCity] = useState<string>("all");
-  const [query, setQuery] = useState<string>(""); // recherche libre (nom)
+  const {
+    profiles,
+    suggestedProfiles,
+    loading,
+    availableCities,
+    selectedRole,
+    setSelectedRole,
+    selectedCity,
+    setSelectedCity,
+    query,
+    setQuery,
+    fetchCurrentUserId,
+    fetchPendingCount,
+    sendConnectionRequest,
+  } = useTalents();
 
   // Modals
   const [categoryModalVisible, setCategoryModalVisible] = useState(false);
   const [cityModalVisible, setCityModalVisible] = useState(false);
-  const [availableCities, setAvailableCities] = useState<string[]>([]);
-
-  useEffect(() => {
-    fetchProfile();
-    const unsub = appEvents.on(EVENTS.PROFILE_UPDATED, fetchProfile);
-    return unsub;
-  }, []);
-
-  async function fetchProfile() {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    if (session) {
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("avatar_url")
-        .eq("id", session.user.id)
-        .single();
-      if (profile) setAvatarUrl(profile.avatar_url);
-    }
-  }
 
   useFocusEffect(
     useCallback(() => {
       fetchCurrentUserId();
       fetchPendingCount();
-    }, []),
+    }, [fetchCurrentUserId, fetchPendingCount]),
   );
-
-  async function fetchCurrentUserId() {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    if (session) {
-      setCurrentUserId(session.user.id);
-      fetchSuggestions(session.user.id);
-    }
-  }
-
-  async function fetchSuggestions(uid: string) {
-    try {
-      setLoadingSuggestions(true);
-
-      // 1. Trouver les IDs des tournages auxquels je participe ou que je possède
-      const { data: myOwned } = await supabase
-        .from("tournages")
-        .select("id")
-        .eq("owner_id", uid);
-
-      const { data: myParticipations } = await supabase
-        .from("project_roles")
-        .select("tournage_id")
-        .eq("assigned_profile_id", uid);
-
-      const myTournageIds = [
-        ...(myOwned?.map((t) => t.id) || []),
-        ...(myParticipations?.map((p) => p.tournage_id) || []),
-      ].filter((id) => id);
-
-      if (myTournageIds.length === 0) {
-        setSuggestedProfiles([]);
-        return;
-      }
-
-      // 2. Trouver tous les autres profils travaillant sur ces mêmes tournages
-      const { data: colleagues, error } = await supabase
-        .from("project_roles")
-        .select(
-          `
-          assigned_profile:profiles (*)
-        `,
-        )
-        .in("tournage_id", myTournageIds)
-        .not("assigned_profile_id", "is", null)
-        .neq("assigned_profile_id", uid);
-
-      if (error) throw error;
-
-      // 3. Récupérer mes relations actuelles (acceptées ou en attente) pour les exclure
-      const { data: myConnections } = await supabase
-        .from("connections")
-        .select("receiver_id, requester_id")
-        .or(`receiver_id.eq.${uid},requester_id.eq.${uid}`);
-
-      const connectedIds = new Set(
-        myConnections?.flatMap((c) => [c.receiver_id, c.requester_id]) || [],
-      );
-
-      // Dédupliquer les profils et exclure les relations existantes
-      const uniqueColleagues = new Map();
-      colleagues?.forEach((c: any) => {
-        if (
-          c.assigned_profile &&
-          !uniqueColleagues.has(c.assigned_profile.id) &&
-          !connectedIds.has(c.assigned_profile.id)
-        ) {
-          uniqueColleagues.set(c.assigned_profile.id, c.assigned_profile);
-        }
-      });
-
-      setSuggestedProfiles(Array.from(uniqueColleagues.values()));
-    } catch (e) {
-      console.error("Error fetching suggestions:", e);
-    } finally {
-      setLoadingSuggestions(false);
-    }
-  }
-
-  async function fetchPendingCount() {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    if (!session) return;
-    const { count } = await supabase
-      .from("connections")
-      .select("*", { count: "exact", head: true })
-      .eq("receiver_id", session.user.id)
-      .eq("status", "pending");
-    setPendingCount(count || 0);
-  }
-
-  // 1. Fetch data when server-side filters change
-  useEffect(() => {
-    fetchProfiles();
-    fetchCities();
-  }, [selectedRole, selectedCity]);
-
-  // 2. Client-side filtering when query or data changes
-  useEffect(() => {
-    const normalizedQuery = query.trim();
-    let filtered = allProfiles;
-
-    if (normalizedQuery) {
-      filtered = fuzzySearch(
-        allProfiles,
-        ["full_name", "username", "city", "ville", "location", "website"],
-        normalizedQuery,
-      );
-    }
-    setProfiles(filtered);
-  }, [query, allProfiles]);
-
-  async function fetchCities() {
-    try {
-      // Pour les profils, on regarde la colonne 'city' (ou ville/location selon le schéma)
-      // Supposons 'city' comme dans l'interface
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("city")
-        .not("city", "is", null);
-
-      if (error) throw error;
-      const cities = Array.from(
-        new Set(
-          data
-            ?.map((p) => p.city)
-            .filter((c) => c)
-            .map((c) => c!.trim()),
-        ),
-      ).sort();
-      setAvailableCities(["all", ...cities]);
-    } catch (e) {
-      console.log("Error fetching cities", e);
-    }
-  }
-
-  async function sendConnectionRequest(targetId: string) {
-    try {
-      if (!currentUserId) return;
-
-      const { error } = await supabase.from("connections").insert({
-        requester_id: currentUserId,
-        receiver_id: targetId,
-        status: "pending",
-      });
-
-      if (error) throw error;
-
-      Alert.alert("Succès", "Demande de connexion envoyée !");
-
-      // Mettre à jour la liste des suggestions localement
-      setSuggestedProfiles((prev) => prev.filter((p) => p.id !== targetId));
-    } catch (e: any) {
-      Alert.alert("Erreur", e.message || "Impossible d'envoyer la demande");
-    }
-  }
-
-  async function fetchProfiles() {
-    try {
-      setLoading(true);
-
-      // On récupère d'abord, avec filtre role côté serveur si possible
-      let q = supabase.from("profiles").select("*");
-
-      if (selectedRole !== "all") {
-        q = q.eq("role", selectedRole);
-      }
-
-      if (selectedCity !== "all") {
-        q = q.eq("city", selectedCity);
-      }
-
-      const { data, error } = await q;
-      if (error) throw error;
-
-      const list = (data as any[]) || [];
-      setAllProfiles(list);
-    } catch (error) {
-      Alert.alert("Erreur", (error as Error).message);
-    } finally {
-      setLoading(false);
-    }
-  }
 
   const renderFilterButton = (
     label: string,
@@ -268,51 +63,6 @@ export default function DiscoverProfiles() {
       <Ionicons name="chevron-down" size={16} color="#666" />
     </TouchableOpacity>
   );
-
-  function renderProfile({ item }: { item: any }) {
-    return (
-      <TouchableOpacity
-        style={GlobalStyles.card}
-        onPress={() =>
-          router.push({ pathname: "/profile/[id]", params: { id: item.id } })
-        }
-      >
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 15 }}>
-          {item.avatar_url ? (
-            <Image source={{ uri: item.avatar_url }} style={styles.avatar} />
-          ) : (
-            <View style={[styles.avatar, styles.avatarPlaceholder]}>
-              <Text style={styles.avatarText}>
-                {(item.full_name || item.username || "?")
-                  .charAt(0)
-                  .toUpperCase()}
-              </Text>
-            </View>
-          )}
-
-          <View style={{ flex: 1 }}>
-            <Text style={GlobalStyles.title2}>
-              {item.full_name || item.username || "Profil"}
-            </Text>
-            <Text style={[styles.role, { color: Colors.light.primary }]}>
-              {(item.role || "").toString().replace("_", " ")}
-            </Text>
-            {item.city && (
-              <Text style={GlobalStyles.caption}>
-                📍 {item.city || item.ville || item.location}
-              </Text>
-            )}
-          </View>
-
-          <Ionicons
-            name="chevron-forward"
-            size={20}
-            color={Colors.light.tabIconDefault}
-          />
-        </View>
-      </TouchableOpacity>
-    );
-  }
 
   function renderSuggestion({ item }: { item: any }) {
     return (
@@ -363,31 +113,7 @@ export default function DiscoverProfiles() {
       {/* En-tête spécifique au Web car le header natif est masqué */}
       {Platform.OS === "web" ? (
         <View style={styles.webHeader}>
-          <TouchableOpacity
-            onPress={() => router.push("/account")}
-            style={{ marginRight: 15 }}
-          >
-            {avatarUrl ? (
-              <Image
-                source={{ uri: avatarUrl }}
-                style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: 16,
-                  borderWidth: 1,
-                  borderColor: "#eee",
-                }}
-              />
-            ) : (
-              <Ionicons
-                name="person-circle-outline"
-                size={32}
-                color={Colors.light.text}
-              />
-            )}
-          </TouchableOpacity>
           <Text style={styles.webHeaderTitle}>Réseau</Text>
-          <View style={{ flex: 1 }} />
           <View style={{ flexDirection: "row", gap: 20 }}>
             <TouchableOpacity
               onPress={() => router.push("/network/connections")}
@@ -492,11 +218,12 @@ export default function DiscoverProfiles() {
           style={{ marginTop: 30 }}
         />
       ) : (
-        <FlatList
+        <FlashList
           ListHeaderComponent={listHeader}
           data={profiles}
           keyExtractor={(item) => item.id}
-          renderItem={renderProfile}
+          renderItem={({ item }) => <TalentCard item={item} />}
+          estimatedItemSize={100}
           contentContainerStyle={{ paddingBottom: 120 }}
           ListEmptyComponent={
             <Text style={{ textAlign: "center", marginTop: 50, color: "#999" }}>

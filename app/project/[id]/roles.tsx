@@ -1,3 +1,4 @@
+import AppMap, { Marker } from "@/components/AppMap";
 import ClapLoading from "@/components/ClapLoading";
 import { Hoverable } from "@/components/Hoverable";
 import RoleFormFields from "@/components/RoleFormFields";
@@ -83,6 +84,8 @@ export default function ManageRoles() {
   const [roles, setRoles] = useState<RoleItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [projectTitle, setProjectTitle] = useState("");
+  const [projectData, setProjectData] = useState<any>(null);
+  const [viewMode, setViewMode] = useState<"list" | "map">("list");
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   // Search/Assign State
@@ -156,13 +159,16 @@ export default function ManageRoles() {
     if (!id || id === "undefined") return;
     try {
       setLoading(true);
-      // Get project title
+      // Get project details for title and location
       const { data: proj } = await supabase
         .from("tournages")
-        .select("title")
+        .select("*")
         .eq("id", id)
         .single();
-      if (proj) setProjectTitle(proj.title);
+      if (proj) {
+        setProjectTitle(proj.title);
+        setProjectData(proj);
+      }
 
       // 1. Get roles simplistic query (no join) to avoid relationship errors
       const { data: rolesData, error } = await supabase
@@ -915,15 +921,54 @@ export default function ManageRoles() {
             <Text style={styles.subtitle}>{projectTitle}</Text>
           </View>
         </View>
-        <TouchableOpacity onPress={openAddRole} style={styles.addBtn}>
-          <Ionicons name="add" size={24} color="white" />
-          <Text style={{ color: "white", fontWeight: "bold" }}>Ajouter</Text>
-        </TouchableOpacity>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+          <TouchableOpacity
+            onPress={() => setViewMode(viewMode === "list" ? "map" : "list")}
+            style={{
+              padding: 8,
+              borderRadius: 20,
+              backgroundColor: Colors.light.backgroundSecondary,
+            }}
+          >
+            <Ionicons
+              name={viewMode === "list" ? "map" : "list"}
+              size={20}
+              color="#333"
+            />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={openAddRole} style={styles.addBtn}>
+            <Ionicons name="add" size={24} color="white" />
+            <Text style={{ color: "white", fontWeight: "bold" }}>Ajouter</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {loading ? (
         <View style={{ marginTop: 40, alignItems: "center" }}>
           <ClapLoading size={50} color={Colors.light.primary} />
+        </View>
+      ) : viewMode === "map" ? (
+        <View style={{ flex: 1 }}>
+          <AppMap
+            style={{ width: "100%", height: "100%" }}
+            initialRegion={{
+              latitude: projectData?.latitude || 46.603354,
+              longitude: projectData?.longitude || 1.888334,
+              latitudeDelta: 0.1,
+              longitudeDelta: 0.1,
+            }}
+          >
+            {projectData?.latitude && projectData?.longitude && (
+              <Marker
+                coordinate={{
+                  latitude: projectData.latitude,
+                  longitude: projectData.longitude,
+                }}
+                title={projectData.title}
+                description="Lieu du tournage"
+              />
+            )}
+          </AppMap>
         </View>
       ) : (
         <SectionList

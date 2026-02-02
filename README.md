@@ -1,11 +1,11 @@
-# Cine Network 🎬
+# Tita 🎬
 
 [![Expo](https://img.shields.io/badge/Expo-54.0.29-blue.svg)](https://expo.dev/)
 [![React Native](https://img.shields.io/badge/React_Native-0.81.5-61dafb.svg)](https://reactnative.dev/)
 [![Supabase](https://img.shields.io/badge/Supabase-Backend-green.svg)](https://supabase.com/)
 [![License: Private](https://img.shields.io/badge/License-Private-red.svg)](#license)
 
-Cine Network is a professional mobile application built with React Native and Expo, designed to revolutionize collaboration within the film and audiovisual industry. It provides a unified platform for project management, talent scouting, and seamless communication between filmmakers, actors, and technicians.
+Tita is a professional mobile application built with React Native and Expo, designed to revolutionize collaboration within the film and audiovisual industry. It provides a unified platform for project management, talent scouting, and seamless communication between filmmakers, actors, and technicians.
 
 ## 🚀 Key Features
 
@@ -127,7 +127,7 @@ This project is currently **private**. Detailed contribution guidelines will be 
 
 ## 📄 License
 
-Copyright © 2026 Cine Network. All rights reserved.
+Copyright © 2026 Tita. All rights reserved.
 This project is private and proprietary. Unauthorized copying or distribution is strictly prohibited.
 
 ---

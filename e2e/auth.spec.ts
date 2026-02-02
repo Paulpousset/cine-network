@@ -33,7 +33,7 @@ test.describe("Authentication Flow", () => {
     // Should be back at the landing page
     await expect(page).toHaveURL(/\/$/);
     await expect(
-      page.getByText("Heureux de vous revoir sur Cine Network"),
+      page.getByText("Heureux de vous revoir sur Tita"),
     ).toBeVisible();
   });
 });

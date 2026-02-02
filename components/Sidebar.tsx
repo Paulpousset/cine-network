@@ -1101,7 +1101,7 @@ export default function Sidebar() {
         </View>
 
         {!isSidebarCollapsed && (
-          <Text style={styles.footerText}>© 2026 Cine Network</Text>
+          <Text style={styles.footerText}>© 2026 Tita</Text>
         )}
       </View>
     </View>

@@ -1,65 +1,50 @@
 import AppMap, { Marker, PROVIDER_DEFAULT } from "@/components/AppMap";
 import ClapLoading from "@/components/ClapLoading";
+import { JobCard, ProjectJobCard } from "@/components/JobCard";
 import Colors from "@/constants/Colors";
-import { GlobalStyles } from "@/constants/Styles";
-import { appEvents, EVENTS } from "@/lib/events";
-import { getRecommendedRoles } from "@/lib/matching";
+import { useJobs } from "@/hooks/useJobs";
 import { JOB_TITLES } from "@/utils/roles";
 import { Ionicons } from "@expo/vector-icons";
+import { FlashList } from "@shopify/flash-list";
 import { useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import {
-    Alert,
-    FlatList,
-    Image,
-    Modal,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    TouchableWithoutFeedback,
-    useWindowDimensions,
-    View,
+  FlatList,
+  Modal,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
+  useWindowDimensions,
+  View,
 } from "react-native";
-import { supabase } from "../../lib/supabase";
 
 // On récupère les clés de ton fichier rolesList.ts
 const ROLE_CATEGORIES = ["all", ...Object.keys(JOB_TITLES)];
-
-// Type enrichi avec les infos du tournage
-type RoleWithProject = {
-  id: string;
-  title: string;
-  description?: string;
-  category: string;
-  tournage_id: string;
-  status?: string;
-  is_boosted?: boolean;
-  boost_expires_at?: string;
-  tournages: {
-    id: string;
-    title: string;
-    type: string;
-    pays?: string | null;
-    ville?: string | null;
-    latitude?: number | null;
-    longitude?: number | null;
-  };
-};
 
 export default function Discover() {
   const router = useRouter();
   const { width } = useWindowDimensions();
   const isWebLarge = Platform.OS === "web" && width >= 768;
-  const [allRoles, setAllRoles] = useState<RoleWithProject[]>([]);
-  const [roles, setRoles] = useState<RoleWithProject[]>([]);
-  const [projects, setProjects] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+
+  const {
+    roles,
+    projects,
+    loading,
+    recommendations,
+    availableCities,
+    selectedCategory,
+    setSelectedCategory,
+    selectedCity,
+    setSelectedCity,
+    searchQuery,
+    setSearchQuery,
+  } = useJobs();
 
   // Recommendations
-  const [recommendations, setRecommendations] = useState<any[]>([]);
   const [isRecsCollapsed, setIsRecsCollapsed] = useState(false); // State to toggle recommendations visibility
 
   // View Content Type: 'roles' (Jobs) or 'projects' (Tournages)
@@ -67,328 +52,9 @@ export default function Discover() {
   // View Mode: 'list' or 'map'
   const [viewMode, setViewMode] = useState<"list" | "map">("list");
 
-  // Filters
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState<string>("all");
-  const [selectedCity, setSelectedCity] = useState<string>("all");
-
   // Modals
   const [categoryModalVisible, setCategoryModalVisible] = useState(false);
   const [cityModalVisible, setCityModalVisible] = useState(false);
-
-  // Data for filters
-  const [availableCities, setAvailableCities] = useState<string[]>([]);
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
-
-  // 1. Fetch data from DB when category/city changes
-  useEffect(() => {
-    fetchRoles();
-  }, [selectedCategory, selectedCity]);
-
-  // 2. Filter data globally when search query changes (client-side for better reactive feel)
-  useEffect(() => {
-    applyFilters();
-  }, [searchQuery, allRoles]);
-
-  useEffect(() => {
-    fetchCities();
-    fetchRecommendations();
-    fetchProfile();
-    const unsub = appEvents.on(EVENTS.PROFILE_UPDATED, fetchProfile);
-    return unsub;
-  }, []);
-
-  async function fetchProfile() {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    if (session) {
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("avatar_url")
-        .eq("id", session.user.id)
-        .single();
-      if (profile) setAvatarUrl(profile.avatar_url);
-    }
-  }
-
-  async function fetchRecommendations() {
-    try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) return;
-
-      // 1. Get User Profile
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", user.id)
-        .single();
-      if (!profile) return;
-
-      // 2. Get Open Roles
-      const { data: roles } = await supabase
-        .from("project_roles")
-        .select(
-          `
-                *,
-                tournages (*)
-            `,
-        )
-        .eq("status", "published")
-        .is("assigned_profile_id", null)
-        .limit(50); // Limit for performance
-
-      if (!roles) return;
-
-      // 3. Calculate
-      const recs = getRecommendedRoles(profile, roles);
-      setRecommendations(recs.slice(0, 3)); // Top 3
-    } catch (e) {
-      console.log("Error fetching recommendations", e);
-    }
-  }
-
-  async function fetchCities() {
-    try {
-      const { data, error } = await supabase
-        .from("tournages")
-        .select("ville")
-        .not("ville", "is", null);
-
-      if (error) throw error;
-
-      const cities = Array.from(
-        new Set(
-          data
-            ?.map((t) => t.ville)
-            .filter((v) => v)
-            .map((v) => v!.trim()),
-        ),
-      ).sort();
-
-      setAvailableCities(["all", ...cities]);
-    } catch (e) {
-      console.log("Error fetching cities", e);
-    }
-  }
-
-  async function fetchRoles() {
-    try {
-      setLoading(true);
-
-      let query = supabase
-        .from("project_roles")
-        .select(
-          `
-          *,
-          tournages ( id, title, type, pays, ville, latitude, longitude )
-        `,
-        )
-        .order("is_boosted", { ascending: false })
-        .order("created_at", { ascending: false });
-
-      if (selectedCategory !== "all") {
-        query = query.eq("category", selectedCategory);
-      }
-
-      if (selectedCity !== "all") {
-        query = query.eq("tournages.ville", selectedCity);
-      }
-
-      const { data, error } = await query;
-      if (error) throw error;
-
-      // Filter out draft and assigned roles client-side
-      const visible = ((data as any[]) || []).filter(
-        (r) => r.status === "published" && r.tournages, // Ensure tournage data is present
-      );
-      setAllRoles(visible);
-    } catch (error) {
-      Alert.alert("Erreur", (error as Error).message);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  function applyFilters() {
-    let filtered = [...allRoles];
-
-    if (searchQuery.trim()) {
-      const s = searchQuery.toLowerCase().trim();
-      filtered = filtered.filter((r) => {
-        const roleTitle = (r.title || "").toLowerCase();
-        const roleDesc = (r.description || "").toLowerCase();
-        const projectTitle = (r.tournages?.title || "").toLowerCase();
-        const projectVille = (r.tournages?.ville || "").toLowerCase();
-
-        return (
-          roleTitle.includes(s) ||
-          roleDesc.includes(s) ||
-          projectTitle.includes(s) ||
-          projectVille.includes(s)
-        );
-      });
-    }
-
-    setRoles(filtered);
-
-    // Derive unique projects from filtered roles
-    const uniqueProjectsMap = new Map();
-    filtered.forEach((role) => {
-      // Robustly handle 'tournages' join which might be an object or an array
-      let t = role.tournages;
-      if (Array.isArray(t)) t = t[0];
-
-      if (t && t.id) {
-        if (!uniqueProjectsMap.has(t.id)) {
-          uniqueProjectsMap.set(t.id, {
-            ...t,
-            roleCount: 1,
-            roles: [role],
-          });
-        } else {
-          const p = uniqueProjectsMap.get(t.id);
-          p.roleCount++;
-          p.roles.push(role);
-        }
-      }
-    });
-    setProjects(Array.from(uniqueProjectsMap.values()));
-  }
-
-  function renderProject({ item }: { item: any }) {
-    return (
-      <TouchableOpacity
-        style={GlobalStyles.card}
-        onPress={() => router.push(`/project/${item.id}`)}
-      >
-        <View style={styles.cardHeader}>
-          <View style={{ flex: 1 }}>
-            <Text
-              style={[styles.projectTitle, { fontSize: 18, marginBottom: 4 }]}
-            >
-              {item.title || "Projet Inconnu"}
-            </Text>
-            <Text style={styles.projectSubtitle}>
-              {item.type?.replace("_", " ")} • {item.ville || "Lieu N/C"}
-            </Text>
-          </View>
-          <View
-            style={[
-              styles.badge,
-              { backgroundColor: Colors.light.tint + "20" },
-            ]}
-          >
-            <Text
-              style={[
-                styles.badgeText,
-                { color: Colors.light.tint, fontSize: 12 },
-              ]}
-            >
-              {item.roleCount} OFFRE{item.roleCount > 1 ? "S" : ""}
-            </Text>
-          </View>
-        </View>
-
-        <View style={styles.divider} />
-
-        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-          {item.roles.slice(0, 3).map((r: any) => (
-            <View
-              key={r.id}
-              style={{
-                backgroundColor: "#f5f5f5",
-                paddingHorizontal: 8,
-                paddingVertical: 4,
-                borderRadius: 4,
-              }}
-            >
-              <Text style={{ fontSize: 10, color: "#666" }}>{r.title}</Text>
-            </View>
-          ))}
-          {item.roles.length > 3 && (
-            <Text style={{ fontSize: 10, color: "#999", alignSelf: "center" }}>
-              +{item.roles.length - 3} autres
-            </Text>
-          )}
-        </View>
-
-        <Text style={styles.ctaText}>Voir le projet →</Text>
-      </TouchableOpacity>
-    );
-  }
-
-  function renderRole({ item }: { item: RoleWithProject }) {
-    const isBoosted = item.is_boosted;
-
-    return (
-      <TouchableOpacity
-        style={[
-          GlobalStyles.card,
-          isBoosted && {
-            borderColor: "#FFD700",
-            borderWidth: 1,
-            backgroundColor: "#FFFBE6", // Very light yellow
-          },
-        ]}
-        onPress={() => router.push(`/project/role/${item.id}`)}
-      >
-        {/* En-tête avec le nom du PROJET */}
-        <View style={styles.cardHeader}>
-          <View>
-            <View
-              style={{ flexDirection: "row", alignItems: "center", gap: 6 }}
-            >
-              <Text style={styles.projectTitle}>
-                {item.tournages?.title || "Projet Inconnu"}
-              </Text>
-              {isBoosted && (
-                <View
-                  style={{
-                    backgroundColor: "#FFD700",
-                    paddingHorizontal: 6,
-                    paddingVertical: 2,
-                    borderRadius: 4,
-                  }}
-                >
-                  <Text
-                    style={{ fontSize: 8, fontWeight: "bold", color: "white" }}
-                  >
-                    SPONSORISÉ
-                  </Text>
-                </View>
-              )}
-            </View>
-            <Text style={styles.projectSubtitle}>
-              {item.tournages?.type?.replace("_", " ")} •{" "}
-              {item.tournages?.pays || "Pays ?"}{" "}
-              {item.tournages?.ville ? `• ${item.tournages.ville}` : ""}
-            </Text>
-          </View>
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>{item.category.toUpperCase()}</Text>
-          </View>
-        </View>
-
-        <View style={styles.divider} />
-
-        {/* Corps avec le RÔLE recherché */}
-        <Text style={[GlobalStyles.title2, { color: Colors.light.primary }]}>
-          {item.title}
-        </Text>
-
-        {item.description ? (
-          <Text style={GlobalStyles.body} numberOfLines={2}>
-            {item.description}
-          </Text>
-        ) : null}
-
-        <Text style={styles.ctaText}>Voir l'annonce →</Text>
-      </TouchableOpacity>
-    );
-  }
 
   const renderFilterButton = (
     label: string,
@@ -407,29 +73,6 @@ export default function Discover() {
       {/* HEADER */}
       {Platform.OS === "web" && (
         <View style={styles.webHeader}>
-          <TouchableOpacity
-            onPress={() => router.push("/account")}
-            style={{ marginRight: 15 }}
-          >
-            {avatarUrl ? (
-              <Image
-                source={{ uri: avatarUrl }}
-                style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: 16,
-                  borderWidth: 1,
-                  borderColor: "#eee",
-                }}
-              />
-            ) : (
-              <Ionicons
-                name="person-circle-outline"
-                size={32}
-                color={Colors.light.text}
-              />
-            )}
-          </TouchableOpacity>
           <Text style={styles.webHeaderTitle}>Offres & Tournages</Text>
         </View>
       )}
@@ -751,10 +394,18 @@ export default function Discover() {
           </AppMap>
         </View>
       ) : (
-        <FlatList
+        <FlashList
           data={contentType === "roles" ? roles : projects}
           keyExtractor={(item) => item.id}
-          renderItem={contentType === "roles" ? renderRole : renderProject}
+          renderItem={({ item }) =>
+            contentType === "roles" ? (
+              <JobCard item={item} />
+            ) : (
+              <ProjectJobCard item={item} />
+            )
+          }
+          // @ts-ignore
+          estimatedItemSize={200}
           contentContainerStyle={styles.listContent}
           ListEmptyComponent={
             <Text style={styles.emptyText}>Aucun résultat pour le moment.</Text>
@@ -816,7 +467,7 @@ export default function Discover() {
         visible={cityModalVisible}
         transparent
         animationType="fade"
-        onRequestClose={() => setCityModalVisible(false)}
+        onRequestClose={() => setCategoryModalVisible(false)}
       >
         <TouchableWithoutFeedback onPress={() => setCityModalVisible(false)}>
           <View style={styles.modalOverlay}>

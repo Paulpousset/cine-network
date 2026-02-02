@@ -8,16 +8,16 @@ import * as Linking from "expo-linking";
 import * as WebBrowser from "expo-web-browser";
 import React, { useEffect, useRef, useState } from "react";
 import {
-  Alert,
-  Animated,
-  Image,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    Alert,
+    Animated,
+    Image,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { supabase } from "../lib/supabase";
 
@@ -93,7 +93,7 @@ export default function AuthScreen() {
 
     setLoading(true);
     const redirectTo = makeRedirectUri({
-      scheme: "cinenetwork",
+      scheme: "tita",
     });
     console.log(
       "Resending confirmation to:",
@@ -140,7 +140,7 @@ export default function AuthScreen() {
       Platform.OS === "web"
         ? `${window.location.origin}/update-password`
         : makeRedirectUri({
-            scheme: "cinenetwork",
+            scheme: "tita",
             path: "update-password",
           });
 
@@ -235,7 +235,7 @@ export default function AuthScreen() {
 
     // Retour à la configuration automatique pour éviter le blocage de l'envoi
     const redirectTo = makeRedirectUri({
-      scheme: "cinenetwork",
+      scheme: "tita",
     });
 
     try {
@@ -305,7 +305,7 @@ export default function AuthScreen() {
     setLoading(true);
     try {
       const redirectTo = makeRedirectUri({
-        scheme: "cinenetwork",
+        scheme: "tita",
       });
 
       if (Platform.OS === "web") {
@@ -393,7 +393,7 @@ export default function AuthScreen() {
   const subtitleText = isReset
     ? "Entrez votre email pour réinitialiser."
     : isLogin
-      ? "Heureux de vous revoir sur Cine Network"
+      ? "Heureux de vous revoir sur Tita"
       : "Créez votre compte et rejoignez le cast";
 
   const buttonAction = isReset ? resetPassword : isLogin ? signIn : signUp;

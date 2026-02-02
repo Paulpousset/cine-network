@@ -1,13 +1,13 @@
 import { expect, test } from "@playwright/test";
 
-test.describe("Cine Network Home Page", () => {
+test.describe("Tita Home Page", () => {
   test("should load the login page by default", async ({ page }) => {
     await page.goto("/");
 
     // Check if the greeting is visible
-    // "Heureux de vous revoir sur Cine Network" is the login greeting
+    // "Heureux de vous revoir sur Tita" is the login greeting
     await expect(
-      page.getByText("Heureux de vous revoir sur Cine Network"),
+      page.getByText("Heureux de vous revoir sur Tita"),
     ).toBeVisible();
 
     // Check if login button is present
@@ -22,7 +22,7 @@ test.describe("Cine Network Home Page", () => {
 
     // Initially on login page
     await expect(
-      page.getByText("Heureux de vous revoir sur Cine Network"),
+      page.getByText("Heureux de vous revoir sur Tita"),
     ).toBeVisible();
 
     // Click on "Créer un compte" to switch to signup
@@ -37,7 +37,7 @@ test.describe("Cine Network Home Page", () => {
     // Switch back to login
     await page.getByText("Se connecter").click();
     await expect(
-      page.getByText("Heureux de vous revoir sur Cine Network"),
+      page.getByText("Heureux de vous revoir sur Tita"),
     ).toBeVisible();
   });
 

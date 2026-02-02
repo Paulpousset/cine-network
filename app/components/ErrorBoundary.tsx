@@ -1,6 +1,13 @@
 import React from "react";
 import { StyleSheet, Text, View } from "react-native";
 
+let crashlytics: any;
+try {
+  crashlytics = require("@react-native-firebase/crashlytics").default;
+} catch (e) {
+  // Firebase not available
+}
+
 type Props = {
   children: React.ReactNode;
 };
@@ -22,6 +29,13 @@ export default class ErrorBoundary extends React.Component<Props, State> {
 
   componentDidCatch(error: Error) {
     console.error("ErrorBoundary caught:", error);
+    try {
+      if (crashlytics) {
+        crashlytics().recordError(error);
+      }
+    } catch (e) {
+      // Ignorer si Crashlytics n'est pas disponible (ex: Web ou Native module non lié)
+    }
   }
 
   render() {

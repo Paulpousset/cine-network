@@ -1,17 +1,16 @@
 import ClapLoading from "@/components/ClapLoading";
-import PopcornLikeButton from "@/components/PopcornLikeButton";
+import HallOfFameCard from "@/components/HallOfFameCard";
 import Colors from "@/constants/Colors";
 import { GlobalStyles } from "@/constants/Styles";
+import { HallOfFameProject, useHallOfFame } from "@/hooks/useHallOfFame";
 import { supabase } from "@/lib/supabase";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { FlashList } from "@shopify/flash-list";
 import * as ImagePicker from "expo-image-picker";
 import { Stack, useRouter } from "expo-router";
-import { useVideoPlayer, VideoView } from "expo-video";
-import React, { useEffect, useState } from "react";
-
+import React, { useState } from "react";
 import {
     Alert,
-    FlatList,
     Image,
     Linking,
     Modal,
@@ -34,14 +33,20 @@ export default function HallOfFameScreen({
   const { width } = useWindowDimensions();
   const isWebLarge = Platform.OS === "web" && width >= 768;
 
-  const [projects, setProjects] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const {
+    projects,
+    loading,
+    refreshing,
+    onRefresh,
+    currentUserId,
+    toggleLike,
+    fetchHallOfFame,
+  } = useHallOfFame(null);
 
   // Edit Modal
   const [editModalVisible, setEditModalVisible] = useState(false);
-  const [editingProject, setEditingProject] = useState<any>(null);
+  const [editingProject, setEditingProject] =
+    useState<HallOfFameProject | null>(null);
   const [editTitle, setEditTitle] = useState("");
   const [editDesc, setEditDesc] = useState("");
   const [editUrl, setEditUrl] = useState("");
@@ -53,75 +58,6 @@ export default function HallOfFameScreen({
   const [teamData, setTeamData] = useState<any[]>([]);
   const [selectedProjectTitle, setSelectedProjectTitle] = useState("");
   const [loadingTeam, setLoadingTeam] = useState(false);
-
-  useEffect(() => {
-    // 1. Get user first, then fetch projects with like status
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      const userId = session?.user.id || null;
-      setCurrentUserId(userId);
-      fetchHallOfFame(userId);
-    });
-  }, []);
-
-  // Removed separate fetchUser to avoid race conditions or double fetching
-
-  async function fetchHallOfFame(userId: string | null = currentUserId) {
-    try {
-      // 1. Fetch Projects with their corresponding likes
-      const { data: projectsData, error } = await supabase
-        .from("tournages")
-        .select(
-          `
-            *,
-            project_likes(user_id)
-        `,
-        )
-        .eq("status", "completed")
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-
-      const projects = projectsData || [];
-
-      // 2. Fetch Owner Profiles manually because the join might fail if FK is missing
-      const ownerIds = [...new Set(projects.map((p) => p.owner_id))].filter(
-        Boolean,
-      );
-      let profilesMap: Record<string, any> = {};
-
-      if (ownerIds.length > 0) {
-        const { data: profilesData, error: profilesError } = await supabase
-          .from("profiles")
-          .select("id, full_name, avatar_url")
-          .in("id", ownerIds);
-
-        if (!profilesError && profilesData) {
-          profilesData.forEach((p) => {
-            profilesMap[p.id] = p;
-          });
-        }
-      }
-
-      const finalProjects = projects.map((p) => {
-        const likes = p.project_likes || [];
-        return {
-          ...p,
-          owner: profilesMap[p.owner_id] || null,
-          likes_count: likes.length, // Accurate total count
-          isLiked: userId
-            ? likes.some((l: any) => l.user_id === userId)
-            : false,
-        };
-      });
-
-      setProjects(finalProjects);
-    } catch (e) {
-      console.error("Error fetching Hall of Fame", e);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }
 
   async function fetchTeam(projectId: string, projectTitle: string) {
     try {
@@ -148,7 +84,6 @@ export default function HallOfFameScreen({
 
       if (error) throw error;
 
-      // Group by category
       const grouped = (data || []).reduce((acc: any, role: any) => {
         const cat = role.category || "Autre";
         if (!acc[cat]) {
@@ -181,7 +116,7 @@ export default function HallOfFameScreen({
     }
   }
 
-  function handleEdit(item: any) {
+  function handleEdit(item: HallOfFameProject) {
     setEditingProject(item);
     setEditTitle(item.title);
     setEditDesc(item.description || "");
@@ -201,7 +136,6 @@ export default function HallOfFameScreen({
         const asset = result.assets[0];
 
         if (asset.fileSize && asset.fileSize > 31457280) {
-          // 30MB
           Alert.alert("Trop volumineux", "La vidéo doit faire moins de 30 Mo.");
           return;
         }
@@ -209,11 +143,12 @@ export default function HallOfFameScreen({
         uploadVideoForEdit(asset.uri);
       }
     } catch (e) {
-      Alert.alert("Erreur", "Impossible d'ouvrir la galerie.");
+      Alert.alert("Erreur", "Impossible d’ouvrir la galerie.");
     }
   }
 
   async function uploadVideoForEdit(uri: string) {
+    if (!editingProject) return;
     try {
       setUploading(true);
       const response = await fetch(uri);
@@ -229,10 +164,10 @@ export default function HallOfFameScreen({
       if (error) throw error;
 
       const { data } = supabase.storage.from("videos").getPublicUrl(filePath);
-      setEditUrl(data.publicUrl); // Auto-fill the URL field
+      setEditUrl(data.publicUrl);
       Alert.alert(
         "Succès",
-        "Vidéo téléchargée ! N'oubliez pas de sauvegarder.",
+        "Vidéo téléchargée ! N’oubliez pas de sauvegarder.",
       );
     } catch (e: any) {
       console.error(e);
@@ -258,7 +193,7 @@ export default function HallOfFameScreen({
       if (error) throw error;
 
       setEditModalVisible(false);
-      fetchHallOfFame(); // Refresh list
+      fetchHallOfFame();
       Alert.alert("Succès", "Projet mis à jour !");
     } catch (e) {
       Alert.alert("Erreur", "Impossible de sauvegarder.");
@@ -267,89 +202,8 @@ export default function HallOfFameScreen({
     }
   }
 
-  function isVideoFile(url: string) {
-    if (!url) return false;
-    return (
-      url.match(/\.(mp4|mov|avi|wmv|flv|mkv)$/i) ||
-      url.includes("/storage/v1/object/public/videos/") ||
-      url.includes("youtu")
-    );
-  }
-
-  async function toggleLike(project: any, isLikedNow: boolean) {
-    if (!currentUserId) return;
-
-    // 1. Optimistic Update in Local State
-    setProjects((prev) =>
-      prev.map((p) => {
-        if (p.id === project.id) {
-          return {
-            ...p,
-            isLiked: isLikedNow,
-            likes_count: isLikedNow
-              ? (p.likes_count || 0) + 1
-              : (p.likes_count || 0) - 1,
-          };
-        }
-        return p;
-      }),
-    );
-
-    try {
-      if (isLikedNow) {
-        // Check first using a column we know exists to avoid 400 error
-        const { data: existing } = await supabase
-          .from("project_likes")
-          .select("project_id")
-          .eq("project_id", project.id)
-          .eq("user_id", currentUserId)
-          .maybeSingle();
-
-        if (!existing) {
-          const { error } = await supabase
-            .from("project_likes")
-            .insert({ project_id: project.id, user_id: currentUserId });
-          if (error && error.code !== "23505") throw error;
-
-          // NOTE: We don't update 'tournages.likes_count' manually because it usually fails due to RLS
-          // The count is now fetched dynamically from the project_likes table.
-        }
-      } else {
-        const { error } = await supabase
-          .from("project_likes")
-          .delete()
-          .eq("project_id", project.id)
-          .eq("user_id", currentUserId);
-        if (error) throw error;
-
-        // NOTE: Similar to increment, decrementing the column is skipped in favor of dynamic counting.
-      }
-    } catch (e: any) {
-      console.error("Error toggling like", e);
-      Alert.alert(
-        "Erreur Like",
-        e.message || "Impossible de mettre à jour le like.",
-      );
-      // Revert optimistic update
-      setProjects((prev) =>
-        prev.map((p) => {
-          if (p.id === project.id) {
-            return {
-              ...p,
-              isLiked: !isLikedNow,
-              likes_count: !isLikedNow
-                ? (p.likes_count || 0) + 1
-                : (p.likes_count || 0) - 1,
-            };
-          }
-          return p;
-        }),
-      );
-    }
-  }
-
-  const renderItem = ({ item }: { item: any }) => (
-    <ProjectCard
+  const renderItem = ({ item }: { item: HallOfFameProject }) => (
+    <HallOfFameCard
       item={item}
       currentUserId={currentUserId}
       onEdit={() => handleEdit(item)}
@@ -464,10 +318,11 @@ export default function HallOfFameScreen({
       {loading ? (
         <ClapLoading />
       ) : (
-        <FlatList
+        <FlashList
           data={filteredProjects}
           keyExtractor={(item) => item.id}
           renderItem={renderItem}
+          estimatedItemSize={450}
           style={{ width: "100%" }}
           contentContainerStyle={[
             { padding: 15, paddingBottom: 50 },
@@ -477,8 +332,7 @@ export default function HallOfFameScreen({
             <RefreshControl
               refreshing={refreshing}
               onRefresh={() => {
-                setRefreshing(true);
-                fetchHallOfFame();
+                onRefresh();
               }}
             />
           }
@@ -492,7 +346,7 @@ export default function HallOfFameScreen({
               <Text style={styles.emptySubtext}>
                 {forceOnlyMine
                   ? "Terminez l'un de vos tournages pour le voir apparaître ici !"
-                  : "Soyez le premier à publier votre chef-d'œuvre !"}
+                  : "Soyez le premier à publier votre chef-d’œuvre !"}
               </Text>
             </View>
           }
@@ -679,166 +533,6 @@ export default function HallOfFameScreen({
   );
 }
 
-function ProjectCard({
-  item,
-  currentUserId,
-  onEdit,
-  onOpenLink,
-  router,
-  onToggleLike,
-  onViewTeam,
-}: any) {
-  const isDirectVideo =
-    item.final_result_url &&
-    (item.final_result_url.match(/\.(mp4|mov|avi|wmv|flv|mkv)$/i) ||
-      item.final_result_url.includes("/storage/v1/object/public/videos/"));
-
-  // NEW: expo-video player hook
-  const player = useVideoPlayer(
-    isDirectVideo ? item.final_result_url : null,
-    (player) => {
-      player.loop = false;
-    },
-  );
-
-  return (
-    <View style={styles.card}>
-      {/* HEADER: User info */}
-      <View style={styles.cardHeader}>
-        <TouchableOpacity
-          style={{ flexDirection: "row", alignItems: "center", flex: 1 }}
-          onPress={() =>
-            router.push({
-              pathname: "/profile/[id]",
-              params: { id: item.owner_id },
-            })
-          }
-        >
-          <Image
-            source={{
-              uri:
-                item.owner?.avatar_url ||
-                "https://randomuser.me/api/portraits/lego/1.jpg",
-            }}
-            style={styles.avatar}
-          />
-          <View>
-            <Text style={styles.ownerName}>
-              {item.owner?.full_name || "Utilisateur"}
-            </Text>
-            <Text style={styles.date}>
-              {item.type?.replace("_", " ").toUpperCase()} •{" "}
-              {new Date(item.created_at).getFullYear()}
-            </Text>
-          </View>
-        </TouchableOpacity>
-
-        {/* EDIT BUTTON (Only for Owner) */}
-        {currentUserId === item.owner_id && (
-          <TouchableOpacity onPress={onEdit} style={styles.editButton}>
-            <Ionicons name="pencil" size={18} color={Colors.light.primary} />
-          </TouchableOpacity>
-        )}
-      </View>
-
-      {/* MEDIA: VIDEO PLAYER OR POSTER */}
-      {isDirectVideo ? (
-        <View
-          style={[
-            styles.mediaContainer,
-            { backgroundColor: "transparent", height: 220 },
-          ]}
-        >
-          <VideoView
-            player={player}
-            style={{
-              height: "100%",
-              aspectRatio: 16 / 9,
-              maxWidth: "100%",
-            }}
-            contentFit="contain"
-            allowsFullscreen
-            nativeControls
-          />
-        </View>
-      ) : (
-        <TouchableOpacity
-          activeOpacity={0.9}
-          onPress={() =>
-            item.final_result_url
-              ? onOpenLink(item.final_result_url)
-              : router.push(`/project/${item.id}`)
-          }
-          style={styles.mediaContainer}
-        >
-          {item.image_url ? (
-            <Image
-              source={{ uri: item.image_url }}
-              style={styles.media}
-              resizeMode="cover"
-            />
-          ) : (
-            <View style={[styles.media, styles.placeholderMedia]}>
-              <Ionicons name="film" size={50} color="white" opacity={0.5} />
-            </View>
-          )}
-
-          {/* Play Button Overlay if link exists */}
-          {item.final_result_url && (
-            <View style={styles.playOverlay}>
-              <Ionicons
-                name="play"
-                size={40}
-                color="white"
-                style={{ marginLeft: 4 }}
-              />
-            </View>
-          )}
-        </TouchableOpacity>
-      )}
-
-      {/* CONTENT */}
-      <View style={styles.cardContent}>
-        <Text style={styles.title}>{item.title}</Text>
-        <Text style={styles.description} numberOfLines={3}>
-          {item.description}
-        </Text>
-
-        <View style={styles.actionsRow}>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-            <PopcornLikeButton
-              initialLikes={item.likes_count || 0}
-              liked={item.isLiked} // Persisted state
-              onLike={(liked) => {
-                onToggleLike(liked);
-              }}
-            />
-
-            <TouchableOpacity style={styles.teamButton} onPress={onViewTeam}>
-              <Ionicons
-                name="people-outline"
-                size={18}
-                color={Colors.light.primary}
-              />
-              <Text style={styles.teamButtonText}>Équipe</Text>
-            </TouchableOpacity>
-          </View>
-
-          {item.final_result_url && !isDirectVideo && (
-            <TouchableOpacity
-              style={styles.watchButton}
-              onPress={() => onOpenLink(item.final_result_url)}
-            >
-              <Text style={styles.watchButtonText}>Regarder le film</Text>
-              <Ionicons name="open-outline" size={16} color="white" />
-            </TouchableOpacity>
-          )}
-        </View>
-      </View>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -914,111 +608,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "700",
     color: "#B8860B",
-  },
-  card: {
-    backgroundColor: "white",
-    borderRadius: 16,
-    marginBottom: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
-    overflow: "hidden",
-    width: "100%",
-    alignSelf: "stretch",
-  },
-  cardHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 12,
-  },
-  avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    marginRight: 10,
-    backgroundColor: "#eee",
-  },
-  ownerName: {
-    fontWeight: "bold",
-    fontSize: 14,
-    color: Colors.light.text,
-  },
-  date: {
-    fontSize: 12,
-    color: "#666",
-  },
-  editButton: {
-    padding: 8,
-    backgroundColor: "#f0f0f0",
-    borderRadius: 20,
-  },
-  mediaContainer: {
-    width: "100%",
-    height: 220, // GlobalStyles logic: fixed height so cards don't jump in size
-    backgroundColor: "black",
-    position: "relative",
-    justifyContent: "center",
-    alignItems: "center",
-    overflow: "hidden",
-  },
-  media: {
-    width: "100%",
-    height: "100%",
-  },
-  placeholderMedia: {
-    backgroundColor: Colors.light.primary,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  playOverlay: {
-    position: "absolute",
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    backgroundColor: "rgba(0,0,0,0.4)",
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 2,
-    borderColor: "white",
-  },
-  cardContent: {
-    padding: 15,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: Colors.light.text,
-    marginBottom: 6,
-  },
-  description: {
-    fontSize: 14,
-    color: "#444",
-    lineHeight: 20,
-    marginBottom: 15,
-  },
-  actionsRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginTop: 5,
-    flexWrap: "wrap",
-    gap: 10,
-  },
-  watchButton: {
-    backgroundColor: Colors.light.tint,
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 20,
-    gap: 5,
-  },
-  watchButtonText: {
-    color: "white",
-    fontWeight: "600",
-    fontSize: 14,
   },
   emptyContainer: {
     alignItems: "center",
@@ -1120,19 +709,5 @@ const styles = StyleSheet.create({
     color: "#999",
     marginTop: 20,
     fontStyle: "italic",
-  },
-  teamButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#f0f0f0",
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 15,
-    gap: 5,
-  },
-  teamButtonText: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: Colors.light.primary,
   },
 });

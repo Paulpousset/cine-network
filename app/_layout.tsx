@@ -1,22 +1,21 @@
+import ErrorBoundary from "@/app/components/ErrorBoundary";
 import ClapLoading from "@/components/ClapLoading";
 import FloatingChatWidget from "@/components/FloatingChatWidget";
 import GlobalRealtimeListener from "@/components/GlobalRealtimeListener";
 import NotificationToast from "@/components/NotificationToast";
 import Sidebar from "@/components/Sidebar";
 import Colors from "@/constants/Colors";
-import {
-    UserModeProvider
-} from "@/providers/UserModeProvider";
+import { UserModeProvider } from "@/providers/UserModeProvider";
 import { Session } from "@supabase/supabase-js";
 import * as Linking from "expo-linking";
 import { Stack, usePathname, useRouter, useSegments } from "expo-router";
 import { useEffect, useState } from "react";
 import {
-    Platform,
-    Text,
-    TouchableOpacity,
-    useWindowDimensions,
-    View,
+  Platform,
+  Text,
+  TouchableOpacity,
+  useWindowDimensions,
+  View,
 } from "react-native";
 import { supabase } from "../lib/supabase";
 
@@ -50,7 +49,6 @@ function RootLayoutContent({
         style={{
           flex: 1,
           paddingLeft: showSidebar ? sidebarWidth : 0,
-          transition: "padding-left 0.2s ease-in-out",
         }}
       >
         <Stack
@@ -147,8 +145,8 @@ export default function RootLayout() {
     if (!session && !inLoginPage) {
       router.replace("/"); // Hop, retour à l'accueil
     }
-    // SCÉNARIO 2 : Connecté mais encore sur la page de login (et pas update-password)
-    else if (session && pathname === "/" && pathname !== "/update-password") {
+    // SCÉNARIO 2 : Connecté mais encore sur la page de login
+    else if (session && pathname === "/") {
       router.replace("/my-projects"); // Hop, direction mes projets
     }
   }, [session, initialized, pathname]);
@@ -168,7 +166,7 @@ export default function RootLayout() {
           const cleanPath = pathname.startsWith("/")
             ? pathname.slice(1)
             : pathname;
-          const deepLink = `cinenetwork://${cleanPath}${window.location.search}`;
+          const deepLink = `tita://${cleanPath}${window.location.search}`;
 
           console.log("[DeepLink] Attempting redirect to app:", deepLink);
           window.location.href = deepLink;
@@ -181,7 +179,7 @@ export default function RootLayout() {
   if (!initialized) {
     return (
       <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-        <ClapLoading size={50} color="#841584" />
+        <ClapLoading size={50} color={Colors.light.primary} />
       </View>
     );
   }
@@ -206,7 +204,7 @@ export default function RootLayout() {
             textAlign: "center",
           }}
         >
-          CineNetwork Mobile
+          Tita Mobile
         </Text>
         <Text
           style={{
@@ -226,7 +224,7 @@ export default function RootLayout() {
             const cleanPath = pathname.startsWith("/")
               ? pathname.slice(1)
               : pathname;
-            const deepLink = `cinenetwork://${cleanPath}${window.location.search}`;
+            const deepLink = `tita://${cleanPath}${window.location.search}`;
             window.location.href = deepLink;
           }}
           style={{
@@ -246,12 +244,14 @@ export default function RootLayout() {
   }
 
   return (
-    <UserModeProvider>
-      <RootLayoutContent
-        session={session}
-        isWebLarge={isWebLarge}
-        pathname={pathname}
-      />
-    </UserModeProvider>
+    <ErrorBoundary>
+      <UserModeProvider>
+        <RootLayoutContent
+          session={session}
+          isWebLarge={isWebLarge}
+          pathname={pathname}
+        />
+      </UserModeProvider>
+    </ErrorBoundary>
   );
 }

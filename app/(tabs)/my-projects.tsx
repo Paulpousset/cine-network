@@ -2,10 +2,9 @@ import ClapLoading from "@/components/ClapLoading";
 import Colors from "@/constants/Colors";
 import { GlobalStyles } from "@/constants/Styles";
 import { useUserMode } from "@/hooks/useUserMode";
-import { appEvents, EVENTS } from "@/lib/events";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useRouter } from "expo-router";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useState } from "react";
 import {
     Alert,
     Image,
@@ -42,27 +41,6 @@ export default function MyProjects() {
   >([]);
   const [loading, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
-
-  useEffect(() => {
-    fetchProfile();
-    const unsub = appEvents.on(EVENTS.PROFILE_UPDATED, fetchProfile);
-    return unsub;
-  }, []);
-
-  async function fetchProfile() {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    if (session) {
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("avatar_url")
-        .eq("id", session.user.id)
-        .single();
-      if (profile) setAvatarUrl(profile.avatar_url);
-    }
-  }
 
   useFocusEffect(
     useCallback(() => {
@@ -298,31 +276,7 @@ export default function MyProjects() {
       {/* En-tête spécifique au Web */}
       {Platform.OS === "web" && (
         <View style={styles.webHeader}>
-          <TouchableOpacity
-            onPress={() => router.push("/account")}
-            style={{ marginRight: 15 }}
-          >
-            {avatarUrl ? (
-              <Image
-                source={{ uri: avatarUrl }}
-                style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: 16,
-                  borderWidth: 1,
-                  borderColor: "#eee",
-                }}
-              />
-            ) : (
-              <Ionicons
-                name="person-circle-outline"
-                size={32}
-                color={Colors.light.text}
-              />
-            )}
-          </TouchableOpacity>
           <Text style={styles.webHeaderTitle}>Mes Projets en cours</Text>
-          <View style={{ flex: 1 }} />
           <TouchableOpacity
             onPress={() => router.push("/project/new")}
             style={styles.webHeaderButton}
