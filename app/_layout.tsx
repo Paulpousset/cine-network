@@ -20,6 +20,8 @@ import {
 import { supabase } from "../lib/supabase";
 
 import { useUserMode } from "@/hooks/useUserMode";
+import analytics from "@react-native-firebase/analytics";
+import crashlytics from "@react-native-firebase/crashlytics";
 
 function RootLayoutContent({
   session,
@@ -88,6 +90,24 @@ export default function RootLayout() {
   const segments = useSegments();
   const pathname = usePathname() as string;
   const router = useRouter();
+
+  useEffect(() => {
+    // Log pour confirmer la connexion à Crashlytics dans le Dashboard Firebase
+    if (Platform.OS !== "web") {
+      crashlytics().log("App started on " + Platform.OS);
+      analytics().logAppOpen();
+      // crashlytics().recordError(new Error("Test: Connectivité Dashboard"));
+    }
+  }, []);
+
+  useEffect(() => {
+    if (Platform.OS !== "web") {
+      analytics().logScreenView({
+        screen_name: pathname,
+        screen_class: pathname,
+      });
+    }
+  }, [pathname]);
 
   useEffect(() => {
     // 1. Gérer les liens profonds (Deep Linking) pour l'auth

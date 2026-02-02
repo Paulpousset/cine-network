@@ -50,7 +50,8 @@
         }
       ],
       "@react-native-firebase/app",
-      "@react-native-firebase/crashlytics"
+      "@react-native-firebase/crashlytics",
+      "@react-native-firebase/analytics"
     ],
     "experiments": {
       "typedRoutes": true
