@@ -468,6 +468,7 @@ export default function HallOfFameScreen({
           data={filteredProjects}
           keyExtractor={(item) => item.id}
           renderItem={renderItem}
+          style={{ width: "100%" }}
           contentContainerStyle={[
             { padding: 15, paddingBottom: 50 },
             isWebLarge && { maxWidth: 800, alignSelf: "center", width: "100%" },
@@ -924,6 +925,8 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 3,
     overflow: "hidden",
+    width: "100%",
+    alignSelf: "stretch",
   },
   cardHeader: {
     flexDirection: "row",
@@ -1000,15 +1003,17 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     marginTop: 5,
+    flexWrap: "wrap",
+    gap: 10,
   },
   watchButton: {
     backgroundColor: Colors.light.tint,
     flexDirection: "row",
     alignItems: "center",
     paddingVertical: 8,
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
     borderRadius: 20,
-    gap: 6,
+    gap: 5,
   },
   watchButtonText: {
     color: "white",

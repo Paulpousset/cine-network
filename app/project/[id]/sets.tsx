@@ -317,22 +317,25 @@ export default function SetsScreen() {
     return (
       <View style={styles.container}>
         <View style={styles.header}>
-          <TouchableOpacity
-            onPress={() =>
-              router.push({
-                pathname: "/project/[id]/spaces/[category]",
-                params: {
-                  id: id as string,
-                  category: "production",
-                  tab: "tools",
-                },
-              })
-            }
-            style={styles.backButton}
-          >
-            <Ionicons name="arrow-back" size={24} color="#000" />
-          </TouchableOpacity>
+          <View style={styles.headerLeft}>
+            <TouchableOpacity
+              onPress={() =>
+                router.push({
+                  pathname: "/project/[id]/spaces/[category]",
+                  params: {
+                    id: id as string,
+                    category: "production",
+                    tab: "tools",
+                  },
+                })
+              }
+              style={styles.backButton}
+            >
+              <Ionicons name="arrow-back" size={24} color="#000" />
+            </TouchableOpacity>
+          </View>
           <Text style={styles.title}>Décors</Text>
+          <View style={styles.headerRight} />
         </View>
         <View style={styles.centerContent}>
           <Ionicons name="lock-closed-outline" size={64} color="#ccc" />
@@ -394,31 +397,38 @@ export default function SetsScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        {mode !== "studio" && (
-          <TouchableOpacity
-            onPress={() =>
-              router.push({
-                pathname: "/project/[id]/spaces/[category]",
-                params: {
-                  id: id as string,
-                  category: "production",
-                  tab: "tools",
-                },
-              })
-            }
-            style={styles.backButton}
-          >
-            <Ionicons name="arrow-back" size={24} color="#000" />
-          </TouchableOpacity>
-        )}
-        <Text style={[styles.title, mode === "studio" && { marginLeft: 15 }]}>
-          Décors
-        </Text>
-        {accessLevel === "edit" && (
-          <TouchableOpacity onPress={openCreateModal} style={styles.addButton}>
-            <Ionicons name="add" size={24} color="#fff" />
-          </TouchableOpacity>
-        )}
+        <View style={styles.headerLeft}>
+          {(Platform.OS !== "web" || mode !== "studio") && (
+            <TouchableOpacity
+              onPress={() =>
+                router.push({
+                  pathname: "/project/[id]/spaces/[category]",
+                  params: {
+                    id: id as string,
+                    category: "production",
+                    tab: "tools",
+                  },
+                })
+              }
+              style={styles.backButton}
+            >
+              <Ionicons name="arrow-back" size={24} color="#000" />
+            </TouchableOpacity>
+          )}
+        </View>
+
+        <Text style={styles.title}>Décors</Text>
+
+        <View style={styles.headerRight}>
+          {accessLevel === "edit" && (
+            <TouchableOpacity
+              onPress={openCreateModal}
+              style={styles.addButton}
+            >
+              <Ionicons name="add" size={24} color="#fff" />
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
       <FlatList
@@ -559,14 +569,23 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingBottom: 15,
     paddingTop: Platform.OS === "ios" ? 60 : 16,
     backgroundColor: "#fff",
     borderBottomWidth: 1,
     borderBottomColor: "#eee",
   },
+  headerLeft: {
+    width: 45,
+    alignItems: "flex-start",
+  },
+  headerRight: {
+    width: 45,
+    alignItems: "flex-end",
+  },
   backButton: {
-    padding: 8,
+    padding: 4,
   },
   title: {
     fontSize: 20,

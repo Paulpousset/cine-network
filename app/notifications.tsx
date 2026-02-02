@@ -219,11 +219,63 @@ export default function NotificationsScreen() {
   const handleMarkSeen = async (connectionId: string) => {
     // Mark accepted connection as seen
     const seenJson = await AsyncStorage.getItem(SEEN_ACCEPTED_KEY);
-    const seenIds = seenJson ? JSON.parse(seenJson) : [];
+    let seenIds = seenJson ? JSON.parse(seenJson) : [];
+    if (!Array.isArray(seenIds)) seenIds = [];
+
     if (!seenIds.includes(connectionId)) {
       seenIds.push(connectionId);
       await AsyncStorage.setItem(SEEN_ACCEPTED_KEY, JSON.stringify(seenIds));
-      fetchNotifications(); // Refresh list to remove it
+
+      // Update local state immediately
+      setSections((prev) =>
+        prev
+          .map((section) => ({
+            ...section,
+            data: section.data.filter((item: any) => item.id !== connectionId),
+          }))
+          .filter((section) => section.data.length > 0),
+      );
+
+      // Emit event to update bell badge across the app
+      appEvents.emit(EVENTS.CONNECTIONS_UPDATED);
+    }
+  };
+
+  const handleMarkAllAsSeen = async () => {
+    const seenJson = await AsyncStorage.getItem(SEEN_ACCEPTED_KEY);
+    let seenIds = seenJson ? JSON.parse(seenJson) : [];
+    if (!Array.isArray(seenIds)) seenIds = [];
+
+    const newIdsToMark = [];
+    sections.forEach((section) => {
+      if (section.type !== "request") {
+        // Don't mark pending requests as seen, they must be accepted/declined
+        section.data.forEach((item: any) => {
+          if (!seenIds.includes(item.id)) {
+            newIdsToMark.push(item.id);
+          }
+        });
+      }
+    });
+
+    if (newIdsToMark.length > 0) {
+      const updatedSeenIds = [...seenIds, ...newIdsToMark];
+      await AsyncStorage.setItem(
+        SEEN_ACCEPTED_KEY,
+        JSON.stringify(updatedSeenIds),
+      );
+
+      // Refresh notifications to clear the UI
+      fetchNotifications();
+      // Emit event to update bell badge
+      appEvents.emit(EVENTS.CONNECTIONS_UPDATED);
+
+      if (Platform.OS !== "web") {
+        Alert.alert(
+          "Succès",
+          "Toutes les notifications ont été marquées comme vues.",
+        );
+      }
     }
   };
 
@@ -380,10 +432,32 @@ export default function NotificationsScreen() {
     );
   };
 
+  const hasUnseenNotifications = sections.some((s) => s.type !== "request");
+
   return (
     <>
       <Stack.Screen
-        options={{ title: "Notifications", headerBackTitle: "Retour" }}
+        options={{
+          title: "Notifications",
+          headerBackTitle: "Retour",
+          headerRight: () =>
+            hasUnseenNotifications ? (
+              <TouchableOpacity
+                onPress={handleMarkAllAsSeen}
+                style={{ marginRight: 10 }}
+              >
+                <Text
+                  style={{
+                    color: Colors.light.tint,
+                    fontWeight: "600",
+                    fontSize: 13,
+                  }}
+                >
+                  Tout voir
+                </Text>
+              </TouchableOpacity>
+            ) : null,
+        }}
       />
       <View
         style={[styles.container, { backgroundColor: Colors.light.background }]}

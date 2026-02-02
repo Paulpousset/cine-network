@@ -322,30 +322,36 @@ export default function CastingScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        {mode !== "studio" && (
+        <View style={styles.headerLeft}>
+          {(Platform.OS !== "web" || mode !== "studio") && (
+            <TouchableOpacity
+              onPress={() =>
+                router.push({
+                  pathname: "/project/[id]/spaces/[category]",
+                  params: {
+                    id: id as string,
+                    category: "production",
+                    tab: "tools",
+                  },
+                })
+              }
+              style={{ padding: 4 }}
+            >
+              <Ionicons name="arrow-back" size={24} color="#000" />
+            </TouchableOpacity>
+          )}
+        </View>
+
+        <Text style={styles.headerTitle}>Casting</Text>
+
+        <View style={styles.headerRight}>
           <TouchableOpacity
-            onPress={() =>
-              router.push({
-                pathname: "/project/[id]/spaces/[category]",
-                params: {
-                  id: id as string,
-                  category: "production",
-                  tab: "tools",
-                },
-              })
-            }
-            style={{ padding: 4 }}
+            onPress={() => setCreateModalVisible(true)}
+            style={styles.addButton}
           >
-            <Ionicons name="arrow-back" size={24} color="#000" />
+            <Ionicons name="add" size={24} color="white" />
           </TouchableOpacity>
-        )}
-        <Text style={styles.headerTitle}>Casting & Personnages</Text>
-        <TouchableOpacity
-          onPress={() => setCreateModalVisible(true)}
-          style={styles.addButton}
-        >
-          <Ionicons name="add" size={24} color="white" />
-        </TouchableOpacity>
+        </View>
       </View>
 
       {loading ? (
@@ -505,6 +511,14 @@ const styles = StyleSheet.create({
     backgroundColor: "white",
     borderBottomWidth: 1,
     borderBottomColor: "#eee",
+  },
+  headerLeft: {
+    width: 45,
+    alignItems: "flex-start",
+  },
+  headerRight: {
+    width: 45,
+    alignItems: "flex-end",
   },
   headerTitle: {
     fontSize: 20,

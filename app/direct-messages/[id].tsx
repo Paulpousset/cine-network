@@ -17,12 +17,11 @@ import {
     FlatList,
     KeyboardAvoidingView,
     Platform,
-    SafeAreaView,
     StyleSheet,
     Text,
     TextInput,
     TouchableOpacity,
-    View,
+    View
 } from "react-native";
 
 export default function DirectMessageChat() {
@@ -323,7 +322,7 @@ export default function DirectMessageChat() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: Colors.light.background }}>
+    <View style={{ flex: 1, backgroundColor: Colors.light.background }}>
       <Stack.Screen
         options={{
           headerTitle: () => (
@@ -360,6 +359,21 @@ export default function DirectMessageChat() {
                 )}
               </View>
             </View>
+          ),
+          headerLeft: () => (
+            <TouchableOpacity
+              onPress={() => {
+                if (router.canGoBack()) {
+                  router.back();
+                } else {
+                  router.replace("/direct-messages");
+                }
+              }}
+              style={{ padding: 10, marginLeft: -5 }}
+              hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
+            >
+              <Ionicons name="arrow-back" size={24} color={Colors.light.tint} />
+            </TouchableOpacity>
           ),
           headerTintColor: Colors.light.tint,
           headerBackTitle: "", // Hide back title text on iOS
@@ -461,7 +475,7 @@ export default function DirectMessageChat() {
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 }
 

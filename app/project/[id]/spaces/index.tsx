@@ -1,16 +1,20 @@
 import ClapLoading from "@/components/ClapLoading";
 import Colors from "@/constants/Colors";
 import { GlobalStyles } from "@/constants/Styles";
+import { useUserMode } from "@/hooks/useUserMode";
 import { Ionicons } from "@expo/vector-icons";
 import { Stack, useGlobalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   FlatList,
+  Platform,
   StyleSheet,
   Text,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { supabase } from "../../../../lib/supabase";
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -29,9 +33,12 @@ const CATEGORY_COLORS: Record<string, string> = {
 export default function ChatList() {
   const { id } = useGlobalSearchParams();
   const router = useRouter();
+  const { width } = useWindowDimensions();
+  const { mode } = useUserMode();
   const [loading, setLoading] = useState(false);
   const [channels, setChannels] = useState<string[]>([]);
   const [isOwner, setIsOwner] = useState(false);
+  const [project, setProject] = useState<any>(null);
   const [debugInfo, setDebugInfo] = useState("");
 
   const projectId = Array.isArray(id) ? id[0] : id;
@@ -58,18 +65,19 @@ export default function ChatList() {
       }
       const userId = session.user.id;
 
-      const { data: project, error: projError } = await supabase
+      const { data: proj, error: projError } = await supabase
         .from("tournages")
-        .select("owner_id")
+        .select("*")
         .eq("id", projectId)
-        .single();
+        .maybeSingle();
 
       if (projError) {
         setDebugInfo(`Proj Error: ${projError.message}`);
         return;
       }
 
-      const userIsOwner = project?.owner_id === userId;
+      setProject(proj);
+      const userIsOwner = proj?.owner_id === userId;
       setIsOwner(userIsOwner);
 
       let debugMsg = `User: ${userId?.substring(0, 5)}... Owner: ${project?.owner_id?.substring(0, 5)}... Match: ${userIsOwner}`;
@@ -131,40 +139,88 @@ export default function ChatList() {
   }
 
   return (
-    <View style={GlobalStyles.container}>
+    <SafeAreaView style={GlobalStyles.container} edges={["top"]}>
       <Stack.Screen
         options={{
           headerShown: false,
-          headerTitle: "Espaces de Travail",
-          headerShadowVisible: false,
-          headerTitleAlign: "center",
-          headerStyle: { backgroundColor: Colors.light.background },
-          headerTitleStyle: {
-            fontFamily: "System",
-            fontWeight: "bold",
-            color: Colors.light.text,
-          },
-          headerRight: isOwner
-            ? () => (
-                <TouchableOpacity
-                  onPress={() =>
-                    router.push({
-                      pathname: "/project/[id]/settings",
-                      params: { id: projectId as string },
-                    })
-                  }
-                  style={{ padding: 5, marginRight: 10 }}
-                >
-                  <Ionicons
-                    name="settings-outline"
-                    size={24}
-                    color={Colors.light.text}
-                  />
-                </TouchableOpacity>
-              )
-            : undefined,
         }}
       />
+
+      <View style={styles.projectHeader}>
+        <View
+          style={{
+            flexDirection: "row",
+            justifyContent: "space-between",
+            marginBottom: 10,
+            alignItems: "center",
+          }}
+        >
+          {(Platform.OS !== "web" || mode !== "studio") && (
+            <TouchableOpacity
+              onPress={() => router.replace("/(tabs)/my-projects")}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 5,
+                backgroundColor: "#f0f0f0",
+                paddingHorizontal: 10,
+                paddingVertical: 6,
+                borderRadius: 20,
+                position: "absolute",
+                left: 0,
+                zIndex: 10,
+              }}
+            >
+              <Ionicons name="home" size={16} color="#333" />
+              <Text style={{ fontSize: 11, fontWeight: "600", color: "#333" }}>
+                Accueil
+              </Text>
+            </TouchableOpacity>
+          )}
+
+          <View
+            style={{
+              alignItems: "center",
+              flex: 1,
+            }}
+          >
+            <Text style={styles.title} numberOfLines={2}>
+              {project?.title}
+            </Text>
+            <Text style={styles.subtitleProject} numberOfLines={1}>
+              {project?.type} • {project?.ville || "Lieu non défini"}
+            </Text>
+          </View>
+          <View
+            style={{
+              flexDirection: "row",
+              gap: 15,
+              alignItems: "center",
+              position: "absolute",
+              right: 0,
+              zIndex: 10,
+            }}
+          >
+            {isOwner && (
+              <TouchableOpacity
+                onPress={() =>
+                  router.push({
+                    pathname: "/project/[id]/settings",
+                    params: { id: projectId as string },
+                  })
+                }
+                style={{ padding: 5 }}
+              >
+                <Ionicons
+                  name="settings-outline"
+                  size={24}
+                  color={Colors.light.text}
+                />
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+      </View>
 
       <View style={styles.header}>
         <Text style={styles.subtitle}>
@@ -244,11 +300,29 @@ export default function ChatList() {
           );
         }}
       />
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  projectHeader: {
+    padding: 15,
+    backgroundColor: "white",
+    borderBottomWidth: 1,
+    borderBottomColor: "#eee",
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#333",
+    textAlign: "center",
+  },
+  subtitleProject: {
+    fontSize: 12,
+    color: "#666",
+    textTransform: "capitalize",
+    textAlign: "center",
+  },
   header: {
     paddingHorizontal: 20,
     paddingVertical: 15,

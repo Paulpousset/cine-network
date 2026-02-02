@@ -4,6 +4,7 @@ import PaymentModal from "@/components/PaymentModal";
 import Colors from "@/constants/Colors";
 import { GlobalStyles } from "@/constants/Styles";
 import { useUserMode } from "@/hooks/useUserMode";
+import { appEvents, EVENTS } from "@/lib/events";
 import { supabase } from "@/lib/supabase";
 import { Ionicons } from "@expo/vector-icons";
 import * as DocumentPicker from "expo-document-picker";
@@ -633,6 +634,8 @@ export default function Account() {
         }
         throw error;
       }
+
+      appEvents.emit(EVENTS.PROFILE_UPDATED);
 
       if (Platform.OS === "web") {
         window.alert("Succès\n\nVotre profil a été mis à jour !");

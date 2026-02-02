@@ -1,6 +1,8 @@
 import ClapLoading from "@/components/ClapLoading";
 import Colors from "@/constants/Colors";
 import { GlobalStyles } from "@/constants/Styles";
+import { appEvents, EVENTS } from "@/lib/events";
+import { supabase } from "@/lib/supabase";
 import { JOB_TITLES } from "@/utils/roles";
 import { fuzzySearch } from "@/utils/search";
 import { Ionicons } from "@expo/vector-icons";
@@ -19,7 +21,6 @@ import {
     TouchableWithoutFeedback,
     View,
 } from "react-native";
-import { supabase } from "../../lib/supabase";
 
 const ROLE_CATEGORIES = ["all", ...Object.keys(JOB_TITLES)];
 
@@ -32,6 +33,7 @@ export default function DiscoverProfiles() {
   const [loadingSuggestions, setLoadingSuggestions] = useState(true);
   const [pendingCount, setPendingCount] = useState(0);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
   // Filters State
   const [selectedRole, setSelectedRole] = useState<string>("all");
@@ -42,6 +44,26 @@ export default function DiscoverProfiles() {
   const [categoryModalVisible, setCategoryModalVisible] = useState(false);
   const [cityModalVisible, setCityModalVisible] = useState(false);
   const [availableCities, setAvailableCities] = useState<string[]>([]);
+
+  useEffect(() => {
+    fetchProfile();
+    const unsub = appEvents.on(EVENTS.PROFILE_UPDATED, fetchProfile);
+    return unsub;
+  }, []);
+
+  async function fetchProfile() {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (session) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("avatar_url")
+        .eq("id", session.user.id)
+        .single();
+      if (profile) setAvatarUrl(profile.avatar_url);
+    }
+  }
 
   useFocusEffect(
     useCallback(() => {
@@ -341,7 +363,31 @@ export default function DiscoverProfiles() {
       {/* En-tête spécifique au Web car le header natif est masqué */}
       {Platform.OS === "web" ? (
         <View style={styles.webHeader}>
+          <TouchableOpacity
+            onPress={() => router.push("/account")}
+            style={{ marginRight: 15 }}
+          >
+            {avatarUrl ? (
+              <Image
+                source={{ uri: avatarUrl }}
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 16,
+                  borderWidth: 1,
+                  borderColor: "#eee",
+                }}
+              />
+            ) : (
+              <Ionicons
+                name="person-circle-outline"
+                size={32}
+                color={Colors.light.text}
+              />
+            )}
+          </TouchableOpacity>
           <Text style={styles.webHeaderTitle}>Réseau</Text>
+          <View style={{ flex: 1 }} />
           <View style={{ flexDirection: "row", gap: 20 }}>
             <TouchableOpacity
               onPress={() => router.push("/network/connections")}

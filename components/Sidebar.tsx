@@ -8,13 +8,15 @@ import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { usePathname, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-  AppState,
-  Platform,
-  StyleSheet,
-  Switch,
-  Text,
-  useWindowDimensions,
-  View,
+    AppState,
+    Image,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Switch,
+    Text,
+    useWindowDimensions,
+    View,
 } from "react-native";
 import { Hoverable } from "./Hoverable";
 
@@ -45,8 +47,17 @@ export default function Sidebar() {
   const [recentChats, setRecentChats] = useState<any[]>([]);
   const [totalUnread, setTotalUnread] = useState(0);
   const [pendingConnections, setPendingConnections] = useState(0); // New state
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [projectsExpanded, setProjectsExpanded] = useState(false);
   const [chatsExpanded, setChatsExpanded] = useState(false);
+  const [categoriesExpanded, setCategoriesExpanded] = useState<
+    Record<string, boolean>
+  >({
+    general: true,
+    preprod: true,
+    production: true,
+    org: true,
+  });
 
   // Ref pour le pathname actuel afin d'avoir toujours la valeur à jour dans les callbacks
   const pathnameRef = React.useRef(pathname);
@@ -99,6 +110,11 @@ export default function Sidebar() {
       },
     );
 
+    // Listen for profile updates
+    const unsubscribeProfile = appEvents.on(EVENTS.PROFILE_UPDATED, () => {
+      fetchRecentData();
+    });
+
     // Listen for app state changes (background -> foreground) to refresh data
     const subscription = AppState.addEventListener("change", (nextAppState) => {
       if (nextAppState === "active") {
@@ -111,6 +127,7 @@ export default function Sidebar() {
       unsubscribeMessagesRead();
       unsubscribeNewMessage();
       unsubscribeConnections();
+      unsubscribeProfile();
       subscription.remove();
     };
   }, [mode]);
@@ -122,6 +139,14 @@ export default function Sidebar() {
       } = await supabase.auth.getSession();
       if (!session) return;
       const userId = session.user.id;
+
+      // 0. Fetch User Avatar
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("avatar_url")
+        .eq("id", userId)
+        .single();
+      if (profile) setAvatarUrl(profile.avatar_url);
 
       // 1. Projets Récents (Own + Participations)
       // Own
@@ -306,6 +331,46 @@ export default function Sidebar() {
 
   const isStudio = mode === "studio";
 
+  const studioToolsFlat =
+    isStudio && isInsideProject && projectId
+      ? getStudioTools(projectId, isOwner, userRole, userCategory)
+      : [];
+
+  const groupedStudioItems = [
+    {
+      title: "PROJET",
+      id: "general",
+      icon: "folder-open-o" as const,
+      items: studioToolsFlat.filter((t) =>
+        ["Général", "Planning", "Espaces", "Équipe"].includes(t.label),
+      ),
+    },
+    {
+      title: "PRÉPARATION",
+      id: "preprod",
+      icon: "clipboard" as const,
+      items: studioToolsFlat.filter((t) =>
+        ["Breakdown", "Casting"].includes(t.label),
+      ),
+    },
+    {
+      title: "PRODUCTION",
+      id: "production",
+      icon: "video-camera" as const,
+      items: studioToolsFlat.filter((t) =>
+        ["Plan de Travail", "Lieux"].includes(t.label),
+      ),
+    },
+    {
+      title: "ORGANISATION",
+      id: "org",
+      icon: "shield" as const,
+      items: studioToolsFlat.filter((t) =>
+        ["Logistique", "Admin"].includes(t.label),
+      ),
+    },
+  ].filter((g) => g.items.length > 0);
+
   // Force l'expansion des projets en mode studio pour un accès rapide
   useEffect(() => {
     if (isStudio) {
@@ -325,7 +390,7 @@ export default function Sidebar() {
 
   const currentItems =
     isStudio && isInsideProject && projectId
-      ? getStudioTools(projectId, isOwner, userRole, userCategory).map((t) => ({
+      ? studioToolsFlat.map((t) => ({
           name: t.label,
           icon: t.icon,
           href: t.href,
@@ -362,6 +427,334 @@ export default function Sidebar() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isStudio, isInsideProject, currentItems, router]);
 
+  const renderItem = (item: any) => {
+    // Pour les projets, on vérifie l'égalité exacte ou le préfixe
+    const isActive = isInsideProject
+      ? pathname === item.href
+      : pathname.startsWith(item.href);
+
+    const isProjects = (item as any).id === "projects";
+    const isChats = (item as any).id === "chats";
+
+    // Dans le mode studio, on affiche toujours les projets récents expanded pour un accès rapide
+    const expanded =
+      (isProjects && isStudio) ||
+      (isProjects ? projectsExpanded : isChats ? chatsExpanded : false);
+
+    const toggleExpand = (e: any) => {
+      e.stopPropagation();
+      if (isProjects && !isStudio) setProjectsExpanded(!projectsExpanded);
+      if (isChats) setChatsExpanded(!chatsExpanded);
+    };
+
+    return (
+      <View key={item.href}>
+        <Hoverable
+          onPress={() => router.push(item.href as any)}
+          hoverStyle={{
+            backgroundColor: isActive ? Colors.light.tint + "20" : "#f5f5f5",
+          }}
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: isSidebarCollapsed ? "center" : "flex-start",
+            padding: 12,
+            borderRadius: 8,
+            gap: isSidebarCollapsed ? 0 : 12,
+            backgroundColor: isActive
+              ? Colors.light.tint + "10"
+              : "transparent",
+          }}
+        >
+          <View style={{ position: "relative" }}>
+            {(item as any).isIonicons ? (
+              <Ionicons
+                name={item.icon as any}
+                size={20}
+                color={isActive ? Colors.light.tint : "#666"}
+              />
+            ) : (
+              <FontAwesome
+                name={item.icon as any}
+                size={20}
+                color={isActive ? Colors.light.tint : "#666"}
+              />
+            )}
+            {/* Badge Chat */}
+            {isChats && !expanded && totalUnread > 0 && (
+              <View
+                style={{
+                  position: "absolute",
+                  top: -2,
+                  right: -2,
+                  width: 10,
+                  height: 10,
+                  borderRadius: 5,
+                  backgroundColor: Colors.light.tint,
+                  borderWidth: 2,
+                  borderColor: "white",
+                }}
+              />
+            )}
+            {/* Badge Notifications */}
+            {item.href === "/notifications" && pendingConnections > 0 && (
+              <View
+                style={{
+                  position: "absolute",
+                  top: -2,
+                  right: -2,
+                  width: 10,
+                  height: 10,
+                  borderRadius: 5,
+                  backgroundColor: Colors.light.tint,
+                  borderWidth: 2,
+                  borderColor: "white",
+                }}
+              />
+            )}
+          </View>
+          {!isSidebarCollapsed && (
+            <>
+              <Text
+                style={{
+                  fontSize: 16,
+                  fontWeight: isActive ? "600" : "500",
+                  color: isActive ? Colors.light.tint : "#666",
+                  flex: 1,
+                }}
+              >
+                {item.name}
+              </Text>
+              {isStudio && (item as any).shortcut && (
+                <View
+                  style={{
+                    backgroundColor: "#f5f5f5",
+                    borderRadius: 4,
+                    paddingHorizontal: 6,
+                    paddingVertical: 2,
+                    borderWidth: 1,
+                    borderColor: "#ddd",
+                    borderBottomWidth: 2,
+                    marginLeft: 4,
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontSize: 10,
+                      fontWeight: "700",
+                      color: "#999",
+                    }}
+                  >
+                    {(item as any).shortcut}
+                  </Text>
+                </View>
+              )}
+              {(isProjects || isChats) && (
+                <Hoverable
+                  onPress={toggleExpand}
+                  hoverStyle={{
+                    backgroundColor: "#eee",
+                    borderRadius: 4,
+                  }}
+                  style={{
+                    padding: 4,
+                    paddingRight: 0,
+                  }}
+                >
+                  <FontAwesome
+                    name={expanded ? "chevron-down" : "chevron-right"}
+                    size={12}
+                    color="#999"
+                  />
+                </Hoverable>
+              )}
+            </>
+          )}
+        </Hoverable>
+
+        {/* Sous-items Projets */}
+        {isProjects &&
+          expanded &&
+          !isSidebarCollapsed &&
+          recentProjects.length > 0 && (
+            <View
+              style={{
+                marginLeft: 15,
+                marginTop: 4,
+                gap: 6,
+                paddingRight: 5,
+                borderLeftWidth: 2,
+                borderLeftColor: isStudio ? Colors.light.tint + "40" : "#eee",
+              }}
+            >
+              {recentProjects.map((p) => {
+                const isSelected = pathname.includes(`/project/${p.id}`);
+                return (
+                  <Hoverable
+                    key={p.id}
+                    onPress={() => router.push(`/project/${p.id}`)}
+                    hoverStyle={{
+                      backgroundColor: isSelected
+                        ? Colors.light.tint + "20"
+                        : "#f5f5f5",
+                    }}
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      paddingVertical: isStudio ? 10 : 7,
+                      paddingHorizontal: 12,
+                      backgroundColor: isSelected
+                        ? Colors.light.tint + "15"
+                        : "transparent",
+                      borderRadius: 8,
+                      gap: 10,
+                      marginLeft: 5,
+                    }}
+                  >
+                    <FontAwesome
+                      name="film"
+                      size={isStudio ? 14 : 12}
+                      color={isSelected ? Colors.light.tint : "#888"}
+                    />
+                    <Text
+                      numberOfLines={1}
+                      style={{
+                        fontSize: isStudio ? 14 : 12,
+                        color: isSelected ? Colors.light.tint : "#444",
+                        fontWeight: isSelected ? "700" : "500",
+                        flex: 1,
+                      }}
+                    >
+                      {p.title}
+                    </Text>
+                  </Hoverable>
+                );
+              })}
+            </View>
+          )}
+
+        {/* Sous-items Chats */}
+        {isChats &&
+          expanded &&
+          !isSidebarCollapsed &&
+          recentChats.length > 0 && (
+            <View
+              style={{
+                marginLeft: 20,
+                marginTop: 4,
+                gap: 4,
+                paddingRight: 5,
+                borderLeftWidth: 1,
+                borderLeftColor: "#eee",
+              }}
+            >
+              {recentChats.map((c) => {
+                // Comparaison plus robuste de l'ID
+                const isSelected = currentChatId === c.id;
+                // Force à 0 si on est déjà sur la discussion pour éviter le lag d'affichage
+                const displayUnreadCount = isSelected ? 0 : c.unreadCount || 0;
+
+                return (
+                  <Hoverable
+                    key={c.id}
+                    onPress={() =>
+                      router.push({
+                        pathname: "/direct-messages/[id]",
+                        params: { id: c.id },
+                      })
+                    }
+                    hoverStyle={{
+                      backgroundColor: isSelected
+                        ? Colors.light.tint + "25"
+                        : "#f0f0f0",
+                    }}
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      paddingVertical: 7,
+                      paddingHorizontal: 10,
+                      backgroundColor: isSelected
+                        ? Colors.light.tint + "15"
+                        : "transparent",
+                      borderRadius: 6,
+                      gap: 8,
+                      marginLeft: 10,
+                    }}
+                  >
+                    <View style={{ position: "relative" }}>
+                      <View
+                        style={{
+                          width: 16,
+                          height: 16,
+                          borderRadius: 8,
+                          backgroundColor: "#ddd",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                      >
+                        <FontAwesome name="user" size={8} color="#fff" />
+                      </View>
+                      {displayUnreadCount > 0 && (
+                        <View
+                          style={{
+                            position: "absolute",
+                            top: -2,
+                            right: -2,
+                            width: 8,
+                            height: 8,
+                            borderRadius: 4,
+                            backgroundColor: Colors.light.tint,
+                            borderWidth: 1.5,
+                            borderColor: "#fcfcfc",
+                          }}
+                        />
+                      )}
+                    </View>
+                    <Text
+                      numberOfLines={1}
+                      style={{
+                        fontSize: 12,
+                        color: isSelected ? Colors.light.tint : "#555",
+                        fontWeight:
+                          isSelected || displayUnreadCount > 0 ? "700" : "500",
+                        flex: 1,
+                      }}
+                    >
+                      {c.full_name}
+                    </Text>
+                    {displayUnreadCount > 0 && (
+                      <View
+                        style={{
+                          backgroundColor: Colors.light.tint,
+                          borderRadius: 10,
+                          minWidth: 18,
+                          height: 18,
+                          alignItems: "center",
+                          justifyContent: "center",
+                          paddingHorizontal: 4,
+                          marginLeft: "auto", // Pousse le badge à droite
+                        }}
+                      >
+                        <Text
+                          style={{
+                            color: "white",
+                            fontSize: 10,
+                            fontWeight: "bold",
+                          }}
+                        >
+                          {displayUnreadCount}
+                        </Text>
+                      </View>
+                    )}
+                  </Hoverable>
+                );
+              })}
+            </View>
+          )}
+      </View>
+    );
+  };
+
   const sidebarStyle: any = {
     width: isSidebarCollapsed ? 80 : 250,
     backgroundColor: "#fff",
@@ -387,10 +780,19 @@ export default function Sidebar() {
       >
         {isSidebarCollapsed ? (
           <Hoverable onPress={() => router.push("/")}>
-            <Text style={[styles.logo, { fontSize: 28 }]}>T</Text>
+            <Image
+              source={require("@/assets/images/logo.jpg")}
+              style={{ width: 50, height: 50 }}
+              resizeMode="contain"
+            />
           </Hoverable>
         ) : isStudio && isInsideProject && currentProjectTitle ? (
           <View>
+            <Image
+              source={require("@/assets/images/logo.jpg")}
+              style={{ width: 180, height: 65, marginBottom: 10 }}
+              resizeMode="contain"
+            />
             <Text
               style={[styles.logo, { fontSize: 16, marginBottom: 4 }]}
               numberOfLines={2}
@@ -422,17 +824,39 @@ export default function Sidebar() {
             </Hoverable>
           </View>
         ) : (
-          <Text style={styles.logo}>
-            {mode === "studio"
-              ? "STUDIO"
-              : isInsideProject
-                ? "PROJET"
-                : "CINE TITA"}
-          </Text>
+          <View>
+            <Image
+              source={require("@/assets/images/logo.jpg")}
+              style={{ width: 200, height: 70, marginBottom: 5 }}
+              resizeMode="contain"
+            />
+            {mode === "studio" && (
+              <View
+                style={{
+                  backgroundColor: Colors.light.tint,
+                  paddingHorizontal: 8,
+                  paddingVertical: 2,
+                  borderRadius: 4,
+                  alignSelf: "flex-start",
+                  marginTop: 5,
+                }}
+              >
+                <Text
+                  style={{ color: "#fff", fontSize: 10, fontWeight: "bold" }}
+                >
+                  STUDIO
+                </Text>
+              </View>
+            )}
+          </View>
         )}
       </View>
 
-      <View style={styles.menu}>
+      <ScrollView
+        style={styles.menu}
+        contentContainerStyle={{ flexGrow: 1, gap: 8 }}
+        showsVerticalScrollIndicator={false}
+      >
         {mode === "studio" && !isInsideProject && (
           <Hoverable
             onPress={() => router.push("/project/new")}
@@ -478,342 +902,67 @@ export default function Sidebar() {
           </Hoverable>
         )}
 
-        {currentItems.map((item) => {
-          // Pour les projets, on vérifie l'égalité exacte ou le préfixe
-          const isActive = isInsideProject
-            ? pathname === item.href
-            : pathname.startsWith(item.href);
-
-          const isProjects = (item as any).id === "projects";
-          const isChats = (item as any).id === "chats";
-          const isStudio = mode === "studio";
-
-          // Dans le mode studio, on affiche toujours les projets récents expanded pour un accès rapide
-          const expanded =
-            (isProjects && isStudio) ||
-            (isProjects ? projectsExpanded : isChats ? chatsExpanded : false);
-
-          const toggleExpand = (e: any) => {
-            e.stopPropagation();
-            if (isProjects && !isStudio) setProjectsExpanded(!projectsExpanded);
-            if (isChats) setChatsExpanded(!chatsExpanded);
-          };
-
-          return (
-            <View key={item.href}>
-              <Hoverable
-                onPress={() => router.push(item.href as any)}
-                hoverStyle={{
-                  backgroundColor: isActive
-                    ? Colors.light.tint + "20"
-                    : "#f5f5f5",
-                }}
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  justifyContent: isSidebarCollapsed ? "center" : "flex-start",
-                  padding: 12,
-                  borderRadius: 8,
-                  gap: isSidebarCollapsed ? 0 : 12,
-                  backgroundColor: isActive
-                    ? Colors.light.tint + "10"
-                    : "transparent",
-                }}
-              >
-                <View style={{ position: "relative" }}>
-                  {(item as any).isIonicons ? (
-                    <Ionicons
-                      name={item.icon as any}
-                      size={20}
-                      color={isActive ? Colors.light.tint : "#666"}
-                    />
-                  ) : (
-                    <FontAwesome
-                      name={item.icon as any}
-                      size={20}
-                      color={isActive ? Colors.light.tint : "#666"}
-                    />
-                  )}
-                  {/* Badge Chat */}
-                  {isChats && !expanded && totalUnread > 0 && (
-                    <View
+        {isStudio && isInsideProject
+          ? groupedStudioItems.map((group) => {
+              const isExpanded = categoriesExpanded[group.id];
+              return (
+                <View key={group.id} style={{ marginBottom: 15 }}>
+                  {!isSidebarCollapsed && (
+                    <Hoverable
+                      onPress={() =>
+                        setCategoriesExpanded((prev) => ({
+                          ...prev,
+                          [group.id]: !isExpanded,
+                        }))
+                      }
                       style={{
-                        position: "absolute",
-                        top: -2,
-                        right: -2,
-                        width: 10,
-                        height: 10,
-                        borderRadius: 5,
-                        backgroundColor: Colors.light.tint,
-                        borderWidth: 2,
-                        borderColor: "white",
-                      }}
-                    />
-                  )}
-                  {/* Badge Notifications */}
-                  {item.href === "/notifications" && pendingConnections > 0 && (
-                    <View
-                      style={{
-                        position: "absolute",
-                        top: -2,
-                        right: -2,
-                        width: 10,
-                        height: 10,
-                        borderRadius: 5,
-                        backgroundColor: Colors.light.tint,
-                        borderWidth: 2,
-                        borderColor: "white",
-                      }}
-                    />
-                  )}
-                </View>
-                {!isSidebarCollapsed && (
-                  <>
-                    <Text
-                      style={{
-                        fontSize: 16,
-                        fontWeight: isActive ? "600" : "500",
-                        color: isActive ? Colors.light.tint : "#666",
-                        flex: 1,
+                        flexDirection: "row",
+                        alignItems: "center",
+                        paddingVertical: 8,
+                        paddingHorizontal: 12,
+                        gap: 10,
                       }}
                     >
-                      {item.name}
-                    </Text>
-                    {isStudio && (item as any).shortcut && (
-                      <View
+                      <FontAwesome
+                        name={group.icon as any}
+                        size={14}
+                        color="#999"
+                      />
+                      <Text
                         style={{
-                          backgroundColor: "#f5f5f5",
-                          borderRadius: 4,
-                          paddingHorizontal: 6,
-                          paddingVertical: 2,
-                          borderWidth: 1,
-                          borderColor: "#ddd",
-                          borderBottomWidth: 2,
-                          marginLeft: 4,
+                          fontSize: 12,
+                          fontWeight: "800",
+                          color: "#999",
+                          flex: 1,
+                          letterSpacing: 1,
                         }}
                       >
-                        <Text
-                          style={{
-                            fontSize: 10,
-                            fontWeight: "700",
-                            color: "#999",
-                          }}
-                        >
-                          {(item as any).shortcut}
-                        </Text>
-                      </View>
-                    )}
-                    {(isProjects || isChats) && (
-                      <Hoverable
-                        onPress={toggleExpand}
-                        hoverStyle={{
-                          backgroundColor: "#eee",
-                          borderRadius: 4,
-                        }}
-                        style={{
-                          padding: 4,
-                          paddingRight: 0,
-                        }}
-                      >
-                        <FontAwesome
-                          name={expanded ? "chevron-down" : "chevron-right"}
-                          size={12}
-                          color="#999"
-                        />
-                      </Hoverable>
-                    )}
-                  </>
-                )}
-              </Hoverable>
-
-              {/* Sous-items Projets */}
-              {isProjects &&
-                expanded &&
-                !isSidebarCollapsed &&
-                recentProjects.length > 0 && (
-                  <View
-                    style={{
-                      marginLeft: 15,
-                      marginTop: 4,
-                      gap: 6,
-                      paddingRight: 5,
-                      borderLeftWidth: 2,
-                      borderLeftColor: isStudio
-                        ? Colors.light.tint + "40"
-                        : "#eee",
-                    }}
-                  >
-                    {recentProjects.map((p) => {
-                      const isSelected = pathname.includes(`/project/${p.id}`);
-                      return (
-                        <Hoverable
-                          key={p.id}
-                          onPress={() => router.push(`/project/${p.id}`)}
-                          hoverStyle={{
-                            backgroundColor: isSelected
-                              ? Colors.light.tint + "20"
-                              : "#f5f5f5",
-                          }}
-                          style={{
-                            flexDirection: "row",
-                            alignItems: "center",
-                            paddingVertical: isStudio ? 10 : 7,
-                            paddingHorizontal: 12,
-                            backgroundColor: isSelected
-                              ? Colors.light.tint + "15"
-                              : "transparent",
-                            borderRadius: 8,
-                            gap: 10,
-                            marginLeft: 5,
-                          }}
-                        >
-                          <FontAwesome
-                            name="film"
-                            size={isStudio ? 14 : 12}
-                            color={isSelected ? Colors.light.tint : "#888"}
-                          />
-                          <Text
-                            numberOfLines={1}
-                            style={{
-                              fontSize: isStudio ? 14 : 12,
-                              color: isSelected ? Colors.light.tint : "#444",
-                              fontWeight: isSelected ? "700" : "500",
-                              flex: 1,
-                            }}
-                          >
-                            {p.title}
-                          </Text>
-                        </Hoverable>
-                      );
-                    })}
-                  </View>
-                )}
-
-              {/* Sous-items Chats */}
-              {isChats &&
-                expanded &&
-                !isSidebarCollapsed &&
-                recentChats.length > 0 && (
-                  <View
-                    style={{
-                      marginLeft: 20,
-                      marginTop: 4,
-                      gap: 4,
-                      paddingRight: 5,
-                      borderLeftWidth: 1,
-                      borderLeftColor: "#eee",
-                    }}
-                  >
-                    {recentChats.map((c) => {
-                      // Comparaison plus robuste de l'ID
-                      const isSelected = currentChatId === c.id;
-                      // Force à 0 si on est déjà sur la discussion pour éviter le lag d'affichage
-                      const displayUnreadCount = isSelected
-                        ? 0
-                        : c.unreadCount || 0;
-
-                      return (
-                        <Hoverable
-                          key={c.id}
-                          onPress={() =>
-                            router.push({
-                              pathname: "/direct-messages/[id]",
-                              params: { id: c.id },
-                            })
-                          }
-                          hoverStyle={{
-                            backgroundColor: isSelected
-                              ? Colors.light.tint + "25"
-                              : "#f0f0f0",
-                          }}
-                          style={{
-                            flexDirection: "row",
-                            alignItems: "center",
-                            paddingVertical: 7,
-                            paddingHorizontal: 10,
-                            backgroundColor: isSelected
-                              ? Colors.light.tint + "15"
-                              : "transparent",
-                            borderRadius: 6,
-                            gap: 8,
-                            marginLeft: 10,
-                          }}
-                        >
-                          <View style={{ position: "relative" }}>
-                            <View
-                              style={{
-                                width: 16,
-                                height: 16,
-                                borderRadius: 8,
-                                backgroundColor: "#ddd",
-                                alignItems: "center",
-                                justifyContent: "center",
-                              }}
-                            >
-                              <FontAwesome name="user" size={8} color="#fff" />
-                            </View>
-                            {displayUnreadCount > 0 && (
-                              <View
-                                style={{
-                                  position: "absolute",
-                                  top: -2,
-                                  right: -2,
-                                  width: 8,
-                                  height: 8,
-                                  borderRadius: 4,
-                                  backgroundColor: Colors.light.tint,
-                                  borderWidth: 1.5,
-                                  borderColor: "#fcfcfc",
-                                }}
-                              />
-                            )}
-                          </View>
-                          <Text
-                            numberOfLines={1}
-                            style={{
-                              fontSize: 12,
-                              color: isSelected ? Colors.light.tint : "#555",
-                              fontWeight:
-                                isSelected || displayUnreadCount > 0
-                                  ? "700"
-                                  : "500",
-                              flex: 1,
-                            }}
-                          >
-                            {c.full_name}
-                          </Text>
-                          {displayUnreadCount > 0 && (
-                            <View
-                              style={{
-                                backgroundColor: Colors.light.tint,
-                                borderRadius: 10,
-                                minWidth: 18,
-                                height: 18,
-                                alignItems: "center",
-                                justifyContent: "center",
-                                paddingHorizontal: 4,
-                                marginLeft: "auto", // Pousse le badge à droite
-                              }}
-                            >
-                              <Text
-                                style={{
-                                  color: "white",
-                                  fontSize: 10,
-                                  fontWeight: "bold",
-                                }}
-                              >
-                                {displayUnreadCount}
-                              </Text>
-                            </View>
-                          )}
-                        </Hoverable>
-                      );
-                    })}
-                  </View>
-                )}
-            </View>
-          );
-        })}
+                        {group.title}
+                      </Text>
+                      <FontAwesome
+                        name={isExpanded ? "chevron-down" : "chevron-right"}
+                        size={10}
+                        color="#ccc"
+                      />
+                    </Hoverable>
+                  )}
+                  {(isExpanded || isSidebarCollapsed) && (
+                    <View style={{ gap: 2, marginTop: 4 }}>
+                      {group.items.map((t) =>
+                        renderItem({
+                          name: t.label,
+                          icon: t.icon,
+                          href: t.href,
+                          isIonicons: true,
+                          shortcut: (t as any).shortcut,
+                        }),
+                      )}
+                    </View>
+                  )}
+                </View>
+              );
+            })
+          : currentItems.map((item) => renderItem(item))}
 
         {/* Spacer pour pousser le lien Compte en bas */}
         <View style={{ flex: 1 }} />
@@ -842,11 +991,28 @@ export default function Sidebar() {
             paddingTop: 15,
           }}
         >
-          <FontAwesome
-            name="user-circle"
-            size={20}
-            color={pathname.startsWith("/account") ? Colors.light.tint : "#666"}
-          />
+          {avatarUrl ? (
+            <Image
+              source={{ uri: avatarUrl }}
+              style={{
+                width: 24,
+                height: 24,
+                borderRadius: 12,
+                borderWidth: 1,
+                borderColor: pathname.startsWith("/account")
+                  ? Colors.light.tint
+                  : "#eee",
+              }}
+            />
+          ) : (
+            <FontAwesome
+              name="user-circle"
+              size={20}
+              color={
+                pathname.startsWith("/account") ? Colors.light.tint : "#666"
+              }
+            />
+          )}
           {!isSidebarCollapsed && (
             <Text
               style={{
@@ -861,7 +1027,7 @@ export default function Sidebar() {
             </Text>
           )}
         </Hoverable>
-      </View>
+      </ScrollView>
 
       <View
         style={[styles.footer, isSidebarCollapsed && { alignItems: "center" }]}

@@ -475,8 +475,8 @@ export default function BreakdownScreen() {
     <View style={styles.container}>
       {/* Custom Header since Tabs/Stack header is hidden */}
       <View style={styles.header}>
-        <View style={{ flexDirection: "row", alignItems: "center", flex: 1 }}>
-          {mode !== "studio" && (
+        <View style={styles.headerLeft}>
+          {(Platform.OS !== "web" || mode !== "studio") && (
             <TouchableOpacity
               onPress={() =>
                 router.push({
@@ -484,24 +484,28 @@ export default function BreakdownScreen() {
                   params: { id: id, category: "production", tab: "tools" },
                 })
               }
-              style={{ marginRight: 15 }}
+              style={{ padding: 4 }}
             >
               <Ionicons name="arrow-back" size={28} color="#000" />
             </TouchableOpacity>
           )}
-          <Text style={styles.headerTitle}>Dépouillement</Text>
         </View>
-        {canEdit && (
-          <TouchableOpacity
-            onPress={() => {
-              resetForm();
-              setModalVisible(true);
-            }}
-            style={styles.headerButton}
-          >
-            <Ionicons name="add-circle" size={32} color={Colors.light.tint} />
-          </TouchableOpacity>
-        )}
+
+        <Text style={styles.headerTitle}>Dépouillement</Text>
+
+        <View style={styles.headerRight}>
+          {canEdit && (
+            <TouchableOpacity
+              onPress={() => {
+                resetForm();
+                setModalVisible(true);
+              }}
+              style={styles.headerButton}
+            >
+              <Ionicons name="add-circle" size={32} color={Colors.light.tint} />
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
       {loading ? (
@@ -848,12 +852,20 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     paddingTop: 60, // Safe Area top padding approx
     paddingBottom: 20,
     backgroundColor: "white",
     borderBottomWidth: 1,
     borderBottomColor: "#eee",
+  },
+  headerLeft: {
+    width: 45,
+    alignItems: "flex-start",
+  },
+  headerRight: {
+    width: 45,
+    alignItems: "flex-end",
   },
   headerTitle: {
     fontSize: 24,

@@ -2,7 +2,7 @@ import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { Link, Tabs, useRouter } from "expo-router";
 import React from "react";
-import { Pressable, View } from "react-native";
+import { Image, Pressable, View } from "react-native";
 
 import ChatIconWithBadge from "@/components/ChatIconWithBadge";
 import CustomTabBar from "@/components/CustomTabBar"; // Imported
@@ -26,21 +26,37 @@ export default function TabLayout() {
   const colorScheme = useColorScheme();
   const router = useRouter();
   const [pendingConnections, setPendingConnections] = useState(0);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchPendingConnections();
-    const unsub = appEvents.on(
+    fetchUserData();
+    const unsubConnections = appEvents.on(
       EVENTS.CONNECTIONS_UPDATED,
-      fetchPendingConnections,
+      fetchUserData,
     );
-    return unsub;
+    const unsubProfile = appEvents.on(EVENTS.PROFILE_UPDATED, fetchUserData);
+    return () => {
+      unsubConnections();
+      unsubProfile();
+    };
   }, []);
 
-  async function fetchPendingConnections() {
+  async function fetchUserData() {
     const {
       data: { session },
     } = await supabase.auth.getSession();
     if (!session) return;
+
+    // Fetch avatar
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("avatar_url")
+      .eq("id", session.user.id)
+      .single();
+
+    if (profile) {
+      setAvatarUrl(profile.avatar_url);
+    }
 
     const { count } = await supabase
       .from("connections")
@@ -50,6 +66,33 @@ export default function TabLayout() {
 
     setPendingConnections(count || 0);
   }
+
+  const ProfileIcon = ({ pressed }: { pressed: boolean }) => {
+    if (avatarUrl) {
+      return (
+        <Image
+          source={{ uri: avatarUrl }}
+          style={{
+            width: 28,
+            height: 28,
+            borderRadius: 14,
+            marginLeft: 15,
+            opacity: pressed ? 0.5 : 1,
+            borderWidth: 1,
+            borderColor: Colors[colorScheme ?? "light"].border,
+          }}
+        />
+      );
+    }
+    return (
+      <FontAwesome
+        name="user-circle"
+        size={25}
+        color={Colors[colorScheme ?? "light"].text}
+        style={{ marginLeft: 15, opacity: pressed ? 0.5 : 1 }}
+      />
+    );
+  };
 
   // Stable callback for rendering the tab bar
   const renderTabBar = React.useCallback(
@@ -80,7 +123,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="my-projects"
         options={{
-          title: "Mes Projets 🎬",
+          title: "Mes Projets",
           tabBarIcon: ({ color }) => <TabBarIcon name="film" color={color} />,
           headerLeft:
             Platform.OS === "web"
@@ -88,14 +131,7 @@ export default function TabLayout() {
               : () => (
                   <Link href="/account" asChild>
                     <Pressable>
-                      {({ pressed }) => (
-                        <FontAwesome
-                          name="user-circle"
-                          size={25}
-                          color={Colors[colorScheme ?? "light"].text}
-                          style={{ marginLeft: 15, opacity: pressed ? 0.5 : 1 }}
-                        />
-                      )}
+                      {({ pressed }) => <ProfileIcon pressed={pressed} />}
                     </Pressable>
                   </Link>
                 ),
@@ -114,7 +150,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="jobs"
         options={{
-          title: "Casting & Jobs ",
+          title: "Castings",
           tabBarIcon: ({ color }) => (
             <TabBarIcon name="briefcase" color={color} />
           ),
@@ -124,14 +160,7 @@ export default function TabLayout() {
               : () => (
                   <Link href="/account" asChild>
                     <Pressable>
-                      {({ pressed }) => (
-                        <FontAwesome
-                          name="user-circle"
-                          size={25}
-                          color={Colors[colorScheme ?? "light"].text}
-                          style={{ marginLeft: 15, opacity: pressed ? 0.5 : 1 }}
-                        />
-                      )}
+                      {({ pressed }) => <ProfileIcon pressed={pressed} />}
                     </Pressable>
                   </Link>
                 ),
@@ -158,14 +187,7 @@ export default function TabLayout() {
               : () => (
                   <Link href="/account" asChild>
                     <Pressable>
-                      {({ pressed }) => (
-                        <FontAwesome
-                          name="user-circle"
-                          size={25}
-                          color={Colors[colorScheme ?? "light"].text}
-                          style={{ marginLeft: 15, opacity: pressed ? 0.5 : 1 }}
-                        />
-                      )}
+                      {({ pressed }) => <ProfileIcon pressed={pressed} />}
                     </Pressable>
                   </Link>
                 ),
@@ -194,14 +216,7 @@ export default function TabLayout() {
               : () => (
                   <Link href="/account" asChild>
                     <Pressable>
-                      {({ pressed }) => (
-                        <FontAwesome
-                          name="user-circle"
-                          size={25}
-                          color={Colors[colorScheme ?? "light"].text}
-                          style={{ marginLeft: 15, opacity: pressed ? 0.5 : 1 }}
-                        />
-                      )}
+                      {({ pressed }) => <ProfileIcon pressed={pressed} />}
                     </Pressable>
                   </Link>
                 ),

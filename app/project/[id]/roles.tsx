@@ -893,7 +893,7 @@ export default function ManageRoles() {
     <View style={styles.container}>
       <View style={styles.header}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-          {mode !== "studio" && (
+          {(Platform.OS !== "web" || mode !== "studio") && (
             <TouchableOpacity
               onPress={() =>
                 router.push({

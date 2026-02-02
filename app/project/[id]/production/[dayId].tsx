@@ -671,7 +671,7 @@ export default function DayDetailScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        {mode !== "studio" && (
+        {(Platform.OS !== "web" || mode !== "studio") && (
           <TouchableOpacity
             onPress={() => router.back()}
             style={{ marginRight: 15 }}

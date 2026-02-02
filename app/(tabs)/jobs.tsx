@@ -2,24 +2,26 @@ import AppMap, { Marker, PROVIDER_DEFAULT } from "@/components/AppMap";
 import ClapLoading from "@/components/ClapLoading";
 import Colors from "@/constants/Colors";
 import { GlobalStyles } from "@/constants/Styles";
+import { appEvents, EVENTS } from "@/lib/events";
 import { getRecommendedRoles } from "@/lib/matching";
 import { JOB_TITLES } from "@/utils/roles";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-  Alert,
-  FlatList,
-  Modal,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  TouchableWithoutFeedback,
-  useWindowDimensions,
-  View,
+    Alert,
+    FlatList,
+    Image,
+    Modal,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    TouchableWithoutFeedback,
+    useWindowDimensions,
+    View,
 } from "react-native";
 import { supabase } from "../../lib/supabase";
 
@@ -76,6 +78,7 @@ export default function Discover() {
 
   // Data for filters
   const [availableCities, setAvailableCities] = useState<string[]>([]);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
   // 1. Fetch data from DB when category/city changes
   useEffect(() => {
@@ -90,7 +93,24 @@ export default function Discover() {
   useEffect(() => {
     fetchCities();
     fetchRecommendations();
+    fetchProfile();
+    const unsub = appEvents.on(EVENTS.PROFILE_UPDATED, fetchProfile);
+    return unsub;
   }, []);
+
+  async function fetchProfile() {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (session) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("avatar_url")
+        .eq("id", session.user.id)
+        .single();
+      if (profile) setAvatarUrl(profile.avatar_url);
+    }
+  }
 
   async function fetchRecommendations() {
     try {
@@ -385,8 +405,31 @@ export default function Discover() {
   return (
     <View style={styles.container}>
       {/* HEADER */}
-      {isWebLarge && (
+      {Platform.OS === "web" && (
         <View style={styles.webHeader}>
+          <TouchableOpacity
+            onPress={() => router.push("/account")}
+            style={{ marginRight: 15 }}
+          >
+            {avatarUrl ? (
+              <Image
+                source={{ uri: avatarUrl }}
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 16,
+                  borderWidth: 1,
+                  borderColor: "#eee",
+                }}
+              />
+            ) : (
+              <Ionicons
+                name="person-circle-outline"
+                size={32}
+                color={Colors.light.text}
+              />
+            )}
+          </TouchableOpacity>
           <Text style={styles.webHeaderTitle}>Offres & Tournages</Text>
         </View>
       )}

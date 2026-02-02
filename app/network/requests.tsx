@@ -1,11 +1,13 @@
 import Colors from "@/constants/Colors";
 import { GlobalStyles } from "@/constants/Styles";
+import { appEvents, EVENTS } from "@/lib/events";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Stack, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
     Alert,
+    Platform,
     RefreshControl,
     SectionList,
     StyleSheet,
@@ -120,9 +122,45 @@ export default function ConnectionRequests() {
       if (!seenIds.includes(id)) {
         seenIds.push(id);
         await AsyncStorage.setItem(SEEN_ACCEPTED_KEY, JSON.stringify(seenIds));
+        appEvents.emit(EVENTS.CONNECTIONS_UPDATED);
       }
     } catch (e) {
       console.error("Failed to dismiss notification", e);
+    }
+  }
+
+  async function handleMarkAllAcceptedAsSeen() {
+    try {
+      const seenJson = await AsyncStorage.getItem(SEEN_ACCEPTED_KEY);
+      let seenIds = seenJson ? JSON.parse(seenJson) : [];
+      if (!Array.isArray(seenIds)) seenIds = [];
+
+      const acceptedSection = sections.find(
+        (s) => s.title === "Nouveaux Contacts",
+      );
+      const newIdsToMark = [];
+      if (acceptedSection) {
+        acceptedSection.data.forEach((item: any) => {
+          if (!seenIds.includes(item.id)) {
+            newIdsToMark.push(item.id);
+          }
+        });
+      }
+
+      if (newIdsToMark.length > 0) {
+        const updatedSeenIds = [...seenIds, ...newIdsToMark];
+        await AsyncStorage.setItem(
+          SEEN_ACCEPTED_KEY,
+          JSON.stringify(updatedSeenIds),
+        );
+        fetchRequests();
+        appEvents.emit(EVENTS.CONNECTIONS_UPDATED);
+        if (Platform.OS !== "web") {
+          Alert.alert("Succès", "Nouveaux contacts marqués comme vus.");
+        }
+      }
+    } catch (e) {
+      console.error(e);
     }
   }
 
@@ -290,6 +328,10 @@ export default function ConnectionRequests() {
     );
   };
 
+  const hasAcceptedToDismiss = sections.some(
+    (s) => s.title === "Nouveaux Contacts",
+  );
+
   return (
     <View style={styles.container}>
       <Stack.Screen
@@ -306,6 +348,23 @@ export default function ConnectionRequests() {
               <Ionicons name="arrow-back" size={24} color={Colors.light.text} />
             </TouchableOpacity>
           ),
+          headerRight: () =>
+            hasAcceptedToDismiss ? (
+              <TouchableOpacity
+                onPress={handleMarkAllAcceptedAsSeen}
+                style={{ marginRight: 10 }}
+              >
+                <Text
+                  style={{
+                    color: Colors.light.tint,
+                    fontWeight: "600",
+                    fontSize: 13,
+                  }}
+                >
+                  Tout voir
+                </Text>
+              </TouchableOpacity>
+            ) : null,
         }}
       />
       <SectionList

@@ -1,22 +1,23 @@
 import ClapLoading from "@/components/ClapLoading";
 import Colors from "@/constants/Colors";
 import { GlobalStyles } from "@/constants/Styles";
+import { appEvents, EVENTS } from "@/lib/events";
 import { supabase } from "@/lib/supabase";
 import { Ionicons } from "@expo/vector-icons";
 import type { Href } from "expo-router";
 import { router, Stack, useFocusEffect } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
-    FlatList,
-    Image,
-    Modal,
-    Platform,
-    RefreshControl,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    useWindowDimensions,
-    View,
+  FlatList,
+  Image,
+  Modal,
+  Platform,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  useWindowDimensions,
+  View,
 } from "react-native";
 
 interface Post {
@@ -128,16 +129,30 @@ export default function FeedScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [feedMode, setFeedMode] = useState<"network" | "all">("network");
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user) {
-        setUserId(user.id);
-      }
-    });
+    fetchUser();
+    const unsub = appEvents.on(EVENTS.PROFILE_UPDATED, fetchUser);
+    return unsub;
   }, []);
+
+  const fetchUser = async () => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (user) {
+      setUserId(user.id);
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("avatar_url")
+        .eq("id", user.id)
+        .single();
+      if (profile) setAvatarUrl(profile.avatar_url);
+    }
+  };
 
   const fetchPosts = async () => {
     let currentUserId = userId;
@@ -450,46 +465,70 @@ export default function FeedScreen() {
         }}
       />
 
-      <View style={styles.feedWrapper}>
-        {/* En-tête spécifique au Web car le header natif est masqué */}
-        {Platform.OS === "web" && (
-          <View style={styles.webHeader}>
-            <Text style={styles.webHeaderTitle}>Fil d'actualité</Text>
-            <View style={{ flexDirection: "row", gap: 12 }}>
-              <TouchableOpacity
-                onPress={() =>
-                  userId &&
-                  router.push({
-                    pathname: "/profile/posts",
-                    params: { userId: userId, userName: "Moi" },
-                  })
-                }
-                style={styles.webHeaderButton}
-              >
-                <Ionicons
-                  name="documents-outline"
-                  size={18}
-                  color={Colors.light.text}
-                />
-                <Text style={styles.webHeaderButtonText}>Mes posts</Text>
-              </TouchableOpacity>
+      {/* En-tête spécifique au Web car le header natif est masqué */}
+      {Platform.OS === "web" && (
+        <View style={styles.webHeader}>
+          <TouchableOpacity
+            onPress={() => router.push("/account")}
+            style={{ marginRight: 15 }}
+          >
+            {avatarUrl ? (
+              <Image
+                source={{ uri: avatarUrl }}
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 16,
+                  borderWidth: 1,
+                  borderColor: "#eee",
+                }}
+              />
+            ) : (
+              <Ionicons
+                name="person-circle-outline"
+                size={32}
+                color={Colors.light.text}
+              />
+            )}
+          </TouchableOpacity>
+          <Text style={styles.webHeaderTitle}>Fil d'actualité</Text>
+          <View style={{ flex: 1 }} />
+          <View style={{ flexDirection: "row", gap: 12 }}>
+            <TouchableOpacity
+              onPress={() =>
+                userId &&
+                router.push({
+                  pathname: "/profile/posts",
+                  params: { userId: userId, userName: "Moi" },
+                })
+              }
+              style={styles.webHeaderButton}
+            >
+              <Ionicons
+                name="documents-outline"
+                size={18}
+                color={Colors.light.text}
+              />
+              <Text style={styles.webHeaderButtonText}>Mes posts</Text>
+            </TouchableOpacity>
 
-              <TouchableOpacity
-                onPress={() => router.push("/post/new")}
-                style={[
-                  styles.webHeaderButton,
-                  { backgroundColor: Colors.light.tint },
-                ]}
-              >
-                <Ionicons name="add-circle-outline" size={18} color="white" />
-                <Text style={[styles.webHeaderButtonText, { color: "white" }]}>
-                  Nouveau post
-                </Text>
-              </TouchableOpacity>
-            </View>
+            <TouchableOpacity
+              onPress={() => router.push("/post/new")}
+              style={[
+                styles.webHeaderButton,
+                { backgroundColor: Colors.light.tint },
+              ]}
+            >
+              <Ionicons name="add-circle-outline" size={18} color="white" />
+              <Text style={[styles.webHeaderButtonText, { color: "white" }]}>
+                Nouveau post
+              </Text>
+            </TouchableOpacity>
           </View>
-        )}
+        </View>
+      )}
 
+      <View style={styles.feedWrapper}>
         {/* Feed Filters - Segmented Control style */}
         <View style={styles.filterContainer}>
           <View style={styles.segmentedControl}>

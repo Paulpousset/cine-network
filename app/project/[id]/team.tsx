@@ -129,7 +129,7 @@ export default function ProjectTeam() {
   return (
     <View style={styles.container}>
       <View style={[styles.header, isWebLarge && { paddingTop: 20 }]}>
-        {!isWebLarge && mode !== "studio" && (
+        {!isWebLarge && (Platform.OS !== "web" || mode !== "studio") && (
           <TouchableOpacity
             onPress={() => router.back()}
             style={styles.backButton}

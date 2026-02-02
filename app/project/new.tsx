@@ -4,20 +4,22 @@ import WebDatePicker from "@/components/WebDatePicker";
 import Colors from "@/constants/Colors";
 import { GlobalStyles } from "@/constants/Styles";
 import { JOB_TITLES } from "@/utils/roles";
+import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
-import { useRouter } from "expo-router";
+import { Stack, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    Alert,
+    KeyboardAvoidingView,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { supabase } from "../../lib/supabase";
 import AddressAutocomplete from "../components/AddressAutocomplete";
 import CityPicker from "../components/CityPicker";
@@ -278,322 +280,362 @@ export default function CreateTournage() {
   }
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior={Platform.select({ ios: "padding", android: undefined })}
+    <SafeAreaView
+      style={{ flex: 1, backgroundColor: Colors.light.backgroundSecondary }}
+      edges={["top"]}
     >
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.container}>
-        <Text style={GlobalStyles.title1}>Créer un tournage</Text>
-
-        <View style={GlobalStyles.card}>
-          <Text style={styles.label}>Titre</Text>
-          <TextInput
-            placeholder="Ex: Le Dernier Métro"
-            style={GlobalStyles.input}
-            value={title}
-            onChangeText={setTitle}
-            placeholderTextColor="#999"
-          />
-
-          <Text style={styles.label}>Pitch / Description</Text>
-          <TextInput
-            placeholder="Décrivez brièvement votre projet"
-            style={[GlobalStyles.input, styles.textArea]}
-            value={desc}
-            onChangeText={setDesc}
-            multiline
-            placeholderTextColor="#999"
-          />
-
-          <Text style={styles.label}>Pays</Text>
-          <CountryPicker
-            onSelect={setCountry}
-            currentValue={country}
-            placeholder="Choisir un pays"
-          />
-
-          <Text style={styles.label}>Ville</Text>
-          <CityPicker
-            onSelect={setCity}
-            currentValue={city}
-            placeholder="Rechercher une ville"
-          />
-
-          <Text style={styles.label}>Adresse précise (Optionnel)</Text>
-          <AddressAutocomplete
-            city={city}
-            currentValue={address}
-            onSelect={(addr, lat, lon) => {
-              setAddress(addr);
-              setCoords({
-                lat: lat || null,
-                lon: lon || null,
-              });
-            }}
-            placeholder="Ex: 10 Rue de la Paix"
-          />
-          <Text style={styles.helperText}>
-            Permet d'afficher le lieu exact sur la carte. Si vide, la ville sera
-            utilisée.
-          </Text>
-
-          <View style={{ flexDirection: "row", marginTop: 15, gap: 10 }}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.label}>Date de début</Text>
-              {Platform.OS === "web" ? (
-                <WebDatePicker value={startDate} onChange={setStartDate} />
-              ) : (
-                <>
-                  <TouchableOpacity
-                    style={GlobalStyles.input}
-                    onPress={() => setShowStartPicker(true)}
-                  >
-                    <Text
-                      style={{ color: startDate ? Colors.light.text : "#999" }}
-                    >
-                      {startDate || "Choisir une date"}
-                    </Text>
-                  </TouchableOpacity>
-                  {showStartPicker && (
-                    <DateTimePicker
-                      value={startDate ? new Date(startDate) : new Date()}
-                      mode="date"
-                      display="default"
-                      onChange={(event, date) => {
-                        if (Platform.OS === "android") {
-                          setShowStartPicker(false);
-                        }
-                        if (date) {
-                          setStartDate(date.toISOString().split("T")[0]);
-                        }
-                      }}
-                    />
-                  )}
-                  {Platform.OS === "ios" && showStartPicker && (
-                    <TouchableOpacity
-                      onPress={() => setShowStartPicker(false)}
-                      style={{
-                        marginTop: 5,
-                        padding: 8,
-                        backgroundColor: "#eee",
-                        borderRadius: 5,
-                        alignItems: "center",
-                      }}
-                    >
-                      <Text style={{ fontSize: 12, color: "#666" }}>OK</Text>
-                    </TouchableOpacity>
-                  )}
-                </>
-              )}
-            </View>
-
-            <View style={{ flex: 1 }}>
-              <Text style={styles.label}>Date de fin</Text>
-              {Platform.OS === "web" ? (
-                <WebDatePicker value={endDate} onChange={setEndDate} />
-              ) : (
-                <>
-                  <TouchableOpacity
-                    style={GlobalStyles.input}
-                    onPress={() => setShowEndPicker(true)}
-                  >
-                    <Text
-                      style={{ color: endDate ? Colors.light.text : "#999" }}
-                    >
-                      {endDate || "Choisir une date"}
-                    </Text>
-                  </TouchableOpacity>
-                  {showEndPicker && (
-                    <DateTimePicker
-                      value={endDate ? new Date(endDate) : new Date()}
-                      mode="date"
-                      display="default"
-                      onChange={(event, date) => {
-                        if (Platform.OS === "android") {
-                          setShowEndPicker(false);
-                        }
-                        if (date) {
-                          setEndDate(date.toISOString().split("T")[0]);
-                        }
-                      }}
-                    />
-                  )}
-                  {Platform.OS === "ios" && showEndPicker && (
-                    <TouchableOpacity
-                      onPress={() => setShowEndPicker(false)}
-                      style={{
-                        marginTop: 5,
-                        padding: 8,
-                        backgroundColor: "#eee",
-                        borderRadius: 5,
-                        alignItems: "center",
-                      }}
-                    >
-                      <Text style={{ fontSize: 12, color: "#666" }}>OK</Text>
-                    </TouchableOpacity>
-                  )}
-                </>
-              )}
-            </View>
-          </View>
-
-          <Text style={styles.label}>Type</Text>
-          <View style={styles.typeContainer}>
-            {PROJECT_TYPES.map((t) => (
-              <TouchableOpacity
-                key={t.value}
-                style={[
-                  styles.typeButton,
-                  type === t.value && styles.typeButtonSelected,
-                ]}
-                onPress={() => setType(t.value)}
-              >
-                <Text
-                  style={{
-                    color: type === t.value ? "white" : Colors.light.primary,
-                    fontWeight: "600",
-                  }}
-                >
-                  {t.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
-        {/* Rôles à rechercher */}
-        <View style={[GlobalStyles.card, { marginTop: 16 }]}>
-          <Text style={GlobalStyles.title2}>Rôles recherchés</Text>
-          {Object.keys(JOB_TITLES).map((cat) => (
-            <View key={cat} style={{ marginTop: 10 }}>
-              <Text style={styles.catTitle}>
-                {cat.charAt(0).toUpperCase() + cat.slice(1).replace("_", " ")}
-              </Text>
-              <View style={styles.rowWrap}>
-                {(JOB_TITLES as any)[cat].map((job: string) => {
-                  const k = `${cat}|${job}`;
-                  const qty = selected[k]?.quantity || 0;
-                  const active = qty > 0;
-                  return (
-                    <TouchableOpacity
-                      key={job}
-                      style={[
-                        styles.jobAddChip,
-                        active && styles.jobAddChipSelected,
-                      ]}
-                      onPress={() => addRole(cat as Category, job)}
-                    >
-                      <Text
-                        style={{
-                          color: active ? "#fff" : Colors.light.primary,
-                          marginLeft: 6,
-                          fontWeight: active ? "bold" : "normal",
-                        }}
-                      >
-                        + {job}
-                      </Text>
-                      {active ? (
-                        <View style={styles.countBadge}>
-                          <Text style={styles.countBadgeText}>{qty}</Text>
-                        </View>
-                      ) : null}
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            </View>
-          ))}
-
-          {/* Résumé de la sélection */}
+      <Stack.Screen options={{ headerShown: false }} />
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.select({ ios: "padding", android: undefined })}
+      >
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={styles.container}
+        >
           <View
             style={{
-              marginTop: 16,
-              paddingTop: 16,
-              borderTopWidth: 1,
-              borderColor: Colors.light.border,
+              flexDirection: "row",
+              alignItems: "center",
+              marginBottom: 20,
             }}
           >
-            <Text style={styles.label}>Sélection</Text>
-            {Object.keys(selected).length === 0 ? (
-              <Text style={{ color: "#888", fontStyle: "italic" }}>
-                Aucun rôle sélectionné.
-              </Text>
-            ) : (
-              <View style={{ gap: 8 }}>
-                {Object.entries(selected).map(([k, r]) => (
-                  <View key={k} style={styles.selectionRow}>
-                    <Text style={{ flex: 1, color: Colors.light.text }}>
-                      <Text style={{ fontWeight: "bold" }}>{r.title}</Text> •{" "}
-                      {r.category}
-                    </Text>
-                    <View style={styles.qtyControls}>
-                      <TouchableOpacity
-                        onPress={() => decRole(k)}
-                        style={styles.qtyBtn}
-                      >
-                        <Text style={{ color: "#333", fontWeight: "bold" }}>
-                          −
-                        </Text>
-                      </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => router.back()}
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: 20,
+                backgroundColor: "#fff",
+                justifyContent: "center",
+                alignItems: "center",
+                marginRight: 15,
+                shadowColor: "#000",
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.1,
+                shadowRadius: 4,
+                elevation: 3,
+              }}
+            >
+              <Ionicons name="arrow-back" size={24} color={Colors.light.text} />
+            </TouchableOpacity>
+            <Text style={[GlobalStyles.title1, { marginBottom: 0 }]}>
+              Créer un projet
+            </Text>
+          </View>
+
+          <View style={GlobalStyles.card}>
+            <Text style={styles.label}>Titre</Text>
+            <TextInput
+              placeholder="Ex: Le Dernier Métro"
+              style={GlobalStyles.input}
+              value={title}
+              onChangeText={setTitle}
+              placeholderTextColor="#999"
+            />
+
+            <Text style={styles.label}>Pitch / Description</Text>
+            <TextInput
+              placeholder="Décrivez brièvement votre projet"
+              style={[GlobalStyles.input, styles.textArea]}
+              value={desc}
+              onChangeText={setDesc}
+              multiline
+              placeholderTextColor="#999"
+            />
+
+            <Text style={styles.label}>Pays</Text>
+            <CountryPicker
+              onSelect={setCountry}
+              currentValue={country}
+              placeholder="Choisir un pays"
+            />
+
+            <Text style={styles.label}>Ville</Text>
+            <CityPicker
+              onSelect={setCity}
+              currentValue={city}
+              placeholder="Rechercher une ville"
+            />
+
+            <Text style={styles.label}>Adresse précise (Optionnel)</Text>
+            <AddressAutocomplete
+              city={city}
+              currentValue={address}
+              onSelect={(addr, lat, lon) => {
+                setAddress(addr);
+                setCoords({
+                  lat: lat || null,
+                  lon: lon || null,
+                });
+              }}
+              placeholder="Ex: 10 Rue de la Paix"
+            />
+            <Text style={styles.helperText}>
+              Permet d'afficher le lieu exact sur la carte. Si vide, la ville
+              sera utilisée.
+            </Text>
+
+            <View style={{ flexDirection: "row", marginTop: 15, gap: 10 }}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.label}>Date de début</Text>
+                {Platform.OS === "web" ? (
+                  <WebDatePicker value={startDate} onChange={setStartDate} />
+                ) : (
+                  <>
+                    <TouchableOpacity
+                      style={GlobalStyles.input}
+                      onPress={() => setShowStartPicker(true)}
+                    >
                       <Text
                         style={{
-                          minWidth: 18,
-                          textAlign: "center",
-                          color: Colors.light.text,
+                          color: startDate ? Colors.light.text : "#999",
                         }}
                       >
-                        {r.quantity}
+                        {startDate || "Choisir une date"}
                       </Text>
+                    </TouchableOpacity>
+                    {showStartPicker && (
+                      <DateTimePicker
+                        value={startDate ? new Date(startDate) : new Date()}
+                        mode="date"
+                        display="default"
+                        onChange={(event, date) => {
+                          if (Platform.OS === "android") {
+                            setShowStartPicker(false);
+                          }
+                          if (date) {
+                            setStartDate(date.toISOString().split("T")[0]);
+                          }
+                        }}
+                      />
+                    )}
+                    {Platform.OS === "ios" && showStartPicker && (
                       <TouchableOpacity
-                        onPress={() => incRole(k)}
-                        style={styles.qtyBtn}
+                        onPress={() => setShowStartPicker(false)}
+                        style={{
+                          marginTop: 5,
+                          padding: 8,
+                          backgroundColor: "#eee",
+                          borderRadius: 5,
+                          alignItems: "center",
+                        }}
                       >
-                        <Text style={{ color: "#333", fontWeight: "bold" }}>
-                          +
-                        </Text>
+                        <Text style={{ fontSize: 12, color: "#666" }}>OK</Text>
                       </TouchableOpacity>
-                    </View>
-                  </View>
-                ))}
+                    )}
+                  </>
+                )}
               </View>
-            )}
+
+              <View style={{ flex: 1 }}>
+                <Text style={styles.label}>Date de fin</Text>
+                {Platform.OS === "web" ? (
+                  <WebDatePicker value={endDate} onChange={setEndDate} />
+                ) : (
+                  <>
+                    <TouchableOpacity
+                      style={GlobalStyles.input}
+                      onPress={() => setShowEndPicker(true)}
+                    >
+                      <Text
+                        style={{ color: endDate ? Colors.light.text : "#999" }}
+                      >
+                        {endDate || "Choisir une date"}
+                      </Text>
+                    </TouchableOpacity>
+                    {showEndPicker && (
+                      <DateTimePicker
+                        value={endDate ? new Date(endDate) : new Date()}
+                        mode="date"
+                        display="default"
+                        onChange={(event, date) => {
+                          if (Platform.OS === "android") {
+                            setShowEndPicker(false);
+                          }
+                          if (date) {
+                            setEndDate(date.toISOString().split("T")[0]);
+                          }
+                        }}
+                      />
+                    )}
+                    {Platform.OS === "ios" && showEndPicker && (
+                      <TouchableOpacity
+                        onPress={() => setShowEndPicker(false)}
+                        style={{
+                          marginTop: 5,
+                          padding: 8,
+                          backgroundColor: "#eee",
+                          borderRadius: 5,
+                          alignItems: "center",
+                        }}
+                      >
+                        <Text style={{ fontSize: 12, color: "#666" }}>OK</Text>
+                      </TouchableOpacity>
+                    )}
+                  </>
+                )}
+              </View>
+            </View>
+
+            <Text style={styles.label}>Type</Text>
+            <View style={styles.typeContainer}>
+              {PROJECT_TYPES.map((t) => (
+                <TouchableOpacity
+                  key={t.value}
+                  style={[
+                    styles.typeButton,
+                    type === t.value && styles.typeButtonSelected,
+                  ]}
+                  onPress={() => setType(t.value)}
+                >
+                  <Text
+                    style={{
+                      color: type === t.value ? "white" : Colors.light.primary,
+                      fontWeight: "600",
+                    }}
+                  >
+                    {t.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
           </View>
-        </View>
 
-        <View style={styles.actions}>
-          <TouchableOpacity
-            style={GlobalStyles.secondaryButton}
-            onPress={() => router.back()}
-            disabled={creating}
-          >
-            <Text style={GlobalStyles.secondaryButtonText}>Annuler</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={GlobalStyles.primaryButton}
-            onPress={handleCreate}
-            disabled={creating}
-          >
-            {creating ? (
-              <ClapLoading color="#fff" size={24} />
-            ) : (
-              <Text style={GlobalStyles.buttonText}>Créer le tournage</Text>
-            )}
-          </TouchableOpacity>
-        </View>
-        <View style={{ height: 40 }} />
-      </ScrollView>
+          {/* Rôles à rechercher */}
+          <View style={[GlobalStyles.card, { marginTop: 16 }]}>
+            <Text style={GlobalStyles.title2}>Rôles recherchés</Text>
+            {Object.keys(JOB_TITLES).map((cat) => (
+              <View key={cat} style={{ marginTop: 10 }}>
+                <Text style={styles.catTitle}>
+                  {cat.charAt(0).toUpperCase() + cat.slice(1).replace("_", " ")}
+                </Text>
+                <View style={styles.rowWrap}>
+                  {(JOB_TITLES as any)[cat].map((job: string) => {
+                    const k = `${cat}|${job}`;
+                    const qty = selected[k]?.quantity || 0;
+                    const active = qty > 0;
+                    return (
+                      <TouchableOpacity
+                        key={job}
+                        style={[
+                          styles.jobAddChip,
+                          active && styles.jobAddChipSelected,
+                        ]}
+                        onPress={() => addRole(cat as Category, job)}
+                      >
+                        <Text
+                          style={{
+                            color: active ? "#fff" : Colors.light.primary,
+                            marginLeft: 6,
+                            fontWeight: active ? "bold" : "normal",
+                          }}
+                        >
+                          + {job}
+                        </Text>
+                        {active ? (
+                          <View style={styles.countBadge}>
+                            <Text style={styles.countBadgeText}>{qty}</Text>
+                          </View>
+                        ) : null}
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+            ))}
 
-      <PaymentModal
-        visible={showUpgradeModal}
-        amount={29.0}
-        label="Passer Studio (Projets Illimités)"
-        onClose={() => {
-          setShowUpgradeModal(false);
-          if (!canCreate) router.back(); // If they closed without paying and were blocked, go back
-        }}
-        onSuccess={handleUpgradeSuccess}
-      />
-    </KeyboardAvoidingView>
+            {/* Résumé de la sélection */}
+            <View
+              style={{
+                marginTop: 16,
+                paddingTop: 16,
+                borderTopWidth: 1,
+                borderColor: Colors.light.border,
+              }}
+            >
+              <Text style={styles.label}>Sélection</Text>
+              {Object.keys(selected).length === 0 ? (
+                <Text style={{ color: "#888", fontStyle: "italic" }}>
+                  Aucun rôle sélectionné.
+                </Text>
+              ) : (
+                <View style={{ gap: 8 }}>
+                  {Object.entries(selected).map(([k, r]) => (
+                    <View key={k} style={styles.selectionRow}>
+                      <Text style={{ flex: 1, color: Colors.light.text }}>
+                        <Text style={{ fontWeight: "bold" }}>{r.title}</Text> •{" "}
+                        {r.category}
+                      </Text>
+                      <View style={styles.qtyControls}>
+                        <TouchableOpacity
+                          onPress={() => decRole(k)}
+                          style={styles.qtyBtn}
+                        >
+                          <Text style={{ color: "#333", fontWeight: "bold" }}>
+                            −
+                          </Text>
+                        </TouchableOpacity>
+                        <Text
+                          style={{
+                            minWidth: 18,
+                            textAlign: "center",
+                            color: Colors.light.text,
+                          }}
+                        >
+                          {r.quantity}
+                        </Text>
+                        <TouchableOpacity
+                          onPress={() => incRole(k)}
+                          style={styles.qtyBtn}
+                        >
+                          <Text style={{ color: "#333", fontWeight: "bold" }}>
+                            +
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              )}
+            </View>
+          </View>
+
+          <View style={styles.actions}>
+            <TouchableOpacity
+              style={GlobalStyles.secondaryButton}
+              onPress={() => router.back()}
+              disabled={creating}
+            >
+              <Text style={GlobalStyles.secondaryButtonText}>Annuler</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={GlobalStyles.primaryButton}
+              onPress={handleCreate}
+              disabled={creating}
+            >
+              {creating ? (
+                <ClapLoading color="#fff" size={24} />
+              ) : (
+                <Text style={GlobalStyles.buttonText}>Créer le tournage</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+          <View style={{ height: 40 }} />
+        </ScrollView>
+
+        <PaymentModal
+          visible={showUpgradeModal}
+          amount={29.0}
+          label="Passer Studio (Projets Illimités)"
+          onClose={() => {
+            setShowUpgradeModal(false);
+            if (!canCreate) router.back(); // If they closed without paying and were blocked, go back
+          }}
+          onSuccess={handleUpgradeSuccess}
+        />
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 

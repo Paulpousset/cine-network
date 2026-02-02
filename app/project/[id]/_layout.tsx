@@ -1,5 +1,6 @@
 import { useColorScheme } from "@/components/useColorScheme";
 import Colors from "@/constants/Colors";
+import { getDefaultTools } from "@/constants/Tools";
 import { useUserMode } from "@/hooks/useUserMode";
 import { supabase } from "@/lib/supabase";
 import { Ionicons } from "@expo/vector-icons";
@@ -27,7 +28,12 @@ function CustomProjectTabBar({
   navigation,
   isVisitor,
   isOwner,
-}: BottomTabBarProps & { isVisitor: boolean; isOwner: boolean }) {
+  allowedTools,
+}: BottomTabBarProps & {
+  isVisitor: boolean;
+  isOwner: boolean;
+  allowedTools: string[];
+}) {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "light"];
   const { width } = useWindowDimensions();
@@ -38,11 +44,6 @@ function CustomProjectTabBar({
   }
 
   if (isVisitor) return null;
-
-  console.log(
-    "Routes available in TabBar:",
-    state.routes.map((r) => r.name),
-  );
 
   return (
     <View
@@ -55,7 +56,12 @@ function CustomProjectTabBar({
         const { options } = descriptors[route.key];
 
         // Filter visible routes
-        let visibleRoutes = ["index", "spaces", "calendar", "logistics"];
+        let visibleRoutes = ["index", "spaces", "calendar"];
+
+        // Add Logistics ONLY if owner or if category has permission
+        if (isOwner || allowedTools.includes("logistics")) {
+          visibleRoutes.push("logistics");
+        }
 
         // Add Admin only if owner
         if (isOwner) {
@@ -118,6 +124,7 @@ export default function ProjectIdLayout() {
   const [isMember, setIsMember] = useState(false);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [userCategory, setUserCategory] = useState<string | null>(null);
+  const [allowedTools, setAllowedTools] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const colorScheme = useColorScheme();
 
@@ -152,6 +159,14 @@ export default function ProjectIdLayout() {
         // Owner is implicitly a member
         setIsMember(true);
         setUserRole("Administrateur");
+        // Owners have all tools
+        setAllowedTools([
+          "breakdown",
+          "production",
+          "casting",
+          "sets",
+          "logistics",
+        ]);
       } else {
         // Check Member and Role
         const { data: membership } = await supabase
@@ -164,7 +179,23 @@ export default function ProjectIdLayout() {
         if (membership) {
           setIsMember(true);
           setUserRole(membership.title);
-          setUserCategory(membership.category);
+          const category = membership.category;
+          setUserCategory(category);
+
+          // Fetch permissions for this category
+          const { data: perms } = await supabase
+            .from("project_category_permissions")
+            .select("allowed_tools")
+            .eq("project_id", projectId)
+            .eq("category", category)
+            .maybeSingle();
+
+          if (perms) {
+            setAllowedTools(perms.allowed_tools || []);
+          } else {
+            // Use defaults if no specific perms set
+            setAllowedTools(getDefaultTools(category));
+          }
         }
       }
     } catch (e) {
@@ -188,6 +219,7 @@ export default function ProjectIdLayout() {
             {...props}
             isVisitor={isVisitor}
             isOwner={isOwner}
+            allowedTools={allowedTools}
           />
         )}
         screenOptions={{

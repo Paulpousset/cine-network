@@ -4,7 +4,7 @@
     "slug": "tita",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/logoapp.jpg",
     "scheme": "cinenetwork",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -22,7 +22,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "foregroundImage": "./assets/images/logoapp.jpg",
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
@@ -32,13 +32,9 @@
     "web": {
       "bundler": "metro",
       "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/logoapp.jpg"
     },
-    "plugins": [
-      "expo-router",
-      "expo-video",
-      "expo-web-browser"
-    ],
+    "plugins": ["expo-router", "expo-video", "expo-web-browser"],
     "experiments": {
       "typedRoutes": true
     },

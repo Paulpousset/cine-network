@@ -26,7 +26,6 @@ import {
     TouchableOpacity,
     View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 
 // --- Extracted Chat Component (Original Logic) ---
 function ChatView({
@@ -201,7 +200,7 @@ function ChatView({
 
   return (
     <KeyboardAvoidingView
-      style={{ flex: 1 }}
+      style={{ flex: 1, backgroundColor: "#f8f9fa" }}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
       keyboardVerticalOffset={Platform.OS === "ios" ? 100 : 0}
     >
@@ -560,27 +559,33 @@ export default function ChannelSpace() {
   );
 
   return (
-    <SafeAreaView
-      style={{ flex: 1, backgroundColor: "#f8f9fa" }}
-      edges={["top"]}
-    >
+    <View style={{ flex: 1, backgroundColor: "#fff" }}>
       <Stack.Screen
         options={{
           headerShown: true,
           headerTitleAlign: "center",
-          headerLeft: () =>
-            mode !== "studio" ? (
-              <TouchableOpacity
-                onPress={() => router.back()}
-                style={{ padding: 10 }}
-              >
-                <Ionicons
-                  name="arrow-back"
-                  size={24}
-                  color={Colors.light.text}
-                />
-              </TouchableOpacity>
-            ) : null,
+          headerShadowVisible: false,
+          headerStyle: { backgroundColor: "#fff" },
+          headerLeft: () => (
+            <TouchableOpacity
+              onPress={() => {
+                if (router.canGoBack()) {
+                  router.back();
+                } else {
+                  router.replace(`/project/${id}/spaces`);
+                }
+              }}
+              style={{
+                padding: 10,
+                marginLeft: -5, // Optimisation pour la zone de contact iOS
+                flexDirection: "row",
+                alignItems: "center",
+              }}
+              hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
+            >
+              <Ionicons name="arrow-back" size={24} color={Colors.light.text} />
+            </TouchableOpacity>
+          ),
           headerTitle: `Espace ${(category || "").toUpperCase()}`,
         }}
       />
@@ -609,7 +614,7 @@ export default function ChannelSpace() {
                 flexDirection: "row",
                 justifyContent: "space-between",
                 alignItems: "center",
-                marginBottom: 15,
+                marginBottom: 20,
               }}
             >
               <Text style={styles.sectionTitle}>
@@ -617,30 +622,46 @@ export default function ChannelSpace() {
               </Text>
             </View>
 
-            {availableTools.map((toolKey) => {
-              const tool = ALL_TOOLS[toolKey];
-              if (!tool) return null; // Safety check
-              return (
-                <TouchableOpacity
-                  key={toolKey}
-                  style={styles.toolCard}
-                  onPress={() => router.push(`/project/${id}/${tool.route}`)}
-                >
-                  <View style={[styles.iconBox, { backgroundColor: tool.bg }]}>
-                    <Ionicons name={tool.icon} size={32} color={tool.color} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.toolTitle}>{tool.title}</Text>
-                    <Text style={styles.toolDesc}>{tool.desc}</Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={24} color="#ccc" />
-                </TouchableOpacity>
-              );
-            })}
+            <View style={styles.toolsGrid}>
+              {availableTools.map((toolKey) => {
+                const tool = ALL_TOOLS[toolKey];
+                if (!tool) return null; // Safety check
+
+                // Shorten some names for mobile grid
+                let displayTitle = tool.title;
+                if (Platform.OS !== "web") {
+                  if (toolKey === "casting") displayTitle = "Casting";
+                  if (toolKey === "sets") displayTitle = "Décors";
+                }
+
+                return (
+                  <TouchableOpacity
+                    key={toolKey}
+                    style={styles.toolCard}
+                    onPress={() => router.push(`/project/${id}/${tool.route}`)}
+                  >
+                    <View
+                      style={[styles.iconBox, { backgroundColor: tool.bg }]}
+                    >
+                      <Ionicons name={tool.icon} size={30} color={tool.color} />
+                    </View>
+                    <View style={styles.toolTextContainer}>
+                      <Text style={styles.toolTitle}>{displayTitle}</Text>
+                      {Platform.OS === "web" && (
+                        <Text style={styles.toolDesc}>{tool.desc}</Text>
+                      )}
+                    </View>
+                    {Platform.OS === "web" && (
+                      <Ionicons name="chevron-forward" size={20} color="#ccc" />
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
           </View>
         )}
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -648,7 +669,6 @@ const styles = StyleSheet.create({
   tabsHeader: {
     flexDirection: "row",
     backgroundColor: "white",
-    padding: 10,
     borderBottomWidth: 1,
     borderBottomColor: "#eee",
   },
@@ -657,12 +677,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 8,
-    borderRadius: 8,
-    gap: 6,
+    paddingVertical: 12,
+    gap: 8,
+    borderBottomWidth: 2,
+    borderBottomColor: "transparent",
   },
   activeTabButton: {
-    backgroundColor: "#f0f2f5",
+    borderBottomColor: Colors.light.tint,
   },
   tabLabel: {
     fontSize: 14,
@@ -738,43 +759,59 @@ const styles = StyleSheet.create({
 
   // Tools Styles
   toolsContainer: {
-    padding: 20,
+    padding: 15,
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: "bold",
-    marginBottom: 15,
+    marginBottom: 5,
     color: "#333",
   },
-  toolCard: {
+  toolsGrid: {
     flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12,
+    marginTop: 10,
+  },
+  toolCard: {
+    width: Platform.OS === "web" ? "100%" : "48%",
+    flexDirection: Platform.OS === "web" ? "row" : "column",
     alignItems: "center",
     backgroundColor: "white",
     padding: 15,
-    borderRadius: 12,
-    marginBottom: 15,
+    borderRadius: 16,
+    marginBottom: Platform.OS === "web" ? 12 : 0,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: "#f0f0f0",
   },
   iconBox: {
-    width: 50,
-    height: 50,
-    borderRadius: 10,
+    width: 56,
+    height: 56,
+    borderRadius: 16,
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 15,
+    marginRight: Platform.OS === "web" ? 15 : 0,
+    marginBottom: Platform.OS === "web" ? 0 : 12,
+  },
+  toolTextContainer: {
+    flex: Platform.OS === "web" ? 1 : 0,
+    alignItems: Platform.OS === "web" ? "flex-start" : "center",
   },
   toolTitle: {
-    fontSize: 16,
-    fontWeight: "bold",
+    fontSize: 14,
+    fontWeight: "700",
     color: "#333",
+    textAlign: "center",
   },
   toolDesc: {
-    fontSize: 13,
+    fontSize: 12,
     color: "#666",
+    textAlign: "center",
   },
 });
 

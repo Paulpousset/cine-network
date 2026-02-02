@@ -394,7 +394,7 @@ export default function ProjectSettings() {
           borderBottomColor: Colors.light.border,
         }}
       >
-        {mode !== "studio" && (
+        {(Platform.OS !== "web" || mode !== "studio") && (
           <TouchableOpacity
             onPress={() => router.back()}
             style={{ marginRight: 10 }}

@@ -10,20 +10,20 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
-    Alert,
-    Animated,
-    Easing,
-    FlatList,
-    Image,
-    Modal,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    useWindowDimensions,
-    View,
+  Alert,
+  Animated,
+  Easing,
+  FlatList,
+  Image,
+  Modal,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  useWindowDimensions,
+  View,
 } from "react-native";
 import { supabase } from "../../../lib/supabase";
 
@@ -1235,38 +1235,66 @@ export default function ProjectDetails() {
   const isOwner =
     project?.owner_id && currentUserId && project.owner_id === currentUserId;
 
-  const visibleRoles = roles.filter((r) => isOwner || r.status !== "draft");
+  // Un rôle est visible s'il n'est pas en brouillon OU s'il y a quelqu'un d'assigné (pour l'équipe)
+  const visibleRoles = roles.filter(
+    (r) => isOwner || r.status !== "draft" || r.assigned_profile_id,
+  );
 
   const groupedRolesSections = React.useMemo(() => {
     const groups: Record<string, any> = {};
     visibleRoles.forEach((r) => {
-      // Determine effective status for grouping
-      let statusKey = "draft";
+      // Group by Category + Title only (to have all slots of the same role in one card)
+      // Normalize title to avoid duplicates due to casing or spaces
+      const trimmedTitle = r.title.trim();
+      const key = `${r.category}|${trimmedTitle.toLowerCase()}`;
+
+      // Determine effective status for sectioning the groups later
+      // A group is "filled" only if ALL its items are assigned
+      // A group is "draft" if it contains at least one draft
+      // Otherwise it's "published"
+      let statusKey = "published";
       if (r.assigned_profile_id) {
         statusKey = "assigned";
-      } else if (r.status !== "draft") {
-        statusKey = "published";
+      } else if (r.status === "draft") {
+        statusKey = "draft";
       }
-
-      // Group by Category + Title + Status
-      const key = `${r.category}|${r.title}|${statusKey}`;
 
       if (!groups[key]) {
         groups[key] = {
           key,
           category: r.category,
-          title: r.title,
+          title: trimmedTitle,
           description: r.description,
-          statusKey,
-          totalQty: 0,
+          statusKey, // This will be updated if needed
           items: [],
         };
       }
-      groups[key].totalQty += 1;
+
       groups[key].items.push(r);
+
+      // We update the group's statusKey based on its items
+      // If any item is unassigned and published, it's "published" (recruiting)
+      // If all items are assigned, it's "assigned" (filled)
+      // If any item is draft, we might want to flag the whole group or keep it separate
+      // For now, let's keep the user's logic but improved
     });
 
-    const allGroups = Object.values(groups);
+    const allGroups = Object.values(groups).map((g: any) => {
+      const hasUnassignedPublished = g.items.some(
+        (i: any) => !i.assigned_profile_id && i.status !== "draft",
+      );
+      const hasDrafts = g.items.some((i: any) => i.status === "draft");
+      const allAssigned = g.items.every((i: any) => i.assigned_profile_id);
+
+      if (allAssigned) {
+        g.statusKey = "assigned";
+      } else if (hasUnassignedPublished) {
+        g.statusKey = "published";
+      } else if (hasDrafts) {
+        g.statusKey = "draft";
+      }
+      return g;
+    });
 
     const published: any[] = [];
     const drafts: any[] = [];
@@ -1287,7 +1315,7 @@ export default function ProjectDetails() {
 
     if (published.length > 0) {
       sections.push({
-        title: "Postes déjà publiés",
+        title: "Recrutement en cours",
         data: published.sort((a, b) => a.title.localeCompare(b.title)),
       });
     }
@@ -1299,7 +1327,7 @@ export default function ProjectDetails() {
     }
     if (filled.length > 0) {
       sections.push({
-        title: "Postes pourvus",
+        title: "Équipe & Participants",
         data: filled.sort((a, b) => a.title.localeCompare(b.title)),
       });
     }
@@ -1342,7 +1370,7 @@ export default function ProjectDetails() {
               alignItems: "center",
             }}
           >
-            {mode !== "studio" && (
+            {(Platform.OS !== "web" || mode !== "studio") && (
               <TouchableOpacity
                 onPress={() => router.replace("/(tabs)/my-projects")}
                 style={{

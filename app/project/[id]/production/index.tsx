@@ -27,6 +27,222 @@ import {
   View,
 } from "react-native";
 
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#f8f9fa",
+  },
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingTop: 60, // Safe Area top padding approx
+    paddingBottom: 20,
+    backgroundColor: "white",
+    borderBottomWidth: 1,
+    borderBottomColor: "#eee",
+  },
+  headerLeft: {
+    minWidth: 45,
+    alignItems: "flex-start",
+  },
+  headerRight: {
+    minWidth: 45,
+    alignItems: "flex-end",
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: "#000",
+  },
+  headerButton: {
+    padding: 4,
+  },
+  listContent: {
+    padding: 16,
+  },
+  addButton: {
+    marginRight: 10,
+  },
+  itemContainer: {
+    backgroundColor: "white",
+    padding: 16,
+    marginBottom: 12,
+    borderRadius: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  itemHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 6,
+  },
+  dayTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#000",
+  },
+  callTime: {
+    fontSize: 14,
+    color: "#666",
+    fontWeight: "500",
+  },
+  subtext: {
+    fontSize: 14,
+    color: "#666",
+  },
+  scenesSummary: {
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: "#f0f0f0",
+  },
+  sceneSummaryItem: {
+    marginBottom: 8,
+  },
+  sceneBrief: {
+    fontSize: 13,
+    color: Colors.light.tint,
+  },
+  sceneAddress: {
+    fontSize: 11,
+    color: "#999",
+    marginTop: 2,
+  },
+  emptyText: {
+    textAlign: "center",
+    color: "#999",
+    marginTop: 40,
+    fontSize: 16,
+  },
+  // Modal Styles
+  modalContainer: {
+    flex: 1,
+    justifyContent: "flex-end",
+    backgroundColor: "rgba(0,0,0,0.5)",
+  },
+  modalContent: {
+    backgroundColor: "white",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    paddingBottom: Platform.OS === "ios" ? 40 : 20,
+    maxHeight: "90%",
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+  },
+  inputGroup: {
+    marginBottom: 16,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: "600",
+    marginBottom: 8,
+    color: "#333",
+  },
+  input: {
+    backgroundColor: "#f0f2f5",
+    padding: 12,
+    borderRadius: 8,
+    fontSize: 16,
+    color: "#333",
+  },
+  saveButton: {
+    backgroundColor: Colors.light.tint,
+    padding: 16,
+    borderRadius: 12,
+    alignItems: "center",
+    marginTop: 10,
+  },
+  disabledButton: {
+    opacity: 0.7,
+  },
+  saveButtonText: {
+    color: "white",
+    fontSize: 16,
+    fontWeight: "bold",
+  },
+  sectionHeader: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#666",
+    marginTop: 10,
+    marginBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#eee",
+    paddingBottom: 5,
+  },
+  // Selector Styles
+  selectorContainer: {
+    flexDirection: "row",
+    backgroundColor: "#f1f3f5",
+    borderRadius: 8,
+    padding: 4,
+    marginBottom: 10,
+  },
+  selectorOption: {
+    flex: 1,
+    paddingVertical: 8,
+    alignItems: "center",
+    borderRadius: 6,
+  },
+  selectorOptionSelected: {
+    backgroundColor: "white",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 1,
+    elevation: 1,
+  },
+  selectorText: {
+    fontSize: 13,
+    color: "#868e96",
+    fontWeight: "500",
+  },
+  selectorTextSelected: {
+    color: Colors.light.tint,
+    fontWeight: "600",
+  },
+  sceneListContainer: {
+    backgroundColor: "#f8f9fa",
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 10,
+  },
+  sceneSelectMap: {
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#eee",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  sceneSelectMapSelected: {
+    backgroundColor: "white",
+  },
+  sceneSelectText: {
+    fontSize: 14,
+    color: "#495057",
+  },
+  sceneSelectTextSelected: {
+    color: Colors.light.tint,
+    fontWeight: "600",
+  },
+});
+
 type ShootDay = Database["public"]["Tables"]["shoot_days"]["Row"];
 type Scene = Database["public"]["Tables"]["scenes"]["Row"];
 type ProjectSet = Database["public"]["Tables"]["project_sets"]["Row"];
@@ -1152,8 +1368,8 @@ export default function ProductionScreen() {
     <View style={styles.container}>
       {/* Custom Header since Tabs/Stack header is hidden */}
       <View style={styles.header}>
-        <View style={{ flexDirection: "row", alignItems: "center", flex: 1 }}>
-          {mode !== "studio" && (
+        <View style={styles.headerLeft}>
+          {(Platform.OS !== "web" || mode !== "studio") && (
             <TouchableOpacity
               onPress={() =>
                 router.push({
@@ -1165,45 +1381,55 @@ export default function ProductionScreen() {
                   },
                 })
               }
-              style={{ marginRight: 15 }}
+              style={{ padding: 4 }}
             >
               <Ionicons name="arrow-back" size={28} color="#000" />
             </TouchableOpacity>
           )}
-          <Text style={styles.headerTitle}>Plan de Travail</Text>
         </View>
-        {canEdit && (
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-            <TouchableOpacity
-              onPress={() => setOptStartDateModalVisible(true)}
-              disabled={generating}
-              style={[
-                styles.headerButton,
-                { backgroundColor: "#f0f0f0", paddingHorizontal: 12 },
-              ]}
+
+        <Text style={styles.headerTitle}>Plan de Travail</Text>
+
+        <View style={styles.headerRight}>
+          {canEdit && (
+            <View
+              style={{ flexDirection: "row", alignItems: "center", gap: 10 }}
             >
-              {generating ? (
-                <ActivityIndicator size="small" color={Colors.light.tint} />
-              ) : (
-                <Text
-                  style={{
-                    color: Colors.light.tint,
-                    fontWeight: "bold",
-                    fontSize: 12,
-                  }}
-                >
-                  OPTIMISER
-                </Text>
-              )}
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={openAddModal}
-              style={styles.headerButton}
-            >
-              <Ionicons name="add-circle" size={32} color={Colors.light.tint} />
-            </TouchableOpacity>
-          </View>
-        )}
+              <TouchableOpacity
+                onPress={() => setOptStartDateModalVisible(true)}
+                disabled={generating}
+                style={[
+                  styles.headerButton,
+                  { backgroundColor: "#f0f0f0", paddingHorizontal: 12 },
+                ]}
+              >
+                {generating ? (
+                  <ActivityIndicator size="small" color={Colors.light.tint} />
+                ) : (
+                  <Text
+                    style={{
+                      color: Colors.light.tint,
+                      fontWeight: "bold",
+                      fontSize: 12,
+                    }}
+                  >
+                    OPTIMISER
+                  </Text>
+                )}
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={openAddModal}
+                style={styles.headerButton}
+              >
+                <Ionicons
+                  name="add-circle"
+                  size={32}
+                  color={Colors.light.tint}
+                />
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
       </View>
 
       {loading ? (
@@ -1984,211 +2210,3 @@ export default function ProductionScreen() {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#f8f9fa",
-  },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingTop: 60, // Safe Area top padding approx
-    paddingBottom: 20,
-    backgroundColor: "white",
-    borderBottomWidth: 1,
-    borderBottomColor: "#eee",
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#000",
-  },
-  headerButton: {
-    padding: 4,
-  },
-  listContent: {
-    padding: 16,
-  },
-  addButton: {
-    marginRight: 10,
-  },
-  itemContainer: {
-    backgroundColor: "white",
-    padding: 16,
-    marginBottom: 12,
-    borderRadius: 12,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  itemHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 6,
-  },
-  dayTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#000",
-  },
-  callTime: {
-    fontSize: 14,
-    color: "#666",
-    fontWeight: "500",
-  },
-  subtext: {
-    fontSize: 14,
-    color: "#666",
-  },
-  scenesSummary: {
-    marginTop: 10,
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: "#f0f0f0",
-  },
-  sceneSummaryItem: {
-    marginBottom: 8,
-  },
-  sceneBrief: {
-    fontSize: 13,
-    color: Colors.light.tint,
-  },
-  sceneAddress: {
-    fontSize: 11,
-    color: "#999",
-    marginTop: 2,
-  },
-  emptyText: {
-    textAlign: "center",
-    color: "#999",
-    marginTop: 40,
-    fontSize: 16,
-  },
-  // Modal Styles
-  modalContainer: {
-    flex: 1,
-    justifyContent: "flex-end",
-    backgroundColor: "rgba(0,0,0,0.5)",
-  },
-  modalContent: {
-    backgroundColor: "white",
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 20,
-    paddingBottom: Platform.OS === "ios" ? 40 : 20,
-    maxHeight: "90%",
-  },
-  modalHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 20,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-  },
-  inputGroup: {
-    marginBottom: 16,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: "600",
-    marginBottom: 8,
-    color: "#333",
-  },
-  input: {
-    backgroundColor: "#f0f2f5",
-    padding: 12,
-    borderRadius: 8,
-    fontSize: 16,
-    color: "#333",
-  },
-  saveButton: {
-    backgroundColor: Colors.light.tint,
-    padding: 16,
-    borderRadius: 12,
-    alignItems: "center",
-    marginTop: 10,
-  },
-  disabledButton: {
-    opacity: 0.7,
-  },
-  saveButtonText: {
-    color: "white",
-    fontSize: 16,
-    fontWeight: "bold",
-  },
-  sectionHeader: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "#666",
-    marginTop: 10,
-    marginBottom: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: "#eee",
-    paddingBottom: 5,
-  },
-  // Selector Styles
-  selectorContainer: {
-    flexDirection: "row",
-    backgroundColor: "#f1f3f5",
-    borderRadius: 8,
-    padding: 4,
-    marginBottom: 10,
-  },
-  selectorOption: {
-    flex: 1,
-    paddingVertical: 8,
-    alignItems: "center",
-    borderRadius: 6,
-  },
-  selectorOptionSelected: {
-    backgroundColor: "white",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 1,
-    elevation: 1,
-  },
-  selectorText: {
-    fontSize: 13,
-    color: "#868e96",
-    fontWeight: "500",
-  },
-  selectorTextSelected: {
-    color: Colors.light.tint,
-    fontWeight: "600",
-  },
-  sceneListContainer: {
-    backgroundColor: "#f8f9fa",
-    borderRadius: 8,
-    padding: 10,
-    marginBottom: 10,
-  },
-  sceneSelectMap: {
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: "#eee",
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  sceneSelectMapSelected: {
-    backgroundColor: "white",
-  },
-  sceneSelectText: {
-    fontSize: 14,
-    color: "#495057",
-  },
-  sceneSelectTextSelected: {
-    color: Colors.light.tint,
-    fontWeight: "600",
-  },
-});

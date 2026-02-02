@@ -1,9 +1,12 @@
 import { appEvents, EVENTS } from "@/lib/events";
 import { supabase } from "@/lib/supabase";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { User } from "@supabase/supabase-js";
 import { usePathname } from "expo-router";
 import { useEffect, useRef } from "react";
 import { Platform } from "react-native";
+
+const SEEN_ACCEPTED_KEY = "seen_accepted_connections";
 
 export default function GlobalRealtimeListener({ user }: { user: User }) {
   const pathname = usePathname();
@@ -265,9 +268,14 @@ export default function GlobalRealtimeListener({ user }: { user: User }) {
             table: "applications",
             filter: `candidate_id=eq.${user.id}`,
           },
-          (payload) => {
+          async (payload) => {
             const newApp = payload.new as any;
             if (newApp.status === "accepted") {
+              // Check if already seen locally to avoid repeat toasts
+              const seenJson = await AsyncStorage.getItem(SEEN_ACCEPTED_KEY);
+              const seenIds = seenJson ? JSON.parse(seenJson) : [];
+              if (seenIds.includes(newApp.id)) return;
+
               appEvents.emit(EVENTS.CONNECTIONS_UPDATED); // Refresh notifications
               appEvents.emit(EVENTS.SHOW_NOTIFICATION, {
                 title: "Candidature acceptée !",
@@ -290,19 +298,15 @@ export default function GlobalRealtimeListener({ user }: { user: User }) {
             table: "project_roles",
             filter: `assigned_profile_id=eq.${user.id}`,
           },
-          (payload) => {
-            // Check if it's a new assignment (or just an update to an existing one?)
-            // We can assume any update where assigned_profile_id becomes ME is relevant.
-            // But the filter is already `eq.me`.
-            // So any update to a role assigned to me is interesting, but we care most about "Just became assigned".
-            // Since we can't easily see 'old' value here without `old` record (which is available but we need to check if it WAS null),
-            // let's just trigger.
-            // Postgres changes returns `old` if replica identity is set.
-            // Assuming we just trigger notification. If multiple updates happen, might get spam, but acceptable for now.
+          async (payload) => {
+            const newRole = payload.new as any;
+            if (!newRole) return;
 
-            const oldRole = payload.old as any;
-            // Only notify if I wasn't assigned before (if we can detect it) or just notify generically.
-            // Safer: Update notification badge, let user check.
+            // Check if already seen locally to avoid repeat toasts
+            const seenJson = await AsyncStorage.getItem(SEEN_ACCEPTED_KEY);
+            const seenIds = seenJson ? JSON.parse(seenJson) : [];
+            if (seenIds.includes(newRole.id)) return;
+
             appEvents.emit(EVENTS.CONNECTIONS_UPDATED);
 
             // Trigger popup

@@ -10,6 +10,7 @@ import React, { useEffect, useRef, useState } from "react";
 import {
   Alert,
   Animated,
+  Image,
   Platform,
   ScrollView,
   StyleSheet,
@@ -417,7 +418,11 @@ export default function AuthScreen() {
           ]}
         >
           <View style={styles.headerContainer}>
-            <Text style={styles.emojiLogo}>🎬</Text>
+            <Image
+              source={require("@/assets/images/logo.jpg")}
+              style={styles.logoImage}
+              resizeMode="contain"
+            />
             <Text style={styles.title}>{titleText}</Text>
             <Text style={styles.subtitle}>{subtitleText}</Text>
           </View>
@@ -661,6 +666,11 @@ const styles = StyleSheet.create({
   headerContainer: {
     alignItems: "center",
     marginBottom: 30,
+  },
+  logoImage: {
+    width: 120,
+    height: 120,
+    marginBottom: 20,
   },
   emojiLogo: {
     fontSize: 48,

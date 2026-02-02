@@ -34,4 +34,5 @@ export const EVENTS = {
   NEW_MESSAGE: "new_message",
   SHOW_NOTIFICATION: "show_notification",
   CONNECTIONS_UPDATED: "connections_updated",
+  PROFILE_UPDATED: "profile_updated",
 };

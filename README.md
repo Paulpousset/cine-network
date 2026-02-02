@@ -28,6 +28,7 @@ Cine Network is a professional mobile application built with React Native and Ex
 ### Prerequisites
 
 Before you begin, ensure you have the following installed:
+
 - [Node.js](https://nodejs.org/) (v18 or higher recommended)
 - [npm](https://www.npmjs.com/) or [yarn](https://yarnpkg.com/)
 - [Expo Go](https://expo.dev/client) app on your mobile device for testing.
@@ -45,20 +46,47 @@ EXPO_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 ### Installation
 
 1. **Clone the repository:**
+
    ```bash
    git clone https://github.com/paulpousset/cine-network.git
    cd cine-network
    ```
 
 2. **Install dependencies:**
+
    ```bash
    npm install
+   npx playwright install --with-deps
    ```
 
 3. **Start the development server:**
    ```bash
    npx expo start
    ```
+
+## 🧪 Testing
+
+The project includes unit tests and End-to-End (E2E) tests.
+
+### Unit Tests
+
+```bash
+npm test
+```
+
+### E2E Tests (Web)
+
+We use [Playwright](https://playwright.dev/) for E2E testing the web version of the application.
+
+- **Run tests:** `npm run test:e2e`
+- **Open UI mode:** `npm run test:e2e:ui`
+- **Debug tests:** `npm run test:e2e:debug`
+
+Before running E2E tests for the first time, ensure you have installed the necessary browsers:
+
+```bash
+npx playwright install
+```
 
 > Use the **Expo Go** app to scan the QR code and run the app on your device, or press `i` for iOS simulator, `a` for Android emulator, or `w` for web.
 
@@ -103,4 +131,5 @@ Copyright © 2026 Cine Network. All rights reserved.
 This project is private and proprietary. Unauthorized copying or distribution is strictly prohibited.
 
 ---
-*Built with ❤️ for the film industry.*
+
+_Built with ❤️ for the film industry._
