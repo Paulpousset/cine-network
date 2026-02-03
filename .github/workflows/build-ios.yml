@@ -36,6 +36,12 @@ jobs:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
 
+      - name: 🍎 Select Latest Xcode
+        run: |
+          XCODE_PATH=$(ls -d /Applications/Xcode_*.app | sort -V | tail -n 1)
+          sudo xcode-select -s "$XCODE_PATH/Contents/Developer"
+          xcodebuild -version
+
       - name: 🔑 Prepare Firebase Config
         run: |
           if [ -z "${{ secrets.GOOGLE_SERVICES_IOS }}" ]; then
@@ -61,6 +67,8 @@ jobs:
           GOOGLE_SERVICES_IOS: ${{ secrets.GOOGLE_SERVICES_IOS }}
           GOOGLE_SERVICES_ANDROID: ${{ secrets.GOOGLE_SERVICES_ANDROID }}
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
 
       - name: 🚀 Submit to App Store
         run: eas submit --platform ios --profile production --path=build.ipa --non-interactive
