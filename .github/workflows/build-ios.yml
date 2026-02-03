@@ -28,8 +28,19 @@ jobs:
 
       - name: 🔑 Prepare Firebase Config
         run: |
-          echo "${{ secrets.GOOGLE_SERVICES_IOS }}" | base64 --decode > ./GoogleService-Info.plist
-          echo "${{ secrets.GOOGLE_SERVICES_ANDROID }}" | base64 --decode > ./google-services.json
+          if [ -z "${{ secrets.GOOGLE_SERVICES_IOS }}" ]; then
+            echo "Error: GOOGLE_SERVICES_IOS secret is empty"
+            exit 1
+          fi
+          # On macOS (macos-latest), base64 use -D for decode
+          echo "${{ secrets.GOOGLE_SERVICES_IOS }}" | base64 -D > ./GoogleService-Info.plist
+          echo "${{ secrets.GOOGLE_SERVICES_ANDROID }}" | base64 -D > ./google-services.json
+
+          # Vérification rapide
+          if [ ! -s ./GoogleService-Info.plist ]; then
+            echo "Error: GoogleService-Info.plist is empty after decode"
+            exit 1
+          fi
 
       - name: 🍎 Build iOS
         run: eas build --platform ios --profile production --local --non-interactive
