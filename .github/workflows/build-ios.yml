@@ -44,3 +44,7 @@ jobs:
 
       - name: 🍎 Build iOS
         run: eas build --platform ios --profile production --local --non-interactive
+        env:
+          GOOGLE_SERVICES_IOS: ${{ secrets.GOOGLE_SERVICES_IOS }}
+          GOOGLE_SERVICES_ANDROID: ${{ secrets.GOOGLE_SERVICES_ANDROID }}
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
