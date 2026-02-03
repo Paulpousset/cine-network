@@ -2,11 +2,16 @@ name: Build iOS (Local on GitHub)
 on:
   push:
     branches: [master]
+    paths:
+      - "ios/**"
+      - "app.json"
+      - "eas.json"
+      - "package.json"
+      - ".github/workflows/build-ios.yml"
   workflow_dispatch:
 
 jobs:
   build:
-    if: "!contains(github.event.head_commit.message, '[skip ios]')"
     runs-on: macos-latest
     steps:
       - name: 🏗 Checkout project
