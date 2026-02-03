@@ -1,0 +1,35 @@
+name: Build iOS (Local on GitHub)
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - name: 🏗 Checkout project
+        uses: actions/checkout@v4
+
+      - name: ⚙️ Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+
+      - name: 📦 Install dependencies
+        run: npm ci
+
+      - name: 🛠 Setup EAS
+        uses: expo/expo-github-action@v8
+        with:
+          expo-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: 🔑 Prepare Firebase Config
+        run: |
+          echo "${{ secrets.GOOGLE_SERVICES_IOS }}" | base64 --decode > ./GoogleService-Info.plist
+          echo "${{ secrets.GOOGLE_SERVICES_ANDROID }}" | base64 --decode > ./google-services.json
+
+      - name: 🍎 Build iOS
+        run: eas build --platform ios --profile production --local --non-interactive

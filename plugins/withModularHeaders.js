@@ -13,22 +13,31 @@ module.exports = (config) => {
       );
       let content = fs.readFileSync(podfile, "utf8");
 
-      // Remove use_modular_headers! if it's there, as use_frameworks! handles it
-      if (content.includes("use_modular_headers!")) {
-        content = content.replace("use_modular_headers!\n", "");
-      }
+      // Nettoyage complet pour repartir sur une base propre
+      content = content.replace(/use_modular_headers!\n/g, "");
 
-      // Fix for Firebase + New Arch header issues
-      if (
-        !content.includes(
-          "CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES",
-        )
-      ) {
-        const postInstallMatch = /post_install do \|installer\|/;
-        if (postInstallMatch.test(content)) {
+      // Script post_install optimisé pour Firebase + New Arch
+      const newPostInstall = `
+    installer.pods_project.targets.each do |target|
+      target.build_configurations.each do |config|
+        config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
+        config.build_settings['DEFINES_MODULE'] = 'YES'
+        config.build_settings['SWIFT_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
+        
+        # Correction spécifique pour les modules Firebase
+        if target.name.start_with?('RNFB')
+          config.build_settings['HEADER_SEARCH_PATHS'] = '$(inherited) "$(PODS_ROOT)/Headers/Public/React-Core"'
+        end
+      end
+    end
+    react_native_post_install`;
+
+      if (content.includes("react_native_post_install")) {
+        // On injecte nos réglages juste avant le post_install standard de React Native
+        if (!content.includes("RNFB")) {
           content = content.replace(
-            postInstallMatch,
-            `post_install do |installer|\n    installer.pods_project.targets.each do |target|\n      target.build_configurations.each do |config|\n        config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'\n        config.build_settings['SWIFT_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'\n        config.build_settings['DEFINES_MODULE'] = 'YES'\n        config.build_settings['CLANG_ENABLE_MODULES'] = 'YES'\n        # Add search paths for React core headers which often cause modular import issues\n        config.build_settings['HEADER_SEARCH_PATHS'] = '$(inherited) $(SRCROOT)/../node_modules/react-native/React/**'\n      end\n    end`,
+            "react_native_post_install",
+            newPostInstall,
           );
         }
       }
