@@ -60,6 +60,7 @@ function RootLayoutContent({
           }}
         >
           <Stack.Screen name="index" options={{ headerShown: false }} />
+          <Stack.Screen name="auth" options={{ headerShown: false }} />
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="project" options={{ headerShown: false }} />
           <Stack.Screen name="network" options={{ headerShown: false }} />
@@ -149,25 +150,27 @@ export default function RootLayout() {
   useEffect(() => {
     if (!initialized) return;
 
-    // Définir la page de login comme étant la racine
-    // On utilise pathname pour éviter les soucis avec segments vide lors des transitions
-    const inLoginPage =
-      pathname === "/" || pathname === "" || pathname === "/update-password";
+    // Définir les pages publiques (accessible sans connexion)
+    const isPublicPage =
+      pathname === "/" ||
+      pathname === "/auth" ||
+      pathname === "" ||
+      pathname === "/update-password";
 
     console.log("Auth Check:", {
       hasSession: !!session,
       pathname,
       segments,
-      inLoginPage,
+      isPublicPage,
     });
 
-    // SCÉNARIO 1 : Pas connecté mais essaie d'aller ailleurs que la page de login
-    if (!session && !inLoginPage) {
-      router.replace("/"); // Hop, retour à l'accueil
+    // SCÉNARIO 1 : Pas connecté mais essaie d'aller ailleurs qu'une page publique
+    if (!session && !isPublicPage) {
+      router.replace("/"); // Retour à la page vitrine
     }
-    // SCÉNARIO 2 : Connecté mais encore sur la page de login
-    else if (session && pathname === "/") {
-      router.replace("/my-projects"); // Hop, direction mes projets
+    // SCÉNARIO 2 : Connecté mais essaie d'aller sur la page de login ou la vitrine
+    else if (session && (pathname === "/auth" || pathname === "/")) {
+      router.replace("/my-projects"); // Direction le dashboard
     }
   }, [session, initialized, pathname]);
 
