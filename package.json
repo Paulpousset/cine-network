@@ -11,7 +11,7 @@
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:debug": "playwright test --debug",
-    "eas-build-pre-install": "echo $GOOGLE_SERVICES_IOS | base64 --decode > ./GoogleService-Info.plist && echo $GOOGLE_SERVICES_ANDROID | base64 --decode > ./google-services.json"
+    "eas-build-pre-install": "node -e \"const fs = require('fs'); if (process.env.GOOGLE_SERVICES_IOS) { fs.writeFileSync('./GoogleService-Info.plist', Buffer.from(process.env.GOOGLE_SERVICES_IOS, 'base64')); console.log('GoogleService-Info.plist created'); } if (process.env.GOOGLE_SERVICES_ANDROID) { fs.writeFileSync('./google-services.json', Buffer.from(process.env.GOOGLE_SERVICES_ANDROID, 'base64')); console.log('google-services.json created'); }\""
   },
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",
