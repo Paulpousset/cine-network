@@ -9,16 +9,16 @@ import { FlashList } from "@shopify/flash-list";
 import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useState } from "react";
 import {
-    FlatList,
-    Image,
-    Modal,
-    Platform,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    TouchableWithoutFeedback,
-    View,
+  FlatList,
+  Image,
+  Modal,
+  Platform,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
+  View,
 } from "react-native";
 
 const ROLE_CATEGORIES = ["all", ...Object.keys(JOB_TITLES)];
@@ -254,7 +254,7 @@ export default function DiscoverProfiles() {
                     style={styles.modalItem}
                     onPress={() => {
                       setSelectedRole(item);
-                      setCategoryModalVisible(false);
+                      setCityModalVisible(false);
                     }}
                   >
                     <Text

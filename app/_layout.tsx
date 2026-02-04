@@ -1,21 +1,23 @@
 import ErrorBoundary from "@/app/components/ErrorBoundary";
 import ClapLoading from "@/components/ClapLoading";
+import FilmStripTransition from "@/components/FilmStripTransition";
 import FloatingChatWidget from "@/components/FloatingChatWidget";
 import GlobalRealtimeListener from "@/components/GlobalRealtimeListener";
 import NotificationToast from "@/components/NotificationToast";
 import Sidebar from "@/components/Sidebar";
 import Colors from "@/constants/Colors";
+import { appEvents, EVENTS } from "@/lib/events";
 import { UserModeProvider } from "@/providers/UserModeProvider";
 import { Session } from "@supabase/supabase-js";
 import * as Linking from "expo-linking";
 import { Stack, usePathname, useRouter, useSegments } from "expo-router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
-  Platform,
-  Text,
-  TouchableOpacity,
-  useWindowDimensions,
-  View,
+    Platform,
+    Text,
+    TouchableOpacity,
+    useWindowDimensions,
+    View,
 } from "react-native";
 import { supabase } from "../lib/supabase";
 
@@ -85,6 +87,10 @@ export default function RootLayout() {
   const [session, setSession] = useState<Session | null>(null);
   const [initialized, setInitialized] = useState(false);
   const [isMobileWeb, setIsMobileWeb] = useState(false);
+  const [showFilmTransition, setShowFilmTransition] = useState(false);
+  const [filmTransitionTarget, setFilmTransitionTarget] = useState<
+    string | null
+  >(null);
 
   const { width } = useWindowDimensions();
   const isWebLarge = Platform.OS === "web" && width >= 768;
@@ -93,20 +99,56 @@ export default function RootLayout() {
   const router = useRouter();
 
   useEffect(() => {
+    let fallbackTimer: NodeJS.Timeout;
+    const unsub = appEvents.on(EVENTS.START_FILM_TRANSITION, (data) => {
+      setFilmTransitionTarget(data?.target || "/auth");
+      setShowFilmTransition(true);
+
+      if (fallbackTimer) clearTimeout(fallbackTimer);
+      fallbackTimer = setTimeout(() => {
+        setShowFilmTransition(false);
+      }, 4000);
+    });
+    return () => {
+      unsub();
+      if (fallbackTimer) clearTimeout(fallbackTimer);
+    };
+  }, []);
+
+  const onFilmScreenCovered = useCallback(() => {
+    if (filmTransitionTarget) {
+      router.push(filmTransitionTarget as any);
+    }
+  }, [filmTransitionTarget, router]);
+
+  const onFilmAnimationComplete = useCallback(() => {
+    setShowFilmTransition(false);
+    setFilmTransitionTarget(null);
+  }, []);
+
+  useEffect(() => {
     // Log pour confirmer la connexion à Crashlytics dans le Dashboard Firebase
     if (Platform.OS !== "web") {
-      crashlytics().log("App started on " + Platform.OS);
-      analytics().logAppOpen();
+      try {
+        crashlytics().log("App started on " + Platform.OS);
+        analytics().logAppOpen();
+      } catch (e) {
+        console.warn("Firebase native module not initialized yet:", e);
+      }
       // crashlytics().recordError(new Error("Test: Connectivité Dashboard"));
     }
   }, []);
 
   useEffect(() => {
     if (Platform.OS !== "web") {
-      analytics().logScreenView({
-        screen_name: pathname,
-        screen_class: pathname,
-      });
+      try {
+        analytics().logScreenView({
+          screen_name: pathname,
+          screen_class: pathname,
+        });
+      } catch (e) {
+        // Silently fail if analytics is not available
+      }
     }
   }, [pathname]);
 
@@ -273,6 +315,11 @@ export default function RootLayout() {
           session={session}
           isWebLarge={isWebLarge}
           pathname={pathname}
+        />
+        <FilmStripTransition
+          isVisible={showFilmTransition}
+          onScreenCovered={onFilmScreenCovered}
+          onAnimationComplete={onFilmAnimationComplete}
         />
       </UserModeProvider>
     </ErrorBoundary>

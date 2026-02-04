@@ -1,136 +1,306 @@
+import FeatureDetailsModal from "@/components/FeatureDetailsModal";
+import { Hoverable } from "@/components/Hoverable";
 import Colors from "@/constants/Colors";
+import { appEvents, EVENTS } from "@/lib/events";
 import { Ionicons } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
+import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
-  Image,
-  Linking,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    Dimensions,
+    Image,
+    Linking,
+    ScrollView,
+    StyleSheet,
+    Text,
+    View,
 } from "react-native";
+import Animated, {
+    FadeIn,
+    FadeInDown,
+    FadeInUp,
+    useAnimatedStyle,
+    useSharedValue,
+    withRepeat,
+    withSequence,
+    withTiming,
+} from "react-native-reanimated";
+
+const { width } = Dimensions.get("window");
 
 export default function LandingPage() {
   const router = useRouter();
+  const floatingValue = useSharedValue(0);
+  const [selectedFeature, setSelectedFeature] = useState<any>(null);
+
+  const FEATURES = [
+    {
+      title: "Gestion de Projets",
+      description:
+        "Suivez l'avancement de vos productions cinématographiques de l'écriture à la post-production.",
+      icon: "film-outline",
+      details:
+        "Tita centralise tous vos besoins de production. Gérez vos feuilles de service, suivez le budget en temps réel et coordonnez vos équipes sur le terrain avec une synchronisation instantanée.",
+      screens: [
+        require("@/assets/images/screenshots/projects.png"),
+        require("@/assets/images/screenshots/feed.png"),
+      ],
+    },
+    {
+      title: "Réseau de Talents",
+      description:
+        "Découvrez et recrutez les meilleurs techniciens et acteurs pour vos prochains tournages.",
+      icon: "people-outline",
+      details:
+        "Notre puissant moteur de recherche vous permet de filtrer les talents par métier, expérience, localisation et disponibilité. Consultez les portfolios et contactez directement les profils qui vous intéressent.",
+      screens: [
+        require("@/assets/images/screenshots/network.png"),
+        require("@/assets/images/screenshots/landing.png"),
+      ],
+    },
+    {
+      title: "Collaboration",
+      description:
+        "Échangez instantanément avec vos équipes grâce à notre messagerie temps réel intégrée.",
+      icon: "chatbubbles-outline",
+      details:
+        "Fini les e-mails perdus. Créez des groupes par projet ou par département, partagez des documents sécurisés et recevez des notifications critiques pour ne jamais rater une mise à jour sur le plateau.",
+      screens: [
+        require("@/assets/images/screenshots/messages.png"),
+        require("@/assets/images/screenshots/feed.png"),
+      ],
+    },
+  ];
+
+  useEffect(() => {
+    floatingValue.value = withRepeat(
+      withSequence(
+        withTiming(1, { duration: 2500 }),
+        withTiming(0, { duration: 2500 }),
+      ),
+      -1,
+      true,
+    );
+  }, []);
+
+  const animatedHeroStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: floatingValue.value * 10 }],
+  }));
 
   const handleSupport = () => {
     Linking.openURL("mailto:support@titapp.fr");
   };
 
+  const handleStart = () => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    appEvents.emit(EVENTS.START_FILM_TRANSITION, { target: "/auth" });
+  };
+
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.contentContainer}
-    >
-      {/* Navigation Header */}
-      <View style={styles.header}>
-        <Image
-          source={require("@/assets/images/logo.jpg")}
-          style={styles.logo}
-          resizeMode="contain"
+    <View style={{ flex: 1 }}>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.contentContainer}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.bgDecorCircle1} />
+        <View style={styles.bgDecorCircle2} />
+
+        <Animated.View entering={FadeIn.duration(800)} style={styles.header}>
+          <Image
+            source={require("@/assets/images/logo.jpg")}
+            style={styles.logo}
+            resizeMode="contain"
+          />
+          <View style={styles.headerButtons}>
+            <Hoverable
+              style={styles.loginButton}
+              hoverStyle={{
+                backgroundColor: "#f3f0ff",
+                transform: [{ scale: 1.05 }],
+              }}
+              onPress={handleStart}
+            >
+              <Text style={styles.loginButtonText}>Se connecter</Text>
+            </Hoverable>
+          </View>
+        </Animated.View>
+
+        <View style={styles.heroWrapper}>
+          <LinearGradient
+            colors={["#6C5CE710", "#fff"]}
+            style={styles.heroGradient}
+          />
+          <View style={styles.heroSection}>
+            <Animated.View entering={FadeInDown.delay(200).duration(800)}>
+              <Animated.Text style={[styles.heroTitle, animatedHeroStyle]}>
+                La plateforme ultime pour les{" "}
+                <Text style={{ color: Colors.light.primary }}>
+                  professionnels ou passionnés
+                </Text>{" "}
+                du cinéma
+              </Animated.Text>
+            </Animated.View>
+
+            <Animated.Text
+              entering={FadeInDown.delay(400).duration(800)}
+              style={styles.heroSubtitle}
+            >
+              Gérez vos projets, trouvez des talents et collaborez en temps réel
+              sur une seule interface fluide et intuitive.
+            </Animated.Text>
+
+            <Animated.View
+              entering={FadeIn.delay(600).duration(1000)}
+              style={styles.statsContainer}
+            >
+              <View style={styles.statItem}>
+                <Text style={styles.statNumber}>2+</Text>
+                <Text style={styles.statLabel}>Projets</Text>
+              </View>
+              <View style={styles.statDivider} />
+              <View style={styles.statItem}>
+                <Text style={styles.statNumber}>2+</Text>
+                <Text style={styles.statLabel}>Talents</Text>
+              </View>
+              <View style={styles.statDivider} />
+              <View style={styles.statItem}>
+                <Text style={styles.statNumber}>24/7</Text>
+                <Text style={styles.statLabel}>Support</Text>
+              </View>
+            </Animated.View>
+
+            <Animated.View entering={FadeInDown.delay(700).duration(800)}>
+              <Hoverable
+                style={styles.ctaButton}
+                hoverStyle={{
+                  backgroundColor: "#5849d1",
+                  transform: [{ scale: 1.02 }],
+                  shadowOpacity: 0.4,
+                }}
+                onPress={handleStart}
+              >
+                <Text style={styles.ctaButtonText}>Commencer gratuitement</Text>
+                <Ionicons
+                  name="arrow-forward"
+                  size={20}
+                  color="#fff"
+                  style={{ marginLeft: 10 }}
+                />
+              </Hoverable>
+            </Animated.View>
+          </View>
+        </View>
+
+        <View style={styles.featuresSection}>
+          {FEATURES.map((feature, index) => (
+            <FeatureCard
+              key={index}
+              {...feature}
+              index={index}
+              onPress={() => setSelectedFeature(feature)}
+            />
+          ))}
+        </View>
+
+        <FeatureDetailsModal
+          isVisible={selectedFeature !== null}
+          onClose={() => setSelectedFeature(null)}
+          feature={selectedFeature}
         />
-        <View style={styles.headerButtons}>
-          <TouchableOpacity
-            style={styles.loginButton}
-            onPress={() => router.push("/auth")}
-          >
-            <Text style={styles.loginButtonText}>Se connecter</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
 
-      {/* Hero Section */}
-      <View style={styles.heroSection}>
-        <Text style={styles.heroTitle}>
-          La plateforme ultime pour les professionnels du cinéma
-        </Text>
-        <Text style={styles.heroSubtitle}>
-          Gérez vos projets, trouvez des talents et collaborez en temps réel sur
-          une seule interface.
-        </Text>
-        <TouchableOpacity
-          style={styles.ctaButton}
-          onPress={() => router.push("/auth")}
+        <Animated.View
+          entering={FadeInUp.delay(1000).duration(800)}
+          style={styles.supportContainer}
         >
-          <Text style={styles.ctaButtonText}>Commencer gratuitement</Text>
-          <Ionicons
-            name="arrow-forward"
-            size={20}
-            color="#fff"
-            style={{ marginLeft: 10 }}
+          <LinearGradient
+            colors={[Colors.light.primary, "#8E7CFE"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={StyleSheet.absoluteFill}
           />
-        </TouchableOpacity>
-      </View>
-
-      {/* Features Showcase */}
-      <View style={styles.featuresSection}>
-        <View style={styles.featureCard}>
-          <Ionicons
-            name="film-outline"
-            size={40}
-            color={Colors.light.primary}
-          />
-          <Text style={styles.featureTitle}>Gestion de Projets</Text>
-          <Text style={styles.featureDescription}>
-            Suivez l'avancement de vos productions cinématographiques de
-            l'écriture à la post-production.
+          <Text style={[styles.supportTitle, { color: "#fff" }]}>
+            Besoin d'aide ?
           </Text>
-        </View>
-
-        <View style={styles.featureCard}>
-          <Ionicons
-            name="people-outline"
-            size={40}
-            color={Colors.light.primary}
-          />
-          <Text style={styles.featureTitle}>Réseau de Talents</Text>
-          <Text style={styles.featureDescription}>
-            Découvrez et recrutez les meilleurs techniciens et acteurs pour vos
-            prochains tournages.
+          <Text
+            style={[styles.supportText, { color: "rgba(255,255,255,0.9)" }]}
+          >
+            Notre équipe de support est là pour vous accompagner dans la prise
+            en main de l'outil et répondre à toutes vos questions.
           </Text>
-        </View>
+          <Hoverable
+            style={styles.supportButton}
+            hoverStyle={{
+              backgroundColor: "#f3f0ff",
+              transform: [{ scale: 1.02 }],
+              shadowOpacity: 0.3,
+            }}
+            onPress={handleSupport}
+          >
+            <Ionicons
+              name="help-circle-outline"
+              size={24}
+              color={Colors.light.primary}
+            />
+            <Text style={styles.supportButtonText}>Contacter le support</Text>
+          </Hoverable>
+        </Animated.View>
 
-        <View style={styles.featureCard}>
-          <Ionicons
-            name="chatbubbles-outline"
-            size={40}
-            color={Colors.light.primary}
-          />
-          <Text style={styles.featureTitle}>Collaboration</Text>
-          <Text style={styles.featureDescription}>
-            Échangez instantanément avec vos équipes grâce à notre messagerie
-            intégrée.
+        <View style={styles.footer}>
+          <Text style={styles.footerText}>
+            © 2026 Tita App. Tous droits réservés.
           </Text>
+          <View style={styles.footerLinks}>
+            <Text style={styles.footerLink}>Conditions</Text>
+            <Text style={styles.footerLink}>Confidentialité</Text>
+          </View>
         </View>
-      </View>
+      </ScrollView>
+    </View>
+  );
+}
 
-      {/* Support Section */}
-      <View style={styles.supportContainer}>
-        <Text style={styles.supportTitle}>Besoin d'aide ?</Text>
-        <Text style={styles.supportText}>
-          Notre équipe de support est là pour vous accompagner dans la prise en
-          main de l'outil.
-        </Text>
-        <TouchableOpacity style={styles.supportButton} onPress={handleSupport}>
+interface FeatureCardProps {
+  icon: any;
+  title: string;
+  description: string;
+  index: number;
+  onPress: () => void;
+}
+
+function FeatureCard({
+  icon,
+  title,
+  description,
+  index,
+  onPress,
+}: FeatureCardProps) {
+  return (
+    <Hoverable
+      onPress={onPress}
+      style={{ flex: 1, minWidth: width > 768 ? 300 : "100%" }}
+      hoverStyle={{ transform: [{ translateY: -10 }] }}
+    >
+      <Animated.View
+        entering={FadeInDown.delay(800 + index * 200).duration(600)}
+        style={styles.featureCard}
+      >
+        <View style={styles.featureIconContainer}>
+          <Ionicons name={icon as any} size={32} color={Colors.light.primary} />
+        </View>
+        <Text style={styles.featureTitle}>{title}</Text>
+        <Text style={styles.featureDescription}>{description}</Text>
+        <View style={styles.learnMoreContainer}>
+          <Text style={styles.learnMoreText}>En savoir plus</Text>
           <Ionicons
-            name="help-circle-outline"
-            size={24}
+            name="chevron-forward"
+            size={16}
             color={Colors.light.primary}
           />
-          <Text style={styles.supportButtonText}>Contacter le support</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Footer */}
-      <View style={styles.footer}>
-        <Text style={styles.footerText}>
-          © 2026 Tita App. Tous droits réservés.
-        </Text>
-      </View>
-    </ScrollView>
+        </View>
+      </Animated.View>
+    </Hoverable>
   );
 }
 
@@ -142,72 +312,129 @@ const styles = StyleSheet.create({
   contentContainer: {
     paddingBottom: 40,
   },
+  bgDecorCircle1: {
+    position: "absolute",
+    top: -100,
+    right: -100,
+    width: 300,
+    height: 300,
+    borderRadius: 150,
+    backgroundColor: "#6C5CE705",
+  },
+  bgDecorCircle2: {
+    position: "absolute",
+    top: 400,
+    left: -150,
+    width: 400,
+    height: 400,
+    borderRadius: 200,
+    backgroundColor: "#6C5CE703",
+  },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: 40,
+    paddingHorizontal: width > 768 ? 60 : 20,
     paddingVertical: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: "#eee",
+    zIndex: 10,
   },
   logo: {
-    width: 140,
-    height: 70,
-    borderRadius: 12,
-    backgroundColor: "#fff",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 5,
+    width: 120,
+    height: 60,
   },
   headerButtons: {
     flexDirection: "row",
   },
   loginButton: {
-    backgroundColor: Colors.light.primary,
+    backgroundColor: "transparent",
     paddingHorizontal: 20,
     paddingVertical: 10,
-    borderRadius: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.light.primary,
   },
   loginButtonText: {
-    color: "#fff",
-    fontWeight: "600",
+    color: Colors.light.primary,
+    fontWeight: "700",
+  },
+  heroWrapper: {
+    position: "relative",
+    paddingBottom: 40,
+  },
+  heroGradient: {
+    ...StyleSheet.absoluteFillObject,
+    height: "100%",
   },
   heroSection: {
-    padding: 60,
+    paddingTop: 40,
+    paddingHorizontal: 20,
     alignItems: "center",
-    backgroundColor: "#f9f9f9",
     textAlign: "center",
+  },
+  statsContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fff",
+    paddingHorizontal: 30,
+    paddingVertical: 15,
+    borderRadius: 20,
+    marginBottom: 40,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: "#F3F4F6",
+  },
+  statItem: {
+    alignItems: "center",
+    paddingHorizontal: 15,
+  },
+  statNumber: {
+    fontSize: 20,
+    fontWeight: "800",
+    color: Colors.light.primary,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: "#6B7280",
+    fontWeight: "500",
+  },
+  statDivider: {
+    width: 1,
+    height: 30,
+    backgroundColor: "#F3F4F6",
   },
   heroTitle: {
-    fontSize: 42,
+    fontSize: width > 768 ? 58 : 36,
     fontWeight: "900",
     color: "#1a1a1a",
-    marginBottom: 20,
+    marginBottom: 24,
     textAlign: "center",
-    maxWidth: 800,
+    maxWidth: 900,
+    lineHeight: width > 768 ? 68 : 44,
   },
   heroSubtitle: {
-    fontSize: 18,
-    color: "#666",
-    marginBottom: 30,
+    fontSize: width > 768 ? 20 : 16,
+    color: "#4B5563",
+    marginBottom: 40,
     textAlign: "center",
-    maxWidth: 600,
+    maxWidth: 650,
+    lineHeight: 28,
   },
   ctaButton: {
     backgroundColor: Colors.light.primary,
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 30,
-    paddingVertical: 15,
-    borderRadius: 30,
+    paddingHorizontal: 36,
+    paddingVertical: 18,
+    borderRadius: 100,
     shadowColor: Colors.light.primary,
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.3,
-    shadowRadius: 10,
-    elevation: 5,
+    shadowRadius: 20,
+    elevation: 8,
   },
   ctaButtonText: {
     color: "#fff",
@@ -215,72 +442,121 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
   featuresSection: {
-    flexDirection: Platform.OS === "web" ? "row" : "column",
-    justifyContent: "space-around",
-    padding: 40,
-    gap: 20,
+    flexDirection: width > 768 ? "row" : "column",
+    justifyContent: "center",
+    paddingHorizontal: width > 768 ? 60 : 20,
+    paddingVertical: 60,
+    gap: 30,
   },
   featureCard: {
     flex: 1,
-    padding: 30,
-    borderRadius: 15,
+    padding: 40,
+    borderRadius: 32,
     backgroundColor: "#fff",
     borderWidth: 1,
-    borderColor: "#eee",
+    borderColor: "#F3F4F6",
     alignItems: "center",
-    textAlign: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.05,
+    shadowRadius: 15,
+    elevation: 3,
+  },
+  featureIconContainer: {
+    width: 70,
+    height: 70,
+    borderRadius: 24,
+    backgroundColor: "#6C5CE710",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 20,
   },
   featureTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    marginVertical: 15,
-    color: "#1a1a1a",
+    fontSize: 22,
+    fontWeight: "800",
+    marginBottom: 16,
+    color: "#1F2937",
+    textAlign: "center",
   },
   featureDescription: {
-    color: "#666",
-    lineHeight: 22,
+    color: "#6B7280",
+    fontSize: 16,
+    lineHeight: 24,
     textAlign: "center",
+    marginBottom: 20,
+  },
+  learnMoreContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: "auto",
+  },
+  learnMoreText: {
+    color: Colors.light.primary,
+    fontWeight: "700",
+    fontSize: 14,
+    marginRight: 4,
   },
   supportContainer: {
-    backgroundColor: "#F0F7FF",
-    margin: 40,
-    padding: 40,
-    borderRadius: 20,
+    marginHorizontal: width > 768 ? 60 : 20,
+    marginVertical: 40,
+    padding: width > 768 ? 60 : 40,
+    borderRadius: 40,
     alignItems: "center",
+    overflow: "hidden",
+    shadowColor: Colors.light.primary,
+    shadowOffset: { width: 0, height: 20 },
+    shadowOpacity: 0.2,
+    shadowRadius: 30,
+    elevation: 10,
   },
   supportTitle: {
-    fontSize: 24,
-    fontWeight: "bold",
-    marginBottom: 10,
+    fontSize: 32,
+    fontWeight: "900",
+    marginBottom: 16,
+    zIndex: 1,
   },
   supportText: {
-    fontSize: 16,
-    color: "#555",
-    marginBottom: 25,
+    fontSize: 18,
+    marginBottom: 32,
     textAlign: "center",
+    maxWidth: 600,
+    zIndex: 1,
+    lineHeight: 26,
   },
   supportButton: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#fff",
-    paddingHorizontal: 25,
-    paddingVertical: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Colors.light.primary,
+    paddingHorizontal: 32,
+    paddingVertical: 16,
+    borderRadius: 16,
+    zIndex: 1,
   },
   supportButtonText: {
     color: Colors.light.primary,
-    fontWeight: "bold",
+    fontWeight: "800",
+    fontSize: 16,
     marginLeft: 10,
   },
   footer: {
     alignItems: "center",
-    paddingVertical: 40,
+    paddingVertical: 60,
     borderTopWidth: 1,
-    borderTopColor: "#eee",
+    borderTopColor: "#F3F4F6",
+    marginHorizontal: 40,
   },
   footerText: {
-    color: "#aaa",
+    color: "#9CA3AF",
+    fontSize: 14,
+    marginBottom: 12,
+  },
+  footerLinks: {
+    flexDirection: "row",
+    gap: 20,
+  },
+  footerLink: {
+    color: "#9CA3AF",
+    fontSize: 14,
+    textDecorationLine: "underline",
   },
 });

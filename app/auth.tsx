@@ -405,12 +405,15 @@ export default function AuthScreen() {
 
   return (
     <LinearGradient
-      colors={[Colors.light.tint, "#2c1a4d"]} // Gradient violet/foncé
+      colors={[Colors.light.tint, "#2c1a4d"]}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
       style={styles.background}
     >
-      <ScrollView contentContainerStyle={styles.scrollContainer}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContainer}
+        showsVerticalScrollIndicator={false}
+      >
         <Animated.View
           style={[
             styles.card,
@@ -418,11 +421,13 @@ export default function AuthScreen() {
           ]}
         >
           <View style={styles.headerContainer}>
-            <Image
-              source={require("@/assets/images/logo.jpg")}
-              style={styles.logoImage}
-              resizeMode="contain"
-            />
+            <View style={styles.logoContainer}>
+              <Image
+                source={require("@/assets/images/logoapp.jpg")}
+                style={styles.logoImage}
+                resizeMode="cover"
+              />
+            </View>
             <Text style={styles.title}>{titleText}</Text>
             <Text style={styles.subtitle}>{subtitleText}</Text>
           </View>
@@ -523,8 +528,8 @@ export default function AuthScreen() {
                     <Text
                       style={{
                         color: Colors.light.tint,
-                        fontSize: 12,
-                        fontWeight: "600",
+                        fontSize: 14,
+                        fontWeight: "700",
                       }}
                     >
                       Mot de passe oublié ?
@@ -623,10 +628,15 @@ export default function AuthScreen() {
 
               <TouchableOpacity
                 onPress={() => Linking.openURL("mailto:support@titapp.fr")}
-                style={{ marginTop: 20, alignItems: "center", opacity: 0.6 }}
+                style={{ marginTop: 24, alignItems: "center", opacity: 0.7 }}
               >
-                <Text style={{ fontSize: 13, color: "#666" }}>
-                  Besoin d'aide ? Contacter le support
+                <Text
+                  style={{ fontSize: 14, color: "#64748b", fontWeight: "500" }}
+                >
+                  Besoin d'aide ?{" "}
+                  <Text style={{ color: Colors.light.tint, fontWeight: "600" }}>
+                    Contacter le support
+                  </Text>
                 </Text>
               </TouchableOpacity>
             </>
@@ -655,52 +665,68 @@ const styles = StyleSheet.create({
   },
   scrollContainer: {
     flexGrow: 1,
-    justifyContent: "center", // Center vertically only if content is smaller
+    justifyContent: "center",
     alignItems: "center",
-    padding: 20,
-    minHeight: "100%", // Ensure full height availability
+    padding: 24,
+    minHeight: "100%",
   },
   card: {
     width: "100%",
-    maxWidth: 400,
-    backgroundColor: "rgba(255, 255, 255, 0.95)",
-    borderRadius: 24,
-    padding: 30,
+    maxWidth: 420,
+    backgroundColor: "white",
+    borderRadius: 32,
+    padding: 32,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.2,
-    shadowRadius: 20,
-    elevation: 10,
+    shadowOffset: { width: 0, height: 20 },
+    shadowOpacity: 0.3,
+    shadowRadius: 35,
+    elevation: 20,
   },
   headerContainer: {
     alignItems: "center",
-    marginBottom: 30,
+    marginBottom: 32,
+  },
+  logoContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 20,
+    overflow: "hidden",
+    marginBottom: 24,
+    shadowColor: Colors.light.tint,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    backgroundColor: "white",
+    elevation: 5,
   },
   logoImage: {
-    width: 120,
-    height: 120,
-    marginBottom: 20,
+    width: "100%",
+    height: "100%",
   },
   emojiLogo: {
     fontSize: 48,
     marginBottom: 10,
   },
   title: {
-    fontSize: 28,
-    fontWeight: "bold",
-    color: "#1a1a1a",
+    fontSize: 32,
+    fontWeight: "800",
+    color: "#0f172a",
+    letterSpacing: -0.5,
     marginBottom: 8,
   },
   subtitle: {
-    fontSize: 14,
-    color: "#666",
+    fontSize: 16,
+    color: "#64748b",
     textAlign: "center",
+    lineHeight: 22,
+    paddingHorizontal: 10,
   },
   errorText: {
-    color: "#ff3b30",
+    color: "#ef4444",
     fontSize: 14,
-    marginBottom: 12,
+    marginBottom: 16,
     textAlign: "center",
+    fontWeight: "500",
   },
   formContainer: {
     width: "100%",
@@ -708,129 +734,138 @@ const styles = StyleSheet.create({
   inputWrapper: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#f5f5f5",
-    borderRadius: 12,
+    backgroundColor: "#f8fafc",
+    borderRadius: 16,
     marginBottom: 16,
-    borderWidth: 1,
-    borderColor: "transparent",
-    paddingHorizontal: 12, // Reduced padding to keep icon close
-    height: 50,
+    borderWidth: 1.5,
+    borderColor: "#f1f5f9",
+    paddingHorizontal: 16,
+    height: 56,
   },
   inputIcon: {
-    marginRight: 10,
+    marginRight: 12,
   },
   input: {
     flex: 1,
     height: "100%",
     fontSize: 16,
-    color: "#333",
+    color: "#1e293b",
+    fontWeight: "500",
     ...Platform.select({
       web: { outlineStyle: "none" } as any,
     }),
   },
   rolesSection: {
-    marginTop: 10,
-    marginBottom: 10,
+    marginTop: 8,
+    marginBottom: 16,
   },
   roleTitle: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#666",
-    marginBottom: 10,
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#334155",
+    marginBottom: 12,
   },
   rolesContainer: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 8,
+    gap: 10,
   },
   roleChip: {
-    paddingVertical: 6,
-    paddingHorizontal: 14,
-    borderRadius: 20,
-    backgroundColor: "#eee",
-    borderWidth: 1,
-    borderColor: "transparent",
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    backgroundColor: "#f1f5f9",
+    borderWidth: 1.5,
+    borderColor: "#e2e8f0",
   },
   roleChipSelected: {
     backgroundColor: Colors.light.tint,
     borderColor: Colors.light.tint,
   },
   roleText: {
-    fontSize: 13,
-    color: "#666",
-    fontWeight: "500",
+    fontSize: 14,
+    color: "#64748b",
+    fontWeight: "600",
   },
   roleTextSelected: {
     color: "#fff",
-    fontWeight: "600",
+    fontWeight: "700",
   },
   primaryButton: {
     backgroundColor: Colors.light.tint,
-    borderRadius: 14,
-    height: 52,
+    borderRadius: 18,
+    height: 56,
     justifyContent: "center",
     alignItems: "center",
     shadowColor: Colors.light.tint,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 15,
+    elevation: 8,
   },
   primaryButtonText: {
     color: "white",
-    fontSize: 16,
-    fontWeight: "bold",
+    fontSize: 18,
+    fontWeight: "700",
+    letterSpacing: 0.5,
   },
   dividerContainer: {
     flexDirection: "row",
     alignItems: "center",
-    marginVertical: 24,
+    marginVertical: 28,
   },
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: "#E0E0E0",
+    backgroundColor: "#f1f5f9",
   },
   dividerText: {
     marginHorizontal: 16,
-    color: "#999",
-    fontSize: 12,
-    fontWeight: "600",
+    color: "#94a3b8",
+    fontSize: 13,
+    fontWeight: "700",
   },
   socialButtons: {
     flexDirection: "row",
-    gap: 12,
+    gap: 16,
   },
   socialButton: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    height: 48,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#E0E0E0",
+    height: 52,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: "#f1f5f9",
     backgroundColor: "white",
-    gap: 8,
+    gap: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 5,
+    elevation: 2,
   },
   socialButtonText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#333",
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#334155",
   },
   footer: {
     flexDirection: "row",
     justifyContent: "center",
-    marginTop: 30,
+    marginTop: 32,
     gap: 6,
+    alignItems: "center",
   },
   footerText: {
-    color: "#666",
-    fontSize: 14,
+    color: "#64748b",
+    fontSize: 15,
+    fontWeight: "500",
   },
   linkText: {
     color: Colors.light.tint,
-    fontSize: 14,
-    fontWeight: "bold",
+    fontSize: 15,
+    fontWeight: "700",
   },
 });

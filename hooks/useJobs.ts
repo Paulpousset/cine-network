@@ -66,20 +66,23 @@ export function useJobs() {
 
   const fetchCities = useCallback(async () => {
     try {
+      // On récupère les villes uniquement pour les rôles publiés
       const { data, error } = await supabase
-        .from("tournages")
-        .select("ville")
-        .not("ville", "is", null);
+        .from("project_roles")
+        .select("tournages!inner(ville)")
+        .eq("status", "published");
 
       if (error) throw error;
+
       const cities = Array.from(
         new Set(
-          data
-            ?.map((t) => t.ville)
+          (data as any[])
+            ?.map((r) => r.tournages?.ville)
             .filter((v) => v)
-            .map((v) => v!.trim()),
+            .map((v) => v.trim()),
         ),
-      ).sort();
+      ).sort() as string[];
+
       setAvailableCities(["all", ...cities]);
     } catch (e) {
       console.log("Error fetching cities", e);
@@ -92,8 +95,9 @@ export function useJobs() {
       let query = supabase
         .from("project_roles")
         .select(
-          `*, tournages ( id, title, type, pays, ville, latitude, longitude )`,
+          `*, tournages!inner ( id, title, type, pays, ville, latitude, longitude )`,
         )
+        .eq("status", "published") // Only show published roles
         .order("is_boosted", { ascending: false })
         .order("created_at", { ascending: false });
 

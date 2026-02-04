@@ -106,14 +106,14 @@ export function useTalents() {
     try {
       const { data, error } = await supabase
         .from("profiles")
-        .select("city")
-        .not("city", "is", null);
+        .select("ville")
+        .not("ville", "is", null);
 
       if (error) throw error;
       const cities = Array.from(
         new Set(
           data
-            ?.map((p) => p.city)
+            ?.map((p: any) => p.ville)
             .filter((c) => c)
             .map((c) => c!.trim()),
         ),
@@ -134,7 +134,7 @@ export function useTalents() {
       }
 
       if (selectedCity !== "all") {
-        q = q.eq("city", selectedCity);
+        q = q.eq("ville", selectedCity);
       }
 
       const { data, error } = await q;

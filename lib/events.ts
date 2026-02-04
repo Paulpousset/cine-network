@@ -35,4 +35,5 @@ export const EVENTS = {
   SHOW_NOTIFICATION: "show_notification",
   CONNECTIONS_UPDATED: "connections_updated",
   PROFILE_UPDATED: "profile_updated",
+  START_FILM_TRANSITION: "start_film_transition",
 };

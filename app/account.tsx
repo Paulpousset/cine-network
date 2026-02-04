@@ -1348,29 +1348,79 @@ export default function Account() {
 
         <View style={{ height: 50 }} />
 
-        {/* DEV ONLY: SEED DATA */}
+        {/* DEV ONLY: MAGIC SEED DATA */}
         <TouchableOpacity
           onPress={async () => {
             try {
-              // Dynamic import to avoid bundling issues if file not found in some envs
-              const { seedDatabase } = await import("@/utils/seed");
-              await seedDatabase();
+              const { magicSeed } = await import("@/utils/magicSeed");
+              await magicSeed();
             } catch (e) {
-              Alert.alert("Erreur", "Impossible de charger le script de seed");
+              console.error(e);
+              Alert.alert(
+                "Erreur",
+                "Impossible de charger le script Magic Seed",
+              );
             }
           }}
           style={{
-            backgroundColor: "transparent",
+            backgroundColor: "#FFF9C4",
             padding: 15,
             borderRadius: 12,
             alignItems: "center",
             borderWidth: 1,
-            borderColor: Colors.light.tint,
+            borderColor: "#FBC02D",
             marginBottom: 15,
+            flexDirection: "row",
+            justifyContent: "center",
+            gap: 10,
           }}
         >
-          <Text style={{ color: Colors.light.tint, fontWeight: "bold" }}>
-            Générer Données Test (Dev)
+          <Ionicons name="sparkles" size={20} color="#FBC02D" />
+          <Text style={{ color: "#FBC02D", fontWeight: "bold" }}>
+            Lancer le Magic Seed ✨
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          onPress={async () => {
+            Alert.alert(
+              "Nettoyer ?",
+              "Cela va supprimer TOUS les posts et tournages liés à ton compte.",
+              [
+                { text: "Annuler", style: "cancel" },
+                {
+                  text: "Tout supprimer 🧹",
+                  style: "destructive",
+                  onPress: async () => {
+                    try {
+                      const { clearMagicSeed } = await import(
+                        "@/utils/magicSeed"
+                      );
+                      await clearMagicSeed();
+                    } catch (e) {
+                      console.error(e);
+                    }
+                  },
+                },
+              ],
+            );
+          }}
+          style={{
+            backgroundColor: "#FFEBEE",
+            padding: 15,
+            borderRadius: 12,
+            alignItems: "center",
+            borderWidth: 1,
+            borderColor: "#EF5350",
+            marginBottom: 50,
+            flexDirection: "row",
+            justifyContent: "center",
+            gap: 10,
+          }}
+        >
+          <Ionicons name="trash-outline" size={20} color="#EF5350" />
+          <Text style={{ color: "#EF5350", fontWeight: "bold" }}>
+            Wipe Seed 🧹
           </Text>
         </TouchableOpacity>
 

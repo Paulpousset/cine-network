@@ -37,7 +37,7 @@ export const TalentCard = React.memo(({ item }: TalentCardProps) => {
           <Text style={[styles.role, { color: Colors.light.primary }]}>
             {(item.role || "").toString().replace("_", " ")}
           </Text>
-          {item.city && (
+          {(item.city || item.ville || item.location) && (
             <Text style={GlobalStyles.caption}>
               📍 {item.city || item.ville || item.location}
             </Text>
