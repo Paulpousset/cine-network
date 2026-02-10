@@ -10,19 +10,19 @@ import * as ImagePicker from "expo-image-picker";
 import { Stack, useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
-  Alert,
-  FlatList,
-  Image,
-  Linking,
-  Modal,
-  Platform,
-  RefreshControl,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  useWindowDimensions,
-  View,
+    Alert,
+    FlatList,
+    Image,
+    Linking,
+    Modal,
+    Platform,
+    RefreshControl,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    useWindowDimensions,
+    View,
 } from "react-native";
 
 export default function HallOfFameScreen({
@@ -321,7 +321,7 @@ export default function HallOfFameScreen({
       ) : (
         <FlashList
           data={filteredProjects}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(item: any) => item.id}
           renderItem={renderItem}
           estimatedItemSize={450}
           style={{ width: "100%" }}
@@ -351,6 +351,7 @@ export default function HallOfFameScreen({
               </Text>
             </View>
           }
+          {...({} as any)}
         />
       )}
 

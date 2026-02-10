@@ -266,20 +266,61 @@ export default function GlobalRealtimeListener({ user }: { user: User }) {
             event: "UPDATE",
             schema: "public",
             table: "applications",
-            filter: `candidate_id=eq.${user.id}`,
+            // Remove candidate_id filter for more reliability during partial updates
           },
           async (payload) => {
             const newApp = payload.new as any;
-            if (newApp.status === "accepted") {
-              // Check if already seen locally to avoid repeat toasts
-              const seenJson = await AsyncStorage.getItem(SEEN_ACCEPTED_KEY);
-              const seenIds = seenJson ? JSON.parse(seenJson) : [];
-              if (seenIds.includes(newApp.id)) return;
+            if (!newApp) return;
 
-              appEvents.emit(EVENTS.CONNECTIONS_UPDATED); // Refresh notifications
+            // Check if it belongs to me
+            let candidateId = newApp.candidate_id;
+            let appStatus = newApp.status;
+            let roleId = newApp.role_id;
+
+            if (candidateId === undefined || appStatus === undefined) {
+              const { data: fullApp } = await supabase
+                .from("applications")
+                .select("candidate_id, status, role_id")
+                .eq("id", newApp.id)
+                .single();
+              if (fullApp) {
+                candidateId = fullApp.candidate_id;
+                appStatus = fullApp.status;
+                roleId = fullApp.role_id;
+              }
+            }
+
+            if (candidateId !== user.id) return;
+
+            // Fetch info to display a nice notification
+            let rTitle = "un rôle";
+            let pTitle = "un projet";
+
+            if (roleId) {
+              const { data: role } = await supabase
+                .from("project_roles")
+                .select("title, tournage:tournages(title)")
+                .eq("id", roleId)
+                .single();
+
+              if (role) {
+                rTitle = role.title;
+                if ((role as any).tournage) {
+                  pTitle = (role as any).tournage.title;
+                }
+              }
+            }
+
+            if (appStatus === "accepted") {
               appEvents.emit(EVENTS.SHOW_NOTIFICATION, {
                 title: "Candidature acceptée !",
-                body: "Félicitations, vous avez rejoint un projet !",
+                body: `Félicitations, vous avez été retenu pour le rôle "${rTitle}" sur le projet "${pTitle}" !`,
+                link: "/notifications",
+              });
+            } else if (appStatus === "rejected") {
+              appEvents.emit(EVENTS.SHOW_NOTIFICATION, {
+                title: "Information Candidature",
+                body: `Votre candidature pour le rôle "${rTitle}" sur le projet "${pTitle}" n'a pas été retenue.`,
                 link: "/notifications",
               });
             }
@@ -293,14 +334,49 @@ export default function GlobalRealtimeListener({ user }: { user: User }) {
         .on(
           "postgres_changes",
           {
-            event: "UPDATE", // Roles are often pre-created and then assigned
+            event: "*",
             schema: "public",
             table: "project_roles",
-            filter: `assigned_profile_id=eq.${user.id}`,
+            // We remove the filter here because UPDATE payload might not include assigned_profile_id
+            // if it wasn't modified in that specific update. We filter in the callback.
           },
           async (payload) => {
             const newRole = payload.new as any;
             if (!newRole) return;
+
+            // CHECK: is this role assigned to ME?
+            // Since newRole might only have updated columns, we MUST fetch it if assigned_profile_id is missing
+            let assignedProfileId = newRole.assigned_profile_id;
+            let currentStatus = newRole.status;
+            let roleTitle = newRole.title;
+            let tournageId = newRole.tournage_id;
+
+            if (
+              assignedProfileId === undefined ||
+              currentStatus === undefined
+            ) {
+              const { data: fullRole } = await supabase
+                .from("project_roles")
+                .select("assigned_profile_id, status, title, tournage_id")
+                .eq("id", newRole.id)
+                .single();
+              if (fullRole) {
+                assignedProfileId = fullRole.assigned_profile_id;
+                currentStatus = fullRole.status;
+                roleTitle = fullRole.title;
+                tournageId = fullRole.tournage_id;
+              }
+            }
+
+            if (assignedProfileId !== user.id) return;
+
+            // Only notify if status is invitation_pending or assigned
+            if (
+              currentStatus !== "invitation_pending" &&
+              currentStatus !== "assigned"
+            ) {
+              return;
+            }
 
             // Check if already seen locally to avoid repeat toasts
             const seenJson = await AsyncStorage.getItem(SEEN_ACCEPTED_KEY);
@@ -309,10 +385,24 @@ export default function GlobalRealtimeListener({ user }: { user: User }) {
 
             appEvents.emit(EVENTS.CONNECTIONS_UPDATED);
 
+            // Fetch project title for a better notification
+            let projectTitle = "un projet";
+            if (tournageId) {
+              const { data: proj } = await supabase
+                .from("tournages")
+                .select("title")
+                .eq("id", tournageId)
+                .single();
+              if (proj) projectTitle = proj.title;
+            }
+
             // Trigger popup
+            const isInvitation = currentStatus === "invitation_pending";
             appEvents.emit(EVENTS.SHOW_NOTIFICATION, {
-              title: "Nouveau Rôle !",
-              body: "Vous avez été ajouté à un projet.",
+              title: isInvitation ? "Nouvelle Invitation !" : "Poste Assigné !",
+              body: isInvitation
+                ? `On vous propose le rôle "${roleTitle}" sur le projet "${projectTitle}".`
+                : `Vous avez été ajouté au projet "${projectTitle}" pour le rôle "${roleTitle}".`,
               link: "/notifications",
             });
           },

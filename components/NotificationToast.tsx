@@ -20,33 +20,36 @@ export default function NotificationToast() {
     body: string;
     link?: string;
   } | null>(null);
-  
+
   const translateY = useRef(new Animated.Value(-150)).current;
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const timeoutRef = useRef<any>(null);
 
   useEffect(() => {
-    const unsubscribe = appEvents.on(EVENTS.SHOW_NOTIFICATION, (payload: any) => {
-      console.log("NotificationToast: Received request", payload);
-      // Clear any existing timeout
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    const unsubscribe = appEvents.on(
+      EVENTS.SHOW_NOTIFICATION,
+      (payload: any) => {
+        console.log("NotificationToast: Received request", payload);
+        // Clear any existing timeout
+        if (timeoutRef.current) clearTimeout(timeoutRef.current);
 
-      setNotification(payload);
+        setNotification(payload);
 
-      // Animate In
-      Animated.spring(translateY, {
-        toValue: 0,
-        useNativeDriver: true,
-        friction: 8,
-      }).start();
+        // Animate In
+        Animated.spring(translateY, {
+          toValue: 0,
+          useNativeDriver: true,
+          friction: 8,
+        }).start();
 
-      // Auto hide after 4 seconds
-      timeoutRef.current = setTimeout(() => {
-        hideNotification();
-      }, 4000);
-    });
+        // Auto hide after 4 seconds
+        timeoutRef.current = setTimeout(() => {
+          hideNotification();
+        }, 4000);
+      },
+    );
 
     return () => {
       unsubscribe();
@@ -92,7 +95,11 @@ export default function NotificationToast() {
         style={styles.toast}
       >
         <View style={styles.iconContainer}>
-          <Ionicons name="chatbubble-ellipses" size={24} color={Colors.light.tint} />
+          <Ionicons
+            name="chatbubble-ellipses"
+            size={24}
+            color={Colors.light.tint}
+          />
         </View>
         <View style={styles.content}>
           <Text style={styles.title} numberOfLines={1}>
@@ -102,7 +109,10 @@ export default function NotificationToast() {
             {notification.body}
           </Text>
         </View>
-        <TouchableOpacity onPress={() => hideNotification()} style={styles.closeBtn}>
+        <TouchableOpacity
+          onPress={() => hideNotification()}
+          style={styles.closeBtn}
+        >
           <Ionicons name="close" size={20} color="#999" />
         </TouchableOpacity>
       </TouchableOpacity>

@@ -18,7 +18,7 @@ export default function UpdatePasswordScreen() {
     const result = updatePasswordSchema.safeParse({ password });
 
     if (!result.success) {
-      Alert.alert("Erreur", result.error.errors[0].message);
+      Alert.alert("Erreur", result.error.issues[0].message);
       return;
     }
 

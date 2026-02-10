@@ -8,7 +8,7 @@ import {
     StyleSheet,
     Text,
     useWindowDimensions,
-    View
+    View,
 } from "react-native";
 
 export default function CustomTabBar({
@@ -66,25 +66,47 @@ export default function CustomTabBar({
                   style={{
                     position: "absolute",
                     top: 5,
-                    right: "30%",
-                    minWidth: 16,
-                    height: 16,
-                    borderRadius: 8,
+                    right: "25%",
+                    minWidth:
+                      typeof options.tabBarBadge === "number" ||
+                      typeof options.tabBarBadge === "string"
+                        ? 18
+                        : 16,
+                    height:
+                      typeof options.tabBarBadge === "number" ||
+                      typeof options.tabBarBadge === "string"
+                        ? 18
+                        : 16,
+                    borderRadius: 9,
                     backgroundColor: Colors[colorScheme ?? "light"].tint,
                     alignItems: "center",
                     justifyContent: "center",
                     borderWidth: 1.5,
                     borderColor: colors.background,
+                    paddingHorizontal: 2,
                   }}
                 >
-                  <View
-                    style={{
-                      width: 6,
-                      height: 6,
-                      borderRadius: 3,
-                      backgroundColor: "white",
-                    }}
-                  />
+                  {typeof options.tabBarBadge === "number" ||
+                  typeof options.tabBarBadge === "string" ? (
+                    <Text
+                      style={{
+                        color: "white",
+                        fontSize: 10,
+                        fontWeight: "bold",
+                      }}
+                    >
+                      {options.tabBarBadge}
+                    </Text>
+                  ) : (
+                    <View
+                      style={{
+                        width: 6,
+                        height: 6,
+                        borderRadius: 3,
+                        backgroundColor: "white",
+                      }}
+                    />
+                  )}
                 </View>
               ) : null}
               <Text style={[styles.tabLabel, { color }]}>{options.title}</Text>

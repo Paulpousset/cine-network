@@ -120,7 +120,7 @@ export default function NewPostScreen() {
 
     const validation = postSchema.safeParse({ content });
     if (!validation.success) {
-      Alert.alert("Erreur", validation.error.errors[0].message);
+      Alert.alert("Erreur", validation.error.issues[0].message);
       return;
     }
 

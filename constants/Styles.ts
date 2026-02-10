@@ -106,6 +106,14 @@ export const GlobalStyles = StyleSheet.create({
     color: Colors.light.text,
     marginBottom: 6,
   },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: Colors.light.text,
+    marginTop: 20,
+    marginBottom: 10,
+    letterSpacing: 0.2,
+  },
   body: {
     fontSize: 16,
     color: "#4B5563", // Gris moyen

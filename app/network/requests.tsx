@@ -138,7 +138,7 @@ export default function ConnectionRequests() {
       const acceptedSection = sections.find(
         (s) => s.title === "Nouveaux Contacts",
       );
-      const newIdsToMark = [];
+      const newIdsToMark: string[] = [];
       if (acceptedSection) {
         acceptedSection.data.forEach((item: any) => {
           if (!seenIds.includes(item.id)) {
