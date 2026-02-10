@@ -36,4 +36,5 @@ export const EVENTS = {
   CONNECTIONS_UPDATED: "connections_updated",
   PROFILE_UPDATED: "profile_updated",
   START_FILM_TRANSITION: "start_film_transition",
+  TUTORIAL_COMPLETED: "tutorial_completed",
 };

@@ -1,3 +1,4 @@
+import { appEvents, EVENTS } from "@/lib/events";
 import { supabase } from "@/lib/supabase";
 import { fuzzySearch } from "@/utils/search";
 import { useCallback, useEffect, useState } from "react";
@@ -170,7 +171,14 @@ export function useTalents() {
   useEffect(() => {
     fetchProfiles();
     fetchCities();
-  }, [fetchProfiles]);
+
+    const unsub = appEvents.on(EVENTS.TUTORIAL_COMPLETED, () => {
+      fetchProfiles();
+      fetchCities();
+      if (currentUserId) fetchSuggestions(currentUserId);
+    });
+    return () => unsub();
+  }, [fetchProfiles, currentUserId]);
 
   useEffect(() => {
     const normalizedQuery = query.trim();

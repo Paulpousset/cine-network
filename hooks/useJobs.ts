@@ -1,3 +1,4 @@
+import { appEvents, EVENTS } from "@/lib/events";
 import { getRecommendedRoles } from "@/lib/matching";
 import { supabase } from "@/lib/supabase";
 import { useCallback, useEffect, useState } from "react";
@@ -130,7 +131,14 @@ export function useJobs() {
   useEffect(() => {
     fetchCities();
     fetchRecommendations();
-  }, [fetchCities, fetchRecommendations]);
+
+    const unsub = appEvents.on(EVENTS.TUTORIAL_COMPLETED, () => {
+      fetchCities();
+      fetchRoles();
+      fetchRecommendations();
+    });
+    return () => unsub();
+  }, [fetchCities, fetchRecommendations, fetchRoles]);
 
   useEffect(() => {
     let filtered = [...allRoles];
