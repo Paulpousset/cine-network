@@ -6,19 +6,24 @@ const NUM_PROJECTS = 5;
 const NUM_POSTS = 10;
 
 const PROJECT_TYPES = [
-  "Court-métrage",
-  "Long-métrage",
-  "Publicité",
-  "Clip Vidéo",
-  "Série Web",
+  "long_metrage",
+  "court_metrage",
+  "publicite",
+  "clip",
+  "documentaire",
+  "serie",
+  "etudiant",
 ];
 const ROLES = [
-  "Realisateur",
-  "Acteur",
-  "Production",
-  "Image",
-  "Son",
-  "Maquillage",
+  "acteur",
+  "realisateur",
+  "technicien",
+  "production",
+  "image",
+  "son",
+  "hmc",
+  "deco",
+  "post_prod",
 ];
 
 export async function magicSeed() {
@@ -71,7 +76,7 @@ export async function magicSeed() {
           longitude: 2.3522 + (Math.random() - 0.5) * 0.1,
           image_url: `https://loremflickr.com/800/450/cinema,movie?lock=${faker.number.int(1000)}`,
           start_date: faker.date.future().toISOString(),
-          status: "planned",
+          status: "ongoing",
         })
         .select()
         .single();
@@ -167,7 +172,7 @@ export async function clearMagicSeed() {
 
     // On ne supprime QUE les posts et tournages qui ont le contenu typique du seed
     // ou qui ont été créés très récemment par le script (approche par filtrage)
-    
+
     // Pour les posts, on peut filtrer par ceux qui ont été générés par faker (lorem ipsum)
     const { error: errorPosts } = await supabase
       .from("posts")

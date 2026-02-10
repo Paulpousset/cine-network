@@ -6,22 +6,23 @@ import { GlobalStyles } from "@/constants/Styles";
 import { useUserMode } from "@/hooks/useUserMode";
 import { appEvents, EVENTS } from "@/lib/events";
 import { supabase } from "@/lib/supabase";
+import { useTutorial } from "@/providers/TutorialProvider";
 import { Ionicons } from "@expo/vector-icons";
 import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from "expo-image-picker";
 import { Stack, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-    Alert,
-    Image,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Switch,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  Image,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 // --- CONSTANTS ---
@@ -90,6 +91,8 @@ export default function Account() {
   const [cv_url, setCvUrl] = useState<string | null>(null);
   const [book_urls, setBookUrls] = useState<string[]>([]);
   const [showreel_url, setShowreelUrl] = useState("");
+
+  const { startTutorial, isLoading: isTutorialLoading } = useTutorial();
 
   // Visibility settings
   const [hiddenProjectIds, setHiddenProjectIds] = useState<string[]>([]);
@@ -691,7 +694,7 @@ export default function Account() {
             <ClapLoading size={24} color={Colors.light.primary} />
           ) : (
             <Text style={{ color: Colors.light.primary, fontWeight: "bold" }}>
-              Sauver
+              Enregistrer
             </Text>
           )}
         </TouchableOpacity>
@@ -761,7 +764,7 @@ export default function Account() {
                 style={[GlobalStyles.primaryButton, { flex: 1 }]}
               >
                 <Text style={GlobalStyles.buttonText}>
-                  Passer Pro (29€/mois)
+                  Passer Pro (9€/mois)
                 </Text>
               </TouchableOpacity>
 
@@ -1348,79 +1351,21 @@ export default function Account() {
 
         <View style={{ height: 50 }} />
 
-        {/* DEV ONLY: MAGIC SEED DATA */}
         <TouchableOpacity
-          onPress={async () => {
-            try {
-              const { magicSeed } = await import("@/utils/magicSeed");
-              await magicSeed();
-            } catch (e) {
-              console.error(e);
-              Alert.alert(
-                "Erreur",
-                "Impossible de charger le script Magic Seed",
-              );
-            }
+          onPress={() => {
+            startTutorial();
           }}
+          disabled={isTutorialLoading}
           style={{
-            backgroundColor: "#FFF9C4",
+            backgroundColor: isTutorialLoading ? "#ccc" : Colors.light.tint,
             padding: 15,
             borderRadius: 12,
             alignItems: "center",
-            borderWidth: 1,
-            borderColor: "#FBC02D",
             marginBottom: 15,
-            flexDirection: "row",
-            justifyContent: "center",
-            gap: 10,
           }}
         >
-          <Ionicons name="sparkles" size={20} color="#FBC02D" />
-          <Text style={{ color: "#FBC02D", fontWeight: "bold" }}>
-            Lancer le Magic Seed ✨
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          onPress={async () => {
-            Alert.alert(
-              "Nettoyer ?",
-              "Cela va supprimer TOUS les posts et tournages liés à ton compte.",
-              [
-                { text: "Annuler", style: "cancel" },
-                {
-                  text: "Tout supprimer 🧹",
-                  style: "destructive",
-                  onPress: async () => {
-                    try {
-                      const { clearMagicSeed } = await import(
-                        "@/utils/magicSeed"
-                      );
-                      await clearMagicSeed();
-                    } catch (e) {
-                      console.error(e);
-                    }
-                  },
-                },
-              ],
-            );
-          }}
-          style={{
-            backgroundColor: "#FFEBEE",
-            padding: 15,
-            borderRadius: 12,
-            alignItems: "center",
-            borderWidth: 1,
-            borderColor: "#EF5350",
-            marginBottom: 50,
-            flexDirection: "row",
-            justifyContent: "center",
-            gap: 10,
-          }}
-        >
-          <Ionicons name="trash-outline" size={20} color="#EF5350" />
-          <Text style={{ color: "#EF5350", fontWeight: "bold" }}>
-            Wipe Seed 🧹
+          <Text style={{ color: "white", fontWeight: "bold" }}>
+            {isTutorialLoading ? "Préparation..." : "Revoir le tutoriel 👋"}
           </Text>
         </TouchableOpacity>
 

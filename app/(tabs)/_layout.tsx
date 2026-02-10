@@ -25,18 +25,12 @@ function TabBarIcon(props: {
 export default function TabLayout() {
   const colorScheme = useColorScheme();
   const router = useRouter();
-  const [pendingConnections, setPendingConnections] = useState(0);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
   useEffect(() => {
     fetchUserData();
-    const unsubConnections = appEvents.on(
-      EVENTS.CONNECTIONS_UPDATED,
-      fetchUserData,
-    );
     const unsubProfile = appEvents.on(EVENTS.PROFILE_UPDATED, fetchUserData);
     return () => {
-      unsubConnections();
       unsubProfile();
     };
   }, []);
@@ -57,14 +51,6 @@ export default function TabLayout() {
     if (profile) {
       setAvatarUrl(profile.avatar_url);
     }
-
-    const { count } = await supabase
-      .from("connections")
-      .select("*", { count: "exact", head: true })
-      .eq("receiver_id", session.user.id)
-      .eq("status", "pending");
-
-    setPendingConnections(count || 0);
   }
 
   const ProfileIcon = ({ pressed }: { pressed: boolean }) => {

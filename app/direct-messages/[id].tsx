@@ -21,12 +21,14 @@ import {
     Text,
     TextInput,
     TouchableOpacity,
-    View
+    View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function DirectMessageChat() {
   const { id } = useLocalSearchParams(); // Other user ID
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [messages, setMessages] = useState<any[]>([]);
   const [inputText, setTextInput] = useState("");
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
@@ -389,8 +391,8 @@ export default function DirectMessageChat() {
       <CustomWebHeader />
 
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
+        behavior={Platform.OS === "ios" ? "padding" : "padding"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 90}
         style={{ flex: 1 }}
       >
         {loading ? (
@@ -442,13 +444,25 @@ export default function DirectMessageChat() {
           />
         )}
 
-        <View style={styles.inputContainer}>
+        <View
+          style={[
+            styles.inputContainer,
+            { paddingBottom: insets.bottom || 10 },
+          ]}
+        >
           <TextInput
             style={styles.input}
             placeholder="Votre message..."
             value={inputText}
             onChangeText={setTextInput}
             multiline
+            returnKeyType="send"
+            blurOnSubmit={true}
+            onSubmitEditing={() => {
+              if (inputText.trim()) {
+                sendMessage();
+              }
+            }}
             onKeyPress={(e) => {
               // Sur le WEB : "Entrée" envoie le message, "Shift+Entrée" fait un saut de ligne
               if (Platform.OS === "web") {

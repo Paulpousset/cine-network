@@ -1,4 +1,5 @@
 import { FeedPost } from "@/components/PostCard";
+import { appEvents, EVENTS } from "@/lib/events";
 import { supabase } from "@/lib/supabase";
 import { useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
@@ -16,6 +17,14 @@ export const useFeed = () => {
         setUserId(user.id);
       }
     });
+
+    // Listen for tutorial completion to refresh feed
+    const unsubscribe = appEvents.on(EVENTS.TUTORIAL_COMPLETED, () => {
+      console.log("[useFeed] Tutorial completed, refreshing...");
+      fetchPosts();
+    });
+
+    return () => unsubscribe();
   }, []);
 
   const fetchPosts = async () => {
