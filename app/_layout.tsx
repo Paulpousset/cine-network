@@ -5,8 +5,10 @@ import FloatingChatWidget from "@/components/FloatingChatWidget";
 import GlobalRealtimeListener from "@/components/GlobalRealtimeListener";
 import NotificationToast from "@/components/NotificationToast";
 import Sidebar from "@/components/Sidebar";
+import { TutorialOverlay } from "@/components/TutorialOverlay";
 import Colors from "@/constants/Colors";
 import { appEvents, EVENTS } from "@/lib/events";
+import { TutorialProvider } from "@/providers/TutorialProvider";
 import { UserModeProvider } from "@/providers/UserModeProvider";
 import { Session } from "@supabase/supabase-js";
 import * as Linking from "expo-linking";
@@ -21,6 +23,7 @@ import {
 } from "react-native";
 import { supabase } from "../lib/supabase";
 
+import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { useUserMode } from "@/hooks/useUserMode";
 import analytics from "@react-native-firebase/analytics";
 import crashlytics from "@react-native-firebase/crashlytics";
@@ -35,6 +38,9 @@ function RootLayoutContent({
   pathname: string;
 }) {
   const { isSidebarCollapsed } = useUserMode();
+
+  // Initialize push notifications on mobile/tablet
+  usePushNotifications();
 
   // Hide sidebar on landing/login page and update-password page
   const showSidebar =
@@ -99,7 +105,7 @@ export default function RootLayout() {
   const router = useRouter();
 
   useEffect(() => {
-    let fallbackTimer: NodeJS.Timeout;
+    let fallbackTimer: ReturnType<typeof setTimeout>;
     const unsub = appEvents.on(EVENTS.START_FILM_TRANSITION, (data) => {
       setFilmTransitionTarget(data?.target || "/auth");
       setShowFilmTransition(true);
@@ -311,16 +317,19 @@ export default function RootLayout() {
   return (
     <ErrorBoundary>
       <UserModeProvider>
-        <RootLayoutContent
-          session={session}
-          isWebLarge={isWebLarge}
-          pathname={pathname}
-        />
-        <FilmStripTransition
-          isVisible={showFilmTransition}
-          onScreenCovered={onFilmScreenCovered}
-          onAnimationComplete={onFilmAnimationComplete}
-        />
+        <TutorialProvider>
+          <RootLayoutContent
+            session={session}
+            isWebLarge={isWebLarge}
+            pathname={pathname}
+          />
+          <FilmStripTransition
+            isVisible={showFilmTransition}
+            onScreenCovered={onFilmScreenCovered}
+            onAnimationComplete={onFilmAnimationComplete}
+          />
+          <TutorialOverlay />
+        </TutorialProvider>
       </UserModeProvider>
     </ErrorBoundary>
   );
