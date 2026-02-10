@@ -6,15 +6,16 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Stack, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-    Alert,
-    Image,
-    RefreshControl,
-    SectionList,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    useColorScheme,
-    View,
+  Alert,
+  Image,
+  Platform,
+  RefreshControl,
+  SectionList,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  useColorScheme,
+  View,
 } from "react-native";
 
 export default function NotificationsScreen() {
@@ -87,10 +88,10 @@ export default function NotificationsScreen() {
       const { data: applications, error: errorApps } = await supabase
         .from("applications")
         .select(
-          "*, role:project_roles(id, title, tournage:tournages(id, title, image_url))",
+          "*, role:project_roles(id, title, status, tournage:tournages(id, title, image_url))",
         )
         .eq("candidate_id", session.user.id)
-        .eq("status", "accepted")
+        .or("status.eq.accepted,status.eq.invitation_pending")
         .order("created_at", { ascending: false })
         .limit(20);
 
@@ -112,7 +113,13 @@ export default function NotificationsScreen() {
       if (errorSent) throw errorSent;
 
       const seenJson = await AsyncStorage.getItem(SEEN_ACCEPTED_KEY);
-      const seenIds = seenJson ? JSON.parse(seenJson) : [];
+      let seenIds: string[] = [];
+      try {
+        seenIds = seenJson ? JSON.parse(seenJson) : [];
+      } catch (e) {
+        console.error("Error parsing seenIds", e);
+        seenIds = [];
+      }
 
       // Filter and deduplicate
       const accepted = (acceptedRaw || []).filter(
@@ -124,23 +131,52 @@ export default function NotificationsScreen() {
         (applications || []).map((app: any) => app.role?.id).filter(Boolean),
       );
 
+      // Split assignments: Invitations are any assigned roles that are NOT yet 'assigned' (confirmed)
+      const invitations = (assignments || []).filter((item: any) => {
+        // Invitations are status !== 'assigned'
+        const isInvitation = item.status !== "assigned";
+        if (!isInvitation) return false;
+
+        // If this role assignment came from an application, show it in the application section instead
+        if (appRoleIds.has(item.id)) return false;
+
+        // NEVER filter out invitations unless they change status in DB
+        return true;
+      });
+
       const newAssignments = (assignments || []).filter((item: any) => {
-        // Skip if this assignment corresponds to an accepted application
+        // Skip if it's an invitation (handled above),
+        // or if this assignment corresponds to an accepted application,
         // or if it's already seen
+        if (item.status !== "assigned") return false;
         if (appRoleIds.has(item.id)) return false;
         return !seenIds.includes(item.id);
       });
 
-      const newApplications = (applications || []).filter(
-        (item: any) => !seenIds.includes(item.id),
-      );
+      const newApplications = (applications || []).filter((item: any) => {
+        // Always show if it's an invitation (not yet definitively assigned)
+        const isInvitation =
+          item.role?.status && item.role.status !== "assigned";
+        if (isInvitation) return true;
+
+        // Otherwise filter by seenIds
+        return !seenIds.includes(item.id);
+      });
 
       const newSections = [];
       if (received && received.length > 0) {
         newSections.push({
-          title: "Invitations Reçues",
+          title: "Invitations Réçues (Réseau)",
           data: received,
           type: "request",
+        });
+      }
+
+      if (invitations.length > 0) {
+        newSections.push({
+          title: "Invitations de Projets",
+          data: invitations.map((a: any) => ({ ...a, type: "assignment" })),
+          type: "project_invitation",
         });
       }
 
@@ -216,6 +252,31 @@ export default function NotificationsScreen() {
     }
   };
 
+  const handleAcceptAssignment = async (assignmentId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from("project_roles")
+        .update({ status: "assigned" })
+        .eq("id", assignmentId)
+        .select();
+
+      if (error) throw error;
+
+      // If RLS blocked the update, data will be empty
+      if (!data || data.length === 0) {
+        throw new Error(
+          "Impossible d'accepter l'invitation. (Permissions insuffisantes)",
+        );
+      }
+
+      fetchNotifications();
+      appEvents.emit(EVENTS.CONNECTIONS_UPDATED);
+      Alert.alert("Bienvenue !", "Vous avez accepté ce rôle.");
+    } catch (e) {
+      Alert.alert("Erreur", (e as Error).message || "Une erreur est survenue.");
+    }
+  };
+
   const handleMarkSeen = async (connectionId: string) => {
     // Mark accepted connection as seen
     const seenJson = await AsyncStorage.getItem(SEEN_ACCEPTED_KEY);
@@ -241,21 +302,61 @@ export default function NotificationsScreen() {
     }
   };
 
+  const handleDeclineAssignment = async (
+    assignmentId: string,
+    notificationId: string,
+  ) => {
+    try {
+      // 1. If this was an accepted application, we should also update/remove it
+      // so it doesn't keep appearing as "Accepted" in notifications
+      await supabase
+        .from("applications")
+        .update({ status: "rejected" })
+        .eq("role_id", assignmentId)
+        .eq("candidate_id", currentUserId)
+        .or("status.eq.accepted,status.eq.invitation_pending");
+
+      // 2. Reset the role (actually unassign the user)
+      const { error } = await supabase
+        .from("project_roles")
+        .update({
+          status: "published",
+          assigned_profile_id: null,
+        })
+        .eq("id", assignmentId);
+
+      if (error) throw error;
+
+      // Hide the notification locally
+      handleMarkSeen(notificationId);
+
+      fetchNotifications();
+      appEvents.emit(EVENTS.CONNECTIONS_UPDATED);
+    } catch (e) {
+      Alert.alert("Erreur", (e as Error).message || "Une erreur est survenue.");
+    }
+  };
+
   const handleMarkAllAsSeen = async () => {
     const seenJson = await AsyncStorage.getItem(SEEN_ACCEPTED_KEY);
     let seenIds = seenJson ? JSON.parse(seenJson) : [];
     if (!Array.isArray(seenIds)) seenIds = [];
 
-    const newIdsToMark = [];
+    const newIdsToMark: any[] = [];
     sections.forEach((section) => {
-      if (section.type !== "request") {
-        // Don't mark pending requests as seen, they must be accepted/declined
-        section.data.forEach((item: any) => {
-          if (!seenIds.includes(item.id)) {
-            newIdsToMark.push(item.id);
-          }
-        });
-      }
+      // Don't mark pending requests or invitations as seen, they must be acted upon
+      if (section.type === "request") return;
+
+      section.data.forEach((item: any) => {
+        const isApp = item.type === "application";
+        const isInvitation = isApp
+          ? item.role?.status !== "assigned"
+          : item.status !== "assigned" || section.type === "project_invitation";
+
+        if (!isInvitation && !seenIds.includes(item.id)) {
+          newIdsToMark.push(item.id);
+        }
+      });
     });
 
     if (newIdsToMark.length > 0) {
@@ -283,17 +384,28 @@ export default function NotificationsScreen() {
     // 1. PROJECT UPDATES & ACCEPTED APPLICATIONS
     if (
       section.type === "project_update" ||
+      section.type === "project_invitation" ||
       section.type === "application_accepted"
     ) {
       const isApp = item.type === "application";
       const project = isApp ? item.role?.tournage : item.tournage;
       const roleTitle = isApp ? item.role?.title : item.title;
 
+      // Robust invitation check:
+      // - For direct assignments: if status is not 'assigned'
+      // - For applications: if the underlying role status is not 'assigned'
+      const isInvitation = isApp
+        ? item.role?.status !== "assigned"
+        : item.status !== "assigned" || section.type === "project_invitation";
+
+      const targetId = isApp ? item.role?.id : item.id;
+
       return (
         <TouchableOpacity
           style={styles.card}
           onPress={() => {
-            handleMarkSeen(item.id);
+            // For invitations, we don't auto-mark as seen on click to keep buttons visible
+            if (!isInvitation) handleMarkSeen(item.id);
             if (project?.id) {
               router.push(`/project/${project.id}`);
             }
@@ -326,17 +438,42 @@ export default function NotificationsScreen() {
               <Text style={styles.subtitle}>
                 {isApp
                   ? `Votre candidature pour "${roleTitle}" a été acceptée !`
-                  : `Vous avez été ajouté en tant que "${roleTitle}"`}
+                  : isInvitation
+                    ? `Proposition de rôle : "${roleTitle}"`
+                    : `Vous avez été ajouté au projet : "${roleTitle}"`}
               </Text>
             </View>
           </View>
-          <TouchableOpacity onPress={() => handleMarkSeen(item.id)}>
-            <Ionicons
-              name="checkmark-done"
-              size={20}
-              color={Colors.light.tint}
-            />
-          </TouchableOpacity>
+
+          {isInvitation && targetId ? (
+            <View style={styles.actions}>
+              <TouchableOpacity
+                style={[styles.button, styles.acceptButton]}
+                onPress={() => handleAcceptAssignment(targetId)}
+              >
+                <Text style={styles.buttonText}>Accepter</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.button, styles.declineButton]}
+                onPress={() => handleDeclineAssignment(targetId, item.id)}
+              >
+                <Ionicons name="close" size={20} color="#666" />
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <TouchableOpacity
+                onPress={() => handleMarkSeen(item.id)}
+                style={{ padding: 8 }}
+              >
+                <Ionicons
+                  name="checkmark-done"
+                  size={20}
+                  color={Colors.light.tint}
+                />
+              </TouchableOpacity>
+            </View>
+          )}
         </TouchableOpacity>
       );
     }
@@ -453,7 +590,7 @@ export default function NotificationsScreen() {
                     fontSize: 13,
                   }}
                 >
-                  Tout voir
+                  Marquer comme vues
                 </Text>
               </TouchableOpacity>
             ) : null,
@@ -592,3 +729,6 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
 });
+function handleMarkSeen(notificationId: string) {
+  throw new Error("Function not implemented.");
+}

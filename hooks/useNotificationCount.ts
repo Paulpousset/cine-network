@@ -6,12 +6,29 @@ import { useEffect, useState } from "react";
 const SEEN_ACCEPTED_KEY = "seen_accepted_connections";
 
 export function useNotificationCount() {
-  const [count, setCount] = useState(0);
+  const [counts, setCounts] = useState({
+    total: 0,
+    talentsCount: 0,
+    projectsCount: 0,
+    jobsCount: 0,
+  });
 
   useEffect(() => {
     fetchCount();
+
+    // Listen for auth changes to refresh count when user logs in
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(() => {
+      fetchCount();
+    });
+
     const unsub = appEvents.on(EVENTS.CONNECTIONS_UPDATED, fetchCount);
-    return unsub;
+
+    return () => {
+      subscription.unsubscribe();
+      unsub();
+    };
   }, []);
 
   async function fetchCount() {
@@ -29,7 +46,6 @@ export function useNotificationCount() {
         .eq("status", "pending");
 
       // 2. Unseen Accepted Connections
-      // Fetch recent accepted ones
       const { data: acceptedRaw } = await supabase
         .from("connections")
         .select("id")
@@ -38,57 +54,62 @@ export function useNotificationCount() {
         .order("created_at", { ascending: false })
         .limit(20);
 
-      // 3. Unseen Project Assignments
+      // 3. Unseen Project Assignments & Invitations
       const { data: assignments } = await supabase
         .from("project_roles")
-        .select("id")
-        .eq("assigned_profile_id", session.user.id)
-        .order("created_at", { ascending: false })
-        .limit(20);
+        .select("id, status")
+        .eq("assigned_profile_id", session.user.id);
 
       // 4. Unseen Accepted Applications
       const { data: applications } = await supabase
         .from("applications")
-        .select("id, role_id")
+        .select("id, role_id, status, role:project_roles(status)")
         .eq("candidate_id", session.user.id)
-        .eq("status", "accepted")
-        .order("created_at", { ascending: false })
-        .limit(20);
+        .or("status.eq.accepted,status.eq.invitation_pending");
 
       // Get local seen IDs
       const seenJson = await AsyncStorage.getItem(SEEN_ACCEPTED_KEY);
       const seenIds = seenJson ? JSON.parse(seenJson) : [];
 
-      // Calculate counts
       const unseenAccepted = (acceptedRaw || []).filter(
         (item) => !seenIds.includes(item.id),
       ).length;
 
-      // Prevent double counting assignments that came from applications
       const appRoleIds = new Set(
         (applications || []).map((app) => app.role_id).filter(Boolean),
       );
 
+      const invitationCount = (assignments || []).filter(
+        (item) => item.status !== "assigned" && !appRoleIds.has(item.id),
+      ).length;
+
       const unseenAssignments = (assignments || []).filter((item) => {
+        if (item.status !== "assigned") return false;
         if (appRoleIds.has(item.id)) return false;
         return !seenIds.includes(item.id);
       }).length;
 
-      const unseenApplications = (applications || []).filter(
-        (item) => !seenIds.includes(item.id),
-      ).length;
+      const unseenApplications = (applications || []).filter((item: any) => {
+        // Always count if it's an invitation (not yet confirmed)
+        if (item.role?.status && item.role.status !== "assigned") return true;
+        return !seenIds.includes(item.id);
+      }).length;
 
-      const total =
-        (pendingCount || 0) +
-        unseenAccepted +
-        unseenAssignments +
-        unseenApplications;
+      const talentsCount = (pendingCount || 0) + unseenAccepted;
+      const projectsCount = unseenAssignments + invitationCount;
+      const jobsCount = unseenApplications;
+      const total = talentsCount + projectsCount + jobsCount;
 
-      setCount(total);
+      setCounts({
+        total,
+        talentsCount,
+        projectsCount,
+        jobsCount,
+      });
     } catch (e) {
       console.error(e);
     }
   }
 
-  return count;
+  return counts;
 }

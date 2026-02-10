@@ -9,7 +9,7 @@ import { Hoverable } from "./Hoverable";
 
 export default function NotificationIconWithBadge() {
   const colorScheme = useColorScheme();
-  const unreadCount = useNotificationCount();
+  const { total: unreadCount } = useNotificationCount();
 
   return (
     <Link href="/notifications" asChild>
