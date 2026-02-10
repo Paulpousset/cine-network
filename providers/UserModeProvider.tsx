@@ -9,6 +9,8 @@ import React, {
 
 const MODE_KEY = "user_mode";
 const COLLAPSED_KEY = "sidebar_collapsed";
+const IMPERSONATED_ID_KEY = "impersonated_user_id";
+
 export type UserMode = "search" | "studio";
 
 interface UserModeContextType {
@@ -16,6 +18,8 @@ interface UserModeContextType {
   setUserMode: (mode: UserMode) => void;
   isSidebarCollapsed: boolean;
   setSidebarCollapsed: (collapsed: boolean) => void;
+  impersonatedUser: any | null;
+  setImpersonatedUser: (user: any | null) => void;
 }
 
 const UserModeContext = createContext<UserModeContextType | undefined>(
@@ -25,6 +29,7 @@ const UserModeContext = createContext<UserModeContextType | undefined>(
 export function UserModeProvider({ children }: { children: React.ReactNode }) {
   const [mode, setMode] = useState<UserMode>("search");
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [impersonatedUser, setImpersonatedUserRaw] = useState<any | null>(null);
 
   useEffect(() => {
     AsyncStorage.getItem(MODE_KEY)
@@ -42,6 +47,18 @@ export function UserModeProvider({ children }: { children: React.ReactNode }) {
         if (v === "true") setIsSidebarCollapsed(true);
       })
       .catch(() => {});
+
+    AsyncStorage.getItem(IMPERSONATED_ID_KEY)
+      .then((v) => {
+        if (v) {
+          try {
+            setImpersonatedUserRaw(JSON.parse(v));
+          } catch (e) {
+            AsyncStorage.removeItem(IMPERSONATED_ID_KEY);
+          }
+        }
+      })
+      .catch(() => {});
   }, []);
 
   const setUserMode = useCallback((m: UserMode) => {
@@ -56,6 +73,17 @@ export function UserModeProvider({ children }: { children: React.ReactNode }) {
     );
   }, []);
 
+  const setImpersonatedUser = useCallback((user: any | null) => {
+    setImpersonatedUserRaw(user);
+    if (user) {
+      AsyncStorage.setItem(IMPERSONATED_ID_KEY, JSON.stringify(user)).catch(
+        () => {},
+      );
+    } else {
+      AsyncStorage.removeItem(IMPERSONATED_ID_KEY).catch(() => {});
+    }
+  }, []);
+
   return (
     <UserModeContext.Provider
       value={{
@@ -63,6 +91,8 @@ export function UserModeProvider({ children }: { children: React.ReactNode }) {
         setUserMode,
         isSidebarCollapsed,
         setSidebarCollapsed,
+        impersonatedUser,
+        setImpersonatedUser,
       }}
     >
       {children}

@@ -2,12 +2,7 @@ name: Build iOS (Local on GitHub)
 on:
   push:
     branches: [master]
-    paths:
-      - "ios/**"
-      - "app.json"
-      - "eas.json"
-      - "package.json"
-      - ".github/workflows/build-ios.yml"
+
   workflow_dispatch:
 
 jobs:

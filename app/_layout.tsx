@@ -3,6 +3,7 @@ import ClapLoading from "@/components/ClapLoading";
 import FilmStripTransition from "@/components/FilmStripTransition";
 import FloatingChatWidget from "@/components/FloatingChatWidget";
 import GlobalRealtimeListener from "@/components/GlobalRealtimeListener";
+import ImpersonationHUD from "@/components/ImpersonationHUD";
 import NotificationToast from "@/components/NotificationToast";
 import Sidebar from "@/components/Sidebar";
 import { TutorialOverlay } from "@/components/TutorialOverlay";
@@ -61,6 +62,7 @@ function RootLayoutContent({
           paddingLeft: showSidebar ? sidebarWidth : 0,
         }}
       >
+        <ImpersonationHUD />
         <Stack
           screenOptions={{
             // On web, we often want to hide the nested stack headers to let the browser or a custom web nav manage it

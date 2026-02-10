@@ -3,51 +3,25 @@ import { getRecommendedRoles } from "@/lib/matching";
 import { supabase } from "@/lib/supabase";
 import { useCallback, useEffect, useState } from "react";
 import { Alert } from "react-native";
+import { useUserMode } from "./useUserMode";
 
-export type RoleWithProject = {
-  id: string;
-  title: string;
-  description?: string;
-  category: string;
-  tournage_id: string;
-  status?: string;
-  is_boosted?: boolean;
-  boost_expires_at?: string;
-  tournages: {
-    id: string;
-    title: string;
-    type: string;
-    pays?: string | null;
-    ville?: string | null;
-    latitude?: number | null;
-    longitude?: number | null;
-  };
-};
+// ... (type omitted)
 
 export function useJobs() {
+  const { effectiveUserId } = useUserMode();
   const [allRoles, setAllRoles] = useState<RoleWithProject[]>([]);
-  const [roles, setRoles] = useState<RoleWithProject[]>([]);
-  const [projects, setProjects] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [recommendations, setRecommendations] = useState<any[]>([]);
-  const [availableCities, setAvailableCities] = useState<string[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<string>("all");
-  const [selectedCity, setSelectedCity] = useState<string>("all");
-  const [searchQuery, setSearchQuery] = useState("");
-
+  // ...
   const fetchRecommendations = useCallback(async () => {
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!effectiveUserId) return;
 
       const { data: profile } = await supabase
         .from("profiles")
         .select("*")
-        .eq("id", user.id)
+        .eq("id", effectiveUserId)
         .single();
       if (!profile) return;
+      // ... (rest of hook)
 
       const { data: roles } = await supabase
         .from("project_roles")

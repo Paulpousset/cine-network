@@ -3,7 +3,7 @@ import * as Device from "expo-device";
 import * as Notifications from "expo-notifications";
 import { useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
-import { Platform } from "react-native";
+import { Alert, Platform } from "react-native";
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -42,18 +42,26 @@ export function usePushNotifications() {
         finalStatus = status;
       }
       if (finalStatus !== "granted") {
-        console.log("Failed to get push token for push notification!");
+        console.log("Push: Failed to get push token for push notification!");
+        if (Platform.OS === "ios" || Platform.OS === "android") {
+          Alert.alert(
+            "Notifications désactivées",
+            "Pour recevoir des notifications, veuillez les activer dans les réglages de votre appareil.",
+          );
+        }
         return;
       }
 
       try {
         const projectId = "0104688d-5fc8-4c1c-8eed-82044da3a523"; // From app.json
+        console.log("Push: Fetching Expo token for project", projectId);
         token = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
+        console.log("Push: Expo token obtained:", token);
       } catch (e) {
-        console.error("Error getting expo push token", e);
+        console.error("Push: Error getting expo push token", e);
       }
     } else {
-      console.log("Must use physical device for Push Notifications");
+      console.log("Push: Must use physical device for Push Notifications");
     }
 
     if (Platform.OS === "android") {
@@ -74,6 +82,7 @@ export function usePushNotifications() {
     registerForPushNotificationsAsync().then(async (token) => {
       if (token) {
         setExpoPushToken(token);
+        console.log("Push: Attempting to save token to profile...");
 
         // Update Supabase profile
         const {
@@ -86,19 +95,30 @@ export function usePushNotifications() {
             .eq("id", session.user.id);
 
           if (error) {
-            console.error("Error updating push token in profile:", error);
+            console.error("Push: Error updating push token in profile:", error);
+          } else {
+            console.log(
+              "Push: Token successfully saved to profile for user",
+              session.user.id,
+            );
           }
+        } else {
+          console.warn("Push: No session found, cannot save token to profile");
         }
+      } else {
+        console.warn("Push: No token generated, registration skipped");
       }
     });
 
     notificationListener.current =
       Notifications.addNotificationReceivedListener((notification) => {
+        console.log("Push: Notification received in foreground:", notification);
         setNotification(notification);
       });
 
     responseListener.current =
       Notifications.addNotificationResponseReceivedListener((response) => {
+        console.log("Push: Notification response received:", response);
         const data = response.notification.request.content.data;
 
         // Basic navigation logic based on notification data

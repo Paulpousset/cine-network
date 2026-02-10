@@ -33,6 +33,8 @@ export default function ProfileDetail() {
   const [connectionId, setConnectionId] = useState<string | null>(null);
   const [isRequester, setIsRequester] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
+  const [mandateStatus, setMandateStatus] = useState<string | null>(null);
 
   useEffect(() => {
     fetchProfile();
@@ -54,6 +56,15 @@ export default function ProfileDetail() {
       const myId = session?.user?.id || null;
       setCurrentUserId(myId);
 
+      if (myId) {
+        const { data: myProfile } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", myId)
+          .single();
+        setCurrentUserRole(myProfile?.role || null);
+      }
+
       const isOwner = myId === profileId;
       setIsOwnProfile(isOwner);
 
@@ -66,6 +77,17 @@ export default function ProfileDetail() {
 
       if (error) throw error;
       setProfile(data);
+
+      // Fetch Mandate status
+      if (myId && !isOwner) {
+        const { data: mandate } = await supabase
+          .from("agent_mandates")
+          .select("status")
+          .eq("agent_id", myId)
+          .eq("talent_id", profileId)
+          .maybeSingle();
+        setMandateStatus(mandate?.status || null);
+      }
 
       // Fetch Visibility Settings
       let hiddenIds: string[] = [];
@@ -282,6 +304,30 @@ export default function ProfileDetail() {
     }
   }
 
+  async function handleRequestManagement() {
+    if (!currentUserId) {
+      Alert.alert("Erreur", "Vous devez être connecté.");
+      return;
+    }
+
+    try {
+      const { error } = await supabase.from("agent_mandates").insert({
+        agent_id: currentUserId,
+        talent_id: profile.id,
+        status: "pending",
+      });
+
+      if (error) throw error;
+      setMandateStatus("pending");
+      Alert.alert(
+        "Succès",
+        "Votre demande de gestion a été envoyée au talent.",
+      );
+    } catch (e) {
+      Alert.alert("Erreur", (e as Error).message);
+    }
+  }
+
   function openLink(url: string) {
     if (!url) return;
     Linking.openURL(url).catch(() =>
@@ -391,6 +437,41 @@ export default function ProfileDetail() {
                         ? "En attente..."
                         : "Accepter Clap"
                       : "Clap !"}
+                </Text>
+              </TouchableOpacity>
+            )}
+
+            {/* MANDATE BUTTON - Only for Agents */}
+            {!isOwnProfile && currentUserRole === "agent" && (
+              <TouchableOpacity
+                style={[
+                  styles.actionButton,
+                  mandateStatus === "accepted"
+                    ? { backgroundColor: Colors.light.success }
+                    : mandateStatus === "pending"
+                      ? { backgroundColor: "#FF9800" }
+                      : { backgroundColor: "#673AB7" },
+                ]}
+                onPress={handleRequestManagement}
+                disabled={mandateStatus !== null}
+              >
+                <Ionicons
+                  name={
+                    mandateStatus === "accepted"
+                      ? "key"
+                      : mandateStatus === "pending"
+                        ? "time"
+                        : "briefcase-outline"
+                  }
+                  size={20}
+                  color="white"
+                />
+                <Text style={styles.actionButtonText}>
+                  {mandateStatus === "accepted"
+                    ? "Gestion active"
+                    : mandateStatus === "pending"
+                      ? "En attente..."
+                      : "Gérer ce talent"}
                 </Text>
               </TouchableOpacity>
             )}

@@ -1,19 +1,20 @@
 import ClapLoading from "@/components/ClapLoading";
 import Colors from "@/constants/Colors";
 import { GlobalStyles } from "@/constants/Styles";
+import { useUserMode } from "@/hooks/useUserMode";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-  Alert,
-  Image,
-  Modal,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    Alert,
+    Image,
+    Modal,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { supabase } from "../../../lib/supabase";
 
@@ -21,28 +22,25 @@ export default function RoleDetails() {
   const { id: rawId } = useLocalSearchParams();
   const id = Array.isArray(rawId) ? rawId[0] : rawId;
   const router = useRouter();
+  const { effectiveUserId } = useUserMode();
   const [loading, setLoading] = useState(false);
   const [role, setRole] = useState<any>(null);
   const [hasApplied, setHasApplied] = useState(false);
-  const [userId, setUserId] = useState<string | null>(null);
   const [applying, setApplying] = useState(false);
   const [applicationMessage, setApplicationMessage] = useState("");
   const [applicationModalVisible, setApplicationModalVisible] = useState(false);
 
   useEffect(() => {
     fetchRoleDetails();
-    checkUserSession();
   }, [id]);
 
-  async function checkUserSession() {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    if (session) {
-      setUserId(session.user.id);
-      checkApplicationStatus(session.user.id);
+  useEffect(() => {
+    if (effectiveUserId) {
+      checkApplicationStatus(effectiveUserId);
+    } else {
+      setHasApplied(false);
     }
-  }
+  }, [id, effectiveUserId]);
 
   async function checkApplicationStatus(uid: string) {
     // Check if user has already applied (requires 'applications' table)
@@ -59,7 +57,7 @@ export default function RoleDetails() {
   }
 
   function openApplicationModal() {
-    if (!userId) {
+    if (!effectiveUserId) {
       Alert.alert("Erreur", "Vous devez être connecté pour postuler.");
       return;
     }
@@ -68,7 +66,7 @@ export default function RoleDetails() {
   }
 
   async function handleApply() {
-    if (!userId) {
+    if (!effectiveUserId) {
       Alert.alert("Erreur", "Vous devez être connecté pour postuler.");
       return;
     }
@@ -78,7 +76,7 @@ export default function RoleDetails() {
       // Create application
       const { error } = await supabase.from("applications" as any).insert({
         role_id: id,
-        candidate_id: userId,
+        candidate_id: effectiveUserId,
         status: "pending",
         message: applicationMessage.trim() || null,
       });

@@ -6,16 +6,16 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Stack, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-  Alert,
-  Image,
-  Platform,
-  RefreshControl,
-  SectionList,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  useColorScheme,
-  View,
+    Alert,
+    Image,
+    Platform,
+    RefreshControl,
+    SectionList,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    useColorScheme,
+    View,
 } from "react-native";
 
 export default function NotificationsScreen() {
@@ -112,6 +112,21 @@ export default function NotificationsScreen() {
 
       if (errorSent) throw errorSent;
 
+      // 6. Fetch Mandate Requests
+      const { data: mandateRequests, error: errorMandates } = await supabase
+        .from("agent_mandates")
+        .select(
+          `
+          *,
+          agent:profiles!agent_id(id, full_name, username, role, ville, avatar_url)
+        `,
+        )
+        .eq("talent_id", session.user.id)
+        .eq("status", "pending")
+        .order("created_at", { ascending: false });
+
+      if (errorMandates) throw errorMandates;
+
       const seenJson = await AsyncStorage.getItem(SEEN_ACCEPTED_KEY);
       let seenIds: string[] = [];
       try {
@@ -164,6 +179,13 @@ export default function NotificationsScreen() {
       });
 
       const newSections = [];
+      if (mandateRequests && mandateRequests.length > 0) {
+        newSections.push({
+          title: "Demandes de Gestion (Agent)",
+          data: mandateRequests,
+          type: "mandate",
+        });
+      }
       if (received && received.length > 0) {
         newSections.push({
           title: "Invitations Réçues (Réseau)",
@@ -247,6 +269,38 @@ export default function NotificationsScreen() {
 
       if (error) throw error;
       appEvents.emit(EVENTS.CONNECTIONS_UPDATED);
+    } catch (e) {
+      Alert.alert("Erreur", "Une erreur est survenue.");
+    }
+  };
+
+  const handleAcceptMandate = async (mandateId: string) => {
+    try {
+      const { error } = await supabase
+        .from("agent_mandates")
+        .update({ status: "accepted" })
+        .eq("id", mandateId);
+
+      if (error) throw error;
+      fetchNotifications();
+      Alert.alert(
+        "Mandat activé",
+        "Cet agent peut maintenant gérer votre profil.",
+      );
+    } catch (e) {
+      Alert.alert("Erreur", "Impossible d'accepter ce mandat.");
+    }
+  };
+
+  const handleDeclineMandate = async (mandateId: string) => {
+    try {
+      const { error } = await supabase
+        .from("agent_mandates")
+        .update({ status: "rejected" })
+        .eq("id", mandateId);
+
+      if (error) throw error;
+      fetchNotifications();
     } catch (e) {
       Alert.alert("Erreur", "Une erreur est survenue.");
     }
@@ -482,17 +536,19 @@ export default function NotificationsScreen() {
     // Determine profile to show
     // For received requests: requester
     // For accepted requests: receiver (since I was the requester)
-    const profile = item.requester || item.receiver;
+    const profile =
+      section.type === "mandate" ? item.agent : item.requester || item.receiver;
     if (!profile) return null;
 
     const isRequest = section.type === "request";
     const isSent = section.type === "sent";
+    const isMandate = section.type === "mandate";
 
     return (
       <TouchableOpacity
         style={styles.card}
         onPress={() => {
-          if (!isRequest && !isSent) handleMarkSeen(item.id);
+          if (!isRequest && !isSent && !isMandate) handleMarkSeen(item.id);
           router.push(`/profile/${profile.id}`);
         }}
       >
@@ -522,7 +578,9 @@ export default function NotificationsScreen() {
                 ? "Souhaite rejoindre votre réseau"
                 : isSent
                   ? "Invitation envoyée"
-                  : "A accepté votre demande"}
+                  : isMandate
+                    ? "Souhaite gérer votre profil"
+                    : "A accepté votre demande"}
             </Text>
             {profile.role && <Text style={styles.role}>{profile.role}</Text>}
           </View>
@@ -544,6 +602,22 @@ export default function NotificationsScreen() {
             </TouchableOpacity>
           </View>
         )}
+        {isMandate && (
+          <View style={styles.actions}>
+            <TouchableOpacity
+              style={[styles.button, styles.acceptButton]}
+              onPress={() => handleAcceptMandate(item.id)}
+            >
+              <Text style={styles.buttonText}>Accepter</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.button, styles.declineButton]}
+              onPress={() => handleDeclineMandate(item.id)}
+            >
+              <Ionicons name="close" size={20} color="#666" />
+            </TouchableOpacity>
+          </View>
+        )}
         {isSent && (
           <View style={styles.actions}>
             <TouchableOpacity
@@ -556,7 +630,7 @@ export default function NotificationsScreen() {
             </TouchableOpacity>
           </View>
         )}
-        {!isRequest && !isSent && (
+        {!isRequest && !isSent && !isMandate && (
           <TouchableOpacity onPress={() => handleMarkSeen(item.id)}>
             <Ionicons
               name="checkmark-done"

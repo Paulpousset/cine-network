@@ -51,82 +51,59 @@ const ROLES = [
 
 export default function Account() {
   const router = useRouter();
-  const { mode } = useUserMode(); // Mode is mostly visual/role based
+  const { mode, effectiveUserId, isImpersonating } = useUserMode(); // Mode is mostly visual/role based
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
-
-  // --- FORM STATE ---
   const [profile, setProfile] = useState<any>({});
-
-  // Basic Info
   const [full_name, setFullName] = useState("");
   const [username, setUsername] = useState("");
   const [city, setCity] = useState("");
-  const [gender, setGender] = useState("");
-  const [age, setAge] = useState("");
   const [website, setWebsite] = useState("");
+  const [role, setRole] = useState("");
+  const [avatar_url, setAvatarUrl] = useState("");
+  const [subscriptionTier, setSubscriptionTier] = useState("free");
   const [bio, setBio] = useState("");
-  const [role, setRole] = useState(""); // Main "titre" (e.g. Acteur, Réa...)
-
-  // Contact
   const [email_public, setEmailPublic] = useState("");
   const [phone, setPhone] = useState("");
-
-  // Physique (Actor specific mostly)
   const [height, setHeight] = useState("");
   const [hair_color, setHairColor] = useState("");
   const [eye_color, setEyeColor] = useState("");
-
-  // Technical / HMC
   const [equipment, setEquipment] = useState("");
   const [software, setSoftware] = useState("");
   const [specialties, setSpecialties] = useState("");
-
-  // Skills
-  const [skillsInput, setSkillsInput] = useState("");
   const [skills, setSkills] = useState<string[]>([]);
-
-  // Documents
+  const [skillsInput, setSkillsInput] = useState("");
   const [cv_url, setCvUrl] = useState<string | null>(null);
   const [book_urls, setBookUrls] = useState<string[]>([]);
   const [showreel_url, setShowreelUrl] = useState("");
-
-  const { startTutorial, isLoading: isTutorialLoading } = useTutorial();
-
-  // Visibility settings
+  const [gender, setGender] = useState("");
+  const [age, setAge] = useState("");
   const [hiddenProjectIds, setHiddenProjectIds] = useState<string[]>([]);
   const [isContactVisible, setIsContactVisible] = useState(true);
-
-  // Projects management
   const [myProjects, setMyProjects] = useState<any[]>([]);
   const [myParticipations, setMyParticipations] = useState<any[]>([]);
-
-  // Avatar
-  const [avatar_url, setAvatarUrl] = useState<string | null>(null);
-
-  // Subscription
-  const [subscriptionTier, setSubscriptionTier] = useState<"free" | "studio">(
-    "free",
-  );
   const [paymentModalVisible, setPaymentModalVisible] = useState(false);
+  const { startTutorial, isLoading: isTutorialLoading } = useTutorial();
 
   useEffect(() => {
     fetchProfile();
-  }, []);
+  }, [effectiveUserId]);
 
   async function fetchProfile() {
     try {
+      if (!effectiveUserId) return;
+
       const {
         data: { session },
       } = await supabase.auth.getSession();
-      if (!session) return;
 
       const { data, error } = await supabase
         .from("profiles")
         .select("*")
-        .eq("id", session.user.id)
+        .eq("id", effectiveUserId)
         .single();
+      // ... (rest of function)
 
       if (error) throw error;
 
@@ -162,7 +139,7 @@ export default function Account() {
       const { data: settings, error: settingsError } = await supabase
         .from("public_profile_settings")
         .select("*")
-        .eq("id", session.user.id)
+        .eq("id", effectiveUserId)
         .single();
 
       if (!settingsError && settings) {
@@ -174,7 +151,7 @@ export default function Account() {
       const { data: projects } = await supabase
         .from("tournages")
         .select("id, title, type, created_at")
-        .eq("owner_id", session.user.id)
+        .eq("owner_id", session?.user?.id || effectiveUserId)
         .order("created_at", { ascending: false });
 
       if (projects) {
@@ -198,7 +175,7 @@ export default function Account() {
           )
         `,
         )
-        .eq("assigned_profile_id", session.user.id);
+        .eq("assigned_profile_id", session?.user?.id || effectiveUserId);
 
       if (parts) {
         // Flatten structure
@@ -310,14 +287,11 @@ export default function Account() {
   async function toggleContactVisibility(value: boolean) {
     try {
       setIsContactVisible(value); // Optimistic
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      if (!session) return;
+      if (!effectiveUserId) return;
 
       const { error } = await supabase
         .from("public_profile_settings")
-        .upsert({ id: session.user.id, is_contact_visible: value });
+        .upsert({ id: effectiveUserId, is_contact_visible: value });
 
       if (error) throw error;
     } catch (e) {
@@ -342,13 +316,10 @@ export default function Account() {
 
       setHiddenProjectIds(newHiddenIds); // Optimistic
 
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      if (!session) return;
+      if (!effectiveUserId) return;
 
       const { error } = await supabase.from("public_profile_settings").upsert({
-        id: session.user.id,
+        id: effectiveUserId,
         hidden_project_ids: newHiddenIds,
       });
 
@@ -360,19 +331,16 @@ export default function Account() {
 
   async function handleUpgradeSuccess() {
     try {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      if (!session) return;
+      if (!effectiveUserId) return;
 
       const { error } = await supabase
         .from("profiles")
         .update({ subscription_tier: "studio" })
-        .eq("id", session.user.id);
+        .eq("id", effectiveUserId);
 
       if (error) throw error;
       setSubscriptionTier("studio");
-      Alert.alert("Félicitations !", "Vous êtes maintenant membre Studio.");
+      Alert.alert("Félicitations !", "Le compte est maintenant membre Studio.");
     } catch (e) {
       Alert.alert("Erreur", "Impossible de mettre à jour votre abonnement.");
     }
@@ -590,10 +558,7 @@ export default function Account() {
 
     try {
       setLoading(true);
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      if (!session) return;
+      if (!effectiveUserId) return;
 
       const updates = {
         full_name,
@@ -601,7 +566,6 @@ export default function Account() {
         ville: city,
         website,
         role,
-        // Nouveaux champs
         bio,
         email_public,
         phone,
@@ -624,7 +588,7 @@ export default function Account() {
       const { error } = await supabase
         .from("profiles")
         .update(updates)
-        .eq("id", session.user.id);
+        .eq("id", effectiveUserId);
 
       if (error) {
         // Gestion erreur contrainte d'unicité (ex: username déjà pris)
@@ -1386,21 +1350,23 @@ export default function Account() {
           </Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
-          onPress={handleDeleteAccount}
-          style={{
-            marginTop: 15,
-            padding: 15,
-            borderRadius: 12,
-            alignItems: "center",
-            borderWidth: 1,
-            borderColor: Colors.light.danger,
-          }}
-        >
-          <Text style={{ color: Colors.light.danger, fontWeight: "bold" }}>
-            Supprimer mon compte
-          </Text>
-        </TouchableOpacity>
+        {!isImpersonating && (
+          <TouchableOpacity
+            onPress={handleDeleteAccount}
+            style={{
+              marginTop: 15,
+              padding: 15,
+              borderRadius: 12,
+              alignItems: "center",
+              borderWidth: 1,
+              borderColor: Colors.light.danger,
+            }}
+          >
+            <Text style={{ color: Colors.light.danger, fontWeight: "bold" }}>
+              Supprimer mon compte
+            </Text>
+          </TouchableOpacity>
+        )}
         <View style={{ height: 50 }} />
       </ScrollView>
 

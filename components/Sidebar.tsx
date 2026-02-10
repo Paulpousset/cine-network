@@ -8,15 +8,15 @@ import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { usePathname, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-    AppState,
-    Image,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Switch,
-    Text,
-    useWindowDimensions,
-    View,
+  AppState,
+  Image,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  useWindowDimensions,
+  View,
 } from "react-native";
 import { Hoverable } from "./Hoverable";
 
@@ -36,8 +36,14 @@ export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const { width } = useWindowDimensions();
-  const { mode, setUserMode, isSidebarCollapsed, setSidebarCollapsed } =
-    useUserMode();
+  const {
+    mode,
+    setUserMode,
+    isSidebarCollapsed,
+    setSidebarCollapsed,
+    impersonatedUser,
+    setImpersonatedUser,
+  } = useUserMode();
 
   // Détection précise de l'ID du chat actuel
   const chatMatch = pathname.match(/\/direct-messages\/([^\/]+)/);
@@ -45,6 +51,7 @@ export default function Sidebar() {
 
   const [recentProjects, setRecentProjects] = useState<any[]>([]);
   const [recentChats, setRecentChats] = useState<any[]>([]);
+  const [managedTalents, setManagedTalents] = useState<any[]>([]);
   const [totalUnread, setTotalUnread] = useState(0);
   const [pendingConnections, setPendingConnections] = useState(0); // New state
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
@@ -241,6 +248,27 @@ export default function Sidebar() {
         } else {
           setRecentChats([]);
         }
+      }
+
+      // 3. Managed Talents (for Agents)
+      const { data: userProfile } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", userId)
+        .single();
+
+      if (userProfile?.role === "agent") {
+        const { data: mandates } = await supabase
+          .from("agent_mandates")
+          .select("talent:profiles!talent_id(id, full_name, avatar_url)")
+          .eq("agent_id", userId)
+          .eq("status", "accepted");
+
+        if (mandates) {
+          setManagedTalents(mandates.map((m: any) => m.talent));
+        }
+      } else {
+        setManagedTalents([]);
       }
     } catch (e) {
       console.error("Sidebar: Error fetching sidebar recent data:", e);
@@ -857,6 +885,118 @@ export default function Sidebar() {
         contentContainerStyle={{ flexGrow: 1, gap: 8 }}
         showsVerticalScrollIndicator={false}
       >
+        {/* SECTION: Managed Talents (Account Switcher) */}
+        {!isSidebarCollapsed && managedTalents.length > 0 && (
+          <View style={{ marginBottom: 20 }}>
+            <Text
+              style={{
+                fontSize: 12,
+                fontWeight: "700",
+                color: "#999",
+                marginLeft: 12,
+                marginBottom: 8,
+              }}
+            >
+              GESTION TALENTS
+            </Text>
+            {impersonatedUser && (
+              <Hoverable
+                onPress={() => setImpersonatedUser(null)}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  padding: 8,
+                  paddingHorizontal: 12,
+                  borderRadius: 8,
+                  gap: 10,
+                  backgroundColor: "#FFF0F0",
+                  marginBottom: 5,
+                }}
+              >
+                <View
+                  style={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: 16,
+                    backgroundColor: Colors.light.tint,
+                    justifyContent: "center",
+                    alignItems: "center",
+                  }}
+                >
+                  <Ionicons name="person" size={16} color="white" />
+                </View>
+                <Text
+                  style={{ fontSize: 13, fontWeight: "600", color: "#E53935" }}
+                >
+                  Revenir à mon compte
+                </Text>
+              </Hoverable>
+            )}
+            {managedTalents.map((talent) => (
+              <Hoverable
+                key={talent.id}
+                onPress={() => setImpersonatedUser(talent)}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  padding: 8,
+                  paddingHorizontal: 12,
+                  borderRadius: 8,
+                  gap: 10,
+                  backgroundColor:
+                    impersonatedUser?.id === talent.id
+                      ? Colors.light.tint + "15"
+                      : "transparent",
+                }}
+              >
+                {talent.avatar_url ? (
+                  <Image
+                    source={{ uri: talent.avatar_url }}
+                    style={{ width: 32, height: 32, borderRadius: 16 }}
+                  />
+                ) : (
+                  <View
+                    style={{
+                      width: 32,
+                      height: 32,
+                      borderRadius: 16,
+                      backgroundColor: "#eee",
+                      justifyContent: "center",
+                      alignItems: "center",
+                    }}
+                  >
+                    <Text style={{ fontSize: 12, color: "#999" }}>
+                      {talent.full_name?.charAt(0)}
+                    </Text>
+                  </View>
+                )}
+                <Text
+                  numberOfLines={1}
+                  style={{
+                    fontSize: 13,
+                    fontWeight:
+                      impersonatedUser?.id === talent.id ? "600" : "500",
+                    color:
+                      impersonatedUser?.id === talent.id
+                        ? Colors.light.tint
+                        : "#444",
+                    flex: 1,
+                  }}
+                >
+                  {talent.full_name}
+                </Text>
+                {impersonatedUser?.id === talent.id && (
+                  <Ionicons
+                    name="checkmark-circle"
+                    size={16}
+                    color={Colors.light.tint}
+                  />
+                )}
+              </Hoverable>
+            ))}
+          </View>
+        )}
+
         {mode === "studio" && !isInsideProject && (
           <Hoverable
             onPress={() => router.push("/project/new")}

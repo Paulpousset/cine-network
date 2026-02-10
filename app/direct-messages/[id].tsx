@@ -2,26 +2,27 @@ import ClapLoading from "@/components/ClapLoading";
 import Colors from "@/constants/Colors";
 import { appEvents, EVENTS } from "@/lib/events";
 import { supabase } from "@/lib/supabase";
+import { NotificationService } from "@/services/NotificationService";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image"; // Better image component
 import {
-    Stack,
-    useFocusEffect,
-    useLocalSearchParams,
-    useRouter,
+  Stack,
+  useFocusEffect,
+  useLocalSearchParams,
+  useRouter,
 } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
-    Alert,
-    AppState,
-    FlatList,
-    KeyboardAvoidingView,
-    Platform,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  AppState,
+  FlatList,
+  KeyboardAvoidingView,
+  Platform,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -32,6 +33,7 @@ export default function DirectMessageChat() {
   const [messages, setMessages] = useState<any[]>([]);
   const [inputText, setTextInput] = useState("");
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [currentUserProfile, setCurrentUserProfile] = useState<any>(null);
   const [otherUser, setOtherUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const flatListRef = useRef<FlatList>(null);
@@ -194,6 +196,14 @@ export default function DirectMessageChat() {
     if (!session) return;
     setCurrentUserId(session.user.id);
 
+    // Fetch my profile for sender name in notifications
+    const { data: myProfile } = await supabase
+      .from("profiles")
+      .select("full_name, username")
+      .eq("id", session.user.id)
+      .single();
+    setCurrentUserProfile(myProfile);
+
     // Fetch other user details
     const { data: user } = await supabase
       .from("profiles")
@@ -262,6 +272,17 @@ export default function DirectMessageChat() {
       // Replace temp message with real one to get correct ID and DB state
       if (data) {
         setMessages((prev) => prev.map((m) => (m.id === tempId ? data : m)));
+
+        // Send push notification to recipient
+        NotificationService.sendDirectMessageNotification({
+          receiverId: id as string,
+          senderName:
+            currentUserProfile?.full_name ||
+            currentUserProfile?.username ||
+            "Nouveau message",
+          content: content,
+          chatId: currentUserId!,
+        });
       }
 
       // En répondant, on marque forcément tout comme lu
