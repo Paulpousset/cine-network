@@ -1,5 +1,6 @@
 import { appEvents, EVENTS } from "@/lib/events";
 import { supabase } from "@/lib/supabase";
+import { NotificationService } from "@/services/NotificationService";
 import { fuzzySearch } from "@/utils/search";
 import { useCallback, useEffect, useState } from "react";
 import { Alert } from "react-native";
@@ -12,6 +13,7 @@ export function useTalents() {
   const [loadingSuggestions, setLoadingSuggestions] = useState(true);
   const [pendingCount, setPendingCount] = useState(0);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [currentUserProfile, setCurrentUserProfile] = useState<any>(null);
   const [availableCities, setAvailableCities] = useState<string[]>([]);
 
   // Filters State
@@ -26,6 +28,14 @@ export function useTalents() {
     if (session) {
       setCurrentUserId(session.user.id);
       fetchSuggestions(session.user.id);
+
+      // Fetch profile for notification sender name
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("full_name, username")
+        .eq("id", session.user.id)
+        .single();
+      if (profile) setCurrentUserProfile(profile);
     }
   }, []);
 
@@ -160,6 +170,15 @@ export function useTalents() {
       });
 
       if (error) throw error;
+
+      // Send Push Notification
+      NotificationService.sendConnectionRequestNotification({
+        receiverId: targetId,
+        requesterName:
+          currentUserProfile?.full_name ||
+          currentUserProfile?.username ||
+          "Quelqu'un",
+      });
 
       Alert.alert("Succès", "Demande de connexion envoyée !");
       setSuggestedProfiles((prev) => prev.filter((p) => p.id !== targetId));

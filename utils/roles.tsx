@@ -56,5 +56,7 @@ export const JOB_TITLES = {
     "Compositeur",
     "Mixeur",
   ],
-  technicien: ["Autre Technicien"], // Categorie fourre-tout au cas où
+  scenariste: ["Scénariste", "Script Doctor", "Dialoguiste"],
+  technicien: ["Autre Technicien"],
+  agent: ["Agent artistique", "Manager", "Attaché de presse"],
 };

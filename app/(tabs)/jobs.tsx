@@ -296,7 +296,7 @@ export default function Discover() {
                   <View style={styles.recCardHeader}>
                     <View style={styles.matchBadge}>
                       <Text style={styles.matchBadgeText}>
-                        {item.matchScore}% Match
+                        {(item as any).matchScore || 100}% Match
                       </Text>
                     </View>
                   </View>
@@ -357,46 +357,81 @@ export default function Discover() {
                 CORRECTION: Afficher les PROJETS sur la carte pour éviter les doublons 
                 (car tous les rôles d'un projet sont au même endroit).
             */}
-            {projects.map((proj) => {
-              const lat = parseFloat(String(proj.latitude));
-              const lon = parseFloat(String(proj.longitude));
-
-              if (isNaN(lat) || isNaN(lon)) {
-                return null;
-              }
-              // Include lat/lon in key to force re-render if coordinates change
-              const key = `proj-${proj.id}-${lat}-${lon}`;
-              return (
-                <Marker
-                  key={key}
-                  coordinate={{
-                    latitude: lat,
-                    longitude: lon,
-                  }}
-                  title={proj.title}
-                  description={`${proj.roleCount} offre(s) • ${proj.type}`}
-                  onCalloutPress={() => router.push(`/project/${proj.id}`)}
-                >
-                  <View style={styles.customMarker}>
-                    <Text
-                      style={{
-                        color: "white",
-                        fontWeight: "bold",
-                        fontSize: 10,
-                      }}
+            {projects.map(
+              (proj: {
+                latitude: any;
+                longitude: any;
+                id: any;
+                title: string | undefined;
+                roleCount:
+                  | string
+                  | number
+                  | bigint
+                  | boolean
+                  | React.ReactElement<
+                      unknown,
+                      string | React.JSXElementConstructor<any>
                     >
-                      {proj.roleCount}
-                    </Text>
-                  </View>
-                </Marker>
-              );
-            })}
+                  | Iterable<React.ReactNode>
+                  | React.ReactPortal
+                  | Promise<
+                      | string
+                      | number
+                      | bigint
+                      | boolean
+                      | React.ReactPortal
+                      | React.ReactElement<
+                          unknown,
+                          string | React.JSXElementConstructor<any>
+                        >
+                      | Iterable<React.ReactNode>
+                      | null
+                      | undefined
+                    >
+                  | null
+                  | undefined;
+                type: any;
+              }) => {
+                const lat = parseFloat(String(proj.latitude));
+                const lon = parseFloat(String(proj.longitude));
+
+                if (isNaN(lat) || isNaN(lon)) {
+                  return null;
+                }
+                // Include lat/lon in key to force re-render if coordinates change
+                const key = `proj-${proj.id}-${lat}-${lon}`;
+                return (
+                  <Marker
+                    key={key}
+                    coordinate={{
+                      latitude: lat,
+                      longitude: lon,
+                    }}
+                    title={proj.title}
+                    description={`${proj.roleCount} offre(s) • ${proj.type}`}
+                    onCalloutPress={() => router.push(`/project/${proj.id}`)}
+                  >
+                    <View style={styles.customMarker}>
+                      <Text
+                        style={{
+                          color: "white",
+                          fontWeight: "bold",
+                          fontSize: 10,
+                        }}
+                      >
+                        {proj.roleCount}
+                      </Text>
+                    </View>
+                  </Marker>
+                );
+              },
+            )}
           </AppMap>
         </View>
       ) : (
         <FlashList
-          data={contentType === "roles" ? roles : projects}
-          keyExtractor={(item) => item.id}
+          data={(contentType === "roles" ? roles : projects) as any}
+          keyExtractor={(item) => (item as { id: string }).id}
           renderItem={({ item }) =>
             contentType === "roles" ? (
               <JobCard item={item} />
@@ -404,8 +439,6 @@ export default function Discover() {
               <ProjectJobCard item={item} />
             )
           }
-          // @ts-ignore
-          estimatedItemSize={200}
           contentContainerStyle={styles.listContent}
           ListEmptyComponent={
             <Text style={styles.emptyText}>Aucun résultat pour le moment.</Text>
@@ -474,7 +507,7 @@ export default function Discover() {
             <View style={styles.modalContent}>
               <Text style={styles.modalTitle}>Choisir une ville</Text>
               <ScrollView style={{ maxHeight: 300 }}>
-                {availableCities.map((city) => (
+                {(availableCities as string[]).map((city: string) => (
                   <TouchableOpacity
                     key={city}
                     style={styles.modalItem}

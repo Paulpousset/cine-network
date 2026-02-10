@@ -4,11 +4,11 @@ import Colors from "@/constants/Colors";
 import { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import React from "react";
 import {
-    Platform,
-    StyleSheet,
-    Text,
-    useWindowDimensions,
-    View,
+  Platform,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
 } from "react-native";
 
 export default function CustomTabBar({
@@ -26,6 +26,12 @@ export default function CustomTabBar({
     return null;
   }
 
+  const visibleRoutes = state.routes.filter((route) => {
+    const { options } = descriptors[route.key];
+    const isHidden = (options as any).href === null;
+    return !isHidden;
+  });
+
   return (
     <View
       style={[
@@ -33,9 +39,10 @@ export default function CustomTabBar({
         { backgroundColor: colors.background, borderTopColor: colors.border },
       ]}
     >
-      {state.routes.map((route, index) => {
+      {visibleRoutes.map((route, index) => {
         const { options } = descriptors[route.key];
-        const isFocused = state.index === index;
+        const isFocused =
+          state.index === state.routes.findIndex((r) => r.key === route.key);
         const color = isFocused ? colors.tint : "#999";
 
         const onPress = () => {
@@ -112,7 +119,7 @@ export default function CustomTabBar({
               <Text style={[styles.tabLabel, { color }]}>{options.title}</Text>
             </Hoverable>
 
-            {index < state.routes.length - 1 && (
+            {index < visibleRoutes.length - 1 && (
               <View
                 style={[
                   styles.divider,

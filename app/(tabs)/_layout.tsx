@@ -26,6 +26,7 @@ export default function TabLayout() {
   const colorScheme = useColorScheme();
   const router = useRouter();
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [userRole, setUserRole] = useState<string | null>(null);
 
   useEffect(() => {
     fetchUserData();
@@ -41,15 +42,17 @@ export default function TabLayout() {
     } = await supabase.auth.getSession();
     if (!session) return;
 
-    // Fetch avatar
+    // Fetch avatar and role
     const { data: profile } = await supabase
       .from("profiles")
-      .select("avatar_url")
+      .select("avatar_url, role")
       .eq("id", session.user.id)
       .single();
 
     if (profile) {
       setAvatarUrl(profile.avatar_url);
+      setUserRole(profile.role);
+      console.log("TabLayout: User role updated to", profile.role);
     }
   }
 
@@ -111,6 +114,34 @@ export default function TabLayout() {
         options={{
           title: "Mes Projets",
           tabBarIcon: ({ color }) => <TabBarIcon name="film" color={color} />,
+          headerLeft:
+            Platform.OS === "web"
+              ? undefined
+              : () => (
+                  <Link href="/account" asChild>
+                    <Pressable>
+                      {({ pressed }) => <ProfileIcon pressed={pressed} />}
+                    </Pressable>
+                  </Link>
+                ),
+          headerRight:
+            Platform.OS === "web"
+              ? undefined
+              : () => (
+                  <View style={{ flexDirection: "row", alignItems: "center" }}>
+                    <NotificationIconWithBadge />
+                    <ChatIconWithBadge />
+                  </View>
+                ),
+        }}
+      />
+
+      <Tabs.Screen
+        name="my-talents"
+        options={{
+          href: userRole === "agent" ? "/my-talents" : null,
+          title: "Mes Talents",
+          tabBarIcon: ({ color }) => <TabBarIcon name="users" color={color} />,
           headerLeft:
             Platform.OS === "web"
               ? undefined

@@ -1,6 +1,7 @@
 import Colors from "@/constants/Colors";
 import { GlobalStyles } from "@/constants/Styles";
 import { appEvents, EVENTS } from "@/lib/events";
+import { NotificationService } from "@/services/NotificationService";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Stack, useRouter } from "expo-router";
@@ -219,6 +220,22 @@ export default function ConnectionRequests() {
         // ... je dois supprimer ma demande sortante pour éviter d'avoir 2 lignes actives.
         if (!error && action === "accept" && updatedConn) {
           const senderId = updatedConn.requester_id;
+
+          // Send Push Notification
+          supabase
+            .from("profiles")
+            .select("full_name, username")
+            .eq("id", myId)
+            .single()
+            .then(({ data }) => {
+              if (data) {
+                NotificationService.sendConnectionAcceptedNotification({
+                  receiverId: senderId,
+                  accepterName: data.full_name || data.username,
+                });
+              }
+            });
+
           // Clean up any pending request I sent to this user
           const { error: delError } = await supabase
             .from("connections")

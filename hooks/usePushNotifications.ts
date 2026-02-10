@@ -58,7 +58,7 @@ export function usePushNotifications() {
         token = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
         console.log("Push: Expo token obtained:", token);
       } catch (e) {
-        console.error("Push: Error getting expo push token", e);
+        console.log("Push: Error getting expo push token handled:", e);
       }
     } else {
       console.log("Push: Must use physical device for Push Notifications");
@@ -95,7 +95,10 @@ export function usePushNotifications() {
             .eq("id", session.user.id);
 
           if (error) {
-            console.error("Push: Error updating push token in profile:", error);
+            console.log(
+              "Push: Error updating push token in profile handled:",
+              error,
+            );
           } else {
             console.log(
               "Push: Token successfully saved to profile for user",

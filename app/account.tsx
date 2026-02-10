@@ -42,6 +42,7 @@ const ROLES = [
   { label: "Acteur", value: "acteur" },
   { label: "Modèle", value: "modele" },
   { label: "Figurant", value: "figurant" },
+  { label: "Agent / Manager", value: "agent" },
   { label: "Réalisateur", value: "realisateur" },
   { label: "Technicien", value: "technicien" },
   { label: "HMC (Maq/Costume)", value: "hmc" },
@@ -459,7 +460,7 @@ export default function Account() {
             .eq("id", userId);
 
           if (error) {
-            console.error("Delete profile error:", error);
+            console.log("Delete profile error handled:", error);
             throw error;
           }
 
@@ -473,7 +474,7 @@ export default function Account() {
             );
             // We don't throw here to avoid preventing the success UI
             // if the user hasn't set up the RPC yet, at least their data is gone.
-            console.error(rpcError);
+            console.log("RPC error handled:", rpcError);
           }
 
           console.log("Delete success. Signing out.");
@@ -494,7 +495,7 @@ export default function Account() {
           router.replace("/");
         }
       } catch (error: any) {
-        console.error("Delete account error:", error);
+        console.log("Delete account error handled:", error);
 
         const errTitle = "Erreur";
         const errMsg =

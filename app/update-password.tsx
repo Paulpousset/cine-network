@@ -12,10 +12,14 @@ import { SafeAreaView } from "react-native-safe-area-context";
 export default function UpdatePasswordScreen() {
   const router = useRouter();
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
   async function updatePassword() {
-    const result = updatePasswordSchema.safeParse({ password });
+    const result = updatePasswordSchema.safeParse({
+      password,
+      confirmPassword,
+    });
 
     if (!result.success) {
       Alert.alert("Erreur", result.error.issues[0].message);
@@ -57,6 +61,23 @@ export default function UpdatePasswordScreen() {
             placeholder="Nouveau mot de passe"
             value={password}
             onChangeText={setPassword}
+            secureTextEntry
+            style={styles.input}
+            placeholderTextColor="#999"
+          />
+        </View>
+
+        <View style={styles.inputWrapper}>
+          <Ionicons
+            name="lock-closed-outline"
+            size={20}
+            color="#666"
+            style={styles.inputIcon}
+          />
+          <TextInput
+            placeholder="Confirmer le mot de passe"
+            value={confirmPassword}
+            onChangeText={setConfirmPassword}
             secureTextEntry
             style={styles.input}
             placeholderTextColor="#999"

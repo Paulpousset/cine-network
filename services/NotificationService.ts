@@ -66,6 +66,105 @@ export const NotificationService = {
   },
 
   /**
+   * Notification for a new connection request
+   */
+  sendConnectionRequestNotification: async (params: {
+    receiverId: string;
+    requesterName: string;
+  }) => {
+    return NotificationService.sendGenericNotification({
+      receiverId: params.receiverId,
+      title: "Nouvelle demande de connexion",
+      body: `${params.requesterName} souhaite rejoindre votre réseau.`,
+      data: {
+        type: "connection_request",
+        url: "/notifications",
+      },
+    });
+  },
+
+  /**
+   * Notification for an accepted connection request
+   */
+  sendConnectionAcceptedNotification: async (params: {
+    receiverId: string;
+    accepterName: string;
+  }) => {
+    return NotificationService.sendGenericNotification({
+      receiverId: params.receiverId,
+      title: "Demande de connexion acceptée",
+      body: `${params.accepterName} a accepté votre demande de connexion !`,
+      data: {
+        type: "connection_accepted",
+        url: "/notifications",
+      },
+    });
+  },
+
+  /**
+   * Notification for a project role invitation
+   */
+  sendRoleInvitationNotification: async (params: {
+    receiverId: string;
+    projectTitle: string;
+    roleTitle: string;
+  }) => {
+    return NotificationService.sendGenericNotification({
+      receiverId: params.receiverId,
+      title: "Nouvelle Invitation !",
+      body: `On vous propose le rôle "${params.roleTitle}" sur le projet "${params.projectTitle}".`,
+      data: {
+        type: "role_invitation",
+        url: "/notifications",
+      },
+    });
+  },
+
+  /**
+   * Notification for a new job application (to project owner)
+   */
+  sendNewApplicationNotification: async (params: {
+    ownerId: string;
+    candidateName: string;
+    roleTitle: string;
+    projectId: string;
+  }) => {
+    return NotificationService.sendGenericNotification({
+      receiverId: params.ownerId,
+      title: "Nouvelle candidature",
+      body: `${params.candidateName} a postulé pour le rôle "${params.roleTitle}".`,
+      data: {
+        type: "new_application",
+        projectId: params.projectId,
+        url: `/project/${params.projectId}`,
+      },
+    });
+  },
+
+  /**
+   * Notification for an application result
+   */
+  sendApplicationResultNotification: async (params: {
+    candidateId: string;
+    roleTitle: string;
+    projectTitle: string;
+    status: "accepted" | "rejected";
+  }) => {
+    const isAccepted = params.status === "accepted";
+    return NotificationService.sendGenericNotification({
+      receiverId: params.candidateId,
+      title: isAccepted ? "Candidature acceptée !" : "Information Candidature",
+      body: isAccepted
+        ? `Félicitations, vous avez été retenu pour le rôle "${params.roleTitle}" sur le projet "${params.projectTitle}" !`
+        : `Votre candidature pour le rôle "${params.roleTitle}" sur le projet "${params.projectTitle}" n'a pas été retenue.`,
+      data: {
+        type: "application_result",
+        url: "/notifications",
+      },
+    });
+  },
+
+  /**
    * Sends a push notification fetchning the recipient's token automatically
    */
   sendGenericNotification: async (params: {

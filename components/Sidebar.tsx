@@ -55,6 +55,7 @@ export default function Sidebar() {
   const [totalUnread, setTotalUnread] = useState(0);
   const [pendingConnections, setPendingConnections] = useState(0); // New state
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [realRole, setRealRole] = useState<string | null>(null);
   const [projectsExpanded, setProjectsExpanded] = useState(false);
   const [chatsExpanded, setChatsExpanded] = useState(false);
   const [categoriesExpanded, setCategoriesExpanded] = useState<
@@ -147,13 +148,16 @@ export default function Sidebar() {
       if (!session) return;
       const userId = session.user.id;
 
-      // 0. Fetch User Avatar
+      // 0. Fetch User Avatar and Role
       const { data: profile } = await supabase
         .from("profiles")
-        .select("avatar_url")
+        .select("avatar_url, role")
         .eq("id", userId)
         .single();
-      if (profile) setAvatarUrl(profile.avatar_url);
+      if (profile) {
+        setAvatarUrl(profile.avatar_url);
+        setRealRole(profile.role);
+      }
 
       // 1. Projets Récents (Own + Participations)
       // Own
@@ -429,7 +433,22 @@ export default function Sidebar() {
         ? PROJECT_ITEMS
         : isStudio
           ? studioItems
-          : NAVIGATION_ITEMS;
+          : NAVIGATION_ITEMS.filter((item) => {
+              // Hide Mes Talents if not an agent (though it's not and wasn't in NAVIGATION_ITEMS)
+              // We'll actually prepend it if an agent
+              return true;
+            });
+
+  const finalItems = [...currentItems];
+  if (realRole === "agent" && !isInsideProject && !isStudio) {
+    // Insérer "Mes Talents" après "Mes Projets" (index 0)
+    finalItems.splice(1, 0, {
+      name: "Mes Talents",
+      icon: "users",
+      href: "/my-talents",
+      id: "my-talents",
+    } as any);
+  }
 
   useEffect(() => {
     if (Platform.OS !== "web" || !isStudio || !isInsideProject) return;
@@ -1102,7 +1121,7 @@ export default function Sidebar() {
                 </View>
               );
             })
-          : currentItems.map((item) => renderItem(item))}
+          : finalItems.map((item) => renderItem(item))}
 
         {/* Spacer pour pousser le lien Compte en bas */}
         <View style={{ flex: 1 }} />

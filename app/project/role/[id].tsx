@@ -2,6 +2,7 @@ import ClapLoading from "@/components/ClapLoading";
 import Colors from "@/constants/Colors";
 import { GlobalStyles } from "@/constants/Styles";
 import { useUserMode } from "@/hooks/useUserMode";
+import { NotificationService } from "@/services/NotificationService";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
@@ -27,6 +28,7 @@ export default function RoleDetails() {
   const [role, setRole] = useState<any>(null);
   const [hasApplied, setHasApplied] = useState(false);
   const [applying, setApplying] = useState(false);
+  const [currentUserProfile, setCurrentUserProfile] = useState<any>(null);
   const [applicationMessage, setApplicationMessage] = useState("");
   const [applicationModalVisible, setApplicationModalVisible] = useState(false);
 
@@ -37,6 +39,16 @@ export default function RoleDetails() {
   useEffect(() => {
     if (effectiveUserId) {
       checkApplicationStatus(effectiveUserId);
+
+      // Fetch profile for notification
+      supabase
+        .from("profiles")
+        .select("full_name, username")
+        .eq("id", effectiveUserId)
+        .single()
+        .then(({ data }) => {
+          if (data) setCurrentUserProfile(data);
+        });
     } else {
       setHasApplied(false);
     }
@@ -91,6 +103,20 @@ export default function RoleDetails() {
         }
       } else {
         setHasApplied(true);
+
+        // Send Push Notification to project owner
+        if (role?.tournages?.owner_id) {
+          NotificationService.sendNewApplicationNotification({
+            ownerId: role.tournages.owner_id,
+            candidateName:
+              currentUserProfile?.full_name ||
+              currentUserProfile?.username ||
+              "Un candidat",
+            roleTitle: role.title || "votre rôle",
+            projectId: role.tournage_id,
+          });
+        }
+
         Alert.alert("Succès", "Votre candidature a été envoyée !");
         setApplicationModalVisible(false);
       }
@@ -197,6 +223,20 @@ export default function RoleDetails() {
         );
       }
 
+      // Send Push Notification to project owner
+      if (role?.tournages?.owner_id) {
+        NotificationService.sendGenericNotification({
+          receiverId: role.tournages.owner_id,
+          title: "Invitation acceptée",
+          body: `${currentUserProfile?.full_name || currentUserProfile?.username} a accepté l'invitation pour le rôle "${role.title}" sur "${role.tournages.title}".`,
+          data: {
+            type: "invitation_accepted",
+            projectId: role.tournage_id,
+            url: `/project/${role.tournage_id}`,
+          },
+        });
+      }
+
       fetchRoleDetails();
       Alert.alert("Bienvenue !", "Vous avez accepté ce rôle.");
     } catch (e) {
@@ -214,7 +254,7 @@ export default function RoleDetails() {
         .from("applications" as any)
         .update({ status: "rejected" })
         .eq("role_id", id)
-        .eq("candidate_id", userId)
+        .eq("candidate_id", effectiveUserId)
         .eq("status", "accepted");
 
       const { data, error } = await supabase
@@ -241,7 +281,8 @@ export default function RoleDetails() {
     }
   }
 
-  const isAssignedToMe = role && userId && role.assigned_profile_id === userId;
+  const isAssignedToMe =
+    role && effectiveUserId && role.assigned_profile_id === effectiveUserId;
   const isInvitation = isAssignedToMe && role.status === "invitation_pending";
 
   return (

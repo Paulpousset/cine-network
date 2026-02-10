@@ -8,16 +8,16 @@ import * as Linking from "expo-linking";
 import * as WebBrowser from "expo-web-browser";
 import React, { useEffect, useRef, useState } from "react";
 import {
-    Alert,
-    Animated,
-    Image,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  Animated,
+  Image,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { supabase } from "../lib/supabase";
 
@@ -37,6 +37,7 @@ const ROLES = [
   "cascadeur",
   "vfx",
   "photographe",
+  "agent",
   "autre",
 ];
 
@@ -54,6 +55,7 @@ const DB_ROLE_MAPPING: Record<string, string> = {
   cascadeur: "acteur",
   vfx: "post_prod",
   photographe: "image",
+  agent: "agent",
   autre: "technicien",
 };
 
@@ -136,13 +138,23 @@ export default function AuthScreen() {
     setFormError("");
     setSuccessMessage("");
 
-    const redirectTo =
-      Platform.OS === "web"
-        ? `${window.location.origin}/update-password`
-        : makeRedirectUri({
-            scheme: "tita",
-            path: "update-password",
-          });
+    // Pour que le reset fonctionne sur TOUS les appareils (Ordi ou Mobile)
+    // l'URL de redirection doit impérativement être une URL HTTPS.
+    let redirectTo = "https://titapp.fr/update-password";
+
+    if (Platform.OS === "web" && window.location.hostname === "localhost") {
+      redirectTo = "http://localhost:8081/update-password";
+    }
+
+    // Note pour le développeur :
+    // Si vous testez depuis l'app (mobile) et que vous voulez que le lien
+    // vous ramène sur votre ordinateur, laissez l'URL https://titapp.fr/...
+    // Si vous voulez qu'il vous ramène dans votre simulateur local, démentez la ligne ci-dessous :
+    // if (__DEV__ && Platform.OS !== 'web') redirectTo = Linking.createURL("update-password");
+
+    console.log("!!! SENDING PASSWORD RESET WITH REDIRECT:", redirectTo);
+    // Supprimons toute ambiguïté avec une alerte de confirmation
+    Alert.alert("Debug Reset", "Lien envoyé : " + redirectTo);
 
     const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
       redirectTo,
@@ -179,7 +191,9 @@ export default function AuthScreen() {
       password,
     });
     if (error) {
-      console.error("Sign In Error:", error);
+      // On logue l'erreur pour le debug, mais on utilise console.log pour éviter les toasts intrusifs
+      console.log("Sign In Error handled:", error);
+
       if (error.message.includes("Email not confirmed")) {
         setFormError("Email non confirmé. Vérifiez vos spams.");
         Alert.alert(
@@ -197,7 +211,7 @@ export default function AuthScreen() {
           "Identifiants incorrects ou email non validé.\n\nSi vous venez de créer votre compte, vérifiez vos emails pour le valider.",
           [
             { text: "Ok", style: "cancel" },
-            { text: "Renvoyer l' email", onPress: resendConfirmation },
+            { text: "Renvoyer l'email", onPress: resendConfirmation },
           ],
         );
       } else {
@@ -258,7 +272,7 @@ export default function AuthScreen() {
       console.log("Supabase response:", { session, user, error });
 
       if (error) {
-        console.error("Signup Error Object:", error);
+        console.log("Signup Error handled:", error);
         if (error.message.includes("rate limit")) {
           Alert.alert(
             "Trop de tentatives",
@@ -291,7 +305,7 @@ export default function AuthScreen() {
         Alert.alert("Bienvenue !", `Compte créé en tant que ${role}`);
       }
     } catch (err: any) {
-      console.error("Unexpected Signup Error:", err);
+      console.log("Unexpected Signup Error handled:", err);
       Alert.alert(
         "Erreur Inattendue",
         err.message || "Une erreur technique est survenue",

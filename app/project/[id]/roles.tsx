@@ -4,6 +4,7 @@ import { Hoverable } from "@/components/Hoverable";
 import RoleFormFields from "@/components/RoleFormFields";
 import Colors from "@/constants/Colors";
 import { useUserMode } from "@/hooks/useUserMode";
+import { NotificationService } from "@/services/NotificationService";
 import { fuzzySearch } from "@/utils/search";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -396,6 +397,13 @@ export default function ManageRoles() {
           resolvedStatus = "assigned";
         } else {
           resolvedStatus = "invitation_pending";
+
+          // Send Push Notification for Invitation
+          NotificationService.sendRoleInvitationNotification({
+            receiverId: assignedProfileId,
+            projectTitle: projectTitle,
+            roleTitle: editingRole.title,
+          });
         }
       }
 
@@ -824,6 +832,10 @@ export default function ManageRoles() {
 
   async function executeAssign(ids: string[], profile: any) {
     try {
+      // Find role title for notification
+      const roleRef = roles.find((r) => ids.includes(r.id));
+      const roleTitle = roleRef?.title || "un rôle";
+
       const { error } = await supabase
         .from("project_roles")
         // Update status to invitation_pending
@@ -834,6 +846,13 @@ export default function ManageRoles() {
         .in("id", ids);
 
       if (error) throw error;
+
+      // Send Push Notification
+      NotificationService.sendRoleInvitationNotification({
+        receiverId: profile.id,
+        projectTitle: projectTitle,
+        roleTitle: roleTitle,
+      });
 
       // Optimistic update
       setRoles((prev) => {

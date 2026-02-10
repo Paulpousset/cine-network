@@ -5,6 +5,7 @@ import Colors from "@/constants/Colors";
 import { GlobalStyles } from "@/constants/Styles";
 import { useUserMode } from "@/hooks/useUserMode";
 import { useTutorial } from "@/providers/TutorialProvider";
+import { NotificationService } from "@/services/NotificationService";
 import { JOB_TITLES } from "@/utils/roles";
 import { fuzzySearch } from "@/utils/search";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
@@ -1212,6 +1213,13 @@ export default function ProjectDetails() {
         );
       }
 
+      // Send Push Notification
+      NotificationService.sendRoleInvitationNotification({
+        receiverId: user.id,
+        projectTitle: project?.title || "Projet",
+        roleTitle: manageRole.title,
+      });
+
       const updated = {
         ...manageRole,
         assigned_profile_id: user.id,
@@ -1305,6 +1313,14 @@ export default function ProjectDetails() {
 
       if (roleError) throw roleError;
 
+      // Send Push Notification
+      NotificationService.sendApplicationResultNotification({
+        candidateId: app.candidate_id,
+        roleTitle: app.project_roles?.title || "votre rôle",
+        projectTitle: project?.title || "Projet",
+        status: "accepted",
+      });
+
       Alert.alert("Succès", "Candidature acceptée !");
       fetchApplications();
       fetchRoles();
@@ -1320,6 +1336,15 @@ export default function ProjectDetails() {
         .update({ status: "rejected" })
         .eq("id", app.id);
       if (error) throw error;
+
+      // Send Push Notification
+      NotificationService.sendApplicationResultNotification({
+        candidateId: app.candidate_id,
+        roleTitle: app.project_roles?.title || "votre rôle",
+        projectTitle: project?.title || "Projet",
+        status: "rejected",
+      });
+
       Alert.alert("Succès", "Candidature refusée.");
       fetchApplications();
     } catch (e) {

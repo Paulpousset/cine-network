@@ -1,3 +1,4 @@
+import { Tables } from "@/lib/database.types";
 import { appEvents, EVENTS } from "@/lib/events";
 import { getRecommendedRoles } from "@/lib/matching";
 import { supabase } from "@/lib/supabase";
@@ -5,12 +6,27 @@ import { useCallback, useEffect, useState } from "react";
 import { Alert } from "react-native";
 import { useUserMode } from "./useUserMode";
 
-// ... (type omitted)
+export type RoleWithProject = Tables<"project_roles"> & {
+  tournages: Tables<"tournages">;
+};
+
+export type ProjectWithRoles = Tables<"tournages"> & {
+  roleCount: number;
+  roles: RoleWithProject[];
+};
 
 export function useJobs() {
   const { effectiveUserId } = useUserMode();
   const [allRoles, setAllRoles] = useState<RoleWithProject[]>([]);
-  // ...
+  const [roles, setRoles] = useState<RoleWithProject[]>([]);
+  const [projects, setProjects] = useState<ProjectWithRoles[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [recommendations, setRecommendations] = useState<RoleWithProject[]>([]);
+  const [availableCities, setAvailableCities] = useState<string[]>(["all"]);
+  const [selectedCategory, setSelectedCategory] = useState("all");
+  const [selectedCity, setSelectedCity] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
+
   const fetchRecommendations = useCallback(async () => {
     try {
       if (!effectiveUserId) return;
@@ -21,7 +37,6 @@ export function useJobs() {
         .eq("id", effectiveUserId)
         .single();
       if (!profile) return;
-      // ... (rest of hook)
 
       const { data: roles } = await supabase
         .from("project_roles")

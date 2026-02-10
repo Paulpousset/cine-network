@@ -16,12 +16,13 @@ import * as Linking from "expo-linking";
 import { Stack, usePathname, useRouter, useSegments } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
-    Platform,
-    Text,
-    TouchableOpacity,
-    useWindowDimensions,
-    View,
+  Platform,
+  Text,
+  TouchableOpacity,
+  useWindowDimensions,
+  View,
 } from "react-native";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import { supabase } from "../lib/supabase";
 
 import { usePushNotifications } from "@/hooks/usePushNotifications";
@@ -167,12 +168,15 @@ export default function RootLayout() {
       const access_token =
         queryParams?.access_token || queryParams?.["#access_token"];
       const refresh_token = queryParams?.refresh_token;
+      const code = queryParams?.code;
 
       if (access_token) {
         supabase.auth.setSession({
           access_token: access_token as string,
           refresh_token: (refresh_token as string) || "",
         });
+      } else if (code) {
+        supabase.auth.exchangeCodeForSession(code as string);
       }
     };
 
@@ -189,6 +193,10 @@ export default function RootLayout() {
     } = supabase.auth.onAuthStateChange(async (event, session) => {
       setSession(session);
       setInitialized(true);
+
+      if (event === "PASSWORD_RECOVERY") {
+        router.push("/update-password");
+      }
     });
 
     return () => {
@@ -205,7 +213,7 @@ export default function RootLayout() {
       pathname === "/" ||
       pathname === "/auth" ||
       pathname === "" ||
-      pathname === "/update-password";
+      pathname.startsWith("/update-password");
 
     console.log("Auth Check:", {
       hasSession: !!session,
@@ -229,8 +237,11 @@ export default function RootLayout() {
     if (Platform.OS === "web") {
       const userAgent =
         navigator.userAgent || navigator.vendor || (window as any).opera;
-      // Détection basique mobile
-      if (/android|iPad|iPhone|iPod/i.test(userAgent)) {
+      // Détection basique mobile - On ne redirige pas si on est sur la page de reset password
+      if (
+        /android|iPad|iPhone|iPod/i.test(userAgent) &&
+        !pathname.startsWith("/update-password")
+      ) {
         setIsMobileWeb(true);
         // Tentative de redirection automatique
         const hasRedirected = sessionStorage.getItem("deepLinkRedirected");
@@ -317,22 +328,24 @@ export default function RootLayout() {
   }
 
   return (
-    <ErrorBoundary>
-      <UserModeProvider>
-        <TutorialProvider>
-          <RootLayoutContent
-            session={session}
-            isWebLarge={isWebLarge}
-            pathname={pathname}
-          />
-          <FilmStripTransition
-            isVisible={showFilmTransition}
-            onScreenCovered={onFilmScreenCovered}
-            onAnimationComplete={onFilmAnimationComplete}
-          />
-          <TutorialOverlay />
-        </TutorialProvider>
-      </UserModeProvider>
-    </ErrorBoundary>
+    <SafeAreaProvider>
+      <ErrorBoundary>
+        <UserModeProvider>
+          <TutorialProvider>
+            <RootLayoutContent
+              session={session}
+              isWebLarge={isWebLarge}
+              pathname={pathname}
+            />
+            <FilmStripTransition
+              isVisible={showFilmTransition}
+              onScreenCovered={onFilmScreenCovered}
+              onAnimationComplete={onFilmAnimationComplete}
+            />
+            <TutorialOverlay />
+          </TutorialProvider>
+        </UserModeProvider>
+      </ErrorBoundary>
+    </SafeAreaProvider>
   );
 }
