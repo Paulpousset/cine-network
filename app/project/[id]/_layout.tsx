@@ -59,9 +59,6 @@ function CustomProjectTabBar({
         let visibleRoutes = ["index", "spaces", "calendar"];
 
         // Add Logistics ONLY if owner or if category has permission
-        if (isOwner || allowedTools.includes("logistics")) {
-          visibleRoutes.push("logistics");
-        }
 
         // Add Admin only if owner
         if (isOwner) {
@@ -279,19 +276,7 @@ export default function ProjectIdLayout() {
             ),
           }}
         />
-        <Tabs.Screen
-          name="logistics"
-          options={{
-            title: "Logistique",
-            tabBarIcon: ({ color, focused }) => (
-              <Ionicons
-                name={focused ? "clipboard" : "clipboard-outline"}
-                size={24}
-                color={color}
-              />
-            ),
-          }}
-        />
+
         <Tabs.Screen
           name="admin"
           options={{

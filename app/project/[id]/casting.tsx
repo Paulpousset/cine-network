@@ -6,17 +6,17 @@ import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
-  FlatList,
-  Image,
-  Modal,
-  Platform,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    FlatList,
+    Image,
+    Modal,
+    Platform,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 
 type ProjectCharacter =
@@ -368,18 +368,21 @@ export default function CastingScreen() {
         </View>
       </View>
 
-      <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color={Colors.light.tint} />
-      </View>
-      <FlatList
-        data={roles}
-        renderItem={renderRoleItem}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.listContent}
-        ListEmptyComponent={
-          <Text style={styles.emptyText}>Aucun personnage créé.</Text>
-        }
-      />
+      {loading ? (
+        <View style={styles.centerContainer}>
+          <ActivityIndicator size="large" color={Colors.light.tint} />
+        </View>
+      ) : (
+        <FlatList
+          data={roles}
+          renderItem={renderRoleItem}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.listContent}
+          ListEmptyComponent={
+            <Text style={styles.emptyText}>Aucun personnage créé.</Text>
+          }
+        />
+      )}
 
       {/* Create Character Modal */}
       <Modal

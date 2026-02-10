@@ -2,6 +2,7 @@ import ClapLoading from "@/components/ClapLoading";
 import WebDatePicker from "@/components/WebDatePicker";
 import Colors from "@/constants/Colors";
 import { GlobalStyles } from "@/constants/Styles";
+import { useTutorial } from "@/providers/TutorialProvider";
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import {
@@ -39,6 +40,7 @@ type Event = {
 };
 
 export default function ProjectCalendar() {
+  const { isTutorialActive, currentStep } = useTutorial();
   const localParams = useLocalSearchParams();
   const globalParams = useGlobalSearchParams();
   const idValue = localParams.id || globalParams.id;
@@ -140,7 +142,7 @@ export default function ProjectCalendar() {
 
       const { data: proj, error: projError } = await supabase
         .from("tournages")
-        .select("owner_id")
+        .select("owner_id, title")
         .eq("id", projectId)
         .maybeSingle();
 
@@ -148,7 +150,11 @@ export default function ProjectCalendar() {
         console.error("Calendar: Error fetching project:", projError);
       }
 
-      const owner = proj?.owner_id === session.user.id;
+      const owner =
+        proj?.owner_id === session.user.id ||
+        (isTutorialActive &&
+          proj?.title?.includes("Vitrine") &&
+          currentStep?.id?.startsWith("admin"));
       console.log(
         "Calendar: Is Owner?",
         owner,

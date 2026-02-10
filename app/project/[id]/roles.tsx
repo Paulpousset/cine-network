@@ -97,6 +97,7 @@ export default function ManageRoles() {
 
   // Edit/Add Role State
   const [editModalVisible, setEditModalVisible] = useState(false);
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [editingRole, setEditingRole] = useState<{
     id?: string;
     category: (typeof ROLE_CATEGORIES)[number];
@@ -119,6 +120,8 @@ export default function ManageRoles() {
     assignee: { id: string; label: string } | null;
     data: any;
     createPost?: boolean;
+    initialAssigneeId?: string | null;
+    initialStatus?: string;
   } | null>(null);
   const [isSavingRole, setIsSavingRole] = useState(false);
   const [isSearchingProfileInEdit, setIsSearchingProfileInEdit] =
@@ -223,6 +226,7 @@ export default function ManageRoles() {
   }
 
   function openAddRole() {
+    setFormErrors({});
     setEditingRole({
       category: "acteur",
       title: "",
@@ -244,6 +248,8 @@ export default function ManageRoles() {
       remunerationAmount: "",
       assignee: null,
       createPost: false,
+      initialAssigneeId: null,
+      initialStatus: "draft",
     });
     setEditModalVisible(true);
     setIsSearchingProfileInEdit(false);
@@ -255,6 +261,7 @@ export default function ManageRoles() {
     if (!role) return;
     try {
       console.log("Opening edit for:", role.id);
+      setFormErrors({});
       setEditingRole({
         id: role.id,
         category: role.category,
@@ -286,6 +293,8 @@ export default function ManageRoles() {
             }
           : null,
         createPost: false,
+        initialAssigneeId: role.assigned_profile_id || null,
+        initialStatus: role.status || "published",
       });
       setEditModalVisible(true);
       setIsSearchingProfileInEdit(false);
@@ -299,11 +308,26 @@ export default function ManageRoles() {
 
   function handleSave() {
     if (!editingRole) return;
+    const errors: Record<string, string> = {};
+
+    if (!editingRole.category) {
+      errors.category = "La catégorie est requise";
+    }
+
     if (!editingRole.title.trim()) {
-      Alert.alert("Erreur", "Le titre est requis");
+      errors.title = "L'intitulé du poste est requis";
+    }
+
+    if (editingRole.isPaid && !editingRole.remunerationAmount.trim()) {
+      errors.remunerationAmount = "Le montant est requis si rémunéré";
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
       return;
     }
 
+    setFormErrors({});
     if (!editingRole.id) {
       if (editingRole.status === "assigned") {
         processSave(false);
@@ -356,9 +380,24 @@ export default function ManageRoles() {
     try {
       setIsSavingRole(true);
 
-      const resolvedStatus = editingRole.assignee?.id
-        ? "assigned"
-        : forcedStatus || editingRole.status;
+      // FORCE invitation_pending if there is an assignee.
+      let resolvedStatus = forcedStatus || editingRole.status;
+      const assignedProfileId = editingRole.assignee?.id ?? null;
+
+      if (assignedProfileId) {
+        // Determine if this is a confirmed assignment or requires invitation
+        // It remains "assigned" ONLY if it was ALREADY assigned to the SAME person.
+        // Any change (new person, or status wasn't assigned) forces an invitation.
+        const wasAlreadyAssigned = editingRole.initialStatus === "assigned";
+        const isSamePerson =
+          assignedProfileId === editingRole.initialAssigneeId;
+
+        if (wasAlreadyAssigned && isSamePerson) {
+          resolvedStatus = "assigned";
+        } else {
+          resolvedStatus = "invitation_pending";
+        }
+      }
 
       const payload = {
         tournage_id: id,
@@ -522,11 +561,32 @@ export default function ManageRoles() {
   async function executeSearchProfilesForEdit(term: string) {
     setSearching(true);
     try {
+      // Fetch connections of the current user
+      const { data: connections, error: connError } = await supabase
+        .from("connections")
+        .select("requester_id, receiver_id")
+        .eq("status", "accepted")
+        .or(`requester_id.eq.${currentUserId},receiver_id.eq.${currentUserId}`);
+
+      if (connError) throw connError;
+
+      const friendIds =
+        connections?.map((c) =>
+          c.requester_id === currentUserId ? c.receiver_id : c.requester_id,
+        ) || [];
+
+      if (friendIds.length === 0) {
+        setResults([]);
+        setSearching(false);
+        return;
+      }
+
       const category = editingRole?.category;
       let queryBuilder = supabase
         .from("profiles")
-        .select("id, full_name, username, ville, role")
-        .limit(200); // Fetch more for fuzzy filtering
+        .select("id, full_name, username, ville, role, avatar_url")
+        .in("id", friendIds)
+        .limit(200);
 
       if (term && term.trim().length > 0) {
         // Broad search to get candidates for fuzzy ranking
@@ -583,7 +643,7 @@ export default function ManageRoles() {
     if (!editingRole) return;
     setEditingRole({
       ...editingRole,
-      status: "assigned",
+      status: "invitation_pending",
       assignee: {
         id: profile.id,
         label: profile.full_name || profile.username,
@@ -654,12 +714,33 @@ export default function ManageRoles() {
   async function executeSearchProfiles(term: string) {
     setSearching(true);
     try {
+      // Fetch connections of the current user
+      const { data: connections, error: connError } = await supabase
+        .from("connections")
+        .select("requester_id, receiver_id")
+        .eq("status", "accepted")
+        .or(`requester_id.eq.${currentUserId},receiver_id.eq.${currentUserId}`);
+
+      if (connError) throw connError;
+
+      const friendIds =
+        connections?.map((c) =>
+          c.requester_id === currentUserId ? c.receiver_id : c.requester_id,
+        ) || [];
+
+      if (friendIds.length === 0) {
+        setResults([]);
+        setSearching(false);
+        return;
+      }
+
       const role = roles.find((r) => r.id === assigningRoleId);
       const category = role?.category;
 
       let queryBuilder = supabase
         .from("profiles")
-        .select("id, full_name, username, ville, role")
+        .select("id, full_name, username, ville, role, avatar_url")
+        .in("id", friendIds)
         .limit(200);
 
       if (term && term.trim().length > 0) {
@@ -745,8 +826,11 @@ export default function ManageRoles() {
     try {
       const { error } = await supabase
         .from("project_roles")
-        // Update status to assigned as per requirement
-        .update({ assigned_profile_id: profile.id, status: "assigned" })
+        // Update status to invitation_pending
+        .update({
+          assigned_profile_id: profile.id,
+          status: "invitation_pending",
+        })
         .in("id", ids);
 
       if (error) throw error;
@@ -758,7 +842,7 @@ export default function ManageRoles() {
             ? {
                 ...r,
                 assigned_profile_id: profile.id,
-                status: "assigned",
+                status: "invitation_pending",
                 assigned_profile: {
                   full_name: profile.full_name,
                   username: profile.username,
@@ -767,10 +851,12 @@ export default function ManageRoles() {
               }
             : r,
         );
-        // Re-sort: unassigned first (published/draft), assigned last
+        // Re-sort: unassigned first (published/draft), assigned/pending last
         return updated.sort((a, b) => {
-          const aAssigned = a.status === "assigned";
-          const bAssigned = b.status === "assigned";
+          const aAssigned =
+            a.status === "assigned" || a.status === "invitation_pending";
+          const bAssigned =
+            b.status === "assigned" || b.status === "invitation_pending";
           if (aAssigned !== bAssigned) return aAssigned ? 1 : -1;
           return 0;
         });
@@ -1052,7 +1138,30 @@ export default function ManageRoles() {
             >
               {editingRole && !isSearchingProfileInEdit && (
                 <>
-                  <Text style={styles.label}>Catégorie</Text>
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      justifyContent: "center",
+                      alignItems: "center",
+                      gap: 8,
+                      marginBottom: 8,
+                    }}
+                  >
+                    <Text style={[styles.label, { marginBottom: 0 }]}>
+                      Catégorie
+                    </Text>
+                    {formErrors.category && (
+                      <Text
+                        style={{
+                          color: "red",
+                          fontSize: 11,
+                          fontWeight: "600",
+                        }}
+                      >
+                        - {formErrors.category}
+                      </Text>
+                    )}
+                  </View>
                   <View style={[styles.rowWrap, { marginBottom: 20 }]}>
                     {ROLE_CATEGORIES.map((cat) => (
                       <Hoverable
@@ -1086,7 +1195,30 @@ export default function ManageRoles() {
                     ))}
                   </View>
 
-                  <Text style={styles.label}>Intitulé du poste</Text>
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      justifyContent: "center",
+                      alignItems: "center",
+                      gap: 8,
+                      marginBottom: 8,
+                    }}
+                  >
+                    <Text style={[styles.label, { marginBottom: 0 }]}>
+                      Intitulé du poste
+                    </Text>
+                    {formErrors.title && (
+                      <Text
+                        style={{
+                          color: "red",
+                          fontSize: 11,
+                          fontWeight: "600",
+                        }}
+                      >
+                        - {formErrors.title}
+                      </Text>
+                    )}
+                  </View>
                   <View style={[styles.rowWrap, { marginBottom: 10 }]}>
                     {(JOB_TITLES[editingRole.category] || [])
                       .slice(0, 8)
@@ -1311,9 +1443,30 @@ export default function ManageRoles() {
 
                   {editingRole.isPaid && (
                     <View style={{ marginTop: 10 }}>
-                      <Text style={styles.label}>
-                        Montant de la rémunération
-                      </Text>
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          justifyContent: "center",
+                          alignItems: "center",
+                          gap: 8,
+                          marginBottom: 8,
+                        }}
+                      >
+                        <Text style={[styles.label, { marginBottom: 0 }]}>
+                          Montant de la rémunération
+                        </Text>
+                        {formErrors.remunerationAmount && (
+                          <Text
+                            style={{
+                              color: "red",
+                              fontSize: 11,
+                              fontWeight: "600",
+                            }}
+                          >
+                            - {formErrors.remunerationAmount}
+                          </Text>
+                        )}
+                      </View>
                       <TextInput
                         placeholder="Ex: 150€ / jour ou Cachet global"
                         style={[
@@ -1331,68 +1484,21 @@ export default function ManageRoles() {
                     </View>
                   )}
 
-                  {/* STATUS POURVU */}
-                  <Text style={styles.label}>Poste déjà pourvu ?</Text>
+                  {/* STATUS POURVU - REMOVED TO PREVENT FORCED ASSIGNMENT WITHOUT INVITATION
+                  <Text style={styles.label}>
+                    {editingRole.assignee
+                      ? "Confirmer l'assignation (sans invitation) ?"
+                      : "Poste déjà pourvu ?"}
+                  </Text>
                   <View style={styles.rowWrap}>
-                    <Hoverable
-                      onPress={() =>
-                        setEditingRole({ ...editingRole, status: "assigned" })
-                      }
-                      hoverStyle={{ transform: [{ scale: 1.02 }] }}
-                      style={[
-                        styles.catChip,
-                        editingRole.status === "assigned" &&
-                          styles.catChipSelected,
-                        { cursor: "pointer" } as any,
-                      ]}
-                    >
-                      <Text
-                        style={{
-                          fontWeight: "500",
-                          color:
-                            editingRole.status === "assigned"
-                              ? "white"
-                              : Colors.light.text,
-                        }}
-                      >
-                        Oui
-                      </Text>
-                    </Hoverable>
-                    <Hoverable
-                      onPress={() =>
-                        setEditingRole({
-                          ...editingRole,
-                          status:
-                            editingRole.status === "assigned"
-                              ? "published"
-                              : editingRole.status,
-                        })
-                      }
-                      hoverStyle={{ transform: [{ scale: 1.02 }] }}
-                      style={[
-                        styles.catChip,
-                        editingRole.status !== "assigned" &&
-                          styles.catChipSelected,
-                        { cursor: "pointer" } as any,
-                      ]}
-                    >
-                      <Text
-                        style={{
-                          fontWeight: "500",
-                          color:
-                            editingRole.status !== "assigned"
-                              ? "white"
-                              : Colors.light.text,
-                        }}
-                      >
-                        Non
-                      </Text>
-                    </Hoverable>
+                     ... (Validating logic handles status automatically)
                   </View>
+                  */}
 
                   {/* STATUS TOGGLE */}
+                  {/* STATUS TOGGLE */}
                   <Text style={styles.label}>Statut de l'annonce</Text>
-                  {editingRole.assignee ? (
+                  {editingRole.assignee && editingRole.status === "assigned" ? (
                     <Text
                       style={{
                         color: "#666",
@@ -1401,7 +1507,7 @@ export default function ManageRoles() {
                         textAlign: "center",
                       }}
                     >
-                      Ce rôle est assigné. Le statut est verrouillé.
+                      Ce rôle est déjà confirmé (assigné).
                     </Text>
                   ) : (
                     <View>
@@ -1412,7 +1518,7 @@ export default function ManageRoles() {
                             onPress={() =>
                               setEditingRole({
                                 ...editingRole,
-                                status: st,
+                                status: st as any,
                                 ...(st === "draft"
                                   ? { createPost: false }
                                   : {}),
@@ -1422,7 +1528,7 @@ export default function ManageRoles() {
                             style={[
                               styles.catChip,
                               editingRole.status === st &&
-                                styles.catChipSelected, // eslint-disable-line
+                                styles.catChipSelected,
                               { cursor: "pointer" } as any,
                             ]}
                           >
@@ -1435,7 +1541,9 @@ export default function ManageRoles() {
                                     : Colors.light.text,
                               }}
                             >
-                              {st === "draft" ? "Brouillon" : "Publié"}
+                              {st === "draft"
+                                ? "Brouillon"
+                                : "Ouvert (Casting)"}
                             </Text>
                           </Hoverable>
                         ))}

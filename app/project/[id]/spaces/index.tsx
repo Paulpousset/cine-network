@@ -2,17 +2,18 @@ import ClapLoading from "@/components/ClapLoading";
 import Colors from "@/constants/Colors";
 import { GlobalStyles } from "@/constants/Styles";
 import { useUserMode } from "@/hooks/useUserMode";
+import { useTutorial } from "@/providers/TutorialProvider";
 import { Ionicons } from "@expo/vector-icons";
 import { Stack, useGlobalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-  FlatList,
-  Platform,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  useWindowDimensions,
-  View,
+    FlatList,
+    Platform,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    useWindowDimensions,
+    View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { supabase } from "../../../../lib/supabase";
@@ -32,6 +33,7 @@ const CATEGORY_COLORS: Record<string, string> = {
 
 export default function ChatList() {
   const { id } = useGlobalSearchParams();
+  const { isTutorialActive, currentStep } = useTutorial();
   const router = useRouter();
   const { width } = useWindowDimensions();
   const { mode } = useUserMode();
@@ -77,7 +79,11 @@ export default function ChatList() {
       }
 
       setProject(proj);
-      const userIsOwner = proj?.owner_id === userId;
+      const userIsOwner =
+        proj?.owner_id === userId ||
+        (isTutorialActive &&
+          proj?.title?.includes("Vitrine") &&
+          currentStep?.id?.startsWith("admin"));
       setIsOwner(userIsOwner);
 
       let debugMsg = `User: ${userId?.substring(0, 5)}... Owner: ${project?.owner_id?.substring(0, 5)}... Match: ${userIsOwner}`;

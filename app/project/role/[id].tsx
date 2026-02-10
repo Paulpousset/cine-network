@@ -5,15 +5,15 @@ import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-    Alert,
-    Image,
-    Modal,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  Image,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { supabase } from "../../../lib/supabase";
 
@@ -183,6 +183,69 @@ export default function RoleDetails() {
     return desc;
   }
 
+  async function handleAcceptAssignment() {
+    try {
+      setApplying(true);
+      const { data, error } = await supabase
+        .from("project_roles")
+        .update({ status: "assigned" })
+        .eq("id", id)
+        .select();
+
+      if (error) throw error;
+      if (!data || data.length === 0) {
+        throw new Error(
+          "Impossible d'accepter l'invitation. (Permissions insuffisantes)",
+        );
+      }
+
+      fetchRoleDetails();
+      Alert.alert("Bienvenue !", "Vous avez accepté ce rôle.");
+    } catch (e) {
+      Alert.alert("Erreur", (e as Error).message || "Une erreur est survenue.");
+    } finally {
+      setApplying(false);
+    }
+  }
+
+  async function handleDeclineAssignment() {
+    try {
+      setApplying(true);
+      // If there was an accepted application, also update it
+      await supabase
+        .from("applications" as any)
+        .update({ status: "rejected" })
+        .eq("role_id", id)
+        .eq("candidate_id", userId)
+        .eq("status", "accepted");
+
+      const { data, error } = await supabase
+        .from("project_roles")
+        .update({
+          status: "published",
+          assigned_profile_id: null,
+        })
+        .eq("id", id)
+        .select();
+
+      if (error) throw error;
+      if (!data || data.length === 0) {
+        throw new Error(
+          "Impossible de refuser l'invitation. (Permissions insuffisantes)",
+        );
+      }
+
+      router.back();
+    } catch (e) {
+      Alert.alert("Erreur", (e as Error).message || "Une erreur est survenue.");
+    } finally {
+      setApplying(false);
+    }
+  }
+
+  const isAssignedToMe = role && userId && role.assigned_profile_id === userId;
+  const isInvitation = isAssignedToMe && role.status === "invitation_pending";
+
   return (
     <View style={styles.container}>
       <ScrollView
@@ -212,13 +275,49 @@ export default function RoleDetails() {
         <View style={styles.content}>
           {/* ROLE HEADER */}
           <View style={styles.roleHeader}>
-            <Text style={styles.roleTitle}>{role.title}</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.roleTitle}>{role.title}</Text>
+              {isInvitation && (
+                <Text style={{ color: Colors.light.tint, fontWeight: "600" }}>
+                  Invitation en attente
+                </Text>
+              )}
+            </View>
             <View style={styles.badge}>
               <Text style={styles.badgeText}>
                 {role.category.toUpperCase()}
               </Text>
             </View>
           </View>
+
+          {isInvitation && (
+            <View
+              style={[
+                GlobalStyles.card,
+                {
+                  backgroundColor: "#FFF9C4",
+                  borderColor: "#FBC02D",
+                  marginBottom: 20,
+                },
+              ]}
+            >
+              <View
+                style={{ flexDirection: "row", alignItems: "center", gap: 10 }}
+              >
+                <Ionicons
+                  name="mail-unread-outline"
+                  size={24}
+                  color="#FBC02D"
+                />
+                <Text style={{ fontWeight: "600", color: "#333" }}>
+                  On vous propose ce rôle !
+                </Text>
+              </View>
+              <Text style={{ marginTop: 5, color: "#666" }}>
+                Vous pouvez accepter ou décliner cette proposition ci-dessous.
+              </Text>
+            </View>
+          )}
 
           {/* PROJECT INFO CARD */}
           <View style={GlobalStyles.card}>
@@ -338,22 +437,63 @@ export default function RoleDetails() {
 
       {/* FOOTER ACTION */}
       <View style={styles.footer}>
-        <TouchableOpacity
-          style={[
-            GlobalStyles.primaryButton,
-            (hasApplied || applying) && { backgroundColor: "#ccc" },
-          ]}
-          onPress={openApplicationModal}
-          disabled={hasApplied || applying}
-        >
-          {applying ? (
-            <ClapLoading color="white" size={24} />
-          ) : (
-            <Text style={GlobalStyles.buttonText}>
-              {hasApplied ? "Candidature envoyée" : "Postuler"}
-            </Text>
-          )}
-        </TouchableOpacity>
+        {isInvitation ? (
+          <View style={{ flexDirection: "row", gap: 12 }}>
+            <TouchableOpacity
+              style={[
+                GlobalStyles.primaryButton,
+                { flex: 2 },
+                applying && { opacity: 0.7 },
+              ]}
+              onPress={handleAcceptAssignment}
+              disabled={applying}
+            >
+              <Text style={GlobalStyles.buttonText}>Accepter l'invitation</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                GlobalStyles.primaryButton,
+                { flex: 1, backgroundColor: "#f0f0f0" },
+                applying && { opacity: 0.7 },
+              ]}
+              onPress={handleDeclineAssignment}
+              disabled={applying}
+            >
+              <Text style={[GlobalStyles.buttonText, { color: "#666" }]}>
+                Décliner
+              </Text>
+            </TouchableOpacity>
+          </View>
+        ) : isAssignedToMe ? (
+          <View
+            style={[GlobalStyles.primaryButton, { backgroundColor: "#4CAF50" }]}
+          >
+            <Text style={GlobalStyles.buttonText}>✓ Membre confirmé</Text>
+          </View>
+        ) : (
+          <TouchableOpacity
+            style={[
+              GlobalStyles.primaryButton,
+              (hasApplied || applying || role.status !== "published") && {
+                backgroundColor: "#ccc",
+              },
+            ]}
+            onPress={openApplicationModal}
+            disabled={hasApplied || applying || role.status !== "published"}
+          >
+            {applying ? (
+              <ClapLoading color="white" size={24} />
+            ) : (
+              <Text style={GlobalStyles.buttonText}>
+                {hasApplied
+                  ? "Candidature envoyée"
+                  : role.status !== "published"
+                    ? "Poste déjà pourvu"
+                    : "Postuler"}
+              </Text>
+            )}
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* MODAL APPLICATION */}

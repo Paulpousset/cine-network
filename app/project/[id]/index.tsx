@@ -4,26 +4,27 @@ import RoleFormFields from "@/components/RoleFormFields";
 import Colors from "@/constants/Colors";
 import { GlobalStyles } from "@/constants/Styles";
 import { useUserMode } from "@/hooks/useUserMode";
+import { useTutorial } from "@/providers/TutorialProvider";
 import { JOB_TITLES } from "@/utils/roles";
 import { fuzzySearch } from "@/utils/search";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
-  Alert,
-  Animated,
-  Easing,
-  FlatList,
-  Image,
-  Modal,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  useWindowDimensions,
-  View,
+    Alert,
+    Animated,
+    Easing,
+    FlatList,
+    Image,
+    Modal,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    useWindowDimensions,
+    View,
 } from "react-native";
 import { supabase } from "../../../lib/supabase";
 
@@ -315,6 +316,7 @@ export default function ProjectDetails() {
 
   // Detailed Role Form State
   const [roleFormVisible, setRoleFormVisible] = useState(false);
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [editingRole, setEditingRole] = useState<{
     id?: string;
     category: keyof typeof JOB_TITLES;
@@ -331,12 +333,14 @@ export default function ProjectDetails() {
     equipment: string;
     software: string;
     specialties: string;
-    status: "draft" | "published" | "assigned"; // "draft" | "published"
+    status: string; // "draft" | "published" | "assigned" | "invitation_pending"
     isPaid: boolean;
     remunerationAmount: string;
     assignee: { id: string; label: string } | null;
     data: any; // JSONB storage for extra fields
     createPost: boolean;
+    initialAssigneeId?: string | null;
+    initialStatus?: string;
   } | null>(null);
   const [isSavingRole, setIsSavingRole] = useState(false);
 
@@ -390,6 +394,49 @@ export default function ProjectDetails() {
 
   useEffect(() => {
     fetchProjectDetails();
+  }, [id]);
+
+  useEffect(() => {
+    const projectId = Array.isArray(id) ? id[0] : id;
+    if (!projectId) return;
+
+    // Applications channel
+    const appsChannel = supabase
+      .channel(`project-apps-${projectId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "applications",
+        },
+        () => {
+          fetchApplications();
+        },
+      )
+      .subscribe();
+
+    // Roles channel
+    const rolesChannel = supabase
+      .channel(`project-roles-${projectId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "project_roles",
+          filter: `tournage_id=eq.${projectId}`,
+        },
+        () => {
+          fetchRoles();
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(appsChannel);
+      supabase.removeChannel(rolesChannel);
+    };
   }, [id]);
 
   async function toggleLike() {
@@ -602,8 +649,11 @@ export default function ProjectDetails() {
       specialties: "",
       data: {},
       createPost: false,
+      initialAssigneeId: null,
+      initialStatus: "draft",
     });
     setRoleFormVisible(true);
+    setFormErrors({});
     setIsSearchingProfileInForm(false);
     setFormSearchQuery("");
     setFormSearchResults([]);
@@ -627,6 +677,7 @@ export default function ProjectDetails() {
       setManageRole(null);
 
       setTimeout(() => {
+        setFormErrors({});
         setEditingRole({
           id: role.id,
           category: role.category,
@@ -651,6 +702,8 @@ export default function ProjectDetails() {
             : "",
           assignee: assignee,
           createPost: false,
+          initialAssigneeId: role.assigned_profile_id || null,
+          initialStatus: role.status || "published",
         });
         setRoleFormVisible(true);
         setIsSearchingProfileInForm(false);
@@ -665,11 +718,26 @@ export default function ProjectDetails() {
 
   function handleSaveRoleForm() {
     if (!editingRole) return;
+    const errors: Record<string, string> = {};
+
+    if (!editingRole.category) {
+      errors.category = "La catégorie est requise";
+    }
+
     if (!editingRole.title.trim()) {
-      Alert.alert("Erreur", "Le titre est requis");
+      errors.title = "L'intitulé du poste est requis";
+    }
+
+    if (editingRole.isPaid && !editingRole.remunerationAmount.trim()) {
+      errors.remunerationAmount = "Le montant est requis si rémunéré";
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
       return;
     }
 
+    setFormErrors({});
     saveRoleForm();
   }
 
@@ -682,9 +750,26 @@ export default function ProjectDetails() {
 
     try {
       setIsSavingRole(true);
-      const resolvedStatus = editingRole.assignee?.id
-        ? "assigned"
-        : editingRole.status;
+
+      // FORCE invitation_pending if there is an assignee.
+      let resolvedStatus = editingRole.status;
+      const assignedProfileId = editingRole.assignee?.id ?? null;
+
+      if (assignedProfileId) {
+        // Determine if this is a confirmed assignment or requires invitation
+        // It remains "assigned" ONLY if it was ALREADY assigned to the SAME person.
+        // Any change (new person, or status wasn't assigned) forces an invitation.
+        const wasAlreadyAssigned = editingRole.initialStatus === "assigned";
+        const isSamePerson =
+          assignedProfileId === editingRole.initialAssigneeId;
+
+        if (wasAlreadyAssigned && isSamePerson) {
+          resolvedStatus = "assigned";
+        } else {
+          resolvedStatus = "invitation_pending";
+        }
+      }
+
       const payload = {
         tournage_id: id,
         category: editingRole.category,
@@ -852,10 +937,31 @@ export default function ProjectDetails() {
   async function executeSearchProfilesForForm(term: string) {
     setIsFormSearching(true);
     try {
+      // Fetch connections of the current user
+      const { data: connections, error: connError } = await supabase
+        .from("connections")
+        .select("requester_id, receiver_id")
+        .eq("status", "accepted")
+        .or(`requester_id.eq.${currentUserId},receiver_id.eq.${currentUserId}`);
+
+      if (connError) throw connError;
+
+      const friendIds =
+        connections?.map((c) =>
+          c.requester_id === currentUserId ? c.receiver_id : c.requester_id,
+        ) || [];
+
+      if (friendIds.length === 0) {
+        setFormSearchResults([]);
+        setIsFormSearching(false);
+        return;
+      }
+
       const category = editingRole?.category;
       let queryBuilder = supabase
         .from("profiles")
-        .select("id, full_name, username, ville, role")
+        .select("id, full_name, username, ville, role, avatar_url")
+        .in("id", friendIds)
         .limit(200);
 
       if (term && term.trim().length > 0) {
@@ -919,6 +1025,7 @@ export default function ProjectDetails() {
     if (!editingRole) return;
     setEditingRole({
       ...editingRole,
+      status: "invitation_pending",
       assignee: {
         id: profile.id,
         label: profile.full_name || profile.username,
@@ -1023,10 +1130,31 @@ export default function ProjectDetails() {
   async function executeSearchProfiles(term: string) {
     setSearching(true);
     try {
+      // Fetch connections of the current user
+      const { data: connections, error: connError } = await supabase
+        .from("connections")
+        .select("requester_id, receiver_id")
+        .eq("status", "accepted")
+        .or(`requester_id.eq.${currentUserId},receiver_id.eq.${currentUserId}`);
+
+      if (connError) throw connError;
+
+      const friendIds =
+        connections?.map((c) =>
+          c.requester_id === currentUserId ? c.receiver_id : c.requester_id,
+        ) || [];
+
+      if (friendIds.length === 0) {
+        setResults([]);
+        setSearching(false);
+        return;
+      }
+
       const category = manageRole?.category;
       let queryBuilder = supabase
         .from("profiles")
-        .select("id, full_name, username, ville, role")
+        .select("id, full_name, username, ville, role, avatar_url")
+        .in("id", friendIds)
         .limit(200);
 
       if (term && term.trim().length > 0) {
@@ -1073,7 +1201,7 @@ export default function ProjectDetails() {
     try {
       const { data, error } = await supabase
         .from("project_roles")
-        .update({ assigned_profile_id: user.id, status: "assigned" })
+        .update({ assigned_profile_id: user.id, status: "invitation_pending" })
         .eq("id", manageRole.id)
         .select();
 
@@ -1088,7 +1216,7 @@ export default function ProjectDetails() {
         ...manageRole,
         assigned_profile_id: user.id,
         assigned_profile: user,
-        status: "assigned",
+        status: "invitation_pending",
       };
       setRoles((prev) =>
         prev.map((r) => (r.id === manageRole.id ? updated : r)),
@@ -1154,12 +1282,24 @@ export default function ProjectDetails() {
         .eq("id", app.id);
       if (appError) throw appError;
 
+      // 1b. Reject other applicants for the same role
+      const { error: rejectError } = await supabase
+        .from("applications" as any)
+        .update({ status: "rejected" })
+        .eq("role_id", app.role_id)
+        .neq("id", app.id)
+        .eq("status", "pending");
+
+      if (rejectError) {
+        console.error("Error rejecting other candidates:", rejectError);
+      }
+
       // 2. Assign role to user
       const { error: roleError } = await supabase
         .from("project_roles")
         .update({
           assigned_profile_id: app.candidate_id,
-          status: "assigned",
+          status: "invitation_pending",
         })
         .eq("id", app.role_id);
 
@@ -1232,8 +1372,15 @@ export default function ProjectDetails() {
     }
   }
 
+  const { isTutorialActive, currentStep } = useTutorial();
+
   const isOwner =
-    project?.owner_id && currentUserId && project.owner_id === currentUserId;
+    (project?.owner_id &&
+      currentUserId &&
+      project.owner_id === currentUserId) ||
+    (isTutorialActive &&
+      project?.title?.includes("Vitrine") &&
+      currentStep?.id?.startsWith("admin"));
 
   // Un rôle est visible s'il n'est pas en brouillon OU s'il y a quelqu'un d'assigné (pour l'équipe)
   const visibleRoles = roles.filter(
@@ -1241,94 +1388,82 @@ export default function ProjectDetails() {
   );
 
   const groupedRolesSections = React.useMemo(() => {
-    const groups: Record<string, any> = {};
+    const buckets = {
+      filled: [] as any[],
+      pending: [] as any[],
+      published: [] as any[],
+      draft: [] as any[],
+    };
+
     visibleRoles.forEach((r) => {
-      // Group by Category + Title only (to have all slots of the same role in one card)
-      // Normalize title to avoid duplicates due to casing or spaces
-      const trimmedTitle = r.title.trim();
-      const key = `${r.category}|${trimmedTitle.toLowerCase()}`;
-
-      // Determine effective status for sectioning the groups later
-      // A group is "filled" only if ALL its items are assigned
-      // A group is "draft" if it contains at least one draft
-      // Otherwise it's "published"
-      let statusKey = "published";
       if (r.assigned_profile_id) {
-        statusKey = "assigned";
-      } else if (r.status === "draft") {
-        statusKey = "draft";
-      }
-
-      if (!groups[key]) {
-        groups[key] = {
-          key,
-          category: r.category,
-          title: trimmedTitle,
-          description: r.description,
-          statusKey, // This will be updated if needed
-          items: [],
-        };
-      }
-
-      groups[key].items.push(r);
-
-      // We update the group's statusKey based on its items
-      // If any item is unassigned and published, it's "published" (recruiting)
-      // If all items are assigned, it's "assigned" (filled)
-      // If any item is draft, we might want to flag the whole group or keep it separate
-      // For now, let's keep the user's logic but improved
-    });
-
-    const allGroups = Object.values(groups).map((g: any) => {
-      const hasUnassignedPublished = g.items.some(
-        (i: any) => !i.assigned_profile_id && i.status !== "draft",
-      );
-      const hasDrafts = g.items.some((i: any) => i.status === "draft");
-      const allAssigned = g.items.every((i: any) => i.assigned_profile_id);
-
-      if (allAssigned) {
-        g.statusKey = "assigned";
-      } else if (hasUnassignedPublished) {
-        g.statusKey = "published";
-      } else if (hasDrafts) {
-        g.statusKey = "draft";
-      }
-      return g;
-    });
-
-    const published: any[] = [];
-    const drafts: any[] = [];
-    const filled: any[] = [];
-
-    allGroups.forEach((g: any) => {
-      if (g.statusKey === "assigned") {
-        filled.push(g);
-      } else if (g.statusKey === "published") {
-        published.push(g);
+        if (r.status === "assigned") {
+          buckets.filled.push(r);
+        } else {
+          buckets.pending.push(r);
+        }
       } else {
-        drafts.push(g);
+        if (r.status === "draft") {
+          buckets.draft.push(r);
+        } else {
+          buckets.published.push(r);
+        }
       }
     });
 
-    // Sections
+    const processBucket = (items: any[], statusKey: string) => {
+      const groups: Record<string, any> = {};
+      items.forEach((r) => {
+        const trimmedTitle = (r.title || "").trim();
+        const key = `${r.category}|${trimmedTitle.toLowerCase()}|${statusKey}`;
+        if (!groups[key]) {
+          groups[key] = {
+            key,
+            category: r.category,
+            title: trimmedTitle,
+            description: r.description,
+            statusKey,
+            items: [],
+          };
+        }
+        groups[key].items.push(r);
+      });
+      return Object.values(groups).sort((a: any, b: any) =>
+        a.title.localeCompare(b.title),
+      );
+    };
+
     const sections = [];
 
-    if (published.length > 0) {
+    const publishedGroups = processBucket(buckets.published, "published");
+    if (publishedGroups.length > 0) {
       sections.push({
         title: "Recrutement en cours",
-        data: published.sort((a, b) => a.title.localeCompare(b.title)),
+        data: publishedGroups,
       });
     }
-    if (drafts.length > 0) {
+
+    const pendingGroups = processBucket(buckets.pending, "pending");
+    if (pendingGroups.length > 0) {
+      sections.push({
+        title: "En attente (Invitations)",
+        data: pendingGroups,
+      });
+    }
+
+    const draftGroups = processBucket(buckets.draft, "draft");
+    if (draftGroups.length > 0) {
       sections.push({
         title: "Brouillons",
-        data: drafts.sort((a, b) => a.title.localeCompare(b.title)),
+        data: draftGroups,
       });
     }
-    if (filled.length > 0) {
+
+    const filledGroups = processBucket(buckets.filled, "assigned");
+    if (filledGroups.length > 0) {
       sections.push({
         title: "Équipe & Participants",
-        data: filled.sort((a, b) => a.title.localeCompare(b.title)),
+        data: filledGroups,
       });
     }
 
@@ -1792,7 +1927,30 @@ export default function ProjectDetails() {
             >
               {editingRole && !isSearchingProfileInForm && (
                 <>
-                  <Text style={styles.label}>Catégorie</Text>
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      justifyContent: "center",
+                      alignItems: "center",
+                      gap: 8,
+                      marginBottom: 8,
+                    }}
+                  >
+                    <Text style={[styles.label, { marginBottom: 0 }]}>
+                      Catégorie
+                    </Text>
+                    {formErrors.category && (
+                      <Text
+                        style={{
+                          color: "red",
+                          fontSize: 11,
+                          fontWeight: "600",
+                        }}
+                      >
+                        - {formErrors.category}
+                      </Text>
+                    )}
+                  </View>
                   <View style={[styles.rowWrap, { marginBottom: 20 }]}>
                     {ROLE_CATEGORIES.map((cat) => (
                       <Hoverable
@@ -1829,7 +1987,30 @@ export default function ProjectDetails() {
                     ))}
                   </View>
 
-                  <Text style={styles.label}>Intitulé du poste</Text>
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      justifyContent: "center",
+                      alignItems: "center",
+                      gap: 8,
+                      marginBottom: 8,
+                    }}
+                  >
+                    <Text style={[styles.label, { marginBottom: 0 }]}>
+                      Intitulé du poste
+                    </Text>
+                    {formErrors.title && (
+                      <Text
+                        style={{
+                          color: "red",
+                          fontSize: 11,
+                          fontWeight: "600",
+                        }}
+                      >
+                        - {formErrors.title}
+                      </Text>
+                    )}
+                  </View>
                   <View style={[styles.rowWrap, { marginBottom: 15 }]}>
                     {(JOB_TITLES[editingRole.category] || [])
                       .slice(0, 8)
@@ -2053,9 +2234,30 @@ export default function ProjectDetails() {
 
                   {editingRole.isPaid && (
                     <View style={{ marginTop: 10 }}>
-                      <Text style={styles.label}>
-                        Montant de la rémunération
-                      </Text>
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          justifyContent: "center",
+                          alignItems: "center",
+                          gap: 8,
+                          marginBottom: 8,
+                        }}
+                      >
+                        <Text style={[styles.label, { marginBottom: 0 }]}>
+                          Montant de la rémunération
+                        </Text>
+                        {formErrors.remunerationAmount && (
+                          <Text
+                            style={{
+                              color: "red",
+                              fontSize: 11,
+                              fontWeight: "600",
+                            }}
+                          >
+                            - {formErrors.remunerationAmount}
+                          </Text>
+                        )}
+                      </View>
                       <TextInput
                         placeholder="Ex: 150€ / jour ou Cachet global"
                         style={styles.input}
@@ -2070,70 +2272,20 @@ export default function ProjectDetails() {
                     </View>
                   )}
 
-                  {/* STATUS POURVU */}
-                  <Text style={styles.label}>Poste déjà pourvu ?</Text>
+                  {/* STATUS POURVU - REMOVED
+                  <Text style={styles.label}>
+                    {editingRole.assignee
+                      ? "Statut de l'assignation"
+                      : "Poste déjà pourvu ?"}
+                  </Text>
                   <View style={[styles.rowWrap, { marginBottom: 15 }]}>
-                    <Hoverable
-                      onPress={() =>
-                        setEditingRole({ ...editingRole, status: "assigned" })
-                      }
-                      hoverStyle={{ transform: [{ scale: 1.05 }] }}
-                      style={[
-                        styles.catButton,
-                        editingRole.status === "assigned" && {
-                          backgroundColor: "#333",
-                          borderColor: "#333",
-                        },
-                        { cursor: "pointer" } as any,
-                      ]}
-                    >
-                      <Text
-                        style={{
-                          color:
-                            editingRole.status === "assigned"
-                              ? "white"
-                              : "#333",
-                        }}
-                      >
-                        Oui
-                      </Text>
-                    </Hoverable>
-                    <Hoverable
-                      onPress={() =>
-                        setEditingRole({
-                          ...editingRole,
-                          status:
-                            editingRole.status === "assigned"
-                              ? "published"
-                              : editingRole.status,
-                        })
-                      }
-                      hoverStyle={{ transform: [{ scale: 1.05 }] }}
-                      style={[
-                        styles.catButton,
-                        editingRole.status !== "assigned" && {
-                          backgroundColor: "#333",
-                          borderColor: "#333",
-                        },
-                        { cursor: "pointer" } as any,
-                      ]}
-                    >
-                      <Text
-                        style={{
-                          color:
-                            editingRole.status !== "assigned"
-                              ? "white"
-                              : "#333",
-                        }}
-                      >
-                        Non
-                      </Text>
-                    </Hoverable>
+                       ... (Automated status logic is safer)
                   </View>
+                  */}
 
                   {/* STATUS TOGGLE */}
                   <Text style={styles.label}>Statut de l'annonce</Text>
-                  {editingRole.assignee ? (
+                  {editingRole.assignee && editingRole.status === "assigned" ? (
                     <Text
                       style={{
                         color: "#666",
@@ -2142,7 +2294,7 @@ export default function ProjectDetails() {
                         textAlign: "center",
                       }}
                     >
-                      Ce rôle est assigné. Le statut est verrouillé.
+                      Ce rôle est déjà confirmé (assigné).
                     </Text>
                   ) : (
                     <View style={[styles.rowWrap, { marginBottom: 15 }]}>
@@ -2173,7 +2325,7 @@ export default function ProjectDetails() {
                                 editingRole.status === st ? "white" : "#333",
                             }}
                           >
-                            {st === "draft" ? "Brouillon" : "Publié"}
+                            {st === "draft" ? "Brouillon" : "Ouvert au casting"}
                           </Text>
                         </Hoverable>
                       ))}
@@ -3055,3 +3207,7 @@ const styles = StyleSheet.create({
   },
   jobChipSelected: { backgroundColor: Colors.light.primary },
 });
+
+function setResults(arg0: never[]) {
+  throw new Error("Function not implemented.");
+}

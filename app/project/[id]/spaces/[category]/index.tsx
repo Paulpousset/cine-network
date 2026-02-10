@@ -26,6 +26,7 @@ import {
     TouchableOpacity,
     View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 // --- Extracted Chat Component (Original Logic) ---
 function ChatView({
@@ -37,6 +38,7 @@ function ChatView({
   category: string;
   canWrite: boolean;
 }) {
+  const insets = useSafeAreaInsets();
   const [messages, setMessages] = useState<any[]>([]);
   const [inputText, setInputText] = useState("");
   const [loading, setLoading] = useState(true);
@@ -201,8 +203,8 @@ function ChatView({
   return (
     <KeyboardAvoidingView
       style={{ flex: 1, backgroundColor: "#f8f9fa" }}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-      keyboardVerticalOffset={Platform.OS === "ios" ? 100 : 0}
+      behavior={Platform.OS === "ios" ? "padding" : "padding"}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 100 : 90}
     >
       {loading ? (
         <View
@@ -242,13 +244,37 @@ function ChatView({
         />
       )}
       {canWrite ? (
-        <View style={styles.inputContainer}>
+        <View
+          style={[
+            styles.inputContainer,
+            { paddingBottom: insets.bottom || 10 },
+          ]}
+        >
           <TextInput
             style={styles.input}
             value={inputText}
             onChangeText={setInputText}
             placeholder="Écrivez un message..."
             placeholderTextColor="#999"
+            multiline
+            returnKeyType="send"
+            blurOnSubmit={true}
+            onSubmitEditing={() => {
+              if (inputText.trim()) {
+                sendMessage();
+              }
+            }}
+            onKeyPress={(e) => {
+              if (Platform.OS === "web") {
+                // @ts-ignore
+                if (e.nativeEvent.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  if (inputText.trim()) {
+                    sendMessage();
+                  }
+                }
+              }
+            }}
           />
           <TouchableOpacity onPress={sendMessage} style={styles.sendButton}>
             <Ionicons name="send" size={20} color="white" />
@@ -731,6 +757,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
     paddingVertical: 10,
     marginRight: 10,
+    maxHeight: 100,
+    minHeight: 40,
   },
   sendButton: {
     backgroundColor: Colors.light.tint,

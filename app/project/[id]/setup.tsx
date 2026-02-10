@@ -8,16 +8,16 @@ import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
-    Alert,
-    Button,
-    FlatList,
-    Modal,
-    Platform,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  Button,
+  FlatList,
+  Modal,
+  Platform,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { supabase } from "../../../lib/supabase";
@@ -67,6 +67,7 @@ type DraftRole = {
   remunerationAmount?: string;
   isFilled?: boolean;
   data?: any;
+  errors?: Record<string, string>;
 };
 
 export default function ProjectSetupWizard() {
@@ -208,12 +209,40 @@ export default function ProjectSetupWizard() {
   async function executeSearchProfiles(term: string) {
     setSearching(true);
     try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const currentUserId = session?.user.id;
+
+      if (!currentUserId) return;
+
+      // Fetch connections of the current user
+      const { data: connections, error: connError } = await supabase
+        .from("connections")
+        .select("requester_id, receiver_id")
+        .eq("status", "accepted")
+        .or(`requester_id.eq.${currentUserId},receiver_id.eq.${currentUserId}`);
+
+      if (connError) throw connError;
+
+      const friendIds =
+        connections?.map((c) =>
+          c.requester_id === currentUserId ? c.receiver_id : c.requester_id,
+        ) || [];
+
+      if (friendIds.length === 0) {
+        setResults([]);
+        setSearching(false);
+        return;
+      }
+
       const activeDraft = draftRoles.find((r) => r.id === pickerOpen);
       const category = activeDraft?.category;
 
       let queryBuilder = supabase
         .from("profiles")
-        .select("id, full_name, username, ville, role")
+        .select("id, full_name, username, ville, role, avatar_url")
+        .in("id", friendIds)
         .limit(200);
 
       if (term && term.trim().length > 0) {
@@ -261,6 +290,29 @@ export default function ProjectSetupWizard() {
       Alert.alert("Rien à enregistrer", "Ajoutez au moins un rôle.");
       return;
     }
+
+    // Validation
+    let hasErrors = false;
+    const validatedRoles = draftRoles.map((r) => {
+      const errors: Record<string, string> = {};
+      if (!r.title.trim()) {
+        errors.title = "L'intitulé du poste est requis";
+      }
+      if (r.isPaid && !r.remunerationAmount?.trim()) {
+        errors.remunerationAmount = "Le montant est requis si rémunéré";
+      }
+
+      if (Object.keys(errors).length > 0) {
+        hasErrors = true;
+      }
+      return { ...r, errors };
+    });
+
+    if (hasErrors) {
+      setDraftRoles(validatedRoles);
+      return;
+    }
+
     try {
       setSaving(true);
       const baseRows = draftRoles.flatMap((r) => {
@@ -292,7 +344,7 @@ export default function ProjectSetupWizard() {
             specialties: r.specialties || null,
             is_paid: r.isPaid ?? false,
             remuneration_amount: r.isPaid ? r.remunerationAmount : null,
-            status: r.isFilled || r.assignee?.id ? "assigned" : "draft",
+            status: r.assignee?.id ? "invitation_pending" : "published",
           }));
         });
         const { error: tryErr } = await supabase
@@ -303,7 +355,9 @@ export default function ProjectSetupWizard() {
         // fallback: insert without assignment
         const { error } = await supabase
           .from("project_roles")
-          .insert(baseRows as any[]);
+          .insert(
+            baseRows.map((r) => ({ ...r, status: "published" })) as any[],
+          );
         if (error) throw error;
       }
 
@@ -407,7 +461,26 @@ export default function ProjectSetupWizard() {
                 ))}
               </View>
 
-              <Text style={styles.label}>Intitulé du poste</Text>
+              <View
+                style={{
+                  flexDirection: "row",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  gap: 8,
+                  marginBottom: 6,
+                }}
+              >
+                <Text style={[styles.label, { marginBottom: 0 }]}>
+                  Intitulé du poste
+                </Text>
+                {item.errors?.title && (
+                  <Text
+                    style={{ color: "red", fontSize: 11, fontWeight: "600" }}
+                  >
+                    - {item.errors.title}
+                  </Text>
+                )}
+              </View>
               <View style={styles.rowWrap}>
                 {(JOB_TITLES[item.category] || []).slice(0, 8).map((job) => (
                   <TouchableOpacity
@@ -556,7 +629,30 @@ export default function ProjectSetupWizard() {
 
               {item.isPaid && (
                 <View style={{ marginTop: 10 }}>
-                  <Text style={styles.label}>Montant de la rémunération</Text>
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      justifyContent: "center",
+                      alignItems: "center",
+                      gap: 8,
+                      marginBottom: 6,
+                    }}
+                  >
+                    <Text style={[styles.label, { marginBottom: 0 }]}>
+                      Montant de la rémunération
+                    </Text>
+                    {item.errors?.remunerationAmount && (
+                      <Text
+                        style={{
+                          color: "red",
+                          fontSize: 11,
+                          fontWeight: "600",
+                        }}
+                      >
+                        - {item.errors.remunerationAmount}
+                      </Text>
+                    )}
+                  </View>
                   <TextInput
                     placeholder="Ex: 150€ / jour ou Cachet global"
                     style={styles.input}

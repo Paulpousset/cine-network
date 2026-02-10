@@ -2,6 +2,7 @@ import ClapLoading from "@/components/ClapLoading";
 import Colors from "@/constants/Colors";
 import { GlobalStyles } from "@/constants/Styles";
 import { useUserMode } from "@/hooks/useUserMode";
+import { useTutorial } from "@/providers/TutorialProvider";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useState } from "react";
@@ -36,6 +37,7 @@ export default function MyProjects() {
   const router = useRouter(); // <--- Hook de navigation
   const { width } = useWindowDimensions();
   const isWebLarge = Platform.OS === "web" && width >= 768;
+  const { hasCompletedTutorial } = useTutorial();
   const [sections, setSections] = useState<
     { title: string; data: Project[] }[]
   >([]);
@@ -100,7 +102,7 @@ export default function MyProjects() {
       }
 
       // 2. Fetch Participating Projects (Excluding completed ones)
-      // user is participating if they are 'assigned_profile_id' in a role
+      // user is participating if they are 'assigned_profile_id' in a role AND status is 'assigned' (confirmed)
       const { data: participations, error: partError } = await supabase
         .from("project_roles")
         .select(
@@ -109,7 +111,12 @@ export default function MyProjects() {
           tournages (*)
         `,
         )
-        .eq("assigned_profile_id", session.user.id);
+        .eq("assigned_profile_id", session.user.id)
+        // remove those that your are also owner of, to avoid duplicates in the list
+        .neq("tournages.owner_id", session.user.id)
+        .neq("tournages.status", "completed")
+
+        .eq("status", "assigned");
 
       if (partError) throw partError;
 
@@ -136,9 +143,9 @@ export default function MyProjects() {
   const renderProjectItem = ({ item }: { item: Project }) => (
     <TouchableOpacity
       style={[GlobalStyles.card, isWebLarge && styles.webProjectCard]}
-      onPress={() =>
-        router.push({ pathname: "/project/[id]", params: { id: item.id } })
-      }
+      onPress={() => {
+        router.push({ pathname: "/project/[id]", params: { id: item.id } });
+      }}
     >
       {item.has_notifications && <View style={styles.notificationDot} />}
       <View style={{ flexDirection: "row", gap: 15, flex: 1 }}>
