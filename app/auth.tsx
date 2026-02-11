@@ -2,7 +2,9 @@ import ClapLoading from "@/components/ClapLoading";
 import { Hoverable } from "@/components/Hoverable";
 import Colors from "@/constants/Colors";
 import { Ionicons } from "@expo/vector-icons";
+import * as AppleAuthentication from "expo-apple-authentication";
 import { makeRedirectUri } from "expo-auth-session";
+import * as Crypto from "expo-crypto";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Linking from "expo-linking";
 import * as WebBrowser from "expo-web-browser";
@@ -67,6 +69,7 @@ export default function AuthScreen() {
   const [fullName, setFullName] = useState("");
   const [role, setRole] = useState("acteur");
   const [loading, setLoading] = useState(false);
+  const [appleAuthAvailable, setAppleAuthAvailable] = useState(false);
   const [formError, setFormError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
 
@@ -75,6 +78,16 @@ export default function AuthScreen() {
   const slideAnim = useRef(new Animated.Value(30)).current;
 
   useEffect(() => {
+    async function checkAvailability() {
+      try {
+        const available = await AppleAuthentication.isAvailableAsync();
+        setAppleAuthAvailable(available);
+      } catch (e) {
+        setAppleAuthAvailable(false);
+      }
+    }
+    checkAvailability();
+
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
@@ -310,6 +323,62 @@ export default function AuthScreen() {
         "Erreur Inattendue",
         err.message || "Une erreur technique est survenue",
       );
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function signInWithApple() {
+    setLoading(true);
+    try {
+      if (Platform.OS === "web") {
+        const redirectTo = makeRedirectUri({
+          scheme: "tita",
+        });
+        const { error } = await supabase.auth.signInWithOAuth({
+          provider: "apple",
+          options: {
+            redirectTo,
+          },
+        });
+        if (error) throw error;
+        return;
+      }
+
+      const rawNonce = Math.random().toString(36).substring(2, 10);
+      const hashedNonce = await Crypto.digestStringAsync(
+        Crypto.CryptoDigestAlgorithm.SHA256,
+        rawNonce,
+      );
+
+      const credential = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+        ],
+        nonce: hashedNonce,
+      });
+
+      if (credential.identityToken) {
+        const {
+          data: { session, user },
+          error,
+        } = await supabase.auth.signInWithIdToken({
+          provider: "apple",
+          token: credential.identityToken,
+          nonce: rawNonce,
+        });
+
+        if (error) throw error;
+      } else {
+        throw new Error("No identity token.");
+      }
+    } catch (e: any) {
+      if (e.code === "ERR_REQUEST_CANCELED") {
+        // handle cancel
+      } else {
+        Alert.alert("Erreur Apple Sign-In", e.message);
+      }
     } finally {
       setLoading(false);
     }
@@ -608,6 +677,18 @@ export default function AuthScreen() {
               </View>
 
               <View style={styles.socialButtons}>
+                {appleAuthAvailable && (
+                  <Hoverable
+                    style={styles.socialButton}
+                    hoverStyle={{ backgroundColor: "#f9f9f9" }}
+                    onPress={signInWithApple}
+                    disabled={loading}
+                  >
+                    <Ionicons name="logo-apple" size={20} color="#000000" />
+                    <Text style={styles.socialButtonText}>Apple</Text>
+                  </Hoverable>
+                )}
+
                 <Hoverable
                   style={styles.socialButton}
                   hoverStyle={{ backgroundColor: "#f9f9f9" }}

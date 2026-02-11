@@ -4,17 +4,17 @@ import { GlobalStyles } from "@/constants/Styles";
 import { useUserMode } from "@/hooks/useUserMode";
 import { supabase } from "@/lib/supabase";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { Redirect, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-    Alert,
-    FlatList,
-    Image,
-    RefreshControl,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Alert,
+  FlatList,
+  Image,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 export default function MyTalents() {
@@ -27,8 +27,13 @@ export default function MyTalents() {
   const [isAgent, setIsAgent] = useState(false);
 
   useEffect(() => {
-    checkRole();
-    fetchTalents();
+    const init = async () => {
+      setLoading(true);
+      await checkRole();
+      await fetchTalents();
+      setLoading(false);
+    };
+    init();
   }, []);
 
   async function checkRole() {
@@ -105,16 +110,7 @@ export default function MyTalents() {
     );
 
   if (!isAgent) {
-    return (
-      <View style={styles.center}>
-        <Ionicons name="lock-closed" size={64} color="#ccc" />
-        <Text style={styles.title}>Espace Agent</Text>
-        <Text style={styles.subtitle}>
-          Cette section est réservée aux agents artistiques pour gérer leurs
-          talents.
-        </Text>
-      </View>
-    );
+    return <Redirect href="/my-projects" />;
   }
 
   return (

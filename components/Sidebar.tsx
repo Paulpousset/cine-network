@@ -8,15 +8,15 @@ import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { usePathname, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-  AppState,
-  Image,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Switch,
-  Text,
-  useWindowDimensions,
-  View,
+    AppState,
+    Image,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Switch,
+    Text,
+    useWindowDimensions,
+    View,
 } from "react-native";
 import { Hoverable } from "./Hoverable";
 
@@ -442,12 +442,21 @@ export default function Sidebar() {
   const finalItems = [...currentItems];
   if (realRole === "agent" && !isInsideProject && !isStudio) {
     // Insérer "Mes Talents" après "Mes Projets" (index 0)
-    finalItems.splice(1, 0, {
-      name: "Mes Talents",
-      icon: "users",
-      href: "/my-talents",
-      id: "my-talents",
-    } as any);
+    // On s'assure de ne pas le dupliquer s'il est déjà là
+    if (!finalItems.some((item) => item.id === "my-talents")) {
+      finalItems.splice(1, 0, {
+        name: "Mes Talents",
+        icon: "users",
+        href: "/my-talents",
+        id: "my-talents",
+      } as any);
+    }
+  } else {
+    // Si on n'est plus agent, on s'assure de le retirer
+    const index = finalItems.findIndex((item) => item.id === "my-talents");
+    if (index !== -1) {
+      finalItems.splice(index, 1);
+    }
   }
 
   useEffect(() => {

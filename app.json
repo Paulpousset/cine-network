@@ -37,6 +37,7 @@
       "favicon": "./assets/images/logoapp.jpg"
     },
     "plugins": [
+      "expo-apple-authentication",
       "./plugins/withModularHeaders",
       "expo-router",
       "expo-video",

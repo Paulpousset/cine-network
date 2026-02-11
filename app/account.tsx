@@ -13,16 +13,16 @@ import * as ImagePicker from "expo-image-picker";
 import { Stack, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-  Alert,
-  Image,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Switch,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    Alert,
+    Image,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Switch,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 
 // --- CONSTANTS ---
@@ -40,14 +40,15 @@ const EYE_COLORS = ["Marron", "Bleu", "Vert", "Noisette", "Gris", "Vairons"];
 
 const ROLES = [
   { label: "Acteur", value: "acteur" },
-  { label: "Modèle", value: "modele" },
-  { label: "Figurant", value: "figurant" },
-  { label: "Agent / Manager", value: "agent" },
   { label: "Réalisateur", value: "realisateur" },
+  { label: "Agent", value: "agent" },
   { label: "Technicien", value: "technicien" },
-  { label: "HMC (Maq/Costume)", value: "hmc" },
-  { label: "Scénariste", value: "scenariste" },
   { label: "Production", value: "production" },
+  { label: "Image", value: "image" },
+  { label: "Son", value: "son" },
+  { label: "HMC", value: "hmc" },
+  { label: "Déco", value: "deco" },
+  { label: "Post-prod", value: "post_prod" },
 ];
 
 export default function Account() {
@@ -942,7 +943,7 @@ export default function Account() {
         {/* 3. CATEGORY SPECIFIC FIELDS */}
 
         {/* PHYSICAL (Actors/Models) */}
-        {["acteur", "modele", "figurant"].includes(role) && (
+        {role === "acteur" && (
           <>
             <SectionTitle title="Apparence & Caractéristiques" />
             <View style={GlobalStyles.card}>
@@ -1013,9 +1014,15 @@ export default function Account() {
         )}
 
         {/* TECH (Equipment/Software) */}
-        {["technicien", "realisateur", "production", "scenariste"].includes(
-          role,
-        ) && (
+        {[
+          "technicien",
+          "realisateur",
+          "production",
+          "image",
+          "son",
+          "deco",
+          "post_prod",
+        ].includes(role) && (
           <>
             <SectionTitle title="Matériel & Outils" />
             <View style={GlobalStyles.card}>

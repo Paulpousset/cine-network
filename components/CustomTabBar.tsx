@@ -28,8 +28,14 @@ export default function CustomTabBar({
 
   const visibleRoutes = state.routes.filter((route) => {
     const { options } = descriptors[route.key];
-    const isHidden = (options as any).href === null;
-    return !isHidden;
+
+    // Explicitly hide if href is null or if tabBarButton is set to return null
+    if ((options as any).href === null) return false;
+
+    // Safety check for display: none if we use it
+    if ((options as any).display === "none") return false;
+
+    return true;
   });
 
   return (

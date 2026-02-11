@@ -5,6 +5,7 @@ import React from "react";
 import { Image, Pressable, View } from "react-native";
 
 import ChatIconWithBadge from "@/components/ChatIconWithBadge";
+import ClapLoading from "@/components/ClapLoading";
 import CustomTabBar from "@/components/CustomTabBar"; // Imported
 import NotificationIconWithBadge from "@/components/NotificationIconWithBadge";
 import { useColorScheme } from "@/components/useColorScheme";
@@ -30,8 +31,27 @@ export default function TabLayout() {
 
   useEffect(() => {
     fetchUserData();
-    const unsubProfile = appEvents.on(EVENTS.PROFILE_UPDATED, fetchUserData);
+
+    const {
+      data: { subscription: authSubscription },
+    } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      console.log("TabLayout: Auth state changed", _event);
+      if (session) {
+        await fetchUserData();
+      } else {
+        setAvatarUrl(null);
+        setUserRole(null);
+      }
+    });
+
+    // Écouter spécifiquement les mises à jour de profil pour forcer le rafraîchissement
+    const unsubProfile = appEvents.on(EVENTS.PROFILE_UPDATED, () => {
+      console.log("TabLayout: Profile updated event received");
+      fetchUserData();
+    });
+
     return () => {
+      authSubscription.unsubscribe();
       unsubProfile();
     };
   }, []);
@@ -89,8 +109,19 @@ export default function TabLayout() {
     [],
   );
 
+  if (!userRole) {
+    return (
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+        <ClapLoading size={40} color={Colors.light.primary} />
+      </View>
+    );
+  }
+
+  const isAgent = userRole?.trim().toLowerCase() === "agent";
+
   return (
     <Tabs
+      key={`layout-${userRole}`}
       tabBar={renderTabBar}
       screenOptions={{
         tabBarActiveTintColor: Colors[colorScheme ?? "light"].tint,
@@ -139,7 +170,9 @@ export default function TabLayout() {
       <Tabs.Screen
         name="my-talents"
         options={{
-          href: userRole === "agent" ? "/my-talents" : null,
+          href: isAgent ? "/my-talents" : null,
+          // @ts-ignore - handled in CustomTabBar
+          display: isAgent ? "flex" : "none",
           title: "Mes Talents",
           tabBarIcon: ({ color }) => <TabBarIcon name="users" color={color} />,
           headerLeft:
