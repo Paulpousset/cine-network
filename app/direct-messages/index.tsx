@@ -6,14 +6,14 @@ import { Ionicons } from "@expo/vector-icons";
 import { Stack, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-  FlatList,
-  Image,
-  Platform,
-  RefreshControl,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    FlatList,
+    Image,
+    Platform,
+    RefreshControl,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
 
 export default function DirectMessagesList() {
@@ -69,22 +69,38 @@ export default function DirectMessagesList() {
 
       if (error) throw error;
 
+      // 2. Fetch blocked users IDs to filter them out
+      const { data: blocks } = await supabase
+        .from("user_blocks")
+        .select("blocker_id, blocked_id")
+        .or(
+          `blocker_id.eq.${session.user.id},blocked_id.eq.${session.user.id}`,
+        );
+
+      const blockedIds = new Set(
+        blocks?.map((b: any) =>
+          b.blocker_id === session.user.id ? b.blocked_id : b.blocker_id,
+        ) || [],
+      );
+
       // Transform RPC result to match the expected state format
       // State expects: { user: { ...profile }, lastMessage: { ...msg } }
-      const formattedConversations = convs.map((c: any) => ({
-        user: {
-          id: c.conversation_user_id,
-          full_name: c.full_name,
-          avatar_url: c.avatar_url,
-        },
-        lastMessage: {
-          content: c.last_message_content,
-          created_at: c.last_message_created_at,
-          is_read: c.is_read,
-          sender_id: c.sender_id,
-          receiver_id: c.receiver_id,
-        },
-      }));
+      const formattedConversations = convs
+        .filter((c: any) => !blockedIds.has(c.conversation_user_id))
+        .map((c: any) => ({
+          user: {
+            id: c.conversation_user_id,
+            full_name: c.full_name,
+            avatar_url: c.avatar_url,
+          },
+          lastMessage: {
+            content: c.last_message_content,
+            created_at: c.last_message_created_at,
+            is_read: c.is_read,
+            sender_id: c.sender_id,
+            receiver_id: c.receiver_id,
+          },
+        }));
 
       setConversations(formattedConversations || []);
     } catch (e) {

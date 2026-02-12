@@ -34,7 +34,7 @@ export function useTalents() {
         .from("profiles")
         .select("full_name, username")
         .eq("id", session.user.id)
-        .single();
+        .maybeSingle();
       if (profile) setCurrentUserProfile(profile);
     }
   }, []);
@@ -138,7 +138,29 @@ export function useTalents() {
   const fetchProfiles = useCallback(async () => {
     try {
       setLoading(true);
+
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
       let q = supabase.from("profiles").select("*");
+
+      if (session) {
+        const { data: blocks } = await supabase
+          .from("user_blocks")
+          .select("blocker_id, blocked_id")
+          .or(
+            `blocker_id.eq.${session.user.id},blocked_id.eq.${session.user.id}`,
+          );
+
+        const blockedIds =
+          blocks?.map((b: any) =>
+            b.blocker_id === session.user.id ? b.blocked_id : b.blocker_id,
+          ) || [];
+        if (blockedIds.length > 0) {
+          q = q.not("id", "in", `(${blockedIds.join(",")})`);
+        }
+      }
 
       if (selectedRole !== "all") {
         q = q.eq("role", selectedRole);
@@ -191,12 +213,18 @@ export function useTalents() {
     fetchProfiles();
     fetchCities();
 
-    const unsub = appEvents.on(EVENTS.TUTORIAL_COMPLETED, () => {
+    const unsubTutorial = appEvents.on(EVENTS.TUTORIAL_COMPLETED, () => {
       fetchProfiles();
       fetchCities();
       if (currentUserId) fetchSuggestions(currentUserId);
     });
-    return () => unsub();
+    const unsubBlock = appEvents.on(EVENTS.USER_BLOCKED, () => {
+      fetchProfiles();
+    });
+    return () => {
+      unsubTutorial();
+      unsubBlock();
+    };
   }, [fetchProfiles, currentUserId]);
 
   useEffect(() => {

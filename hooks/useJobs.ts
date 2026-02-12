@@ -82,14 +82,40 @@ export function useJobs() {
   const fetchRoles = useCallback(async () => {
     try {
       setLoading(true);
+
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
       let query = supabase
         .from("project_roles")
         .select(
-          `*, tournages!inner ( id, title, type, pays, ville, latitude, longitude )`,
+          `*, tournages!inner ( id, title, type, pays, ville, latitude, longitude, owner_id )`,
         )
         .eq("status", "published") // Only show published roles
         .order("is_boosted", { ascending: false })
         .order("created_at", { ascending: false });
+
+      if (session) {
+        const { data: blocks } = await supabase
+          .from("user_blocks")
+          .select("blocker_id, blocked_id")
+          .or(
+            `blocker_id.eq.${session.user.id},blocked_id.eq.${session.user.id}`,
+          );
+
+        const blockedIds =
+          blocks?.map((b: any) =>
+            b.blocker_id === session.user.id ? b.blocked_id : b.blocker_id,
+          ) || [];
+        if (blockedIds.length > 0) {
+          query = query.not(
+            "tournages.owner_id",
+            "in",
+            `(${blockedIds.join(",")})`,
+          );
+        }
+      }
 
       if (selectedCategory !== "all") {
         query = query.eq("category", selectedCategory);
@@ -121,12 +147,18 @@ export function useJobs() {
     fetchCities();
     fetchRecommendations();
 
-    const unsub = appEvents.on(EVENTS.TUTORIAL_COMPLETED, () => {
+    const unsubTutorial = appEvents.on(EVENTS.TUTORIAL_COMPLETED, () => {
       fetchCities();
       fetchRoles();
       fetchRecommendations();
     });
-    return () => unsub();
+    const unsubBlock = appEvents.on(EVENTS.USER_BLOCKED, () => {
+      fetchRoles();
+    });
+    return () => {
+      unsubTutorial();
+      unsubBlock();
+    };
   }, [fetchCities, fetchRecommendations, fetchRoles]);
 
   useEffect(() => {

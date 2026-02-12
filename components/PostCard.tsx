@@ -5,12 +5,14 @@ import { Ionicons } from "@expo/vector-icons";
 import { Href, router } from "expo-router";
 import React from "react";
 import {
-    Image,
-    Platform,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Alert,
+  Image,
+  Linking,
+  Platform,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 export interface FeedPost {
@@ -154,6 +156,47 @@ const PostCard = ({ item, onImagePress }: PostCardProps) => {
             </Text>
           </TouchableOpacity>
         )}
+
+        <TouchableOpacity
+          onPress={() => {
+            const signalPost = () => {
+              const subject = `Signalement de publication : ${item.id}`;
+              const body = `Je souhaite signaler la publication suivante :\n\nID : ${item.id}\nAuteur : ${item.user?.full_name}\nContenu : ${item.content}\n\nRaison du signalement : `;
+              Linking.openURL(
+                `mailto:support@titapp.fr?subject=${encodeURIComponent(
+                  subject,
+                )}&body=${encodeURIComponent(body)}`,
+              );
+            };
+
+            if (Platform.OS === "web") {
+              if (
+                window.confirm(
+                  "Souhaitez-vous signaler cette publication pour contenu inapproprié ?",
+                )
+              ) {
+                signalPost();
+              }
+              return;
+            }
+
+            Alert.alert(
+              "Signaler la publication",
+              "Souhaitez-vous signaler cette publication pour contenu inapproprié ?",
+              [
+                { text: "Annuler", style: "cancel" },
+                {
+                  text: "Signaler",
+                  style: "destructive",
+                  onPress: signalPost,
+                },
+              ],
+            );
+          }}
+          style={styles.reportButton}
+        >
+          <Ionicons name="flag-outline" size={20} color="#999" />
+        </TouchableOpacity>
       </View>
 
       <View style={styles.postContentContainer}>
@@ -255,6 +298,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 12,
     gap: 10,
+  },
+  reportButton: {
+    padding: 4,
+    ...(Platform.OS === "web" && { cursor: "pointer" as const }),
   },
   avatar: {
     width: 44,

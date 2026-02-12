@@ -7,13 +7,14 @@ import { useFocusEffect } from "@react-navigation/native";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
-    Alert,
-    FlatList,
-    Image,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Alert,
+  FlatList,
+  Image,
+  Platform,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 interface Post {
@@ -83,22 +84,28 @@ export default function UserPostsScreen() {
   };
 
   const deletePost = async (postId: string) => {
+    const confirmDelete = async () => {
+      const { error } = await supabase.from("posts").delete().eq("id", postId);
+      if (error) {
+        Alert.alert("Erreur", "Impossible de supprimer le post.");
+      } else {
+        fetchUserPosts();
+      }
+    };
+
+    if (Platform.OS === "web") {
+      if (window.confirm("Êtes-vous sûr de vouloir supprimer ce post ?")) {
+        confirmDelete();
+      }
+      return;
+    }
+
     Alert.alert("Supprimer", "Êtes-vous sûr de vouloir supprimer ce post ?", [
       { text: "Annuler", style: "cancel" },
       {
         text: "Supprimer",
         style: "destructive",
-        onPress: async () => {
-          const { error } = await supabase
-            .from("posts")
-            .delete()
-            .eq("id", postId);
-          if (error) {
-            Alert.alert("Erreur", "Impossible de supprimer le post.");
-          } else {
-            fetchUserPosts();
-          }
-        },
+        onPress: confirmDelete,
       },
     ]);
   };

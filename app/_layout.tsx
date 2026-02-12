@@ -16,11 +16,11 @@ import * as Linking from "expo-linking";
 import { Stack, usePathname, useRouter, useSegments } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
-  Platform,
-  Text,
-  TouchableOpacity,
-  useWindowDimensions,
-  View,
+    Platform,
+    Text,
+    TouchableOpacity,
+    useWindowDimensions,
+    View,
 } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { supabase } from "../lib/supabase";
@@ -32,10 +32,12 @@ import crashlytics from "@react-native-firebase/crashlytics";
 
 function RootLayoutContent({
   session,
+  isProfileComplete,
   isWebLarge,
   pathname,
 }: {
   session: Session | null;
+  isProfileComplete: boolean | null;
   isWebLarge: boolean;
   pathname: string;
 }) {
@@ -44,18 +46,23 @@ function RootLayoutContent({
   // Initialize push notifications on mobile/tablet
   usePushNotifications();
 
-  // Hide sidebar on landing/login page and update-password page
+  // Hide sidebar on landing/login/complete-profile and update-password pages
   const showSidebar =
     isWebLarge &&
     session &&
+    isProfileComplete &&
     pathname !== "/" &&
+    pathname !== "/auth" &&
+    pathname !== "/complete-profile" &&
     pathname !== "/update-password";
 
   const sidebarWidth = isSidebarCollapsed ? 80 : 250;
 
   return (
     <View style={{ flex: 1, flexDirection: isWebLarge ? "row" : "column" }}>
-      {session && <GlobalRealtimeListener user={session.user} />}
+      {session && isProfileComplete && (
+        <GlobalRealtimeListener user={session.user} />
+      )}
       {showSidebar ? <Sidebar /> : null}
       <View
         style={{
@@ -72,6 +79,14 @@ function RootLayoutContent({
         >
           <Stack.Screen name="index" options={{ headerShown: false }} />
           <Stack.Screen name="auth" options={{ headerShown: false }} />
+          <Stack.Screen
+            name="complete-profile"
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="charte-confidentialite"
+            options={{ headerShown: true, title: "Confidentialité" }}
+          />
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="project" options={{ headerShown: false }} />
           <Stack.Screen name="network" options={{ headerShown: false }} />
@@ -82,6 +97,7 @@ function RootLayoutContent({
       </View>
       <NotificationToast />
       {session &&
+        isProfileComplete &&
         isWebLarge &&
         !pathname.includes("direct-messages") &&
         !pathname.includes("spaces") &&
@@ -95,6 +111,9 @@ function RootLayoutContent({
 export default function RootLayout() {
   const [session, setSession] = useState<Session | null>(null);
   const [initialized, setInitialized] = useState(false);
+  const [isProfileComplete, setIsProfileComplete] = useState<boolean | null>(
+    null,
+  );
   const [isMobileWeb, setIsMobileWeb] = useState(false);
   const [showFilmTransition, setShowFilmTransition] = useState(false);
   const [filmTransitionTarget, setFilmTransitionTarget] = useState<
@@ -107,22 +126,48 @@ export default function RootLayout() {
   const pathname = usePathname() as string;
   const router = useRouter();
 
+  const checkProfileCompleteness = useCallback(async (userId: string) => {
+    try {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("username, role")
+        .eq("id", userId)
+        .single();
+
+      setIsProfileComplete(!!(profile?.username && profile?.role));
+    } catch (error) {
+      console.error("Error checking profile completeness:", error);
+      setIsProfileComplete(false);
+    }
+  }, []);
+
   useEffect(() => {
     let fallbackTimer: ReturnType<typeof setTimeout>;
-    const unsub = appEvents.on(EVENTS.START_FILM_TRANSITION, (data) => {
-      setFilmTransitionTarget(data?.target || "/auth");
-      setShowFilmTransition(true);
+    const unsubTransition = appEvents.on(
+      EVENTS.START_FILM_TRANSITION,
+      (data) => {
+        setFilmTransitionTarget(data?.target || "/auth");
+        setShowFilmTransition(true);
 
-      if (fallbackTimer) clearTimeout(fallbackTimer);
-      fallbackTimer = setTimeout(() => {
-        setShowFilmTransition(false);
-      }, 4000);
+        if (fallbackTimer) clearTimeout(fallbackTimer);
+        fallbackTimer = setTimeout(() => {
+          setShowFilmTransition(false);
+        }, 4000);
+      },
+    );
+
+    const unsubProfile = appEvents.on(EVENTS.PROFILE_UPDATED, () => {
+      if (session?.user?.id) {
+        checkProfileCompleteness(session.user.id);
+      }
     });
+
     return () => {
-      unsub();
+      unsubTransition();
+      unsubProfile();
       if (fallbackTimer) clearTimeout(fallbackTimer);
     };
-  }, []);
+  }, [session, checkProfileCompleteness]);
 
   const onFilmScreenCovered = useCallback(() => {
     if (filmTransitionTarget) {
@@ -192,6 +237,13 @@ export default function RootLayout() {
       data: { subscription: authSubscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
       setSession(session);
+
+      if (session) {
+        checkProfileCompleteness(session.user.id);
+      } else {
+        setIsProfileComplete(null);
+      }
+
       setInitialized(true);
 
       if (event === "PASSWORD_RECOVERY") {
@@ -213,6 +265,8 @@ export default function RootLayout() {
       pathname === "/" ||
       pathname === "/auth" ||
       pathname === "" ||
+      pathname === "/complete-profile" ||
+      pathname === "/charte-confidentialite" ||
       pathname.startsWith("/update-password");
 
     console.log("Auth Check:", {
@@ -220,17 +274,35 @@ export default function RootLayout() {
       pathname,
       segments,
       isPublicPage,
+      isProfileComplete,
     });
 
     // SCÉNARIO 1 : Pas connecté mais essaie d'aller ailleurs qu'une page publique
     if (!session && !isPublicPage) {
       router.replace("/"); // Retour à la page vitrine
     }
-    // SCÉNARIO 2 : Connecté mais essaie d'aller sur la page de login ou la vitrine
-    else if (session && (pathname === "/auth" || pathname === "/")) {
-      router.replace("/my-projects"); // Direction le dashboard
+    // SCÉNARIO 2 : Connecté
+    else if (session) {
+      // Si le profil n'est pas complet et qu'on n'est pas déjà sur la page de complétion
+      // On autorise quand même la page de reset password
+      if (
+        isProfileComplete === false &&
+        pathname !== "/complete-profile" &&
+        !pathname.startsWith("/update-password")
+      ) {
+        router.replace("/complete-profile");
+      }
+      // Si le profil est complet (ou en cours de vérification) et qu'on est sur une page de login/vitrine/complétion
+      else if (
+        isProfileComplete === true &&
+        (pathname === "/auth" ||
+          pathname === "/" ||
+          pathname === "/complete-profile")
+      ) {
+        router.replace("/my-projects"); // Direction le dashboard
+      }
     }
-  }, [session, initialized, pathname]);
+  }, [session, initialized, pathname, isProfileComplete]);
 
   // 3. Bloquer l'accès web sur mobile
   useEffect(() => {
@@ -334,6 +406,7 @@ export default function RootLayout() {
           <TutorialProvider>
             <RootLayoutContent
               session={session}
+              isProfileComplete={isProfileComplete}
               isWebLarge={isWebLarge}
               pathname={pathname}
             />

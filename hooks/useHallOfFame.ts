@@ -1,3 +1,4 @@
+import { appEvents, EVENTS } from "@/lib/events";
 import { supabase } from "@/lib/supabase";
 import { useEffect, useState } from "react";
 import { Alert } from "react-native";
@@ -39,11 +40,29 @@ export const useHallOfFame = (initialUserId: string | null) => {
     } else {
       fetchHallOfFame(currentUserId);
     }
+
+    const unsubBlock = appEvents.on(EVENTS.USER_BLOCKED, () => {
+      fetchHallOfFame(currentUserId);
+    });
+
+    return () => unsubBlock();
   }, []);
 
   async function fetchHallOfFame(userId: string | null = currentUserId) {
     try {
-      const { data: projectsData, error } = await supabase
+      let blockedIds: string[] = [];
+      if (userId) {
+        const { data: blocks } = await supabase
+          .from("user_blocks")
+          .select("blocker_id, blocked_id")
+          .or(`blocker_id.eq.${userId},blocked_id.eq.${userId}`);
+        blockedIds =
+          blocks?.map((b: any) =>
+            b.blocker_id === userId ? b.blocked_id : b.blocker_id,
+          ) || [];
+      }
+
+      let query = supabase
         .from("tournages")
         .select(
           `
@@ -53,6 +72,12 @@ export const useHallOfFame = (initialUserId: string | null) => {
         )
         .eq("status", "completed")
         .order("created_at", { ascending: false });
+
+      if (blockedIds.length > 0) {
+        query = query.not("owner_id", "in", `(${blockedIds.join(",")})`);
+      }
+
+      const { data: projectsData, error } = await query;
 
       if (error) throw error;
 

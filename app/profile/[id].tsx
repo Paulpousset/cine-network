@@ -1,18 +1,20 @@
 import ClapLoading from "@/components/ClapLoading";
 import Colors from "@/constants/Colors";
 import { GlobalStyles } from "@/constants/Styles";
+import { appEvents, EVENTS } from "@/lib/events";
 import { Ionicons } from "@expo/vector-icons";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-    Alert,
-    Image,
-    Linking,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Alert,
+  Image,
+  Linking,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { supabase } from "../../lib/supabase";
 
@@ -35,6 +37,7 @@ export default function ProfileDetail() {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
   const [mandateStatus, setMandateStatus] = useState<string | null>(null);
+  const [isBlocked, setIsBlocked] = useState(false);
 
   useEffect(() => {
     fetchProfile();
@@ -61,21 +64,50 @@ export default function ProfileDetail() {
           .from("profiles")
           .select("role")
           .eq("id", myId)
-          .single();
+          .maybeSingle();
         setCurrentUserRole(myProfile?.role || null);
       }
 
       const isOwner = myId === profileId;
       setIsOwnProfile(isOwner);
 
+      // Check if blocked (mutual)
+      if (myId && !isOwner) {
+        const { data: blocks } = await supabase
+          .from("user_blocks")
+          .select("blocker_id, blocked_id")
+          .or(`blocker_id.eq.${myId},blocked_id.eq.${profileId}`);
+        // Note: Simple OR is enough if we filter correctly in JS
+        // PostgREST complex OR with AND might be failing on some versions
+
+        const blockedByMe = blocks?.some(
+          (b) => b.blocker_id === myId && b.blocked_id === profileId,
+        );
+        const blockingMe = blocks?.some(
+          (b) => b.blocker_id === profileId && b.blocked_id === myId,
+        );
+
+        if (blockingMe) {
+          setLoading(false);
+          Alert.alert("Accès refusé", "Cet utilisateur vous a bloqué.");
+          router.back();
+          return;
+        }
+
+        setIsBlocked(!!blockedByMe);
+      }
+
       // Fetch Profile Data
       const { data, error } = await supabase
         .from("profiles")
         .select("*")
         .eq("id", profileId)
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
+      if (!data) {
+        throw new Error("Profil introuvable");
+      }
       setProfile(data);
 
       // Fetch Mandate status
@@ -97,7 +129,7 @@ export default function ProfileDetail() {
         .from("public_profile_settings")
         .select("*")
         .eq("id", profileId)
-        .single();
+        .maybeSingle();
 
       if (settings) {
         hiddenIds = settings.hidden_project_ids || [];
@@ -107,21 +139,22 @@ export default function ProfileDetail() {
 
       // Fetch connection status if not owner
       if (myId && !isOwner) {
-        // On récupère TOUTES les connexions potentielles (doublons inclus)
-        const { data: conns } = await supabase
+        // On récupère les connexions entre ces deux utilisateurs
+        const { data: relevantConns } = await supabase
           .from("connections")
           .select("*")
           .or(
             `and(requester_id.eq.${myId},receiver_id.eq.${profileId}),and(requester_id.eq.${profileId},receiver_id.eq.${myId})`,
           );
 
-        if (conns && conns.length > 0) {
+        if (relevantConns && relevantConns.length > 0) {
           // Priorité : 1. Accepted, 2. Pending, 3. Rejected
-          const accepted = conns.find((c) => c.status === "accepted");
-          const pending = conns.find((c) => c.status === "pending");
-          const rejected = conns.find((c) => c.status === "rejected");
+          const accepted = relevantConns.find((c) => c.status === "accepted");
+          const pending = relevantConns.find((c) => c.status === "pending");
+          const rejected = relevantConns.find((c) => c.status === "rejected");
 
-          const activeConn = accepted || pending || rejected || conns[0];
+          const activeConn =
+            accepted || pending || rejected || relevantConns[0];
 
           setConnectionStatus(activeConn.status);
           setConnectionId(activeConn.id);
@@ -200,30 +233,31 @@ export default function ProfileDetail() {
   async function handleClap() {
     if (!currentUserId || !profile) return;
     try {
-      // 1. Check ALL connections to handle mutual/duplicates
-      const { data: conns } = await supabase
+      // 1. Check connections between these two users
+      const { data: relevantConns } = await supabase
         .from("connections")
         .select("*")
         .or(
           `and(requester_id.eq.${currentUserId},receiver_id.eq.${profile.id}),and(requester_id.eq.${profile.id},receiver_id.eq.${currentUserId})`,
         );
 
-      const accepted = conns?.find((c) => c.status === "accepted");
+      const accepted = relevantConns?.find((c) => c.status === "accepted");
       if (accepted) {
         setConnectionStatus("accepted");
         Alert.alert("Déjà connecté", "Vous êtes déjà connectés.");
         // Cleanup duplicates if any exist
-        const duplicates = conns?.filter((c) => c.id !== accepted.id) || [];
+        const duplicates =
+          relevantConns?.filter((c) => c.id !== accepted.id) || [];
         for (const dup of duplicates) {
           await supabase.from("connections").delete().eq("id", dup.id);
         }
         return;
       }
 
-      const myPendingRequest = conns?.find(
+      const myPendingRequest = relevantConns?.find(
         (c) => c.requester_id === currentUserId && c.status === "pending",
       );
-      const receivedPendingRequest = conns?.find(
+      const receivedPendingRequest = relevantConns?.find(
         (c) => c.receiver_id === currentUserId && c.status === "pending",
       );
 
@@ -261,7 +295,7 @@ export default function ProfileDetail() {
       }
 
       // CASE: Revival (Rejected previously)
-      const rejected = conns?.find((c) => c.status === "rejected");
+      const rejected = relevantConns?.find((c) => c.status === "rejected");
       if (rejected) {
         // Relancer
         const { error } = await supabase
@@ -328,6 +362,101 @@ export default function ProfileDetail() {
     }
   }
 
+  async function handleBlock() {
+    const profileId = Array.isArray(id) ? id[0] : id;
+    if (!currentUserId) {
+      const msg = "Vous devez être connecté pour bloquer un utilisateur.";
+      if (Platform.OS === "web") alert(msg);
+      else Alert.alert("Action impossible", msg);
+      return;
+    }
+    if (!profileId) return;
+
+    try {
+      // Create block
+      const { error: blockError } = await supabase.from("user_blocks").insert({
+        blocker_id: currentUserId,
+        blocked_id: profileId,
+      });
+
+      if (blockError) {
+        // If already blocked, just ignore the error and proceed
+        if (blockError.code !== "23505") throw blockError;
+      }
+
+      // Delete any existing connections
+      await supabase
+        .from("connections")
+        .delete()
+        .or(
+          `and(requester_id.eq.${currentUserId},receiver_id.eq.${profileId}),and(requester_id.eq.${profileId},receiver_id.eq.${currentUserId})`,
+        );
+
+      setIsBlocked(true);
+      appEvents.emit(EVENTS.USER_BLOCKED, { userId: profileId, blocked: true });
+
+      const msg = "Utilisateur bloqué. Vous ne verrez plus ses contenus.";
+      if (Platform.OS === "web") {
+        alert(msg);
+      } else {
+        Alert.alert("Utilisateur bloqué", msg);
+      }
+
+      // Force a small delay for state update before going back
+      setTimeout(() => {
+        if (router.canGoBack()) {
+          router.back();
+        } else {
+          router.replace("/");
+        }
+      }, 100);
+    } catch (e) {
+      console.error(e);
+      const errorMsg = "Impossible de bloquer cet utilisateur.";
+      if (Platform.OS === "web") {
+        alert(errorMsg);
+      } else {
+        Alert.alert("Erreur", errorMsg);
+      }
+    }
+  }
+
+  async function handleUnblock() {
+    const profileId = Array.isArray(id) ? id[0] : id;
+    if (!currentUserId || !profileId) return;
+
+    try {
+      const { error } = await supabase
+        .from("user_blocks")
+        .delete()
+        .eq("blocker_id", currentUserId)
+        .eq("blocked_id", profileId);
+
+      if (error) throw error;
+      setIsBlocked(false);
+      appEvents.emit(EVENTS.USER_BLOCKED, {
+        userId: profileId,
+        blocked: false,
+      });
+
+      const msg =
+        "Utilisateur débloqué. Vous pouvez de nouveau voir ses contenus.";
+      if (Platform.OS === "web") {
+        alert(msg);
+      } else {
+        Alert.alert("Utilisateur débloqué", msg);
+      }
+    } catch (e) {
+      console.error(e);
+      const errorMsg = "Impossible de débloquer cet utilisateur.";
+      if (Platform.OS === "web") {
+        alert(errorMsg);
+      } else {
+        Alert.alert("Erreur", errorMsg);
+      }
+    }
+  }
+
   function openLink(url: string) {
     if (!url) return;
     Linking.openURL(url).catch(() =>
@@ -356,6 +485,78 @@ export default function ProfileDetail() {
           >
             <Ionicons name="arrow-back" size={24} color={Colors.light.text} />
           </TouchableOpacity>
+
+          {!isOwnProfile && (
+            <TouchableOpacity
+              onPress={() => {
+                const signalUser = () => {
+                  if (!profile) return;
+                  const subject = `Signalement d'utilisateur : ${profile.id}`;
+                  const body = `Je souhaite signaler l'utilisateur suivant :\n\nNom : ${profile.full_name}\nID : ${profile.id}\n\nRaison du signalement : `;
+                  Linking.openURL(
+                    `mailto:support@titapp.fr?subject=${encodeURIComponent(
+                      subject,
+                    )}&body=${encodeURIComponent(body)}`,
+                  );
+                };
+
+                if (Platform.OS === "web") {
+                  const action = window.confirm(
+                    `Souhaitez-vous ${isBlocked ? "débloquer" : "bloquer"} cet utilisateur ?\n\n(Annuler pour voir l'option de signalement)`,
+                  );
+                  if (action) {
+                    isBlocked ? handleUnblock() : handleBlock();
+                  } else {
+                    if (
+                      window.confirm(
+                        "Souhaitez-vous signaler cet utilisateur ?",
+                      )
+                    ) {
+                      signalUser();
+                    }
+                  }
+                  return;
+                }
+
+                Alert.alert("Options", "Que souhaitez-vous faire ?", [
+                  { text: "Annuler", style: "cancel" },
+                  {
+                    text: "Signaler l'utilisateur",
+                    style: "destructive",
+                    onPress: signalUser,
+                  },
+                  {
+                    text: isBlocked
+                      ? "Débloquer l'utilisateur"
+                      : "Bloquer l'utilisateur",
+                    style: "destructive",
+                    onPress: isBlocked ? handleUnblock : handleBlock,
+                  },
+                ]);
+              }}
+              style={styles.reportHeaderButton}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Ionicons
+                name="ellipsis-vertical"
+                size={24}
+                color={Colors.light.text}
+              />
+            </TouchableOpacity>
+          )}
+
+          {isOwnProfile && (
+            <TouchableOpacity
+              onPress={() => router.push("/account")}
+              style={styles.settingsHeaderButton}
+            >
+              <Ionicons
+                name="settings-outline"
+                size={24}
+                color={Colors.light.text}
+              />
+            </TouchableOpacity>
+          )}
 
           {profile?.avatar_url ? (
             <Image source={{ uri: profile.avatar_url }} style={styles.avatar} />
@@ -727,7 +928,21 @@ const styles = StyleSheet.create({
     left: 20,
     zIndex: 10,
     padding: 10,
-  },
+  } as any,
+  reportHeaderButton: {
+    position: "absolute",
+    top: 55,
+    right: 20,
+    zIndex: 10,
+    padding: 10,
+  } as any,
+  settingsHeaderButton: {
+    position: "absolute",
+    top: 55,
+    right: 20,
+    zIndex: 10,
+    padding: 10,
+  } as any,
   avatar: {
     width: 120,
     height: 120,

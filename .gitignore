@@ -43,3 +43,6 @@ yarn-error.*
 # Firebase
 google-services.json
 GoogleService-Info.plist
+
+# Google Service Account Key
+tita-485608-0b710ce49066.json

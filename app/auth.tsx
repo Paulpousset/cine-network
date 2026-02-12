@@ -7,6 +7,7 @@ import { makeRedirectUri } from "expo-auth-session";
 import * as Crypto from "expo-crypto";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Linking from "expo-linking";
+import { useRouter } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
 import React, { useEffect, useRef, useState } from "react";
 import {
@@ -62,6 +63,7 @@ const DB_ROLE_MAPPING: Record<string, string> = {
 };
 
 export default function AuthScreen() {
+  const router = useRouter();
   const [isLogin, setIsLogin] = useState(true);
   const [isReset, setIsReset] = useState(false);
   const [email, setEmail] = useState("");
@@ -731,6 +733,20 @@ export default function AuthScreen() {
                   Besoin d'aide ?{" "}
                   <Text style={{ color: Colors.light.tint, fontWeight: "600" }}>
                     Contacter le support
+                  </Text>
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => router.push("/charte-confidentialite")}
+                style={{ marginTop: 16, alignItems: "center", opacity: 0.7 }}
+              >
+                <Text
+                  style={{ fontSize: 13, color: "#64748b", fontWeight: "500" }}
+                >
+                  En continuant, vous acceptez notre{" "}
+                  <Text style={{ color: Colors.light.tint, fontWeight: "600" }}>
+                    Charte de Confidentialité
                   </Text>
                 </Text>
               </TouchableOpacity>

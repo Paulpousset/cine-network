@@ -13,16 +13,17 @@ import * as ImagePicker from "expo-image-picker";
 import { Stack, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-    Alert,
-    Image,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Switch,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  Image,
+  Linking,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 // --- CONSTANTS ---
@@ -104,8 +105,7 @@ export default function Account() {
         .from("profiles")
         .select("*")
         .eq("id", effectiveUserId)
-        .single();
-      // ... (rest of function)
+        .maybeSingle();
 
       if (error) throw error;
 
@@ -142,7 +142,7 @@ export default function Account() {
         .from("public_profile_settings")
         .select("*")
         .eq("id", effectiveUserId)
-        .single();
+        .maybeSingle();
 
       if (!settingsError && settings) {
         setHiddenProjectIds(settings.hidden_project_ids || []);
@@ -881,6 +881,73 @@ export default function Account() {
             multiline
             placeholderTextColor="#999"
           />
+        </View>
+
+        {/* REGLAGES & ASSISTANCE */}
+        <SectionTitle title="Réglages & Assistance" />
+        <View style={GlobalStyles.card}>
+          <TouchableOpacity
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              paddingVertical: 12,
+              borderBottomWidth: 1,
+              borderBottomColor: "#eee",
+            }}
+            onPress={() =>
+              router.push({
+                pathname: "/profile/[id]",
+                params: { id: effectiveUserId },
+              })
+            }
+          >
+            <Ionicons
+              name="card-outline"
+              size={24}
+              color={Colors.light.primary}
+            />
+            <Text style={{ marginLeft: 15, fontSize: 16, flex: 1 }}>
+              Ma carte de profil
+            </Text>
+            <Ionicons name="chevron-forward" size={20} color="#ccc" />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              paddingVertical: 12,
+            }}
+            onPress={() => {
+              Alert.alert(
+                "Signaler un problème",
+                "Souhaitez-vous contacter le support pour signaler un bug ou une suggestion ?",
+                [
+                  { text: "Annuler", style: "cancel" },
+                  {
+                    text: "Contacter",
+                    onPress: () => {
+                      const subject = `Support Tita : ${full_name} (${effectiveUserId})`;
+                      const body = `Bonjour l'équipe Tita,\n\nJe souhaite vous signaler le problème suivant :\n\n- Ma version : ${Platform.OS}\n- Mon ID : ${effectiveUserId}\n\nDescription :\n`;
+                      Linking.openURL(
+                        `mailto:support@titapp.fr?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`,
+                      );
+                    },
+                  },
+                ],
+              );
+            }}
+          >
+            <Ionicons
+              name="bug-outline"
+              size={24}
+              color={Colors.light.danger}
+            />
+            <Text style={{ marginLeft: 15, fontSize: 16, flex: 1 }}>
+              Signaler un problème
+            </Text>
+            <Ionicons name="chevron-forward" size={20} color="#ccc" />
+          </TouchableOpacity>
         </View>
 
         {/* 2. CONTACT PUBLIC */}

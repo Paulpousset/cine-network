@@ -6,20 +6,20 @@ import { supabase } from "@/lib/supabase";
 import { Ionicons } from "@expo/vector-icons";
 import { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import {
-  Stack,
-  Tabs,
-  useLocalSearchParams,
-  usePathname,
-  useRouter,
+    Stack,
+    Tabs,
+    useLocalSearchParams,
+    usePathname,
+    useRouter,
 } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-  Platform,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-  useWindowDimensions,
+    Platform,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
+    useWindowDimensions,
 } from "react-native";
 
 function CustomProjectTabBar({
@@ -166,14 +166,15 @@ export default function ProjectIdLayout() {
         ]);
       } else {
         // Check Member and Role
-        const { data: membership } = await supabase
+        const { data: membershipData } = await supabase
           .from("project_roles")
           .select("category, title")
           .eq("tournage_id", projectId)
           .eq("assigned_profile_id", userId)
-          .maybeSingle();
+          .limit(1);
 
-        if (membership) {
+        if (membershipData && membershipData.length > 0) {
+          const membership = membershipData[0];
           setIsMember(true);
           setUserRole(membership.title);
           const category = membership.category;

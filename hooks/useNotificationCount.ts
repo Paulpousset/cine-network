@@ -38,21 +38,52 @@ export function useNotificationCount() {
       } = await supabase.auth.getSession();
       if (!session) return;
 
+      // 0. Fetch blocks (mutual)
+      const { data: blocks } = await supabase
+        .from("user_blocks")
+        .select("blocker_id, blocked_id")
+        .or(
+          `blocker_id.eq.${session.user.id},blocked_id.eq.${session.user.id}`,
+        );
+
+      const blockedIds =
+        blocks?.map((b: any) =>
+          b.blocker_id === session.user.id ? b.blocked_id : b.blocker_id,
+        ) || [];
+
       // 1. Pending Requests (Always counted)
-      const { count: pendingCount } = await supabase
+      let pendingQuery = supabase
         .from("connections")
         .select("*", { count: "exact", head: true })
         .eq("receiver_id", session.user.id)
         .eq("status", "pending");
 
+      if (blockedIds.length > 0) {
+        pendingQuery = pendingQuery.not(
+          "requester_id",
+          "in",
+          `(${blockedIds.join(",")})`,
+        );
+      }
+      const { count: pendingCount } = await pendingQuery;
+
       // 2. Unseen Accepted Connections
-      const { data: acceptedRaw } = await supabase
+      let acceptedQuery = supabase
         .from("connections")
-        .select("id")
+        .select("id, receiver_id")
         .eq("requester_id", session.user.id)
         .eq("status", "accepted")
         .order("created_at", { ascending: false })
         .limit(20);
+
+      if (blockedIds.length > 0) {
+        acceptedQuery = acceptedQuery.not(
+          "receiver_id",
+          "in",
+          `(${blockedIds.join(",")})`,
+        );
+      }
+      const { data: acceptedRaw } = await acceptedQuery;
 
       // 3. Unseen Project Assignments & Invitations
       const { data: assignments } = await supabase

@@ -9,7 +9,7 @@ export default function NetworkLayout() {
       />
       <Stack.Screen
         name="connections"
-        options={{ headerTitle: "Mes Relation" }}
+        options={{ headerTitle: "Mon Réseau" }}
       />
     </Stack>
   );

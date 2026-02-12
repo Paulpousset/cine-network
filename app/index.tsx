@@ -8,23 +8,24 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-    Dimensions,
-    Image,
-    Linking,
-    ScrollView,
-    StyleSheet,
-    Text,
-    View,
+  Dimensions,
+  Image,
+  Linking,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import Animated, {
-    FadeIn,
-    FadeInDown,
-    FadeInUp,
-    useAnimatedStyle,
-    useSharedValue,
-    withRepeat,
-    withSequence,
-    withTiming,
+  FadeIn,
+  FadeInDown,
+  FadeInUp,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withSequence,
+  withTiming,
 } from "react-native-reanimated";
 
 const { width } = Dimensions.get("window");
@@ -253,7 +254,11 @@ export default function LandingPage() {
           </Text>
           <View style={styles.footerLinks}>
             <Text style={styles.footerLink}>Conditions</Text>
-            <Text style={styles.footerLink}>Confidentialité</Text>
+            <TouchableOpacity
+              onPress={() => router.push("/charte-confidentialite")}
+            >
+              <Text style={styles.footerLink}>Confidentialité</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </ScrollView>

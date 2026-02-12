@@ -18,13 +18,21 @@ export const useFeed = () => {
       }
     });
 
-    // Listen for tutorial completion to refresh feed
-    const unsubscribe = appEvents.on(EVENTS.TUTORIAL_COMPLETED, () => {
+    // Listen for tutorial completion and blocks to refresh feed
+    const unsubTutorial = appEvents.on(EVENTS.TUTORIAL_COMPLETED, () => {
       console.log("[useFeed] Tutorial completed, refreshing...");
       fetchPosts();
     });
 
-    return () => unsubscribe();
+    const unsubBlock = appEvents.on(EVENTS.USER_BLOCKED, () => {
+      console.log("[useFeed] User block status changed, refreshing...");
+      fetchPosts();
+    });
+
+    return () => {
+      unsubTutorial();
+      unsubBlock();
+    };
   }, []);
 
   const fetchPosts = async () => {
@@ -40,6 +48,18 @@ export const useFeed = () => {
     }
 
     try {
+      // 1. Fetch blocked users IDs (mutual)
+      const { data: blocks } = await supabase
+        .from("user_blocks")
+        .select("blocker_id, blocked_id")
+        .or(`blocker_id.eq.${currentUserId},blocked_id.eq.${currentUserId}`);
+
+      const blockedUserIds =
+        blocks?.map((b: any) =>
+          b.blocker_id === currentUserId ? b.blocked_id : b.blocker_id,
+        ) || [];
+
+      // 2. Fetch posts
       let query = supabase
         .from("posts")
         .select(
@@ -55,6 +75,10 @@ export const useFeed = () => {
         `,
         )
         .order("created_at", { ascending: false });
+
+      if (blockedUserIds.length > 0) {
+        query = query.not("user_id", "in", `(${blockedUserIds.join(",")})`);
+      }
 
       if (feedMode === "all") {
         query = query.eq("visibility", "public");
