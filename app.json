@@ -36,6 +36,7 @@
     },
     "plugins": [
       "./plugins/withModularHeaders",
+      "./plugins/withDisableLint",
       "expo-router",
       "expo-video",
       "expo-web-browser",
