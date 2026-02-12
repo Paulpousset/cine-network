@@ -57,15 +57,15 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "3f937f5d-c965-4d16-a030-f5919aad865c"
+        "projectId": "0104688d-5fc8-4c1c-8eed-82044da3a523"
       }
     },
-    "owner": "polololo",
+    "owner": "titas-organization",
     "runtimeVersion": {
       "policy": "appVersion"
     },
     "updates": {
-      "url": "https://u.expo.dev/3f937f5d-c965-4d16-a030-f5919aad865c"
+      "url": "https://u.expo.dev/0104688d-5fc8-4c1c-8eed-82044da3a523"
     }
   }
 }
