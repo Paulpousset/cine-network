@@ -1,0 +1,71 @@
+{
+  "expo": {
+    "name": "Tita",
+    "slug": "tita",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/logoapp.jpg",
+    "scheme": "tita",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/images/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.titasorganization.tita",
+      "googleServicesFile": "./GoogleService-Info.plist",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/logoapp.jpg",
+        "backgroundColor": "#ffffff"
+      },
+      "package": "com.titasorganization.tita",
+      "googleServicesFile": "./google-services.json"
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./assets/images/logoapp.jpg"
+    },
+    "plugins": [
+      "./plugins/withModularHeaders",
+      "expo-router",
+      "expo-video",
+      "expo-web-browser",
+      "expo-notifications",
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "useFrameworks": "static"
+          }
+        }
+      ],
+      "@react-native-firebase/app",
+      "@react-native-firebase/crashlytics"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "3f937f5d-c965-4d16-a030-f5919aad865c"
+      }
+    },
+    "owner": "polololo",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/3f937f5d-c965-4d16-a030-f5919aad865c"
+    }
+  }
+}
