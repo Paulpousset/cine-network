@@ -70,7 +70,7 @@ workflows:
       - name: Set up code signing
         script: |
           keychain initialize
-          xcode-project use-profiles --workspace "$XCODE_WORKSPACE"
+          cd ios && xcode-project use-profiles
       - name: Build iOS IPA
         script: |
           xcode-project build-ipa --workspace "$XCODE_WORKSPACE" --scheme "$XCODE_SCHEME" --no-wait-for-app-store-connect
