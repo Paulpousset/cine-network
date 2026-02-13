@@ -751,6 +751,20 @@ export default function AuthScreen() {
                   </Text>
                 </Text>
               </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => router.push("/protection-mineurs")}
+                style={{ marginTop: 8, alignItems: "center", opacity: 0.7 }}
+              >
+                <Text
+                  style={{ fontSize: 12, color: "#64748b", fontWeight: "400" }}
+                >
+                  Lire notre{" "}
+                  <Text style={{ color: colors.primary, fontWeight: "500" }}>
+                    Protection des mineurs
+                  </Text>
+                </Text>
+              </TouchableOpacity>
             </>
           ) : (
             <View style={styles.footer}>

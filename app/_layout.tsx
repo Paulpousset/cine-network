@@ -278,6 +278,7 @@ function RootLayoutInner() {
       pathname === "" ||
       pathname === "/complete-profile" ||
       pathname === "/charte-confidentialite" ||
+      pathname === "/protection-mineurs" ||
       pathname.startsWith("/update-password");
 
     console.log("Auth Check:", {

@@ -260,6 +260,11 @@ export default function LandingPage() {
             >
               <Text style={styles.footerLink}>Confidentialité</Text>
             </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => router.push("/protection-mineurs")}
+            >
+              <Text style={styles.footerLink}>Sécurité Mineurs</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </ScrollView>

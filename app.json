@@ -29,6 +29,10 @@
       "package": "com.titasorganization.tita",
       "googleServicesFile": "./google-services.json"
     },
+    "notification": {
+      "icon": "./assets/images/adaptive-icon.png",
+      "color": "#ffffff"
+    },
     "web": {
       "bundler": "metro",
       "output": "static",
