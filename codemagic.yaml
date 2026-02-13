@@ -1,0 +1,56 @@
+workflows:
+  android-development:
+    name: Android Development Build
+    max_build_duration: 30
+    instance_type: mac_mini_m2
+    environment:
+      node: 20
+      java: 17
+      groups:
+        - eas_credentials # Optionnel : pour vos variables d'environnement EAS
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - name: master
+          target_action: wait_for_build
+    scripts:
+      - name: Install dependencies
+        script: |
+          npm install
+      - name: Expo Prebuild (if needed)
+        script: |
+          # Cette étape s'assure que le dossier android est à jour avec app.json
+          npx expo prebuild --platform android
+      - name: Build Android App
+        script: |
+          cd android
+          ./gradlew assembleDebug
+    artifacts:
+      - android/app/build/outputs/apk/**/*.apk
+    publishing:
+      email:
+        recipients:
+          - paulpousset@gmail.com # Remplacez par votre email si besoin
+  
+  android-production:
+    name: Android Production Build
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    environment:
+      node: 20
+      java: 17
+    scripts:
+      - name: Install dependencies
+        script: |
+          npm install
+      - name: Expo Prebuild
+        script: |
+          npx expo prebuild --platform android
+      - name: Build Android Release
+        script: |
+          cd android
+          ./gradlew assembleRelease
+    artifacts:
+      - android/app/build/outputs/apk/**/*.apk
+      - android/app/build/outputs/bundle/**/*.aab
