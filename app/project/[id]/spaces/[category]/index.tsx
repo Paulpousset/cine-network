@@ -8,23 +8,23 @@ import { decode } from "base64-arraybuffer";
 import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system/legacy";
 import {
-    Stack,
-    useGlobalSearchParams,
-    useLocalSearchParams,
-    useRouter,
+  Stack,
+  useGlobalSearchParams,
+  useLocalSearchParams,
+  useRouter,
 } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
 import React, { useEffect, useRef, useState } from "react";
 import {
-    Alert,
-    FlatList,
-    KeyboardAvoidingView,
-    Platform,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  FlatList,
+  KeyboardAvoidingView,
+  Platform,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -297,10 +297,14 @@ function FilesView({
   projectId,
   category,
   canWrite,
+  fileStyles,
+  styles,
 }: {
   projectId: string;
   category: string;
   canWrite: boolean;
+  fileStyles: any;
+  styles: any;
 }) {
   const [files, setFiles] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -636,7 +640,7 @@ export default function ChannelSpace() {
         )}
 
         {activeTab === "files" && (
-          <FilesView projectId={id} category={category} canWrite={canWrite} />
+          <FilesView projectId={id} category={category} canWrite={canWrite} fileStyles={fileStyles} styles={styles} />
         )}
 
         {activeTab === "tools" && hasTools && (
