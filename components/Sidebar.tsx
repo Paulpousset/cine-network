@@ -1,24 +1,38 @@
-import Colors from "@/constants/Colors";
 import { getStudioTools } from "@/constants/Tools";
 import { useUserMode } from "@/hooks/useUserMode";
 import { appEvents, EVENTS } from "@/lib/events";
 import { supabase } from "@/lib/supabase";
-import { Ionicons } from "@expo/vector-icons";
-import FontAwesome from "@expo/vector-icons/FontAwesome";
+import { useTheme } from "@/providers/ThemeProvider";
+import { useUser } from "@/providers/UserProvider";
+import { FontAwesome, Ionicons } from "@expo/vector-icons";
 import { usePathname, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-    AppState,
-    Image,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Switch,
-    Text,
-    useWindowDimensions,
-    View,
+  AppState,
+  Image,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  useWindowDimensions,
+  View,
 } from "react-native";
+import DynamicLogo from "./DynamicLogo";
 import { Hoverable } from "./Hoverable";
+
+// Safe Icon component to prevent "invalid element type" crashes
+const SafeIcon = ({ isIonicons, ...props }: any) => {
+  const Comp = isIonicons ? Ionicons : FontAwesome;
+  if (
+    !Comp ||
+    (typeof Comp !== "function" &&
+      (typeof Comp !== "object" || Comp === null || !(Comp as any).$$typeof))
+  ) {
+    return <View style={{ width: props.size, height: props.size }} />;
+  }
+  return <Comp {...props} />;
+};
 
 const NAVIGATION_ITEMS = [
   { name: "Mes Projets", icon: "film", href: "/my-projects", id: "projects" },
@@ -36,6 +50,7 @@ export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const { width } = useWindowDimensions();
+  const { user, profile: currentUserProfile } = useUser();
   const {
     mode,
     setUserMode,
@@ -44,6 +59,19 @@ export default function Sidebar() {
     impersonatedUser,
     setImpersonatedUser,
   } = useUserMode();
+  const { colors, isDark } = useTheme(); const styles = createStyles(colors, isDark);
+
+  const [isHovered, setIsHovered] = useState(false);
+  // On utilise un état local pour l'expansion au survol
+  const effectiveCollapsed = !isHovered;
+
+  useEffect(() => {
+    // On s'assure que la barre est considérée comme réduite globalement
+    // pour que le contenu principal ne saute pas lors du survol
+    if (!isSidebarCollapsed) {
+      setSidebarCollapsed(true);
+    }
+  }, [isSidebarCollapsed]);
 
   // Détection précise de l'ID du chat actuel
   const chatMatch = pathname.match(/\/direct-messages\/([^\/]+)/);
@@ -54,8 +82,8 @@ export default function Sidebar() {
   const [managedTalents, setManagedTalents] = useState<any[]>([]);
   const [totalUnread, setTotalUnread] = useState(0);
   const [pendingConnections, setPendingConnections] = useState(0); // New state
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
-  const [realRole, setRealRole] = useState<string | null>(null);
+  const avatarUrl = currentUserProfile?.avatar_url;
+  const realRole = currentUserProfile?.role;
   const [projectsExpanded, setProjectsExpanded] = useState(false);
   const [chatsExpanded, setChatsExpanded] = useState(false);
   const [categoriesExpanded, setCategoriesExpanded] = useState<
@@ -66,6 +94,8 @@ export default function Sidebar() {
     production: true,
     org: true,
   });
+
+  const userId = user?.id;
 
   // Ref pour le pathname actuel afin d'avoir toujours la valeur à jour dans les callbacks
   const pathnameRef = React.useRef(pathname);
@@ -142,22 +172,7 @@ export default function Sidebar() {
 
   async function fetchRecentData() {
     try {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      if (!session) return;
-      const userId = session.user.id;
-
-      // 0. Fetch User Avatar and Role
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("avatar_url, role")
-        .eq("id", userId)
-        .single();
-      if (profile) {
-        setAvatarUrl(profile.avatar_url);
-        setRealRole(profile.role);
-      }
+      if (!userId) return;
 
       // 1. Projets Récents (Own + Participations)
       // Own
@@ -290,12 +305,7 @@ export default function Sidebar() {
 
   async function checkAccess() {
     try {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-
-      if (!session) return;
-      const userId = session.user.id;
+      if (!userId) return;
 
       const { data: project } = await supabase
         .from("tournages")
@@ -443,7 +453,7 @@ export default function Sidebar() {
   if (realRole === "agent" && !isInsideProject && !isStudio) {
     // Insérer "Mes Talents" après "Mes Projets" (index 0)
     // On s'assure de ne pas le dupliquer s'il est déjà là
-    if (!finalItems.some((item) => item.id === "my-talents")) {
+    if (!finalItems.some((item) => (item as any)?.id === "my-talents")) {
       finalItems.splice(1, 0, {
         name: "Mes Talents",
         icon: "users",
@@ -453,7 +463,7 @@ export default function Sidebar() {
     }
   } else {
     // Si on n'est plus agent, on s'assure de le retirer
-    const index = finalItems.findIndex((item) => item.id === "my-talents");
+    const index = finalItems.findIndex((item) => (item as any)?.id === "my-talents");
     if (index !== -1) {
       finalItems.splice(index, 1);
     }
@@ -508,34 +518,28 @@ export default function Sidebar() {
         <Hoverable
           onPress={() => router.push(item.href as any)}
           hoverStyle={{
-            backgroundColor: isActive ? Colors.light.tint + "20" : "#f5f5f5",
-          }}
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: isSidebarCollapsed ? "center" : "flex-start",
-            padding: 12,
-            borderRadius: 8,
-            gap: isSidebarCollapsed ? 0 : 12,
-            backgroundColor: isActive
-              ? Colors.light.tint + "10"
-              : "transparent",
-          }}
-        >
-          <View style={{ position: "relative" }}>
-            {(item as any).isIonicons ? (
-              <Ionicons
-                name={item.icon as any}
-                size={20}
-                color={isActive ? Colors.light.tint : "#666"}
-              />
-            ) : (
-              <FontAwesome
-                name={item.icon as any}
-                size={20}
-                color={isActive ? Colors.light.tint : "#666"}
-              />
-            )}
+          backgroundColor: isActive ? colors.tint + "20" : colors.backgroundSecondary,
+        }}
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "flex-start",
+          paddingVertical: 12,
+          paddingHorizontal: 15,
+          borderRadius: 8,
+          gap: 12,
+          backgroundColor: isActive
+            ? colors.tint + "10"
+            : "transparent",
+        }}
+      >
+        <View style={{ position: "relative" }}>
+          <SafeIcon
+            isIonicons={(item as any).isIonicons}
+            name={item.icon as any}
+            size={20}
+            color={isActive ? colors.tint : colors.text + "80"}
+          />
             {/* Badge Chat */}
             {isChats && !expanded && totalUnread > 0 && (
               <View
@@ -546,7 +550,7 @@ export default function Sidebar() {
                   width: 10,
                   height: 10,
                   borderRadius: 5,
-                  backgroundColor: Colors.light.tint,
+                  backgroundColor: colors.primary,
                   borderWidth: 2,
                   borderColor: "white",
                 }}
@@ -562,20 +566,20 @@ export default function Sidebar() {
                   width: 10,
                   height: 10,
                   borderRadius: 5,
-                  backgroundColor: Colors.light.tint,
+                  backgroundColor: colors.primary,
                   borderWidth: 2,
                   borderColor: "white",
                 }}
               />
             )}
           </View>
-          {!isSidebarCollapsed && (
+          {!effectiveCollapsed && (
             <>
               <Text
                 style={{
                   fontSize: 16,
                   fontWeight: isActive ? "600" : "500",
-                  color: isActive ? Colors.light.tint : "#666",
+                  color: isActive ? colors.tint : colors.text,
                   flex: 1,
                 }}
               >
@@ -584,12 +588,12 @@ export default function Sidebar() {
               {isStudio && (item as any).shortcut && (
                 <View
                   style={{
-                    backgroundColor: "#f5f5f5",
+                    backgroundColor: colors.backgroundSecondary,
                     borderRadius: 4,
                     paddingHorizontal: 6,
                     paddingVertical: 2,
                     borderWidth: 1,
-                    borderColor: "#ddd",
+                    borderColor: colors.border,
                     borderBottomWidth: 2,
                     marginLeft: 4,
                   }}
@@ -598,7 +602,7 @@ export default function Sidebar() {
                     style={{
                       fontSize: 10,
                       fontWeight: "700",
-                      color: "#999",
+                      color: colors.text + "80",
                     }}
                   >
                     {(item as any).shortcut}
@@ -609,7 +613,7 @@ export default function Sidebar() {
                 <Hoverable
                   onPress={toggleExpand}
                   hoverStyle={{
-                    backgroundColor: "#eee",
+                    backgroundColor: colors.border,
                     borderRadius: 4,
                   }}
                   style={{
@@ -617,10 +621,11 @@ export default function Sidebar() {
                     paddingRight: 0,
                   }}
                 >
-                  <FontAwesome
+                  <SafeIcon
+                    isIonicons={false}
                     name={expanded ? "chevron-down" : "chevron-right"}
                     size={12}
-                    color="#999"
+                    color={colors.text + "80"}
                   />
                 </Hoverable>
               )}
@@ -631,7 +636,7 @@ export default function Sidebar() {
         {/* Sous-items Projets */}
         {isProjects &&
           expanded &&
-          !isSidebarCollapsed &&
+          !effectiveCollapsed &&
           recentProjects.length > 0 && (
             <View
               style={{
@@ -640,7 +645,7 @@ export default function Sidebar() {
                 gap: 6,
                 paddingRight: 5,
                 borderLeftWidth: 2,
-                borderLeftColor: isStudio ? Colors.light.tint + "40" : "#eee",
+                borderLeftColor: isStudio ? colors.primary + "40" : colors.border,
               }}
             >
               {recentProjects.map((p) => {
@@ -651,8 +656,8 @@ export default function Sidebar() {
                     onPress={() => router.push(`/project/${p.id}`)}
                     hoverStyle={{
                       backgroundColor: isSelected
-                        ? Colors.light.tint + "20"
-                        : "#f5f5f5",
+                        ? colors.primary + "20"
+                        : colors.backgroundSecondary,
                     }}
                     style={{
                       flexDirection: "row",
@@ -660,23 +665,24 @@ export default function Sidebar() {
                       paddingVertical: isStudio ? 10 : 7,
                       paddingHorizontal: 12,
                       backgroundColor: isSelected
-                        ? Colors.light.tint + "15"
+                        ? colors.primary + "15"
                         : "transparent",
                       borderRadius: 8,
                       gap: 10,
                       marginLeft: 5,
                     }}
                   >
-                    <FontAwesome
+                    <SafeIcon
+                      isIonicons={false}
                       name="film"
                       size={isStudio ? 14 : 12}
-                      color={isSelected ? Colors.light.tint : "#888"}
+                      color={isSelected ? colors.primary : colors.text + "99"}
                     />
                     <Text
                       numberOfLines={1}
                       style={{
                         fontSize: isStudio ? 14 : 12,
-                        color: isSelected ? Colors.light.tint : "#444",
+                        color: isSelected ? colors.primary : colors.text + "CC",
                         fontWeight: isSelected ? "700" : "500",
                         flex: 1,
                       }}
@@ -692,7 +698,7 @@ export default function Sidebar() {
         {/* Sous-items Chats */}
         {isChats &&
           expanded &&
-          !isSidebarCollapsed &&
+          !effectiveCollapsed &&
           recentChats.length > 0 && (
             <View
               style={{
@@ -701,7 +707,7 @@ export default function Sidebar() {
                 gap: 4,
                 paddingRight: 5,
                 borderLeftWidth: 1,
-                borderLeftColor: "#eee",
+                borderLeftColor: colors.border,
               }}
             >
               {recentChats.map((c) => {
@@ -721,8 +727,8 @@ export default function Sidebar() {
                     }
                     hoverStyle={{
                       backgroundColor: isSelected
-                        ? Colors.light.tint + "25"
-                        : "#f0f0f0",
+                        ? colors.primary + "25"
+                        : colors.backgroundSecondary,
                     }}
                     style={{
                       flexDirection: "row",
@@ -730,7 +736,7 @@ export default function Sidebar() {
                       paddingVertical: 7,
                       paddingHorizontal: 10,
                       backgroundColor: isSelected
-                        ? Colors.light.tint + "15"
+                        ? colors.primary + "15"
                         : "transparent",
                       borderRadius: 6,
                       gap: 8,
@@ -743,12 +749,12 @@ export default function Sidebar() {
                           width: 16,
                           height: 16,
                           borderRadius: 8,
-                          backgroundColor: "#ddd",
+                          backgroundColor: colors.border,
                           alignItems: "center",
                           justifyContent: "center",
                         }}
                       >
-                        <FontAwesome name="user" size={8} color="#fff" />
+                        <SafeIcon isIonicons={false} name="user" size={8} color="#fff" />
                       </View>
                       {displayUnreadCount > 0 && (
                         <View
@@ -759,9 +765,9 @@ export default function Sidebar() {
                             width: 8,
                             height: 8,
                             borderRadius: 4,
-                            backgroundColor: Colors.light.tint,
+                            backgroundColor: colors.primary,
                             borderWidth: 1.5,
-                            borderColor: "#fcfcfc",
+                            borderColor: colors.backgroundSecondary,
                           }}
                         />
                       )}
@@ -770,7 +776,7 @@ export default function Sidebar() {
                       numberOfLines={1}
                       style={{
                         fontSize: 12,
-                        color: isSelected ? Colors.light.tint : "#555",
+                        color: isSelected ? colors.primary : colors.text + "CC",
                         fontWeight:
                           isSelected || displayUnreadCount > 0 ? "700" : "500",
                         flex: 1,
@@ -781,7 +787,7 @@ export default function Sidebar() {
                     {displayUnreadCount > 0 && (
                       <View
                         style={{
-                          backgroundColor: Colors.light.tint,
+                          backgroundColor: colors.primary,
                           borderRadius: 10,
                           minWidth: 18,
                           height: 18,
@@ -812,42 +818,50 @@ export default function Sidebar() {
   };
 
   const sidebarStyle: any = {
-    width: isSidebarCollapsed ? 80 : 250,
-    backgroundColor: "#fff",
+    width: effectiveCollapsed ? 80 : 250,
+    backgroundColor: colors.background,
     borderRightWidth: 1,
-    borderRightColor: "#eee",
+    borderRightColor: colors.border,
     height: "100%",
-    padding: isSidebarCollapsed ? 12 : 20,
-    paddingTop: 20,
+    paddingHorizontal: 15,
+    paddingVertical: 20,
     zIndex: 100,
     position: "fixed",
     left: 0,
     top: 0,
-    transition: "width 0.2s ease-in-out, padding 0.2s ease-in-out",
+    transition: "width 0.2s ease-in-out",
   };
 
   return (
-    <View style={sidebarStyle}>
+    <View
+      style={sidebarStyle}
+      // @ts-ignore
+      onMouseEnter={() => setIsHovered(true)}
+      // @ts-ignore
+      onMouseLeave={() => setIsHovered(false)}
+    >
       <View
         style={[
           styles.header,
-          isSidebarCollapsed && { alignItems: "center", marginBottom: 20 },
+          {
+            alignItems: effectiveCollapsed ? "center" : "flex-start",
+            paddingLeft: effectiveCollapsed ? 0 : 15,
+          },
         ]}
       >
-        {isSidebarCollapsed ? (
-          <Hoverable onPress={() => router.push("/")}>
-            <Image
-              source={require("@/assets/images/logo.jpg")}
-              style={{ width: 50, height: 50 }}
-              resizeMode="contain"
+        {effectiveCollapsed ? (
+          <Hoverable onPress={() => router.push("/")} style={{ width: 50, height: 50, justifyContent: 'center', alignItems: 'center' }}>
+            <DynamicLogo
+              width={70}
+              height={70}
             />
           </Hoverable>
         ) : isStudio && isInsideProject && currentProjectTitle ? (
-          <View>
-            <Image
-              source={require("@/assets/images/logo.jpg")}
-              style={{ width: 180, height: 65, marginBottom: 10 }}
-              resizeMode="contain"
+          <View style={{ minHeight: 60, justifyContent: 'center' }}>
+            <DynamicLogo
+              width={160}
+              height={60}
+              style={{ marginBottom: 10 }}
             />
             <Text
               style={[styles.logo, { fontSize: 16, marginBottom: 4 }]}
@@ -863,15 +877,16 @@ export default function Sidebar() {
                 gap: 6,
               }}
             >
-              <FontAwesome
+              <SafeIcon
+                isIonicons={false}
                 name="exchange"
                 size={10}
-                color={Colors.light.tint}
+                color={colors.tint}
               />
               <Text
                 style={{
                   fontSize: 11,
-                  color: Colors.light.tint,
+                  color: colors.tint,
                   fontWeight: "700",
                 }}
               >
@@ -880,16 +895,16 @@ export default function Sidebar() {
             </Hoverable>
           </View>
         ) : (
-          <View>
-            <Image
-              source={require("@/assets/images/logo.jpg")}
-              style={{ width: 200, height: 70, marginBottom: 5 }}
-              resizeMode="contain"
+          <View style={{ minHeight: 70, justifyContent: 'center' }}>
+            <DynamicLogo
+              width={140}
+              height={55}
+              style={{ marginBottom: 5 }}
             />
             {mode === "studio" && (
               <View
                 style={{
-                  backgroundColor: Colors.light.tint,
+                  backgroundColor: colors.tint,
                   paddingHorizontal: 8,
                   paddingVertical: 2,
                   borderRadius: 4,
@@ -913,135 +928,24 @@ export default function Sidebar() {
         contentContainerStyle={{ flexGrow: 1, gap: 8 }}
         showsVerticalScrollIndicator={false}
       >
-        {/* SECTION: Managed Talents (Account Switcher) */}
-        {!isSidebarCollapsed && managedTalents.length > 0 && (
-          <View style={{ marginBottom: 20 }}>
-            <Text
-              style={{
-                fontSize: 12,
-                fontWeight: "700",
-                color: "#999",
-                marginLeft: 12,
-                marginBottom: 8,
-              }}
-            >
-              GESTION TALENTS
-            </Text>
-            {impersonatedUser && (
-              <Hoverable
-                onPress={() => setImpersonatedUser(null)}
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  padding: 8,
-                  paddingHorizontal: 12,
-                  borderRadius: 8,
-                  gap: 10,
-                  backgroundColor: "#FFF0F0",
-                  marginBottom: 5,
-                }}
-              >
-                <View
-                  style={{
-                    width: 32,
-                    height: 32,
-                    borderRadius: 16,
-                    backgroundColor: Colors.light.tint,
-                    justifyContent: "center",
-                    alignItems: "center",
-                  }}
-                >
-                  <Ionicons name="person" size={16} color="white" />
-                </View>
-                <Text
-                  style={{ fontSize: 13, fontWeight: "600", color: "#E53935" }}
-                >
-                  Revenir à mon compte
-                </Text>
-              </Hoverable>
-            )}
-            {managedTalents.map((talent) => (
-              <Hoverable
-                key={talent.id}
-                onPress={() => setImpersonatedUser(talent)}
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  padding: 8,
-                  paddingHorizontal: 12,
-                  borderRadius: 8,
-                  gap: 10,
-                  backgroundColor:
-                    impersonatedUser?.id === talent.id
-                      ? Colors.light.tint + "15"
-                      : "transparent",
-                }}
-              >
-                {talent.avatar_url ? (
-                  <Image
-                    source={{ uri: talent.avatar_url }}
-                    style={{ width: 32, height: 32, borderRadius: 16 }}
-                  />
-                ) : (
-                  <View
-                    style={{
-                      width: 32,
-                      height: 32,
-                      borderRadius: 16,
-                      backgroundColor: "#eee",
-                      justifyContent: "center",
-                      alignItems: "center",
-                    }}
-                  >
-                    <Text style={{ fontSize: 12, color: "#999" }}>
-                      {talent.full_name?.charAt(0)}
-                    </Text>
-                  </View>
-                )}
-                <Text
-                  numberOfLines={1}
-                  style={{
-                    fontSize: 13,
-                    fontWeight:
-                      impersonatedUser?.id === talent.id ? "600" : "500",
-                    color:
-                      impersonatedUser?.id === talent.id
-                        ? Colors.light.tint
-                        : "#444",
-                    flex: 1,
-                  }}
-                >
-                  {talent.full_name}
-                </Text>
-                {impersonatedUser?.id === talent.id && (
-                  <Ionicons
-                    name="checkmark-circle"
-                    size={16}
-                    color={Colors.light.tint}
-                  />
-                )}
-              </Hoverable>
-            ))}
-          </View>
-        )}
-
         {mode === "studio" && !isInsideProject && (
           <Hoverable
             onPress={() => router.push("/project/new")}
-            hoverStyle={{ backgroundColor: Colors.light.tint + "DD" }}
+            hoverStyle={{ backgroundColor: colors.primary + "DD" }}
             style={{
               flexDirection: "row",
               alignItems: "center",
-              justifyContent: isSidebarCollapsed ? "center" : "flex-start",
-              padding: isSidebarCollapsed ? 12 : 14,
+              justifyContent: "flex-start",
+              paddingVertical: 14,
+              paddingHorizontal: 15,
               borderRadius: 12,
-              gap: isSidebarCollapsed ? 0 : 12,
-              backgroundColor: Colors.light.tint,
+              gap: 12,
+              backgroundColor: colors.primary,
               marginBottom: 15,
             }}
           >
-            <FontAwesome name="plus-circle" size={18} color="white" />
-            {!isSidebarCollapsed && (
+            <SafeIcon isIonicons={false} name="plus-circle" size={18} color="white" />
+            {!effectiveCollapsed && (
               <Text style={{ color: "white", fontWeight: "700", fontSize: 16 }}>
                 Nouveau Projet
               </Text>
@@ -1049,24 +953,27 @@ export default function Sidebar() {
           </Hoverable>
         )}
 
-        {isInsideProject && mode !== "studio" && !isSidebarCollapsed && (
+        {isInsideProject && mode !== "studio" && (
           <Hoverable
             onPress={() => router.push("/my-projects")}
-            hoverStyle={{ backgroundColor: "#f5f5f5" }}
+            hoverStyle={{ backgroundColor: colors.backgroundSecondary }}
             style={{
               flexDirection: "row",
               alignItems: "center",
-              padding: 12,
+              paddingVertical: 12,
+              paddingHorizontal: 15,
               marginBottom: 10,
               gap: 12,
               borderBottomWidth: 1,
-              borderBottomColor: "#eee",
+              borderBottomColor: colors.border,
             }}
           >
-            <FontAwesome name="arrow-left" size={16} color="#666" />
-            <Text style={{ color: "#666", fontWeight: "600" }}>
-              Tous mes projets
-            </Text>
+            <SafeIcon isIonicons={false} name="arrow-left" size={16} color={colors.text + "CC"} />
+            {!effectiveCollapsed && (
+              <Text style={{ color: colors.text + "CC", fontWeight: "600" }}>
+                Tous mes projets
+              </Text>
+            )}
           </Hoverable>
         )}
 
@@ -1075,46 +982,51 @@ export default function Sidebar() {
               const isExpanded = categoriesExpanded[group.id];
               return (
                 <View key={group.id} style={{ marginBottom: 15 }}>
-                  {!isSidebarCollapsed && (
-                    <Hoverable
-                      onPress={() =>
-                        setCategoriesExpanded((prev) => ({
-                          ...prev,
-                          [group.id]: !isExpanded,
-                        }))
-                      }
-                      style={{
-                        flexDirection: "row",
-                        alignItems: "center",
-                        paddingVertical: 8,
-                        paddingHorizontal: 12,
-                        gap: 10,
-                      }}
-                    >
-                      <FontAwesome
-                        name={group.icon as any}
-                        size={14}
-                        color="#999"
-                      />
-                      <Text
-                        style={{
-                          fontSize: 12,
-                          fontWeight: "800",
-                          color: "#999",
-                          flex: 1,
-                          letterSpacing: 1,
-                        }}
-                      >
-                        {group.title}
-                      </Text>
-                      <FontAwesome
-                        name={isExpanded ? "chevron-down" : "chevron-right"}
-                        size={10}
-                        color="#ccc"
-                      />
-                    </Hoverable>
-                  )}
-                  {(isExpanded || isSidebarCollapsed) && (
+                  <Hoverable
+                    onPress={() =>
+                      !effectiveCollapsed &&
+                      setCategoriesExpanded((prev) => ({
+                        ...prev,
+                        [group.id]: !isExpanded,
+                      }))
+                    }
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      paddingVertical: 8,
+                      paddingHorizontal: 15,
+                      gap: 12,
+                    }}
+                  >
+                    <SafeIcon
+                      isIonicons={false}
+                      name={group.icon as any}
+                      size={14}
+                      color={colors.text + "80"}
+                    />
+                    {!effectiveCollapsed && (
+                      <>
+                        <Text
+                          style={{
+                            fontSize: 12,
+                            fontWeight: "800",
+                            color: colors.text + "80",
+                            flex: 1,
+                            letterSpacing: 1,
+                          }}
+                        >
+                          {group.title}
+                        </Text>
+                        <SafeIcon
+                          isIonicons={false}
+                          name={isExpanded ? "chevron-down" : "chevron-right"}
+                          size={10}
+                          color={colors.border}
+                        />
+                      </>
+                    )}
+                  </Hoverable>
+                  {(isExpanded || effectiveCollapsed) && (
                     <View style={{ gap: 2, marginTop: 4 }}>
                       {group.items.map((t) =>
                         renderItem({
@@ -1135,27 +1047,141 @@ export default function Sidebar() {
         {/* Spacer pour pousser le lien Compte en bas */}
         <View style={{ flex: 1 }} />
 
+        {/* SECTION: Managed Talents (Account Switcher) - Moved to bottom to avoid jumping */}
+        {!effectiveCollapsed && managedTalents.length > 0 && (
+          <View style={{ marginBottom: 20 }}>
+            <Text
+              style={{
+                fontSize: 12,
+                fontWeight: "700",
+                color: colors.text + "80",
+                marginLeft: 15,
+                marginBottom: 8,
+              }}
+            >
+              GESTION TALENTS
+            </Text>
+            {impersonatedUser && (
+              <Hoverable
+                onPress={() => setImpersonatedUser(null)}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  paddingVertical: 8,
+                  paddingHorizontal: 15,
+                  borderRadius: 8,
+                  gap: 10,
+                  backgroundColor: colors.danger + "10",
+                  marginBottom: 5,
+                }}
+              >
+                <View
+                  style={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: 16,
+                    backgroundColor: colors.primary,
+                    justifyContent: "center",
+                    alignItems: "center",
+                  }}
+                >
+                  <SafeIcon isIonicons={true} name="person" size={16} color="white" />
+                </View>
+                <Text
+                  style={{ fontSize: 13, fontWeight: "600", color: colors.danger }}
+                >
+                  Revenir à mon compte
+                </Text>
+              </Hoverable>
+            )}
+            {managedTalents.map((talent) => (
+              <Hoverable
+                key={talent.id}
+                onPress={() => setImpersonatedUser(talent)}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  paddingVertical: 8,
+                  paddingHorizontal: 15,
+                  borderRadius: 8,
+                  gap: 10,
+                  backgroundColor:
+                    impersonatedUser?.id === talent.id
+                      ? colors.primary + "15"
+                      : "transparent",
+                }}
+              >
+                {talent.avatar_url ? (
+                  <Image
+                    source={{ uri: talent.avatar_url }}
+                    style={{ width: 32, height: 32, borderRadius: 16 }}
+                  />
+                ) : (
+                  <View
+                    style={{
+                      width: 32,
+                      height: 32,
+                      borderRadius: 16,
+                      backgroundColor: colors.border,
+                      justifyContent: "center",
+                      alignItems: "center",
+                    }}
+                  >
+                    <Text style={{ fontSize: 12, color: colors.text + "80" }}>
+                      {talent.full_name?.charAt(0)}
+                    </Text>
+                  </View>
+                )}
+                <Text
+                  numberOfLines={1}
+                  style={{
+                    fontSize: 13,
+                    fontWeight:
+                      impersonatedUser?.id === talent.id ? "600" : "500",
+                    color:
+                      impersonatedUser?.id === talent.id
+                        ? colors.primary
+                        : colors.text + "CC",
+                    flex: 1,
+                  }}
+                >
+                  {talent.full_name}
+                </Text>
+                {impersonatedUser?.id === talent.id && (
+                  <SafeIcon
+                    isIonicons={true}
+                    name="checkmark-circle"
+                    size={16}
+                    color={colors.primary}
+                  />
+                )}
+              </Hoverable>
+            ))}
+          </View>
+        )}
+
         {/* Mon Compte fixé en bas */}
         <Hoverable
           onPress={() => router.push("/account")}
           hoverStyle={{
             backgroundColor: pathname.startsWith("/account")
-              ? Colors.light.tint + "20"
-              : "#f5f5f5",
+              ? colors.primary + "20"
+              : colors.backgroundSecondary,
           }}
           style={{
             flexDirection: "row",
             alignItems: "center",
-            justifyContent: isSidebarCollapsed ? "center" : "flex-start",
-            padding: 12,
+            justifyContent: "flex-start",
+            paddingVertical: 12,
+            paddingHorizontal: 15,
             borderRadius: 8,
-            gap: isSidebarCollapsed ? 0 : 12,
+            gap: 12,
             backgroundColor: pathname.startsWith("/account")
-              ? Colors.light.tint + "10"
+              ? colors.primary + "10"
               : "transparent",
             marginTop: 10,
             borderTopWidth: 1,
-            borderTopColor: "#eee",
+            borderTopColor: colors.border,
             paddingTop: 15,
           }}
         >
@@ -1168,27 +1194,28 @@ export default function Sidebar() {
                 borderRadius: 12,
                 borderWidth: 1,
                 borderColor: pathname.startsWith("/account")
-                  ? Colors.light.tint
-                  : "#eee",
+                  ? colors.primary
+                  : colors.border,
               }}
             />
           ) : (
-            <FontAwesome
+            <SafeIcon
+              isIonicons={false}
               name="user-circle"
               size={20}
               color={
-                pathname.startsWith("/account") ? Colors.light.tint : "#666"
+                pathname.startsWith("/account") ? colors.primary : colors.text + "CC"
               }
             />
           )}
-          {!isSidebarCollapsed && (
+          {!effectiveCollapsed && (
             <Text
               style={{
                 fontSize: 16,
                 fontWeight: pathname.startsWith("/account") ? "600" : "500",
                 color: pathname.startsWith("/account")
-                  ? Colors.light.tint
-                  : "#666",
+                  ? colors.primary
+                  : colors.text + "CC",
               }}
             >
               Mon Compte
@@ -1198,55 +1225,30 @@ export default function Sidebar() {
       </ScrollView>
 
       <View
-        style={[styles.footer, isSidebarCollapsed && { alignItems: "center" }]}
+        style={[styles.footer, effectiveCollapsed && { alignItems: "center" }]}
       >
-        {/* Toggle Collapse/Expand Sidebar */}
-        <Hoverable
-          onPress={() => setSidebarCollapsed(!isSidebarCollapsed)}
-          hoverStyle={{ backgroundColor: "#f5f5f5" }}
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: isSidebarCollapsed ? "center" : "flex-start",
-            padding: 10,
-            borderRadius: 8,
-            gap: 10,
-            marginBottom: 10,
-          }}
-        >
-          <Ionicons
-            name={isSidebarCollapsed ? "chevron-forward" : "chevron-back"}
-            size={20}
-            color="#999"
-          />
-          {!isSidebarCollapsed && (
-            <Text style={{ fontSize: 13, color: "#999", fontWeight: "600" }}>
-              Réduire la barre
-            </Text>
-          )}
-        </Hoverable>
-
         {/* Switch Mode Studio - Toujours visible sur Web Large */}
         <View
           style={{
             flexDirection: "row",
             alignItems: "center",
-            justifyContent: isSidebarCollapsed ? "center" : "space-between",
-            padding: isSidebarCollapsed ? 12 : 12,
+            justifyContent: effectiveCollapsed ? "center" : "space-between",
+            paddingVertical: 12,
+            paddingHorizontal: 15,
             backgroundColor:
-              mode === "studio" ? Colors.light.tint + "05" : "transparent",
+              mode === "studio" ? colors.primary + "05" : "transparent",
             borderRadius: 12,
             borderWidth: 1,
-            borderColor: mode === "studio" ? Colors.light.tint + "20" : "#eee",
+            borderColor: mode === "studio" ? colors.primary + "20" : colors.border,
             marginBottom: 10,
           }}
         >
-          {!isSidebarCollapsed && (
+          {!effectiveCollapsed && (
             <Text
               style={{
                 fontSize: 13,
                 fontWeight: "700",
-                color: mode === "studio" ? Colors.light.tint : "#666",
+                color: mode === "studio" ? colors.primary : colors.text + "CC",
               }}
             >
               MODE STUDIO
@@ -1255,20 +1257,20 @@ export default function Sidebar() {
           <Switch
             value={mode === "studio"}
             onValueChange={(val) => setUserMode(val ? "studio" : "search")}
-            trackColor={{ false: "#ccc", true: Colors.light.tint + "80" }}
-            thumbColor={mode === "studio" ? Colors.light.tint : "#f4f3f4"}
+            trackColor={{ false: colors.border, true: colors.primary + "80" }}
+            thumbColor={mode === "studio" ? colors.primary : colors.backgroundSecondary}
             // @ts-ignore
             style={
               Platform.OS === "web"
                 ? {
-                    transform: isSidebarCollapsed ? "scale(0.8)" : "scale(0.8)",
+                    transform: [{ scale: 0.8 }],
                   }
                 : {}
             }
           />
         </View>
 
-        {!isSidebarCollapsed && (
+        {!effectiveCollapsed && (
           <Text style={styles.footerText}>© 2026 Tita</Text>
         )}
       </View>
@@ -1276,55 +1278,59 @@ export default function Sidebar() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    width: 250,
-    backgroundColor: "#fff",
-    borderRightWidth: 1,
-    borderRightColor: "#eee",
-    height: "100%",
-    padding: 20,
-    zIndex: 100,
-  },
-  header: {
-    marginBottom: 40,
-    paddingHorizontal: 10,
-  },
-  logo: {
-    fontSize: 20,
-    fontWeight: "900",
-    color: Colors.light.tint,
-    letterSpacing: 1,
-  },
-  menu: {
-    flex: 1,
-    gap: 8,
-  },
-  menuItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 12,
-    borderRadius: 8,
-    gap: 12,
-  },
-  menuItemActive: {
-    backgroundColor: Colors.light.tint + "10",
-  },
-  menuText: {
-    fontSize: 16,
-    fontWeight: "500",
-    color: "#666",
-  },
-  menuTextActive: {
-    color: Colors.light.tint,
-    fontWeight: "600",
-  },
-  footer: {
-    marginTop: "auto",
-    padding: 10,
-  },
-  footerText: {
-    fontSize: 12,
-    color: "#999",
-  },
-});
+function createStyles(colors: any, isDark: boolean) {
+  return StyleSheet.create({
+    container: {
+      width: 250,
+      backgroundColor: colors.background,
+      borderRightWidth: 1,
+      borderRightColor: colors.border,
+      height: "100%",
+      padding: 20,
+      zIndex: 100,
+    },
+    header: {
+      height: 140,
+      marginBottom: 20,
+      paddingHorizontal: 0,
+      justifyContent: "center",
+    },
+    logo: {
+      fontSize: 20,
+      fontWeight: "900",
+      color: colors.primary,
+      letterSpacing: 1,
+    },
+    menu: {
+      flex: 1,
+      gap: 8,
+    },
+    menuItem: {
+      flexDirection: "row",
+      alignItems: "center",
+      padding: 12,
+      borderRadius: 8,
+      gap: 12,
+    },
+    menuItemActive: {
+      backgroundColor: colors.primary + "10",
+    },
+    menuText: {
+      fontSize: 16,
+      fontWeight: "500",
+      color: colors.text + "CC",
+    },
+    menuTextActive: {
+      color: colors.primary,
+      fontWeight: "600",
+    },
+    footer: {
+      marginTop: "auto",
+      padding: 10,
+    },
+    footerText: {
+      fontSize: 12,
+      color: colors.text + "80",
+    },
+  });
+}

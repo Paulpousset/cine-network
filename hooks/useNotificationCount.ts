@@ -1,11 +1,14 @@
 import { appEvents, EVENTS } from "@/lib/events";
 import { supabase } from "@/lib/supabase";
+import { useUser } from "@/providers/UserProvider";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { AppState } from "react-native";
 
 const SEEN_ACCEPTED_KEY = "seen_accepted_connections";
 
 export function useNotificationCount() {
+  const { user } = useUser();
   const [counts, setCounts] = useState({
     total: 0,
     talentsCount: 0,
@@ -13,49 +16,26 @@ export function useNotificationCount() {
     jobsCount: 0,
   });
 
-  useEffect(() => {
-    fetchCount();
-
-    // Listen for auth changes to refresh count when user logs in
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(() => {
-      fetchCount();
-    });
-
-    const unsub = appEvents.on(EVENTS.CONNECTIONS_UPDATED, fetchCount);
-
-    return () => {
-      subscription.unsubscribe();
-      unsub();
-    };
-  }, []);
-
-  async function fetchCount() {
+  const fetchCount = useCallback(async () => {
     try {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      if (!session) return;
+      if (!user) return;
 
       // 0. Fetch blocks (mutual)
       const { data: blocks } = await supabase
         .from("user_blocks")
         .select("blocker_id, blocked_id")
-        .or(
-          `blocker_id.eq.${session.user.id},blocked_id.eq.${session.user.id}`,
-        );
+        .or(`blocker_id.eq.${user.id},blocked_id.eq.${user.id}`);
 
       const blockedIds =
         blocks?.map((b: any) =>
-          b.blocker_id === session.user.id ? b.blocked_id : b.blocker_id,
+          b.blocker_id === user.id ? b.blocked_id : b.blocker_id,
         ) || [];
 
       // 1. Pending Requests (Always counted)
       let pendingQuery = supabase
         .from("connections")
         .select("*", { count: "exact", head: true })
-        .eq("receiver_id", session.user.id)
+        .eq("receiver_id", user.id)
         .eq("status", "pending");
 
       if (blockedIds.length > 0) {
@@ -71,7 +51,7 @@ export function useNotificationCount() {
       let acceptedQuery = supabase
         .from("connections")
         .select("id, receiver_id")
-        .eq("requester_id", session.user.id)
+        .eq("requester_id", user.id)
         .eq("status", "accepted")
         .order("created_at", { ascending: false })
         .limit(20);
@@ -89,13 +69,13 @@ export function useNotificationCount() {
       const { data: assignments } = await supabase
         .from("project_roles")
         .select("id, status")
-        .eq("assigned_profile_id", session.user.id);
+        .eq("assigned_profile_id", user.id);
 
       // 4. Unseen Accepted Applications
       const { data: applications } = await supabase
         .from("applications")
         .select("id, role_id, status, role:project_roles(status)")
-        .eq("candidate_id", session.user.id)
+        .eq("candidate_id", user.id)
         .or("status.eq.accepted,status.eq.invitation_pending");
 
       // Get local seen IDs
@@ -140,7 +120,24 @@ export function useNotificationCount() {
     } catch (e) {
       console.error(e);
     }
-  }
+  }, [user]);
+
+  useEffect(() => {
+    fetchCount();
+
+    const subscription = AppState.addEventListener("change", (nextAppState) => {
+      if (nextAppState === "active") {
+        fetchCount();
+      }
+    });
+
+    const unsub = appEvents.on(EVENTS.CONNECTIONS_UPDATED, fetchCount);
+
+    return () => {
+      subscription.remove();
+      unsub();
+    };
+  }, [fetchCount]);
 
   return counts;
 }

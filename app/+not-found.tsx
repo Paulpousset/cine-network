@@ -1,18 +1,26 @@
-import { Link, Stack } from 'expo-router';
-import { StyleSheet, Text, View } from 'react-native';
-import Colors from '@/constants/Colors';
-import { GlobalStyles } from '@/constants/Styles';
+import { GlobalStyles } from "@/constants/Styles";
+import { useTheme } from "@/providers/ThemeProvider";
+import { Link, Stack } from "expo-router";
+import { StyleSheet, Text, View } from "react-native";
 
 export default function NotFoundScreen() {
+  const { colors } = useTheme();
+
   return (
     <>
-      <Stack.Screen options={{ title: 'Oops!' }} />
-      <View style={GlobalStyles.container}>
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-          <Text style={styles.title}>This screen doesn't exist.</Text>
+      <Stack.Screen options={{ title: "Oops!" }} />
+      <View style={[GlobalStyles.container, { backgroundColor: colors.background }]}>
+        <View
+          style={{ flex: 1, alignItems: "center", justifyContent: "center" }}
+        >
+          <Text style={[styles.title, { color: colors.text }]}>
+            This screen doesn't exist.
+          </Text>
 
           <Link href="/" style={styles.link}>
-            <Text style={styles.linkText}>Go to home screen!</Text>
+            <Text style={[styles.linkText, { color: colors.tint }]}>
+              Go to home screen!
+            </Text>
           </Link>
         </View>
       </View>
@@ -23,8 +31,7 @@ export default function NotFoundScreen() {
 const styles = StyleSheet.create({
   title: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: Colors.light.text,
+    fontWeight: "bold",
   },
   link: {
     marginTop: 15,
@@ -32,6 +39,5 @@ const styles = StyleSheet.create({
   },
   linkText: {
     fontSize: 14,
-    color: Colors.light.tint,
   },
 });

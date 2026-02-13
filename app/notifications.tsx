@@ -1,47 +1,61 @@
-import Colors from "@/constants/Colors";
 import { appEvents, EVENTS } from "@/lib/events";
 import { supabase } from "@/lib/supabase";
+import { useTheme } from "@/providers/ThemeProvider";
+import { useUser } from "@/providers/UserProvider";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Stack, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-    Alert,
-    Image,
-    Platform,
-    RefreshControl,
-    SectionList,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    useColorScheme,
-    View,
+  Alert,
+  AppState,
+  Image,
+  Platform,
+  RefreshControl,
+  SectionList,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 export default function NotificationsScreen() {
+  const { colors, isDark } = useTheme();
+  const styles = createStyles(colors, isDark);
   const router = useRouter();
-  const colorScheme = useColorScheme();
+  const { user } = useUser();
   const [loading, setLoading] = useState(true);
   const [sections, setSections] = useState<any[]>([]);
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const SEEN_ACCEPTED_KEY = "seen_accepted_connections"; // Key for local storage
 
+  const currentUserId = user?.id;
+
   useEffect(() => {
-    fetchNotifications();
+    if (currentUserId) {
+      fetchNotifications();
+    }
+
+    const subscription = AppState.addEventListener("change", (nextAppState) => {
+      if (nextAppState === "active" && currentUserId) {
+        fetchNotifications();
+      }
+    });
 
     // Listen for updates
     const unsub = appEvents.on(EVENTS.CONNECTIONS_UPDATED, fetchNotifications);
-    return unsub;
-  }, []);
+    return () => {
+      subscription.remove();
+      unsub();
+    };
+  }, [currentUserId]);
 
   async function fetchNotifications() {
     try {
-      setLoading(true);
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      if (!session) return;
-      setCurrentUserId(session.user.id);
+      if (sections.length === 0) {
+        setLoading(true);
+      }
+      
+      if (!currentUserId) return;
 
       // 1. Fetch received requests (Pending)
       const { data: received, error: errorReceived } = await supabase
@@ -52,7 +66,7 @@ export default function NotificationsScreen() {
           requester:profiles!requester_id(id, full_name, username, role, ville, avatar_url)
         `,
         )
-        .eq("receiver_id", session.user.id)
+        .eq("receiver_id", currentUserId)
         .eq("status", "pending")
         .order("created_at", { ascending: false });
 
@@ -67,7 +81,7 @@ export default function NotificationsScreen() {
           receiver:profiles!receiver_id(id, full_name, username, role, ville, avatar_url)
         `,
         )
-        .eq("requester_id", session.user.id)
+        .eq("requester_id", currentUserId)
         .eq("status", "accepted")
         .order("created_at", { ascending: false })
         .limit(20);
@@ -78,7 +92,7 @@ export default function NotificationsScreen() {
       const { data: assignments, error: errorAssignments } = await supabase
         .from("project_roles")
         .select("*, tournage:tournages(id, title, image_url)")
-        .eq("assigned_profile_id", session.user.id)
+        .eq("assigned_profile_id", currentUserId)
         .order("created_at", { ascending: false })
         .limit(20);
 
@@ -90,7 +104,7 @@ export default function NotificationsScreen() {
         .select(
           "*, role:project_roles(id, title, status, tournage:tournages(id, title, image_url))",
         )
-        .eq("candidate_id", session.user.id)
+        .eq("candidate_id", currentUserId)
         .or("status.eq.accepted,status.eq.invitation_pending")
         .order("created_at", { ascending: false })
         .limit(20);
@@ -106,7 +120,7 @@ export default function NotificationsScreen() {
           receiver:profiles!receiver_id(id, full_name, username, role, ville, avatar_url)
         `,
         )
-        .eq("requester_id", session.user.id)
+        .eq("requester_id", currentUserId)
         .eq("status", "pending")
         .order("created_at", { ascending: false });
 
@@ -121,7 +135,7 @@ export default function NotificationsScreen() {
           agent:profiles!agent_id(id, full_name, username, role, ville, avatar_url)
         `,
         )
-        .eq("talent_id", session.user.id)
+        .eq("talent_id", currentUserId)
         .eq("status", "pending")
         .order("created_at", { ascending: false });
 
@@ -476,7 +490,7 @@ export default function NotificationsScreen() {
                 style={[
                   styles.avatar,
                   {
-                    backgroundColor: Colors.light.tint,
+                    backgroundColor: colors.primary,
                     justifyContent: "center",
                     alignItems: "center",
                   },
@@ -511,7 +525,7 @@ export default function NotificationsScreen() {
                 style={[styles.button, styles.declineButton]}
                 onPress={() => handleDeclineAssignment(targetId, item.id)}
               >
-                <Ionicons name="close" size={20} color="#666" />
+                <Ionicons name="close" size={20} color={colors.text + "80"} />
               </TouchableOpacity>
             </View>
           ) : (
@@ -523,7 +537,7 @@ export default function NotificationsScreen() {
                 <Ionicons
                   name="checkmark-done"
                   size={20}
-                  color={Colors.light.tint}
+                  color={colors.primary}
                 />
               </TouchableOpacity>
             </View>
@@ -560,13 +574,13 @@ export default function NotificationsScreen() {
               style={[
                 styles.avatar,
                 {
-                  backgroundColor: "#ccc",
+                  backgroundColor: colors.backgroundSecondary,
                   justifyContent: "center",
                   alignItems: "center",
                 },
               ]}
             >
-              <Ionicons name="person" size={24} color="#fff" />
+              <Ionicons name="person" size={24} color={colors.text + "80"} />
             </View>
           )}
           <View style={{ flex: 1, marginLeft: 12 }}>
@@ -598,7 +612,7 @@ export default function NotificationsScreen() {
               style={[styles.button, styles.declineButton]}
               onPress={() => handleDecline(item.id)}
             >
-              <Ionicons name="close" size={20} color="#666" />
+              <Ionicons name="close" size={20} color={colors.text + "80"} />
             </TouchableOpacity>
           </View>
         )}
@@ -614,7 +628,7 @@ export default function NotificationsScreen() {
               style={[styles.button, styles.declineButton]}
               onPress={() => handleDeclineMandate(item.id)}
             >
-              <Ionicons name="close" size={20} color="#666" />
+              <Ionicons name="close" size={20} color={colors.text + "80"} />
             </TouchableOpacity>
           </View>
         )}
@@ -624,7 +638,7 @@ export default function NotificationsScreen() {
               style={[styles.button, styles.declineButton]}
               onPress={() => handleDecline(item.id)}
             >
-              <Text style={[styles.buttonText, { color: "#666" }]}>
+              <Text style={[styles.buttonText, { color: colors.text + "80" }]}>
                 Annuler
               </Text>
             </TouchableOpacity>
@@ -635,7 +649,7 @@ export default function NotificationsScreen() {
             <Ionicons
               name="checkmark-done"
               size={20}
-              color={Colors.light.tint}
+              color={colors.primary}
             />
           </TouchableOpacity>
         )}
@@ -659,7 +673,7 @@ export default function NotificationsScreen() {
               >
                 <Text
                   style={{
-                    color: Colors.light.tint,
+                    color: colors.primary,
                     fontWeight: "600",
                     fontSize: 13,
                   }}
@@ -671,7 +685,7 @@ export default function NotificationsScreen() {
         }}
       />
       <View
-        style={[styles.container, { backgroundColor: Colors.light.background }]}
+        style={[styles.container, { backgroundColor: colors.background }]}
       >
         <SectionList
           sections={sections}
@@ -681,10 +695,10 @@ export default function NotificationsScreen() {
             <View
               style={[
                 styles.headerContainer,
-                { backgroundColor: Colors.light.background },
+                { backgroundColor: colors.background },
               ]}
             >
-              <Text style={[styles.headerTitle, { color: Colors.light.text }]}>
+              <Text style={[styles.headerTitle, { color: colors.text }]}>
                 {title}
               </Text>
             </View>
@@ -694,6 +708,8 @@ export default function NotificationsScreen() {
             <RefreshControl
               refreshing={loading}
               onRefresh={fetchNotifications}
+              tintColor={colors.primary}
+              colors={[colors.primary]}
             />
           }
           ListEmptyComponent={
@@ -702,7 +718,7 @@ export default function NotificationsScreen() {
                 <Ionicons
                   name="notifications-off-outline"
                   size={48}
-                  color="#ccc"
+                  color={colors.text + "40"}
                 />
                 <Text style={styles.emptyText}>
                   Aucune notification pour le moment
@@ -716,93 +732,94 @@ export default function NotificationsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  headerContainer: {
-    paddingVertical: 8,
-    marginBottom: 8,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-  },
-  card: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 12,
-    borderRadius: 12,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: "#eee",
-    backgroundColor: Colors.light.card, // Force white background
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  userInfo: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  avatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-  },
-  name: {
-    fontWeight: "bold",
-    fontSize: 16,
-    color: Colors.light.text, // Force dark text
-  },
-  subtitle: {
-    color: "#666",
-    fontSize: 12,
-    marginTop: 2,
-  },
-  role: {
-    color: Colors.light.tint,
-    fontSize: 12,
-    marginTop: 2,
-  },
-  actions: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginLeft: 8,
-  },
-  button: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 20,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  acceptButton: {
-    backgroundColor: Colors.light.tint,
-    marginRight: 8,
-  },
-  declineButton: {
-    backgroundColor: "#f0f0f0",
-    paddingHorizontal: 12,
-  },
-  buttonText: {
-    color: "#fff",
-    fontWeight: "bold",
-    fontSize: 12,
-  },
-  emptyState: {
-    alignItems: "center",
-    justifyContent: "center",
-    paddingTop: 60,
-  },
-  emptyText: {
-    color: "#999",
-    marginTop: 16,
-  },
-});
+const createStyles = (colors: any, isDark: boolean) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+    },
+    headerContainer: {
+      paddingVertical: 8,
+      marginBottom: 8,
+    },
+    headerTitle: {
+      fontSize: 18,
+      fontWeight: "bold",
+    },
+    card: {
+      flexDirection: "row",
+      alignItems: "center",
+      padding: 12,
+      borderRadius: 12,
+      marginBottom: 12,
+      borderWidth: 1,
+      borderColor: isDark ? colors.border : "#eee",
+      backgroundColor: colors.card,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.05,
+      shadowRadius: 2,
+      elevation: 2,
+    },
+    userInfo: {
+      flex: 1,
+      flexDirection: "row",
+      alignItems: "center",
+    },
+    avatar: {
+      width: 50,
+      height: 50,
+      borderRadius: 25,
+    },
+    name: {
+      fontWeight: "bold",
+      fontSize: 16,
+      color: colors.text,
+    },
+    subtitle: {
+      color: colors.text + "99",
+      fontSize: 12,
+      marginTop: 2,
+    },
+    role: {
+      color: colors.primary,
+      fontSize: 12,
+      marginTop: 2,
+    },
+    actions: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginLeft: 8,
+    },
+    button: {
+      paddingVertical: 8,
+      paddingHorizontal: 16,
+      borderRadius: 20,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    acceptButton: {
+      backgroundColor: colors.primary,
+      marginRight: 8,
+    },
+    declineButton: {
+      backgroundColor: isDark ? colors.backgroundSecondary : "#f0f0f0",
+      paddingHorizontal: 12,
+    },
+    buttonText: {
+      color: "#fff",
+      fontWeight: "bold",
+      fontSize: 12,
+    },
+    emptyState: {
+      alignItems: "center",
+      justifyContent: "center",
+      paddingTop: 60,
+    },
+    emptyText: {
+      color: colors.text + "80",
+      marginTop: 16,
+    },
+  });
 function handleMarkSeen(notificationId: string) {
   throw new Error("Function not implemented.");
 }

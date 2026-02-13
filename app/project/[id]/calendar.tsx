@@ -1,28 +1,28 @@
 import ClapLoading from "@/components/ClapLoading";
 import WebDatePicker from "@/components/WebDatePicker";
-import Colors from "@/constants/Colors";
 import { GlobalStyles } from "@/constants/Styles";
+import { useTheme } from "@/providers/ThemeProvider";
 import { useTutorial } from "@/providers/TutorialProvider";
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import {
-    useFocusEffect,
-    useGlobalSearchParams,
-    useLocalSearchParams,
-    useRouter,
+  useFocusEffect,
+  useGlobalSearchParams,
+  useLocalSearchParams,
+  useRouter,
 } from "expo-router";
 import React, { useCallback, useState } from "react";
 import {
-    Alert,
-    Button,
-    FlatList,
-    Modal,
-    Platform,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  Button,
+  FlatList,
+  Modal,
+  Platform,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { supabase } from "../../../lib/supabase";
 
@@ -40,6 +40,8 @@ type Event = {
 };
 
 export default function ProjectCalendar() {
+  const { colors, isDark } = useTheme();
+  const styles = createStyles(colors, isDark);
   const { isTutorialActive, currentStep } = useTutorial();
   const localParams = useLocalSearchParams();
   const globalParams = useGlobalSearchParams();
@@ -526,7 +528,7 @@ export default function ProjectCalendar() {
             <Ionicons
               name="settings-outline"
               size={24}
-              color={Colors.light.text}
+              color={colors.text}
             />
           </TouchableOpacity>
         ) : (
@@ -537,14 +539,14 @@ export default function ProjectCalendar() {
       <View style={styles.headerRow}>
         <View style={styles.weekNav}>
           <TouchableOpacity onPress={() => changeWeek(-1)}>
-            <Ionicons name="chevron-back" size={24} color={Colors.light.tint} />
+            <Ionicons name="chevron-back" size={24} color={colors.tint} />
           </TouchableOpacity>
           <Text style={styles.weekLabel}>{weekLabel}</Text>
           <TouchableOpacity onPress={() => changeWeek(1)}>
             <Ionicons
               name="chevron-forward"
               size={24}
-              color={Colors.light.tint}
+              color={colors.tint}
             />
           </TouchableOpacity>
         </View>
@@ -553,7 +555,7 @@ export default function ProjectCalendar() {
       {loading ? (
         <ClapLoading
           size={50}
-          color={Colors.light.tint}
+          color={colors.tint}
           style={{ marginTop: 50 }}
         />
       ) : (
@@ -566,7 +568,7 @@ export default function ProjectCalendar() {
           ListEmptyComponent={
             <View style={{ marginTop: 40, alignItems: "center" }}>
               <Text
-                style={{ color: Colors.light.tabIconDefault, fontSize: 16 }}
+                style={{ color: colors.tabIconDefault, fontSize: 16 }}
               >
                 Aucun événement cette semaine
               </Text>
@@ -616,7 +618,7 @@ export default function ProjectCalendar() {
                         evt.event_type === "role_specific" &&
                           styles.roleEventCard,
                         evt.is_shoot_day && {
-                          backgroundColor: "#fff9db",
+                          backgroundColor: isDark ? "#2C1E00" : "#fff9db",
                           borderLeftColor: "#fcc419",
                         },
                       ]}
@@ -649,7 +651,7 @@ export default function ProjectCalendar() {
                               <Text
                                 style={[
                                   styles.roleBadgeText,
-                                  { color: "white" },
+                                  { color: colors.background },
                                 ]}
                               >
                                 TOURNAGE
@@ -668,7 +670,7 @@ export default function ProjectCalendar() {
                               <View
                                 style={[
                                   styles.roleBadge,
-                                  { backgroundColor: Colors.light.success },
+                                  { backgroundColor: colors.success },
                                 ]}
                               >
                                 <Text style={styles.roleBadgeText}>
@@ -683,7 +685,7 @@ export default function ProjectCalendar() {
                             <Ionicons
                               name="pencil"
                               size={14}
-                              color={Colors.light.tabIconDefault}
+                              color={colors.tabIconDefault}
                             />
                           )}
                         </View>
@@ -721,9 +723,10 @@ export default function ProjectCalendar() {
             setModalVisible(true);
           }}
         >
-          <Ionicons name="add" size={30} color="white" />
+          <Ionicons name="add" size={30} color={colors.background} />
         </TouchableOpacity>
       )}
+   
 
       <Modal
         visible={modalVisible}
@@ -752,7 +755,7 @@ export default function ProjectCalendar() {
                   value={newEventTitle}
                   onChangeText={setNewEventTitle}
                   placeholder="Réunion, Tournage sc. 1..."
-                  placeholderTextColor={Colors.light.tabIconDefault}
+                  placeholderTextColor={colors.tabIconDefault}
                 />
 
                 <View
@@ -767,7 +770,7 @@ export default function ProjectCalendar() {
                       }}
                       style={[GlobalStyles.input, { justifyContent: "center" }]}
                     >
-                      <Text style={{ color: Colors.light.text }}>
+                      <Text style={{ color: colors.text }}>
                         {newEventDate || "Choisir date"}
                       </Text>
                     </TouchableOpacity>
@@ -781,7 +784,7 @@ export default function ProjectCalendar() {
                       }}
                       style={[GlobalStyles.input, { justifyContent: "center" }]}
                     >
-                      <Text style={{ color: Colors.light.text }}>
+                      <Text style={{ color: colors.text }}>
                         {newEventTime || "Choisir heure"}
                       </Text>
                     </TouchableOpacity>
@@ -865,7 +868,7 @@ export default function ProjectCalendar() {
                   value={newEventDesc}
                   onChangeText={setNewEventDesc}
                   placeholder="Lieu, détails..."
-                  placeholderTextColor={Colors.light.tabIconDefault}
+                  placeholderTextColor={colors.tabIconDefault}
                 />
 
                 <Text style={GlobalStyles.label}>Visibilité</Text>
@@ -882,7 +885,7 @@ export default function ProjectCalendar() {
                     <Text
                       style={[
                         styles.typeBtnText,
-                        newEventType === "general" && { color: "white" },
+                        newEventType === "general" && { color: colors.background },
                       ]}
                     >
                       Général
@@ -904,7 +907,7 @@ export default function ProjectCalendar() {
                       style={[
                         styles.typeBtnText,
                         newEventType === "category_specific" && {
-                          color: "white",
+                          color: colors.background,
                         },
                       ]}
                     >
@@ -928,7 +931,7 @@ export default function ProjectCalendar() {
                       style={[
                         styles.typeBtnText,
                         newEventType === "role_specific" && {
-                          color: "white",
+                          color: colors.background,
                         },
                       ]}
                     >
@@ -955,7 +958,7 @@ export default function ProjectCalendar() {
                       <Ionicons
                         name="trash-outline"
                         size={24}
-                        color={Colors.light.danger}
+                        color={colors.danger}
                       />
                     </TouchableOpacity>
                   ) : (
@@ -970,7 +973,7 @@ export default function ProjectCalendar() {
                       }}
                       style={{ padding: 10, justifyContent: "center" }}
                     >
-                      <Text style={{ color: Colors.light.tabIconDefault }}>
+                      <Text style={{ color: colors.tabIconDefault }}>
                         Annuler
                       </Text>
                     </TouchableOpacity>
@@ -1004,9 +1007,9 @@ export default function ProjectCalendar() {
                         style={{
                           padding: 12,
                           borderBottomWidth: 1,
-                          borderColor: Colors.light.border,
+                          borderColor: colors.border,
                           backgroundColor: isSelected
-                            ? Colors.light.backgroundSecondary
+                            ? colors.backgroundSecondary
                             : "transparent",
                           flexDirection: "row",
                           justifyContent: "space-between",
@@ -1022,11 +1025,11 @@ export default function ProjectCalendar() {
                           });
                         }}
                       >
-                        <Text style={{ color: Colors.light.text }}>
+                        <Text style={{ color: colors.text }}>
                           {item.title}{" "}
                           <Text
                             style={{
-                              color: Colors.light.tabIconDefault,
+                              color: colors.tabIconDefault,
                               fontSize: 12,
                             }}
                           >
@@ -1037,7 +1040,7 @@ export default function ProjectCalendar() {
                           <Ionicons
                             name="checkmark"
                             size={20}
-                            color={Colors.light.tint}
+                            color={colors.tint}
                           />
                         )}
                       </TouchableOpacity>
@@ -1049,7 +1052,7 @@ export default function ProjectCalendar() {
                   style={{ marginTop: 10, alignSelf: "center", padding: 10 }}
                 >
                   <Text
-                    style={{ color: Colors.light.tint, fontWeight: "bold" }}
+                    style={{ color: colors.tint, fontWeight: "bold" }}
                   >
                     Valider la sélection
                   </Text>
@@ -1078,9 +1081,9 @@ export default function ProjectCalendar() {
                         style={{
                           padding: 12,
                           borderBottomWidth: 1,
-                          borderColor: Colors.light.border,
+                          borderColor: colors.border,
                           backgroundColor: isSelected
-                            ? Colors.light.backgroundSecondary
+                            ? colors.backgroundSecondary
                             : "transparent",
                           flexDirection: "row",
                           justifyContent: "space-between",
@@ -1096,12 +1099,12 @@ export default function ProjectCalendar() {
                           });
                         }}
                       >
-                        <Text style={{ color: Colors.light.text }}>{item}</Text>
+                        <Text style={{ color: colors.text }}>{item}</Text>
                         {isSelected && (
                           <Ionicons
                             name="checkmark"
                             size={20}
-                            color={Colors.light.tint}
+                            color={colors.tint}
                           />
                         )}
                       </TouchableOpacity>
@@ -1111,7 +1114,7 @@ export default function ProjectCalendar() {
                     <Text
                       style={{
                         textAlign: "center",
-                        color: Colors.light.tabIconDefault,
+                        color: colors.tabIconDefault,
                       }}
                     >
                       Aucune catégorie trouvée
@@ -1123,7 +1126,7 @@ export default function ProjectCalendar() {
                   style={{ marginTop: 10, alignSelf: "center", padding: 10 }}
                 >
                   <Text
-                    style={{ color: Colors.light.tint, fontWeight: "bold" }}
+                    style={{ color: colors.tint, fontWeight: "bold" }}
                   >
                     Valider la sélection
                   </Text>
@@ -1137,173 +1140,178 @@ export default function ProjectCalendar() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.light.background,
-    paddingHorizontal: 20,
-  },
-  fullHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingTop: 60,
-    paddingBottom: 15,
-    paddingHorizontal: 20,
-    backgroundColor: Colors.light.background,
-    borderBottomWidth: 1,
-    borderColor: Colors.light.border,
-    marginHorizontal: -20,
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    fontFamily: "System",
-    color: Colors.light.text,
-  },
-  headerRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingTop: 20,
-    marginBottom: 20,
-  },
-  weekNav: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: Colors.light.card,
-    borderRadius: 20,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    gap: 10,
-    borderWidth: 1,
-    borderColor: Colors.light.border,
-  },
-  weekLabel: { fontWeight: "600", color: Colors.light.text },
+function createStyles(colors: any, isDark: boolean) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+      paddingHorizontal: 20,
+    },
+    fullHeader: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      paddingTop: 60,
+      paddingBottom: 15,
+      paddingHorizontal: 20,
+      backgroundColor: colors.background,
+      borderBottomWidth: 1,
+      borderColor: colors.border,
+      marginHorizontal: -20,
+    },
+    headerTitle: {
+      fontSize: 20,
+      fontWeight: "bold",
+      fontFamily: "System",
+      color: colors.text,
+    },
+    headerRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      paddingTop: 20,
+      marginBottom: 20,
+    },
+    weekNav: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: colors.card,
+      borderRadius: 20,
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      gap: 10,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    weekLabel: { fontWeight: "600", color: colors.text },
 
-  todaySection: {
-    backgroundColor: Colors.light.backgroundSecondary,
-    marginLeft: -10,
-    marginRight: -10,
-    paddingHorizontal: 10,
-    borderRadius: 8,
-  },
-  todayText: { color: Colors.light.tint },
+    todaySection: {
+      backgroundColor: colors.backgroundSecondary,
+      marginLeft: -10,
+      marginRight: -10,
+      paddingHorizontal: 10,
+      borderRadius: 8,
+    },
+    todayText: { color: colors.tint },
 
-  daySection: { marginBottom: 20 },
-  dateHeader: {
-    marginBottom: 10,
-    borderBottomWidth: 1,
-    borderColor: Colors.light.border,
-    paddingBottom: 5,
-  },
-  dateTitle: {
-    fontSize: 16,
-    fontWeight: "bold",
-    textTransform: "capitalize",
-    color: Colors.light.text,
-  },
+    daySection: { marginBottom: 20 },
+    dateHeader: {
+      marginBottom: 10,
+      borderBottomWidth: 1,
+      borderColor: colors.border,
+      paddingBottom: 5,
+    },
+    dateTitle: {
+      fontSize: 16,
+      fontWeight: "bold",
+      textTransform: "capitalize",
+      color: colors.text,
+    },
 
-  eventCard: {
-    backgroundColor: Colors.light.card,
-    padding: 15,
-    borderRadius: 12,
-    marginBottom: 8,
-    borderLeftWidth: 4,
-    borderLeftColor: Colors.light.tint,
-    borderWidth: 1,
-    borderColor: Colors.light.border,
-    shadowColor: Colors.light.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  roleEventCard: { borderLeftColor: "#FF9800", backgroundColor: "#FFF8E1" },
+    eventCard: {
+      backgroundColor: colors.card,
+      padding: 15,
+      borderRadius: 12,
+      marginBottom: 8,
+      borderLeftWidth: 4,
+      borderLeftColor: colors.tint,
+      borderWidth: 1,
+      borderColor: colors.border,
+      shadowColor: colors.shadow,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.05,
+      shadowRadius: 4,
+      elevation: 2,
+    },
+    roleEventCard: {
+      borderLeftColor: "#FF9800",
+      backgroundColor: isDark ? "#2C1E00" : "#FFF8E1",
+    },
 
-  eventTime: { fontWeight: "bold", color: Colors.light.text, marginBottom: 4 },
-  eventTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    marginBottom: 4,
-    color: Colors.light.text,
-  },
-  eventDesc: { color: Colors.light.tabIconDefault, fontSize: 14 },
-  roleBadge: {
-    backgroundColor: "#FF9800",
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  roleBadgeText: { fontSize: 10, color: "white", fontWeight: "bold" },
+    eventTime: { fontWeight: "bold", color: colors.text, marginBottom: 4 },
+    eventTitle: {
+      fontSize: 16,
+      fontWeight: "600",
+      marginBottom: 4,
+      color: colors.text,
+    },
+    eventDesc: { color: colors.tabIconDefault, fontSize: 14 },
+    roleBadge: {
+      backgroundColor: "#FF9800",
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+      borderRadius: 4,
+    },
+    roleBadgeText: { fontSize: 10, color: colors.background, fontWeight: "bold" },
 
-  fab: {
-    position: "absolute",
-    bottom: 100,
-    right: 30,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: Colors.light.tint,
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: Colors.light.shadow,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4.65,
-    elevation: 8,
-  },
+    fab: {
+      position: "absolute",
+      bottom: 100,
+      right: 30,
+      width: 56,
+      height: 56,
+      borderRadius: 28,
+      backgroundColor: colors.tint,
+      justifyContent: "center",
+      alignItems: "center",
+      shadowColor: colors.shadow,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.3,
+      shadowRadius: 4.65,
+      elevation: 8,
+    },
 
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  modalContent: {
-    backgroundColor: Colors.light.background,
-    borderRadius: 12,
-    padding: 20,
-    width: "90%",
-    maxHeight: "80%",
-    minHeight: 400, // Hauteur minimale pour éviter l'effet "écrasé"
-    shadowColor: Colors.light.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
-  typeBtn: {
-    flex: 1,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: Colors.light.border,
-    borderRadius: 8,
-    alignItems: "center",
-  },
-  typeBtnActive: {
-    backgroundColor: Colors.light.tint,
-    borderColor: Colors.light.tint,
-  },
-  typeBtnText: { color: Colors.light.text, fontWeight: "600" },
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: "rgba(0,0,0,0.5)",
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    modalContent: {
+      backgroundColor: colors.background,
+      borderRadius: 12,
+      padding: 20,
+      width: "90%",
+      maxHeight: "80%",
+      minHeight: 400, // Hauteur minimale pour éviter l'effet "écrasé"
+      shadowColor: colors.shadow,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.25,
+      shadowRadius: 3.84,
+      elevation: 5,
+    },
+    typeBtn: {
+      flex: 1,
+      padding: 12,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 8,
+      alignItems: "center",
+    },
+    typeBtnActive: {
+      backgroundColor: colors.tint,
+      borderColor: colors.tint,
+    },
+    typeBtnText: { color: colors.text, fontWeight: "600" },
 
-  rolePickerOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 30,
-  },
-  rolePickerBox: {
-    backgroundColor: Colors.light.background,
-    borderRadius: 10,
-    padding: 20,
-    width: "100%",
-    maxHeight: 400,
-    shadowColor: Colors.light.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
-});
+    rolePickerOverlay: {
+      flex: 1,
+      backgroundColor: "rgba(0,0,0,0.5)",
+      justifyContent: "center",
+      alignItems: "center",
+      padding: 30,
+    },
+    rolePickerBox: {
+      backgroundColor: colors.background,
+      borderRadius: 10,
+      padding: 20,
+      width: "100%",
+      maxHeight: 400,
+      shadowColor: colors.shadow,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.25,
+      shadowRadius: 3.84,
+      elevation: 5,
+    },
+  });
+}

@@ -1,12 +1,14 @@
 import ClapLoading from "@/components/ClapLoading";
-import Colors from "@/constants/Colors";
 import { GlobalStyles } from "@/constants/Styles";
 import { appEvents, EVENTS } from "@/lib/events";
+import { useTheme } from "@/providers/ThemeProvider";
+import { useUser } from "@/providers/UserProvider";
 import { Ionicons } from "@expo/vector-icons";
-import { Stack, useLocalSearchParams, useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   Alert,
+  AppState,
   Image,
   Linking,
   Platform,
@@ -19,8 +21,11 @@ import {
 import { supabase } from "../../lib/supabase";
 
 export default function ProfileDetail() {
+  const { colors, isDark } = useTheme();
+  const styles = createStyles(colors, isDark);
   const { id } = useLocalSearchParams();
   const router = useRouter();
+  const { user, profile: myProfile } = useUser();
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [tournages, setTournages] = useState<any[]>([]);
@@ -34,16 +39,13 @@ export default function ProfileDetail() {
   >(null);
   const [connectionId, setConnectionId] = useState<string | null>(null);
   const [isRequester, setIsRequester] = useState(false);
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
   const [mandateStatus, setMandateStatus] = useState<string | null>(null);
   const [isBlocked, setIsBlocked] = useState(false);
+  const isFetchingRef = React.useRef(false);
 
-  useEffect(() => {
-    fetchProfile();
-  }, [id]);
-
-  async function fetchProfile() {
+  const fetchProfile = useCallback(async () => {
+    if (isFetchingRef.current) return;
     try {
       const profileId = Array.isArray(id) ? id[0] : id;
       if (!profileId) {
@@ -51,22 +53,14 @@ export default function ProfileDetail() {
         return;
       }
 
-      setLoading(true);
-
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      const myId = session?.user?.id || null;
-      setCurrentUserId(myId);
-
-      if (myId) {
-        const { data: myProfile } = await supabase
-          .from("profiles")
-          .select("role")
-          .eq("id", myId)
-          .maybeSingle();
-        setCurrentUserRole(myProfile?.role || null);
+      isFetchingRef.current = true;
+      if (!profile) {
+        setLoading(true);
       }
+      console.log("[Profile] Start fetching profile for", profileId);
+
+      const myId = user?.id || null;
+      setCurrentUserRole(myProfile?.role || null);
 
       const isOwner = myId === profileId;
       setIsOwnProfile(isOwner);
@@ -222,15 +216,37 @@ export default function ProfileDetail() {
         setParticipations(filteredParts);
       }
     } catch (e) {
-      console.warn(e);
+      console.warn("[Profile] Error:", e);
       Alert.alert("Ooops", "Impossible de charger le profil.");
       router.back();
     } finally {
+      isFetchingRef.current = false;
       setLoading(false);
+      console.log("[Profile] Fetching profile finished");
     }
-  }
+  }, [user, profile, myProfile, id, router]);
+
+  useEffect(() => {
+    fetchProfile();
+  }, [fetchProfile]);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (nextAppState) => {
+      if (nextAppState === "active") {
+        fetchProfile();
+      }
+    });
+    return () => subscription.remove();
+  }, [fetchProfile]);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchProfile();
+    }, [fetchProfile]),
+  );
 
   async function handleClap() {
+    const currentUserId = user?.id;
     if (!currentUserId || !profile) return;
     try {
       // 1. Check connections between these two users
@@ -284,6 +300,7 @@ export default function ProfileDetail() {
           await supabase
             .from("connections")
             .delete()
+
             .eq("id", myPendingRequest.id);
         }
 
@@ -339,6 +356,7 @@ export default function ProfileDetail() {
   }
 
   async function handleRequestManagement() {
+    const currentUserId = user?.id;
     if (!currentUserId) {
       Alert.alert("Erreur", "Vous devez être connecté.");
       return;
@@ -364,6 +382,7 @@ export default function ProfileDetail() {
 
   async function handleBlock() {
     const profileId = Array.isArray(id) ? id[0] : id;
+    const currentUserId = user?.id;
     if (!currentUserId) {
       const msg = "Vous devez être connecté pour bloquer un utilisateur.";
       if (Platform.OS === "web") alert(msg);
@@ -423,6 +442,7 @@ export default function ProfileDetail() {
 
   async function handleUnblock() {
     const profileId = Array.isArray(id) ? id[0] : id;
+    const currentUserId = user?.id;
     if (!currentUserId || !profileId) return;
 
     try {
@@ -468,7 +488,7 @@ export default function ProfileDetail() {
     return (
       <ClapLoading
         style={{ marginTop: 50 }}
-        color={Colors.light.primary}
+        color={colors.primary}
         size={50}
       />
     );
@@ -483,7 +503,7 @@ export default function ProfileDetail() {
             onPress={() => router.back()}
             style={styles.backButton}
           >
-            <Ionicons name="arrow-back" size={24} color={Colors.light.text} />
+            <Ionicons name="arrow-back" size={24} color={colors.text} />
           </TouchableOpacity>
 
           {!isOwnProfile && (
@@ -540,7 +560,7 @@ export default function ProfileDetail() {
               <Ionicons
                 name="ellipsis-vertical"
                 size={24}
-                color={Colors.light.text}
+                color={colors.text}
               />
             </TouchableOpacity>
           )}
@@ -553,7 +573,7 @@ export default function ProfileDetail() {
               <Ionicons
                 name="settings-outline"
                 size={24}
-                color={Colors.light.text}
+                color={colors.text}
               />
             </TouchableOpacity>
           )}
@@ -562,13 +582,13 @@ export default function ProfileDetail() {
             <Image source={{ uri: profile.avatar_url }} style={styles.avatar} />
           ) : (
             <View style={[styles.avatar, styles.avatarPlaceholder]}>
-              <Text style={{ fontSize: 40, color: "#888" }}>
+              <Text style={{ fontSize: 40, color: colors.text + "80" }}>
                 {profile?.full_name?.charAt(0) || "?"}
               </Text>
             </View>
           )}
 
-          <Text style={GlobalStyles.title1}>
+          <Text style={[GlobalStyles.title1, { color: colors.text }]}>
             {profile?.full_name || profile?.username || "Profil"}
           </Text>
           <Text style={styles.role}>
@@ -578,14 +598,14 @@ export default function ProfileDetail() {
           <View style={{ flexDirection: "row", gap: 10, marginTop: 5 }}>
             {profile?.ville && (
               <View style={styles.iconRow}>
-                <Ionicons name="location-outline" size={16} color="#666" />
-                <Text style={{ color: "#666" }}>{profile.ville}</Text>
+                <Ionicons name="location-outline" size={16} color={colors.text + "80"} />
+                <Text style={{ color: colors.text + "80" }}>{profile.ville}</Text>
               </View>
             )}
             {(contactVisible || isOwnProfile) && profile?.email_public && (
               <View style={styles.iconRow}>
-                <Ionicons name="mail-outline" size={16} color="#666" />
-                <Text style={{ color: "#666" }}>{profile.email_public}</Text>
+                <Ionicons name="mail-outline" size={16} color={colors.text + "80"} />
+                <Text style={{ color: colors.text + "80" }}>{profile.email_public}</Text>
               </View>
             )}
           </View>
@@ -611,10 +631,10 @@ export default function ProfileDetail() {
                 style={[
                   styles.actionButton,
                   connectionStatus === "accepted"
-                    ? { backgroundColor: Colors.light.success }
+                    ? { backgroundColor: colors.success }
                     : connectionStatus === "pending"
                       ? { backgroundColor: "#FF9800" }
-                      : { backgroundColor: Colors.light.primary },
+                      : { backgroundColor: colors.primary },
                 ]}
                 onPress={handleClap}
                 disabled={connectionStatus === "pending" && isRequester}
@@ -648,7 +668,7 @@ export default function ProfileDetail() {
                 style={[
                   styles.actionButton,
                   mandateStatus === "accepted"
-                    ? { backgroundColor: Colors.light.success }
+                    ? { backgroundColor: colors.success }
                     : mandateStatus === "pending"
                       ? { backgroundColor: "#FF9800" }
                       : { backgroundColor: "#673AB7" },
@@ -704,7 +724,7 @@ export default function ProfileDetail() {
             <TouchableOpacity
               style={[
                 styles.actionButton,
-                { backgroundColor: Colors.light.tint },
+                { backgroundColor: colors.primary },
               ]}
               onPress={() =>
                 router.push({
@@ -724,7 +744,7 @@ export default function ProfileDetail() {
             <TouchableOpacity
               style={[
                 styles.actionButton,
-                { backgroundColor: Colors.light.tint },
+                { backgroundColor: colors.primary },
               ]}
               onPress={() =>
                 router.push({
@@ -745,7 +765,7 @@ export default function ProfileDetail() {
         {/* PHYSIQUE section (conditional) */}
         {(profile?.height || profile?.hair_color || profile?.eye_color) && (
           <View style={styles.section}>
-            <Text style={GlobalStyles.title2}>Caractéristiques</Text>
+            <Text style={[GlobalStyles.title2, { color: colors.text }]}>Caractéristiques</Text>
             <View style={styles.attributesGrid}>
               {profile.height && (
                 <View style={styles.attributeItem}>
@@ -772,8 +792,8 @@ export default function ProfileDetail() {
         {/* TECH section */}
         {(profile?.equipment || profile?.software) && (
           <View style={styles.section}>
-            <Text style={GlobalStyles.title2}>Matériel & Outils</Text>
-            <View style={GlobalStyles.card}>
+            <Text style={[GlobalStyles.title2, { color: colors.text }]}>Matériel & Outils</Text>
+            <View style={[GlobalStyles.card, { backgroundColor: colors.background, borderColor: colors.border }]}>
               {profile.equipment && (
                 <View style={{ marginBottom: 12 }}>
                   <Text style={styles.attrLabel}>Matériel</Text>
@@ -797,8 +817,8 @@ export default function ProfileDetail() {
         {/* HMC section */}
         {profile?.specialties && (
           <View style={styles.section}>
-            <Text style={GlobalStyles.title2}>Spécialités</Text>
-            <View style={GlobalStyles.card}>
+            <Text style={[GlobalStyles.title2, { color: colors.text }]}>Spécialités</Text>
+            <View style={[GlobalStyles.card, { backgroundColor: colors.background, borderColor: colors.border }]}>
               <Text style={[styles.attrValue, { fontWeight: "400" }]}>
                 {profile.specialties}
               </Text>
@@ -809,11 +829,11 @@ export default function ProfileDetail() {
         {/* SKILLS */}
         {profile?.skills && profile.skills.length > 0 && (
           <View style={styles.section}>
-            <Text style={GlobalStyles.title2}>Compétences</Text>
+            <Text style={[GlobalStyles.title2, { color: colors.text }]}>Compétences</Text>
             <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
               {profile.skills.map((s: string, i: number) => (
                 <View key={i} style={styles.skillTag}>
-                  <Text style={{ color: "#333" }}>{s}</Text>
+                  <Text style={{ color: colors.text }}>{s}</Text>
                 </View>
               ))}
             </View>
@@ -823,7 +843,7 @@ export default function ProfileDetail() {
         {/* SHOWREEL */}
         {profile?.showreel_url && (
           <View style={styles.section}>
-            <Text style={GlobalStyles.title2}>Bande Démo</Text>
+            <Text style={[GlobalStyles.title2, { color: colors.text }]}>Bande Démo</Text>
             <TouchableOpacity
               onPress={() => openLink(profile.showreel_url)}
               style={styles.videoCard}
@@ -841,7 +861,7 @@ export default function ProfileDetail() {
         {/* BOOK PHOTOS */}
         {profile?.book_urls && profile.book_urls.length > 0 && (
           <View style={styles.section}>
-            <Text style={GlobalStyles.title2}>Book Photo</Text>
+            <Text style={[GlobalStyles.title2, { color: colors.text }]}>Book Photo</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               {profile.book_urls.map((url: string, i: number) => (
                 <TouchableOpacity key={i} onPress={() => {}}>
@@ -854,7 +874,7 @@ export default function ProfileDetail() {
 
         {/* PROJETS */}
         <View style={styles.section}>
-          <Text style={GlobalStyles.title2}>Expérience (Projets)</Text>
+          <Text style={[GlobalStyles.title2, { color: colors.text }]}>Expérience (Projets)</Text>
           {tournages.length === 0 && participations.length === 0 ? (
             <Text style={styles.emptyText}>Aucun projet visible.</Text>
           ) : (
@@ -876,7 +896,7 @@ export default function ProfileDetail() {
                       Créateur • {t.type?.replace("_", " ")}
                     </Text>
                   </View>
-                  <Ionicons name="chevron-forward" size={20} color="#ccc" />
+                  <Ionicons name="chevron-forward" size={20} color={colors.text + "40"} />
                 </TouchableOpacity>
               ))}
               {participations.map((p) => {
@@ -904,19 +924,19 @@ export default function ProfileDetail() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   container: {
-    backgroundColor: Colors.light.backgroundSecondary,
+    backgroundColor: colors.backgroundSecondary,
     flexGrow: 1,
   },
   headerSection: {
     alignItems: "center",
     padding: 20,
     paddingTop: 60,
-    backgroundColor: Colors.light.background,
+    backgroundColor: colors.background,
     borderBottomRightRadius: 30,
     borderBottomLeftRadius: 30,
-    shadowColor: Colors.light.shadow,
+    shadowColor: colors.shadow,
     shadowOpacity: 0.05,
     shadowRadius: 10,
     elevation: 5,
@@ -949,19 +969,19 @@ const styles = StyleSheet.create({
     borderRadius: 60,
     marginBottom: 15,
     borderWidth: 4,
-    borderColor: "white",
-    shadowColor: "#000",
+    borderColor: colors.background,
+    shadowColor: colors.shadow,
     shadowOpacity: 0.1,
     shadowRadius: 5,
   },
   avatarPlaceholder: {
-    backgroundColor: "#f0f0f0",
+    backgroundColor: colors.backgroundSecondary,
     justifyContent: "center",
     alignItems: "center",
   },
   role: {
     fontSize: 14,
-    color: Colors.light.primary,
+    color: colors.primary,
     fontWeight: "600",
     textTransform: "uppercase",
     letterSpacing: 1,
@@ -978,13 +998,13 @@ const styles = StyleSheet.create({
   },
   bio: {
     textAlign: "center",
-    color: "#555",
+    color: colors.text + "CC",
     fontStyle: "italic",
     lineHeight: 20,
   },
   actionButton: {
     flexDirection: "row",
-    backgroundColor: Colors.light.primary,
+    backgroundColor: colors.primary,
     paddingVertical: 10,
     paddingHorizontal: 15,
     borderRadius: 20,
@@ -1002,44 +1022,44 @@ const styles = StyleSheet.create({
   },
   attributesGrid: {
     flexDirection: "row",
-    backgroundColor: "white",
+    backgroundColor: colors.background,
     borderRadius: 12,
     padding: 15,
     justifyContent: "space-around",
-    shadowColor: "#000",
+    shadowColor: colors.shadow,
     shadowOpacity: 0.03,
     shadowRadius: 3,
     borderWidth: 1,
-    borderColor: Colors.light.border,
+    borderColor: colors.border,
   },
   attributeItem: {
     alignItems: "center",
   },
   attrLabel: {
     fontSize: 12,
-    color: "#999",
+    color: colors.text + "80",
     marginBottom: 4,
     textTransform: "uppercase",
   },
   attrValue: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#333",
+    color: colors.text,
   },
   skillTag: {
-    backgroundColor: Colors.light.background,
+    backgroundColor: colors.background,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: Colors.light.border,
+    borderColor: colors.border,
   },
   bookImage: {
     width: 100,
     height: 100,
     borderRadius: 8,
     marginRight: 10,
-    backgroundColor: "#ddd",
+    backgroundColor: colors.backgroundSecondary,
   },
   videoCard: {
     height: 150,
@@ -1049,7 +1069,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   emptyText: {
-    color: "#999",
+    color: colors.text + "80",
     fontStyle: "italic",
     textAlign: "center",
     padding: 10,
@@ -1058,41 +1078,42 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    backgroundColor: "white",
+    backgroundColor: colors.background,
     padding: 15,
     borderRadius: 10,
     marginBottom: 10,
     borderLeftWidth: 3,
-    borderLeftColor: Colors.light.primary,
-    shadowColor: "#000",
+    borderLeftColor: colors.primary,
+    shadowColor: colors.shadow,
     shadowOpacity: 0.03,
     elevation: 1,
     borderWidth: 1,
-    borderColor: Colors.light.border,
+    borderColor: colors.border,
   },
   participationCard: {
-    backgroundColor: "#fff",
+    backgroundColor: colors.background,
     padding: 15,
     borderRadius: 10,
     marginBottom: 10,
     borderLeftWidth: 3,
-    borderLeftColor: "#ccc",
+    borderLeftColor: colors.border,
     borderWidth: 1,
-    borderColor: Colors.light.border,
+    borderColor: colors.border,
   },
   projectTitle: {
     fontWeight: "700",
     fontSize: 16,
-    color: Colors.light.text,
+    color: colors.text,
   },
   projectMeta: {
     fontSize: 12,
-    color: "#888",
+    color: colors.text + "80",
     marginTop: 2,
   },
   participationRole: {
-    color: Colors.light.primary,
+    color: colors.primary,
     fontWeight: "600",
     fontSize: 14,
   },
 });
+

@@ -1,7 +1,7 @@
 import ClapLoading from "@/components/ClapLoading";
-import Colors from "@/constants/Colors";
 import { GlobalStyles } from "@/constants/Styles";
 import { supabase } from "@/lib/supabase";
+import { useTheme } from "@/providers/ThemeProvider";
 import { generateContract } from "@/utils/pdfGenerator";
 import { Ionicons } from "@expo/vector-icons";
 import {
@@ -24,6 +24,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 export default function AdminScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { colors, isDark } = useTheme();
+  const styles = createStyles(colors, isDark);
   const localParams = useLocalSearchParams();
   const globalParams = useGlobalSearchParams();
   const idValue = localParams.id || globalParams.id;
@@ -117,7 +119,7 @@ export default function AdminScreen() {
       <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>
         {loading && (
           <ClapLoading
-            color={Colors.light.primary}
+            color={colors.primary}
             style={{ margin: 20 }}
             size={30}
           />
@@ -134,7 +136,7 @@ export default function AdminScreen() {
               onPress={fetchData}
               style={{
                 marginTop: 20,
-                backgroundColor: Colors.light.primary,
+                backgroundColor: colors.primary,
                 padding: 12,
                 borderRadius: 8,
               }}
@@ -258,17 +260,17 @@ export default function AdminScreen() {
           <TouchableOpacity
             style={[
               styles.quickAction,
-              { backgroundColor: "#FEF2F2", borderColor: "#FECACA" },
+              { backgroundColor: isDark ? colors.backgroundSecondary : "#FEF2F2", borderColor: isDark ? colors.border : "#FECACA" },
             ]}
             onPress={() => router.push(`/project/${projectId}/close`)}
           >
             <Ionicons
               name="trophy-outline"
               size={24}
-              color={Colors.light.danger}
+              color={colors.danger}
             />
             <Text
-              style={[styles.quickActionText, { color: Colors.light.danger }]}
+              style={[styles.quickActionText, { color: colors.danger }]}
             >
               Clôturer
             </Text>
@@ -290,7 +292,7 @@ export default function AdminScreen() {
 
         <View style={{ padding: 15 }}>
           {loading ? (
-            <ClapLoading color={Colors.light.primary} size={30} />
+            <ClapLoading color={colors.primary} size={30} />
           ) : members.length === 0 ? (
             <Text style={styles.emptyText}>
               Aucun membre assigné pour le moment.
@@ -311,7 +313,7 @@ export default function AdminScreen() {
                         item.assigned_profile?.username}
                     </Text>
                     <Text
-                      style={{ color: Colors.light.primary, fontWeight: "600" }}
+                      style={{ color: colors.primary, fontWeight: "600" }}
                     >
                       {item.title}
                     </Text>
@@ -385,54 +387,55 @@ export default function AdminScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.light.backgroundSecondary },
+function createStyles(colors: any, isDark: boolean) {
+  return StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.backgroundSecondary },
   header: {
     paddingBottom: 15,
     paddingHorizontal: 20,
-    backgroundColor: "white",
+    backgroundColor: colors.background,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.light.border,
+    borderBottomColor: colors.border,
     alignItems: "center",
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: "bold",
-    color: Colors.light.text,
+    color: colors.text,
   },
   avatarPlaceholderSmall: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: Colors.light.tint,
+    backgroundColor: colors.primary + "20",
     justifyContent: "center",
     alignItems: "center",
   },
   avatarTextSmall: {
     fontSize: 14,
     fontWeight: "bold",
-    color: Colors.light.primary,
+    color: colors.primary,
   },
   quickAction: {
     flex: 1,
-    backgroundColor: "white",
+    backgroundColor: colors.card,
     padding: 15,
     borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: Colors.light.border,
+    borderColor: colors.border,
     gap: 5,
   },
   quickActionText: {
     fontSize: 12,
     fontWeight: "600",
-    color: "#333",
+    color: colors.text,
   },
   actionButton: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#f0f0f0",
+    backgroundColor: colors.backgroundSecondary,
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 8,
@@ -443,11 +446,12 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "600",
     marginLeft: 6,
-    color: "#333",
+    color: colors.text,
   },
   emptyText: {
     textAlign: "center",
     color: "#999",
     marginTop: 20,
   },
-});
+  });
+}

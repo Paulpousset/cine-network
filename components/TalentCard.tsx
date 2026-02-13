@@ -1,5 +1,5 @@
-import Colors from "@/constants/Colors";
 import { GlobalStyles } from "@/constants/Styles";
+import { useTheme } from "@/providers/ThemeProvider";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React from "react";
@@ -11,6 +11,7 @@ interface TalentCardProps {
 
 export const TalentCard = React.memo(({ item }: TalentCardProps) => {
   const router = useRouter();
+  const { colors } = useTheme();
 
   return (
     <TouchableOpacity
@@ -23,7 +24,13 @@ export const TalentCard = React.memo(({ item }: TalentCardProps) => {
         {item.avatar_url ? (
           <Image source={{ uri: item.avatar_url }} style={styles.avatar} />
         ) : (
-          <View style={[styles.avatar, styles.avatarPlaceholder]}>
+          <View
+            style={[
+              styles.avatar,
+              styles.avatarPlaceholder,
+              { backgroundColor: colors.primary },
+            ]}
+          >
             <Text style={styles.avatarText}>
               {(item.full_name || item.username || "?").charAt(0).toUpperCase()}
             </Text>
@@ -34,7 +41,7 @@ export const TalentCard = React.memo(({ item }: TalentCardProps) => {
           <Text style={GlobalStyles.title2}>
             {item.full_name || item.username || "Profil"}
           </Text>
-          <Text style={[styles.role, { color: Colors.light.primary }]}>
+          <Text style={[styles.role, { color: colors.primary }]}>
             {(item.role || "").toString().replace("_", " ")}
           </Text>
           {(item.city || item.ville || item.location) && (
@@ -47,7 +54,7 @@ export const TalentCard = React.memo(({ item }: TalentCardProps) => {
         <Ionicons
           name="chevron-forward"
           size={20}
-          color={Colors.light.tabIconDefault}
+          color={colors.tabIconDefault}
         />
       </View>
     </TouchableOpacity>
@@ -64,7 +71,6 @@ const styles = StyleSheet.create({
   avatarPlaceholder: {
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: Colors.light.primary,
   },
   avatarText: {
     color: "white",

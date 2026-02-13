@@ -1,5 +1,5 @@
-import Colors from "@/constants/Colors";
 import { appEvents, EVENTS } from "@/lib/events";
+import { useTheme } from "@/providers/ThemeProvider";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
@@ -15,6 +15,8 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function NotificationToast() {
+  const { colors, isDark } = useTheme();
+  const styles = createStyles(colors, isDark);
   const [notification, setNotification] = useState<{
     title: string;
     body: string;
@@ -98,7 +100,7 @@ export default function NotificationToast() {
           <Ionicons
             name="chatbubble-ellipses"
             size={24}
-            color={Colors.light.tint}
+            color={colors.primary}
           />
         </View>
         <View style={styles.content}>
@@ -113,52 +115,56 @@ export default function NotificationToast() {
           onPress={() => hideNotification()}
           style={styles.closeBtn}
         >
-          <Ionicons name="close" size={20} color="#999" />
+          <Ionicons name="close" size={20} color={colors.text + "80"} />
         </TouchableOpacity>
       </TouchableOpacity>
     </Animated.View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    position: "absolute",
-    zIndex: 9999,
-    paddingHorizontal: 15,
-    marginHorizontal: Platform.OS === "web" ? 0 : 10, // Margin only on mobile
-  },
-  toast: {
-    backgroundColor: "white",
-    borderRadius: 12,
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 15,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
-    elevation: 8,
-    borderLeftWidth: 4,
-    borderLeftColor: Colors.light.tint,
-  },
-  iconContainer: {
-    marginRight: 12,
-  },
-  content: {
-    flex: 1,
-    marginRight: 10,
-  },
-  title: {
-    fontWeight: "bold",
-    fontSize: 14,
-    color: "#333",
-    marginBottom: 2,
-  },
-  body: {
-    fontSize: 13,
-    color: "#666",
-  },
-  closeBtn: {
-    padding: 5,
-  },
-});
+function createStyles(colors: any, isDark: boolean) {
+  return StyleSheet.create({
+    container: {
+      position: "absolute",
+      zIndex: 9999,
+      paddingHorizontal: 15,
+      marginHorizontal: Platform.OS === "web" ? 0 : 10, // Margin only on mobile
+    },
+    toast: {
+      backgroundColor: colors.card,
+      borderRadius: 12,
+      flexDirection: "row",
+      alignItems: "center",
+      padding: 15,
+      shadowColor: colors.shadow,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.15,
+      shadowRadius: 10,
+      elevation: 8,
+      borderLeftWidth: 4,
+      borderLeftColor: colors.primary,
+      borderWidth: isDark ? 1 : 0,
+      borderColor: colors.border,
+    },
+    iconContainer: {
+      marginRight: 12,
+    },
+    content: {
+      flex: 1,
+      marginRight: 10,
+    },
+    title: {
+      fontWeight: "bold",
+      fontSize: 14,
+      color: colors.text,
+      marginBottom: 2,
+    },
+    body: {
+      fontSize: 13,
+      color: colors.text + "CC",
+    },
+    closeBtn: {
+      padding: 5,
+    },
+  });
+}

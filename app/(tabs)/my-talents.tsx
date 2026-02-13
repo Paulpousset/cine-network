@@ -1,5 +1,4 @@
 import ClapLoading from "@/components/ClapLoading";
-import Colors from "@/constants/Colors";
 import { GlobalStyles } from "@/constants/Styles";
 import { useUserMode } from "@/hooks/useUserMode";
 import { supabase } from "@/lib/supabase";
@@ -17,7 +16,11 @@ import {
   View,
 } from "react-native";
 
+import { useTheme } from "@/providers/ThemeProvider";
+
 export default function MyTalents() {
+  const { colors, isDark } = useTheme();
+  const styles = createStyles(colors, isDark);
   const router = useRouter();
   const { setImpersonatedUser, effectiveUserId } = useUserMode();
   const [loading, setLoading] = useState(true);
@@ -104,7 +107,7 @@ export default function MyTalents() {
     return (
       <ClapLoading
         size={40}
-        color={Colors.light.primary}
+        color={colors.primary}
         style={{ marginTop: 50 }}
       />
     );
@@ -197,83 +200,85 @@ export default function MyTalents() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#F8F9FA",
-  },
-  center: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 30,
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: "bold",
-    marginTop: 20,
-    color: "#333",
-  },
-  subtitle: {
-    fontSize: 14,
-    color: "#666",
-    textAlign: "center",
-    marginTop: 10,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#333",
-    marginBottom: 10,
-  },
-  talentCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "white",
-    padding: 15,
-    marginHorizontal: 20,
-    marginBottom: 10,
-    borderRadius: 12,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  pendingCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#fff",
-    padding: 10,
-    marginBottom: 8,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#eee",
-    borderStyle: "dashed",
-  },
-  avatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-  },
-  avatarSmall: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-  },
-  talentName: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#333",
-  },
-  talentRole: {
-    fontSize: 12,
-    color: Colors.light.primary,
-    marginTop: 2,
-  },
-  pendingStatus: {
-    fontSize: 11,
-    color: "#FF9800",
-    fontWeight: "500",
-  },
-});
+function createStyles(colors: any, isDark: boolean) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.backgroundSecondary,
+    },
+    center: {
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center",
+      padding: 30,
+    },
+    title: {
+      fontSize: 22,
+      fontWeight: "bold",
+      marginTop: 20,
+      color: colors.text,
+    },
+    subtitle: {
+      fontSize: 14,
+      color: isDark ? "#A0A0A0" : "#666",
+      textAlign: "center",
+      marginTop: 10,
+    },
+    sectionTitle: {
+      fontSize: 16,
+      fontWeight: "700",
+      color: colors.text,
+      marginBottom: 10,
+    },
+    talentCard: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: colors.card,
+      padding: 15,
+      marginHorizontal: 20,
+      marginBottom: 10,
+      borderRadius: 12,
+      shadowColor: colors.shadow,
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.1,
+      shadowRadius: 2,
+      elevation: 2,
+    },
+    pendingCard: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: colors.card,
+      padding: 10,
+      marginBottom: 8,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderStyle: "dashed",
+    },
+    avatar: {
+      width: 50,
+      height: 50,
+      borderRadius: 25,
+    },
+    avatarSmall: {
+      width: 30,
+      height: 30,
+      borderRadius: 15,
+    },
+    talentName: {
+      fontSize: 16,
+      fontWeight: "600",
+      color: colors.text,
+    },
+    talentRole: {
+      fontSize: 12,
+      color: colors.primary,
+      marginTop: 2,
+    },
+    pendingStatus: {
+      fontSize: 11,
+      color: "#FF9800",
+      fontWeight: "500",
+    },
+  });
+}

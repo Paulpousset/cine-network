@@ -1,6 +1,5 @@
 import ClapLoading from "@/components/ClapLoading";
 import { Hoverable } from "@/components/Hoverable";
-import Colors from "@/constants/Colors";
 import { supabase } from "@/lib/supabase";
 import { updatePasswordSchema } from "@/schemas/auth";
 import { Ionicons } from "@expo/vector-icons";
@@ -9,7 +8,11 @@ import React, { useState } from "react";
 import { Alert, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { useTheme } from "@/providers/ThemeProvider";
+
 export default function UpdatePasswordScreen() {
+  const { colors, isDark } = useTheme();
+  const styles = createStyles(colors, isDark);
   const router = useRouter();
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -87,7 +90,7 @@ export default function UpdatePasswordScreen() {
         <View style={{ height: 20 }} />
 
         {loading ? (
-          <ClapLoading color={Colors.light.tint} />
+          <ClapLoading color={colors.primary} />
         ) : (
           <Hoverable
             style={styles.button}
@@ -102,70 +105,73 @@ export default function UpdatePasswordScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.light.background,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 20,
-  },
-  card: {
-    width: "100%",
-    maxWidth: 400,
-    backgroundColor: "white",
-    borderRadius: 20,
-    padding: 30,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    elevation: 5,
-  },
-  header: {
-    alignItems: "center",
-    marginBottom: 30,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: "bold",
-    marginBottom: 10,
-    color: "#333",
-  },
-  subtitle: {
-    fontSize: 14,
-    color: "#666",
-    textAlign: "center",
-  },
-  inputWrapper: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#f5f5f5",
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#eee",
-    paddingHorizontal: 15,
-    height: 50,
-  },
-  inputIcon: {
-    marginRight: 10,
-  },
-  input: {
-    flex: 1,
-    height: "100%",
-    fontSize: 16,
-    color: "#333",
-  },
-  button: {
-    backgroundColor: Colors.light.tint,
-    borderRadius: 12,
-    height: 50,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  buttonText: {
-    color: "white",
-    fontSize: 16,
-    fontWeight: "bold",
-  },
-});
+function createStyles(colors: any, isDark: boolean) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+      justifyContent: "center",
+      alignItems: "center",
+      padding: 20,
+    },
+    card: {
+      width: "100%",
+      maxWidth: 400,
+      backgroundColor: colors.card,
+      borderRadius: 20,
+      padding: 30,
+      shadowColor: colors.shadow,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.1,
+      shadowRadius: 10,
+      elevation: 5,
+    },
+    header: {
+      alignItems: "center",
+      marginBottom: 30,
+    },
+    title: {
+      fontSize: 24,
+      fontWeight: "bold",
+      marginBottom: 10,
+      color: colors.text,
+    },
+    subtitle: {
+      fontSize: 14,
+      color: isDark ? "#A0A0A0" : "#666",
+      textAlign: "center",
+    },
+    inputWrapper: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: colors.backgroundSecondary,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: colors.border,
+      paddingHorizontal: 15,
+      height: 50,
+      marginBottom: 15,
+    },
+    inputIcon: {
+      marginRight: 10,
+    },
+    input: {
+      flex: 1,
+      height: "100%",
+      fontSize: 16,
+      color: colors.text,
+    },
+    button: {
+      backgroundColor: colors.primary,
+      borderRadius: 12,
+      height: 50,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    buttonText: {
+      color: "white",
+      fontSize: 16,
+      fontWeight: "bold",
+    },
+  });
+}

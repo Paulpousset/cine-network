@@ -1,8 +1,8 @@
 import ClapLoading from "@/components/ClapLoading";
 import PaymentModal from "@/components/PaymentModal";
 import WebDatePicker from "@/components/WebDatePicker";
-import Colors from "@/constants/Colors";
 import { GlobalStyles } from "@/constants/Styles";
+import { useTheme } from "@/providers/ThemeProvider";
 import { JOB_TITLES } from "@/utils/roles";
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
@@ -37,6 +37,8 @@ const PROJECT_TYPES = [
 
 export default function CreateTournage() {
   const router = useRouter();
+  const { colors, isDark } = useTheme();
+  const styles = createStyles(colors, isDark);
 
   const [title, setTitle] = useState("");
   const [desc, setDesc] = useState("");
@@ -281,7 +283,7 @@ export default function CreateTournage() {
 
   return (
     <SafeAreaView
-      style={{ flex: 1, backgroundColor: Colors.light.backgroundSecondary }}
+      style={{ flex: 1, backgroundColor: colors.backgroundSecondary }}
       edges={["top"]}
     >
       <Stack.Screen options={{ headerShown: false }} />
@@ -306,18 +308,18 @@ export default function CreateTournage() {
                 width: 40,
                 height: 40,
                 borderRadius: 20,
-                backgroundColor: "#fff",
+                backgroundColor: colors.card,
                 justifyContent: "center",
                 alignItems: "center",
                 marginRight: 15,
-                shadowColor: "#000",
+                shadowColor: colors.shadow,
                 shadowOffset: { width: 0, height: 2 },
                 shadowOpacity: 0.1,
                 shadowRadius: 4,
                 elevation: 3,
               }}
             >
-              <Ionicons name="arrow-back" size={24} color={Colors.light.text} />
+              <Ionicons name="arrow-back" size={24} color={colors.text} />
             </TouchableOpacity>
             <Text style={[GlobalStyles.title1, { marginBottom: 0 }]}>
               Créer un projet
@@ -389,7 +391,7 @@ export default function CreateTournage() {
                     >
                       <Text
                         style={{
-                          color: startDate ? Colors.light.text : "#999",
+                          color: startDate ? colors.text : "#999",
                         }}
                       >
                         {startDate || "Choisir une date"}
@@ -439,7 +441,7 @@ export default function CreateTournage() {
                       onPress={() => setShowEndPicker(true)}
                     >
                       <Text
-                        style={{ color: endDate ? Colors.light.text : "#999" }}
+                        style={{ color: endDate ? colors.text : "#999" }}
                       >
                         {endDate || "Choisir une date"}
                       </Text>
@@ -491,7 +493,7 @@ export default function CreateTournage() {
                 >
                   <Text
                     style={{
-                      color: type === t.value ? "white" : Colors.light.primary,
+                      color: type === t.value ? "white" : colors.primary,
                       fontWeight: "600",
                     }}
                   >
@@ -526,7 +528,7 @@ export default function CreateTournage() {
                       >
                         <Text
                           style={{
-                            color: active ? "#fff" : Colors.light.primary,
+                            color: active ? "#fff" : colors.primary,
                             marginLeft: 6,
                             fontWeight: active ? "bold" : "normal",
                           }}
@@ -551,7 +553,7 @@ export default function CreateTournage() {
                 marginTop: 16,
                 paddingTop: 16,
                 borderTopWidth: 1,
-                borderColor: Colors.light.border,
+                borderColor: colors.border,
               }}
             >
               <Text style={styles.label}>Sélection</Text>
@@ -563,7 +565,7 @@ export default function CreateTournage() {
                 <View style={{ gap: 8 }}>
                   {Object.entries(selected).map(([k, r]) => (
                     <View key={k} style={styles.selectionRow}>
-                      <Text style={{ flex: 1, color: Colors.light.text }}>
+                      <Text style={{ flex: 1, color: colors.text }}>
                         <Text style={{ fontWeight: "bold" }}>{r.title}</Text> •{" "}
                         {r.category}
                       </Text>
@@ -572,7 +574,7 @@ export default function CreateTournage() {
                           onPress={() => decRole(k)}
                           style={styles.qtyBtn}
                         >
-                          <Text style={{ color: "#333", fontWeight: "bold" }}>
+                          <Text style={{ color: isDark ? colors.text : "#333", fontWeight: "bold" }}>
                             −
                           </Text>
                         </TouchableOpacity>
@@ -580,7 +582,7 @@ export default function CreateTournage() {
                           style={{
                             minWidth: 18,
                             textAlign: "center",
-                            color: Colors.light.text,
+                            color: colors.text,
                           }}
                         >
                           {r.quantity}
@@ -589,7 +591,7 @@ export default function CreateTournage() {
                           onPress={() => incRole(k)}
                           style={styles.qtyBtn}
                         >
-                          <Text style={{ color: "#333", fontWeight: "bold" }}>
+                          <Text style={{ color: isDark ? colors.text : "#333", fontWeight: "bold" }}>
                             +
                           </Text>
                         </TouchableOpacity>
@@ -639,27 +641,29 @@ export default function CreateTournage() {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: any, isDark: boolean) {
+  return StyleSheet.create({
   container: {
     flexGrow: 1,
     padding: 20,
-    backgroundColor: Colors.light.backgroundSecondary,
+    backgroundColor: colors.backgroundSecondary,
   },
   headerTitle: {
     fontSize: 20,
     fontWeight: "bold",
     marginTop: 10,
     marginBottom: 20,
+    color: colors.text,
   },
   label: {
     fontWeight: "600",
     marginBottom: 8,
     marginTop: 8,
-    color: Colors.light.text,
+    color: colors.text,
   },
   helperText: {
     fontSize: 12,
-    color: "#666",
+    color: isDark ? "#A0A0A0" : "#666",
     fontStyle: "italic",
     marginBottom: 10,
     marginTop: -4,
@@ -679,16 +683,16 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderWidth: 1,
-    borderColor: Colors.light.primary,
+    borderColor: colors.primary,
     borderRadius: 8,
     backgroundColor: "transparent",
   },
   typeButtonSelected: {
-    backgroundColor: Colors.light.primary,
+    backgroundColor: colors.primary,
   },
   catTitle: {
     fontWeight: "600",
-    color: Colors.light.text,
+    color: colors.text,
     marginBottom: 6,
   },
   rowWrap: {
@@ -703,11 +707,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: Colors.light.primary,
-    backgroundColor: Colors.light.background,
+    borderColor: colors.primary,
+    backgroundColor: colors.background,
   },
   jobAddChipSelected: {
-    backgroundColor: Colors.light.primary,
+    backgroundColor: colors.primary,
   },
   countBadge: {
     marginLeft: 8,
@@ -728,10 +732,10 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     padding: 10,
-    backgroundColor: Colors.light.backgroundSecondary,
+    backgroundColor: colors.backgroundSecondary,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: Colors.light.border,
+    borderColor: colors.border,
   },
   qtyControls: {
     flexDirection: "row",
@@ -743,10 +747,10 @@ const styles = StyleSheet.create({
     height: 28,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: "#ccc",
+    borderColor: colors.border,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#fff",
+    backgroundColor: colors.card,
   },
   actions: {
     flexDirection: "row",
@@ -754,4 +758,5 @@ const styles = StyleSheet.create({
     marginTop: 20,
     gap: 12,
   },
-});
+  });
+}

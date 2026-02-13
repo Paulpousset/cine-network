@@ -17,12 +17,15 @@ import {
 } from "react-native";
 
 import ClapLoading from "@/components/ClapLoading";
-import Colors from "@/constants/Colors";
 import { GlobalStyles } from "@/constants/Styles";
 import { supabase } from "@/lib/supabase";
 import { postSchema } from "@/schemas/post";
 
+import { useTheme } from "@/providers/ThemeProvider";
+
 export default function NewPostScreen() {
+  const { colors, isDark } = useTheme();
+  const styles = createStyles(colors, isDark);
   const [content, setContent] = useState("");
   const [image, setImage] = useState<string | null>(null);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(
@@ -160,7 +163,7 @@ export default function NewPostScreen() {
 
   return (
     <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: Colors.light.backgroundSecondary }}
+      style={{ flex: 1, backgroundColor: colors.backgroundSecondary }}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
       <Stack.Screen
@@ -195,7 +198,7 @@ export default function NewPostScreen() {
 
           <View style={styles.actions}>
             <TouchableOpacity style={styles.actionButton} onPress={pickImage}>
-              <Ionicons name="image" size={24} color={Colors.light.tint} />
+              <Ionicons name="image" size={24} color={colors.primary} />
               <Text style={styles.actionText}>Ajouter une photo</Text>
             </TouchableOpacity>
           </View>
@@ -313,77 +316,79 @@ const CustomPicker = ({ items, selectedValue, onValueChange }: any) => {
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    padding: 20,
-  },
-  input: {
-    fontSize: 16,
-    color: Colors.light.text,
-  },
-  imagePreview: {
-    marginVertical: 15,
-    position: "relative",
-  },
-  removeImage: {
-    position: "absolute",
-    top: 5,
-    right: 5,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    borderRadius: 12,
-  },
-  actions: {
-    flexDirection: "row",
-    marginVertical: 10,
-    borderTopWidth: 1,
-    borderColor: Colors.light.border,
-    paddingVertical: 10,
-  },
-  actionButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 5,
-  },
-  actionText: {
-    marginLeft: 10,
-    color: Colors.light.tint,
-    fontWeight: "600",
-  },
-  projectSelect: {
-    // marginTop: 20,
-  },
-  label: {
-    fontSize: 14,
-    color: "#666",
-    marginBottom: 5,
-    fontWeight: "600",
-  },
-  pickerContainer: {
-    backgroundColor: "#f9f9f9",
-    borderRadius: 8,
-    overflow: "hidden",
-  },
-  pickerBorder: {
-    borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 8,
-    backgroundColor: "#f9f9f9",
-  },
-  visibilityBtn: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 12,
-    borderRadius: 8,
-    backgroundColor: "#f0f0f0",
-    gap: 8,
-  },
-  visibilityBtnActive: {
-    backgroundColor: Colors.light.tint,
-  },
-  visibilityText: {
-    fontWeight: "600",
-    color: "#666",
-  },
-});
+function createStyles(colors: any, isDark: boolean) {
+  return StyleSheet.create({
+    container: {
+      padding: 20,
+    },
+    input: {
+      fontSize: 16,
+      color: colors.text,
+    },
+    imagePreview: {
+      marginVertical: 15,
+      position: "relative",
+    },
+    removeImage: {
+      position: "absolute",
+      top: 5,
+      right: 5,
+      backgroundColor: "rgba(0,0,0,0.5)",
+      borderRadius: 12,
+    },
+    actions: {
+      flexDirection: "row",
+      marginVertical: 10,
+      borderTopWidth: 1,
+      borderColor: colors.border,
+      paddingVertical: 10,
+    },
+    actionButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      padding: 5,
+    },
+    actionText: {
+      marginLeft: 10,
+      color: colors.primary,
+      fontWeight: "600",
+    },
+    projectSelect: {
+      // marginTop: 20,
+    },
+    label: {
+      fontSize: 14,
+      color: isDark ? "#A0A0A0" : "#666",
+      marginBottom: 5,
+      fontWeight: "600",
+    },
+    pickerContainer: {
+      backgroundColor: colors.backgroundSecondary,
+      borderRadius: 8,
+      overflow: "hidden",
+    },
+    pickerBorder: {
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 8,
+      backgroundColor: colors.backgroundSecondary,
+    },
+    visibilityBtn: {
+      flex: 1,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: 12,
+      borderRadius: 8,
+      backgroundColor: colors.backgroundSecondary,
+      gap: 8,
+    },
+    visibilityBtnActive: {
+      backgroundColor: colors.primary,
+    },
+    visibilityText: {
+      fontWeight: "600",
+      color: isDark ? "#A0A0A0" : "#666",
+    },
+  });
+}

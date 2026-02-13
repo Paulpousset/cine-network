@@ -2,8 +2,9 @@ import { Tables } from "@/lib/database.types";
 import { appEvents, EVENTS } from "@/lib/events";
 import { getRecommendedRoles } from "@/lib/matching";
 import { supabase } from "@/lib/supabase";
-import { useCallback, useEffect, useState } from "react";
-import { Alert } from "react-native";
+import { useUser } from "@/providers/UserProvider";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { AppState } from "react-native";
 import { useUserMode } from "./useUserMode";
 
 export type RoleWithProject = Tables<"project_roles"> & {
@@ -16,12 +17,14 @@ export type ProjectWithRoles = Tables<"tournages"> & {
 };
 
 export function useJobs() {
+  const { user, profile: userProfile } = useUser();
   const { effectiveUserId } = useUserMode();
   const [allRoles, setAllRoles] = useState<RoleWithProject[]>([]);
   const [roles, setRoles] = useState<RoleWithProject[]>([]);
   const [projects, setProjects] = useState<ProjectWithRoles[]>([]);
   const [loading, setLoading] = useState(true);
   const [recommendations, setRecommendations] = useState<RoleWithProject[]>([]);
+  const isFetchingRef = useRef(false);
   const [availableCities, setAvailableCities] = useState<string[]>(["all"]);
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [selectedCity, setSelectedCity] = useState("all");
@@ -29,14 +32,7 @@ export function useJobs() {
 
   const fetchRecommendations = useCallback(async () => {
     try {
-      if (!effectiveUserId) return;
-
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", effectiveUserId)
-        .single();
-      if (!profile) return;
+      if (!effectiveUserId || !userProfile) return;
 
       const { data: roles } = await supabase
         .from("project_roles")
@@ -47,12 +43,12 @@ export function useJobs() {
 
       if (!roles) return;
 
-      const recs = getRecommendedRoles(profile, roles);
+      const recs = getRecommendedRoles(userProfile, roles);
       setRecommendations(recs.slice(0, 3));
     } catch (e) {
       console.log("Error fetching recommendations", e);
     }
-  }, []);
+  }, [effectiveUserId, userProfile]);
 
   const fetchCities = useCallback(async () => {
     try {
@@ -80,12 +76,15 @@ export function useJobs() {
   }, []);
 
   const fetchRoles = useCallback(async () => {
+    if (isFetchingRef.current) return;
     try {
-      setLoading(true);
+      isFetchingRef.current = true;
+      if (allRoles.length === 0) {
+        setLoading(true);
+      }
+      console.log("[useJobs] Start fetching roles");
 
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+      const userId = user?.id;
 
       let query = supabase
         .from("project_roles")
@@ -96,17 +95,15 @@ export function useJobs() {
         .order("is_boosted", { ascending: false })
         .order("created_at", { ascending: false });
 
-      if (session) {
+      if (userId) {
         const { data: blocks } = await supabase
           .from("user_blocks")
           .select("blocker_id, blocked_id")
-          .or(
-            `blocker_id.eq.${session.user.id},blocked_id.eq.${session.user.id}`,
-          );
+          .or(`blocker_id.eq.${userId},blocked_id.eq.${userId}`);
 
         const blockedIds =
           blocks?.map((b: any) =>
-            b.blocker_id === session.user.id ? b.blocked_id : b.blocker_id,
+            b.blocker_id === userId ? b.blocked_id : b.blocker_id,
           ) || [];
         if (blockedIds.length > 0) {
           query = query.not(
@@ -133,11 +130,13 @@ export function useJobs() {
       );
       setAllRoles(visible);
     } catch (error) {
-      Alert.alert("Erreur", (error as Error).message);
+      console.error("Error fetching roles:", error);
     } finally {
+      isFetchingRef.current = false;
       setLoading(false);
+      console.log("[useJobs] Fetching roles finished");
     }
-  }, [selectedCategory, selectedCity]);
+  }, [user?.id, selectedCategory, selectedCity]);
 
   useEffect(() => {
     fetchRoles();
@@ -160,6 +159,17 @@ export function useJobs() {
       unsubBlock();
     };
   }, [fetchCities, fetchRecommendations, fetchRoles]);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (nextAppState) => {
+      if (nextAppState === "active") {
+        fetchRoles();
+        fetchCities();
+        fetchRecommendations();
+      }
+    });
+    return () => subscription.remove();
+  }, [fetchRoles, fetchCities, fetchRecommendations]);
 
   useEffect(() => {
     let filtered = [...allRoles];

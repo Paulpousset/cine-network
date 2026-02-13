@@ -1,5 +1,6 @@
 import { appEvents, EVENTS } from "@/lib/events";
 import { supabase } from "@/lib/supabase";
+import { useUser } from "@/providers/UserProvider";
 import { useEffect, useState } from "react";
 import { Alert } from "react-native";
 
@@ -23,33 +24,29 @@ export interface HallOfFameProject {
 }
 
 export const useHallOfFame = (initialUserId: string | null) => {
+  const { user } = useUser();
   const [projects, setProjects] = useState<HallOfFameProject[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [currentUserId, setCurrentUserId] = useState<string | null>(
-    initialUserId,
-  );
+  
+  const currentUserId = user?.id || initialUserId || null;
 
   useEffect(() => {
-    if (!currentUserId) {
-      supabase.auth.getSession().then(({ data: { session } }) => {
-        const userId = session?.user.id || null;
-        setCurrentUserId(userId);
-        fetchHallOfFame(userId);
-      });
-    } else {
-      fetchHallOfFame(currentUserId);
-    }
+    fetchHallOfFame(currentUserId);
 
     const unsubBlock = appEvents.on(EVENTS.USER_BLOCKED, () => {
       fetchHallOfFame(currentUserId);
     });
 
     return () => unsubBlock();
-  }, []);
+  }, [currentUserId]);
 
   async function fetchHallOfFame(userId: string | null = currentUserId) {
     try {
+      if (projects.length === 0) {
+        setLoading(true);
+      }
+      
       let blockedIds: string[] = [];
       if (userId) {
         const { data: blocks } = await supabase

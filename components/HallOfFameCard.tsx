@@ -1,6 +1,6 @@
 import PopcornLikeButton from "@/components/PopcornLikeButton";
-import Colors from "@/constants/Colors";
 import { HallOfFameProject } from "@/hooks/useHallOfFame";
+import { useTheme } from "@/providers/ThemeProvider";
 import { Ionicons } from "@expo/vector-icons";
 import { useVideoPlayer, VideoView } from "expo-video";
 import React from "react";
@@ -16,7 +16,7 @@ interface HallOfFameCardProps {
   onViewTeam: () => void;
 }
 
-const HallOfFameCard = ({
+export default function HallOfFameCard({
   item,
   currentUserId,
   onEdit,
@@ -24,7 +24,9 @@ const HallOfFameCard = ({
   router,
   onToggleLike,
   onViewTeam,
-}: HallOfFameCardProps) => {
+}: HallOfFameCardProps) {
+  const { colors, isDark } = useTheme();
+  const styles = createStyles(colors, isDark);
   const isDirectVideo =
     item.final_result_url &&
     (item.final_result_url.match(/\.(mp4|mov|avi|wmv|flv|mkv)$/i) ||
@@ -70,7 +72,7 @@ const HallOfFameCard = ({
 
         {currentUserId === item.owner_id && (
           <TouchableOpacity onPress={onEdit} style={styles.editButton}>
-            <Ionicons name="pencil" size={18} color={Colors.light.primary} />
+            <Ionicons name="pencil" size={18} color={colors.primary} />
           </TouchableOpacity>
         )}
       </View>
@@ -146,7 +148,7 @@ const HallOfFameCard = ({
               <Ionicons
                 name="people-outline"
                 size={18}
-                color={Colors.light.primary}
+                color={colors.primary}
               />
               <Text style={styles.teamButtonText}>Équipe</Text>
             </TouchableOpacity>
@@ -167,12 +169,12 @@ const HallOfFameCard = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   card: {
-    backgroundColor: "white",
+    backgroundColor: colors.background,
     borderRadius: 16,
     marginBottom: 20,
-    shadowColor: "#000",
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
@@ -180,6 +182,8 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     width: "100%",
     alignSelf: "stretch",
+    borderWidth: isDark ? 1 : 0,
+    borderColor: colors.border,
   },
   cardHeader: {
     flexDirection: "row",
@@ -191,20 +195,20 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: 20,
     marginRight: 10,
-    backgroundColor: "#eee",
+    backgroundColor: colors.backgroundSecondary,
   },
   ownerName: {
     fontWeight: "bold",
     fontSize: 14,
-    color: Colors.light.text,
+    color: colors.text,
   },
   date: {
     fontSize: 12,
-    color: "#666",
+    color: colors.text + "99",
   },
   editButton: {
     padding: 8,
-    backgroundColor: "#f0f0f0",
+    backgroundColor: colors.backgroundSecondary,
     borderRadius: 20,
   },
   mediaContainer: {
@@ -221,7 +225,7 @@ const styles = StyleSheet.create({
     height: "100%",
   },
   placeholderMedia: {
-    backgroundColor: Colors.light.primary,
+    backgroundColor: colors.primary,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -242,12 +246,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 18,
     fontWeight: "bold",
-    color: Colors.light.text,
+    color: colors.text,
     marginBottom: 6,
   },
   description: {
     fontSize: 14,
-    color: "#444",
+    color: colors.text + "CC",
     lineHeight: 20,
     marginBottom: 15,
   },
@@ -260,7 +264,7 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   watchButton: {
-    backgroundColor: Colors.light.tint,
+    backgroundColor: colors.accentColor || colors.primary,
     flexDirection: "row",
     alignItems: "center",
     paddingVertical: 8,
@@ -276,7 +280,7 @@ const styles = StyleSheet.create({
   teamButton: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#f0f0f0",
+    backgroundColor: colors.backgroundSecondary,
     paddingVertical: 6,
     paddingHorizontal: 12,
     borderRadius: 15,
@@ -285,8 +289,6 @@ const styles = StyleSheet.create({
   teamButtonText: {
     fontSize: 12,
     fontWeight: "600",
-    color: Colors.light.primary,
+    color: colors.primary,
   },
 });
-
-export default HallOfFameCard;

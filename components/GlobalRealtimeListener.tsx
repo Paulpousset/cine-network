@@ -11,22 +11,31 @@ const SEEN_ACCEPTED_KEY = "seen_accepted_connections";
 export default function GlobalRealtimeListener({ user }: { user: User }) {
   const pathname = usePathname();
   const pathnameRef = useRef(pathname);
+  const userRef = useRef(user);
 
-  // Update ref when pathname changes without re-triggering the main effect
+  // Update refs when values change without re-triggering the main effect
   useEffect(() => {
     pathnameRef.current = pathname;
   }, [pathname]);
 
   useEffect(() => {
-    if (!user) return;
+    userRef.current = user;
+  }, [user]);
+
+  useEffect(() => {
+    if (!user?.id) return;
 
     let dmChannel: any = null;
     let spacesChannel: any = null;
     let connectionsChannel: any = null;
     let applicationsChannel: any = null;
     let projectRolesChannel: any = null;
+    let destroyed = false;
 
     const setupListeners = () => {
+      if (destroyed) return;
+
+      const userId = user.id; // Consistent ID for this effect instance
       // Unique channel names
       const dmChannelId = `global-dm-${user.id}`;
       const spacesChannelId = `global-spaces-${user.id}`;
@@ -41,7 +50,7 @@ export default function GlobalRealtimeListener({ user }: { user: User }) {
       if (applicationsChannel) supabase.removeChannel(applicationsChannel);
       if (projectRolesChannel) supabase.removeChannel(projectRolesChannel);
 
-      console.log("GlobalRealtimeListener: Starting listeners for", user.id);
+      console.log("GlobalRealtimeListener: Starting listeners for", userId);
 
       // 1. Direct Messages Listener
       dmChannel = supabase
@@ -55,33 +64,21 @@ export default function GlobalRealtimeListener({ user }: { user: User }) {
           },
           async (payload) => {
             const msg = payload.new as any;
-            console.log(
-              "GlobalRealtimeListener: DM event",
-              payload.eventType,
-              msg?.id,
-            );
             if (!msg) return;
 
-            // Only care about messages I sent or received
-            const isFromMe = msg.sender_id === user.id;
-            const isToMe = msg.receiver_id === user.id;
+            const currentUser = userRef.current;
+            const isFromMe = msg.sender_id === currentUser.id;
+            const isToMe = msg.receiver_id === currentUser.id;
 
             if (!isFromMe && !isToMe) return;
 
             if (payload.eventType === "INSERT") {
-              // Emit event with message data for smart updates
               appEvents.emit(EVENTS.NEW_MESSAGE, msg);
 
-              // Show notification only if it is an incoming message meant specifically for me
-              // AND I am not currently viewing this specific chat
               const isViewingThisChat =
                 pathnameRef.current === `/direct-messages/${msg.sender_id}`;
 
               if (isToMe && !isViewingThisChat) {
-                console.log(
-                  "GlobalRealtimeListener: Showing notification for DM",
-                );
-                // Fetch sender details
                 const { data: profile } = await supabase
                   .from("profiles")
                   .select("full_name")
@@ -96,23 +93,15 @@ export default function GlobalRealtimeListener({ user }: { user: User }) {
               }
             } else if (payload.eventType === "UPDATE") {
               appEvents.emit(EVENTS.MESSAGES_READ);
-              // Also trigger update for lists
               appEvents.emit(EVENTS.NEW_MESSAGE, msg);
             }
           },
         )
         .subscribe((status) => {
-          console.log(
-            `GlobalRealtimeListener: DM Subscription status: ${status}`,
-          );
           if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
-            console.warn(
-              `GlobalRealtimeListener: DM Channel ${status}, recreating...`,
-            );
-            // Retry logic for ALL platforms
-            setTimeout(() => {
-              setupListeners();
-            }, 5000);
+            if (!destroyed) {
+              setTimeout(setupListeners, 5000);
+            }
           }
         });
 
@@ -128,37 +117,27 @@ export default function GlobalRealtimeListener({ user }: { user: User }) {
           },
           async (payload) => {
             const newMsg = payload.new as any;
-            console.log(
-              "GlobalRealtimeListener: Space event",
-              payload.eventType,
-              newMsg?.id,
-            );
             if (!newMsg) return;
 
-            // Always trigger NEW_MESSAGE event so UI indicators can update (sidebar dots, etc.)
             appEvents.emit(EVENTS.NEW_MESSAGE, newMsg);
 
             if (payload.eventType === "INSERT") {
-              // Show notification if it is an incoming message and not from me
-              if (newMsg.sender_id !== user.id) {
-                // Check if we are already viewing this space to avoid double notifications
+              const currentUser = userRef.current;
+              if (newMsg.sender_id !== currentUser.id) {
                 const isViewingThisSpace = pathnameRef.current.includes(
                   `/project/${newMsg.project_id}/spaces/${newMsg.category}`,
                 );
                 if (isViewingThisSpace) return;
 
-                // Fetch Project Title & Owner for context and security check
                 const { data: project } = await supabase
                   .from("tournages")
                   .select("title, owner_id")
                   .eq("id", newMsg.project_id)
                   .single();
 
-                // If project is not found or not accessible, do not show notification
                 if (!project) return;
 
-                // Extra verification: am I the owner or a member of this project?
-                const isOwner = project.owner_id === user.id;
+                const isOwner = project.owner_id === currentUser.id;
                 let isMember = isOwner;
 
                 if (!isMember) {
@@ -166,14 +145,13 @@ export default function GlobalRealtimeListener({ user }: { user: User }) {
                     .from("project_roles")
                     .select("id")
                     .eq("tournage_id", newMsg.project_id)
-                    .eq("assigned_profile_id", user.id)
+                    .eq("assigned_profile_id", currentUser.id)
                     .maybeSingle();
                   if (role) isMember = true;
                 }
 
                 if (!isMember) return;
 
-                // Fetch sender details
                 const { data: profile } = await supabase
                   .from("profiles")
                   .select("full_name")
@@ -192,17 +170,10 @@ export default function GlobalRealtimeListener({ user }: { user: User }) {
           },
         )
         .subscribe((status) => {
-          console.log(
-            `GlobalRealtimeListener: Spaces Subscription status: ${status}`,
-          );
           if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
-            console.warn(
-              `GlobalRealtimeListener: Spaces Channel ${status}, recreating...`,
-            );
-            // Retry logic for ALL platforms
-            setTimeout(() => {
-              setupListeners();
-            }, 5000);
+            if (!destroyed) {
+              setTimeout(setupListeners, 5000);
+            }
           }
         });
 
@@ -220,18 +191,13 @@ export default function GlobalRealtimeListener({ user }: { user: User }) {
             const rec = payload.new as any;
             if (!rec) return;
 
-            // Check if it concerns me
-            if (rec.receiver_id === user.id || rec.requester_id === user.id) {
-              console.log(
-                "GlobalRealtimeListener: Connection update",
-                payload.eventType,
-              );
+            const currentUser = userRef.current;
+            if (rec.receiver_id === currentUser.id || rec.requester_id === currentUser.id) {
               appEvents.emit(EVENTS.CONNECTIONS_UPDATED);
 
-              // If I received a NEW request
               if (
                 payload.eventType === "INSERT" &&
-                rec.receiver_id === user.id &&
+                rec.receiver_id === currentUser.id &&
                 rec.status === "pending"
               ) {
                 appEvents.emit(EVENTS.SHOW_NOTIFICATION, {
@@ -240,10 +206,9 @@ export default function GlobalRealtimeListener({ user }: { user: User }) {
                   link: "/notifications",
                 });
               }
-              // If my request was ACCEPTED
               else if (
                 payload.eventType === "UPDATE" &&
-                rec.requester_id === user.id &&
+                rec.requester_id === currentUser.id &&
                 rec.status === "accepted"
               ) {
                 appEvents.emit(EVENTS.SHOW_NOTIFICATION, {
@@ -266,13 +231,12 @@ export default function GlobalRealtimeListener({ user }: { user: User }) {
             event: "UPDATE",
             schema: "public",
             table: "applications",
-            // Remove candidate_id filter for more reliability during partial updates
           },
           async (payload) => {
             const newApp = payload.new as any;
             if (!newApp) return;
 
-            // Check if it belongs to me
+            const currentUser = userRef.current;
             let candidateId = newApp.candidate_id;
             let appStatus = newApp.status;
             let roleId = newApp.role_id;
@@ -290,9 +254,8 @@ export default function GlobalRealtimeListener({ user }: { user: User }) {
               }
             }
 
-            if (candidateId !== user.id) return;
+            if (candidateId !== currentUser.id) return;
 
-            // Fetch info to display a nice notification
             let rTitle = "un rôle";
             let pTitle = "un projet";
 
@@ -328,7 +291,7 @@ export default function GlobalRealtimeListener({ user }: { user: User }) {
         )
         .subscribe();
 
-      // 5. Project Roles Listener (Direct assignments)
+      // 5. Project Roles Listener
       projectRolesChannel = supabase
         .channel(rolesChannelId)
         .on(
@@ -337,15 +300,12 @@ export default function GlobalRealtimeListener({ user }: { user: User }) {
             event: "*",
             schema: "public",
             table: "project_roles",
-            // We remove the filter here because UPDATE payload might not include assigned_profile_id
-            // if it wasn't modified in that specific update. We filter in the callback.
           },
           async (payload) => {
             const newRole = payload.new as any;
             if (!newRole) return;
 
-            // CHECK: is this role assigned to ME?
-            // Since newRole might only have updated columns, we MUST fetch it if assigned_profile_id is missing
+            const currentUser = userRef.current;
             let assignedProfileId = newRole.assigned_profile_id;
             let currentStatus = newRole.status;
             let roleTitle = newRole.title;
@@ -368,9 +328,8 @@ export default function GlobalRealtimeListener({ user }: { user: User }) {
               }
             }
 
-            if (assignedProfileId !== user.id) return;
+            if (assignedProfileId !== currentUser.id) return;
 
-            // Only notify if status is invitation_pending or assigned
             if (
               currentStatus !== "invitation_pending" &&
               currentStatus !== "assigned"
@@ -378,14 +337,12 @@ export default function GlobalRealtimeListener({ user }: { user: User }) {
               return;
             }
 
-            // Check if already seen locally to avoid repeat toasts
             const seenJson = await AsyncStorage.getItem(SEEN_ACCEPTED_KEY);
             const seenIds = seenJson ? JSON.parse(seenJson) : [];
             if (seenIds.includes(newRole.id)) return;
 
             appEvents.emit(EVENTS.CONNECTIONS_UPDATED);
 
-            // Fetch project title for a better notification
             let projectTitle = "un projet";
             if (tournageId) {
               const { data: proj } = await supabase
@@ -396,7 +353,6 @@ export default function GlobalRealtimeListener({ user }: { user: User }) {
               if (proj) projectTitle = proj.title;
             }
 
-            // Trigger popup
             const isInvitation = currentStatus === "invitation_pending";
             appEvents.emit(EVENTS.SHOW_NOTIFICATION, {
               title: isInvitation ? "Nouvelle Invitation !" : "Poste Assigné !",

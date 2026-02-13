@@ -2,19 +2,20 @@ import ClapLoading from "@/components/ClapLoading";
 import Colors from "@/constants/Colors";
 import { appEvents, EVENTS } from "@/lib/events";
 import { supabase } from "@/lib/supabase";
+import { useTheme } from "@/providers/ThemeProvider";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 const ROLES = [
@@ -31,6 +32,8 @@ const ROLES = [
 ];
 
 export default function CompleteProfileScreen() {
+  const { colors, isDark } = useTheme();
+  const styles = getStyles(colors, isDark);
   const [username, setUsername] = useState("");
   const [role, setRole] = useState("");
   const [loading, setLoading] = useState(false);
@@ -101,7 +104,7 @@ export default function CompleteProfileScreen() {
 
   return (
     <LinearGradient
-      colors={[Colors.light.tint, "#2c1a4d"]}
+      colors={[colors.primary, "#2c1a4d"]}
       style={styles.container}
     >
       <KeyboardAvoidingView
@@ -175,9 +178,10 @@ export default function CompleteProfileScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: colors.background,
   },
   scrollContent: {
     flexGrow: 1,
@@ -185,25 +189,27 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   card: {
-    backgroundColor: "#fff",
+    backgroundColor: colors.card,
     borderRadius: 20,
     padding: 25,
-    shadowColor: "#000",
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.1,
+    shadowOpacity: isDark ? 0.3 : 0.1,
     shadowRadius: 20,
     elevation: 5,
+    borderWidth: isDark ? 1 : 0,
+    borderColor: colors.border,
   },
   title: {
     fontSize: 28,
     fontWeight: "bold",
-    color: "#333",
+    color: colors.text,
     marginBottom: 10,
     textAlign: "center",
   },
   subtitle: {
     fontSize: 16,
-    color: "#666",
+    color: isDark ? "#aaa" : "#666",
     marginBottom: 30,
     textAlign: "center",
     lineHeight: 22,
@@ -214,17 +220,17 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#333",
+    color: colors.text,
     marginBottom: 10,
   },
   input: {
-    backgroundColor: "#f5f5f5",
+    backgroundColor: colors.backgroundSecondary,
     borderRadius: 12,
     padding: 15,
     fontSize: 16,
-    color: "#333",
+    color: colors.text,
     borderWidth: 1,
-    borderColor: "#eee",
+    borderColor: colors.border,
   },
   rolesGrid: {
     flexDirection: "row",
@@ -232,33 +238,33 @@ const styles = StyleSheet.create({
     marginHorizontal: -5,
   },
   roleButton: {
-    backgroundColor: "#f5f5f5",
+    backgroundColor: colors.backgroundSecondary,
     borderRadius: 10,
     paddingVertical: 8,
     paddingHorizontal: 15,
     margin: 5,
     borderWidth: 1,
-    borderColor: "#eee",
+    borderColor: colors.border,
   },
   roleButtonActive: {
-    backgroundColor: Colors.light.primary,
-    borderColor: Colors.light.primary,
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   roleText: {
     fontSize: 14,
-    color: "#666",
+    color: isDark ? "#aaa" : "#666",
   },
   roleTextActive: {
     color: "#fff",
     fontWeight: "600",
   },
   saveButton: {
-    backgroundColor: Colors.light.primary,
+    backgroundColor: colors.primary,
     borderRadius: 12,
     padding: 18,
     alignItems: "center",
     marginTop: 10,
-    shadowColor: Colors.light.primary,
+    shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -275,3 +281,4 @@ const styles = StyleSheet.create({
     elevation: 0,
   },
 });
+

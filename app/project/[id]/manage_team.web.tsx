@@ -1,21 +1,23 @@
 import ScreenContainer from "@/components/ScreenContainer";
-import Colors from "@/constants/Colors";
 import { ALL_TOOLS } from "@/constants/Tools";
+import { useTheme } from "@/providers/ThemeProvider";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useState } from "react";
 import {
-    ActivityIndicator,
-    Modal,
-    ScrollView,
-    StyleSheet,
-    Switch,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { useManageTeam } from "./useManageTeam";
 
 export default function ManageTeamWeb() {
+  const { colors, isDark } = useTheme();
+  const styles = createStyles(colors, isDark);
   const {
     loading,
     sections,
@@ -52,7 +54,7 @@ export default function ManageTeamWeb() {
   if (loading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color={Colors.light.tint} />
+        <ActivityIndicator size="large" color={colors.tint} />
       </View>
     );
   }
@@ -85,7 +87,7 @@ export default function ManageTeamWeb() {
                 style={styles.permissionButton}
                 onPress={() => openPermissions(section.title)}
               >
-                <Ionicons name="construct-outline" size={16} color="#444" />
+                <Ionicons name="construct-outline" size={16} color={colors.text} />
                 <Text style={styles.permissionButtonText}>
                   Gérer les outils
                 </Text>
@@ -123,12 +125,12 @@ export default function ManageTeamWeb() {
                           : "shield-outline"
                       }
                       size={20}
-                      color={member.is_category_admin ? "white" : "#666"}
+                      color={member.is_category_admin ? "white" : (isDark ? colors.text : "#666")}
                     />
                     <Text
                       style={[
                         styles.toggleText,
-                        { color: member.is_category_admin ? "white" : "#666" },
+                        { color: member.is_category_admin ? "white" : (isDark ? colors.text : "#666") },
                       ]}
                     >
                       {member.is_category_admin ? "Admin" : "Membre"}
@@ -162,7 +164,7 @@ export default function ManageTeamWeb() {
                 Outils autorisés : {selectedCategory}
               </Text>
               <TouchableOpacity onPress={closePermissions}>
-                <Ionicons name="close" size={24} color="#000" />
+                <Ionicons name="close" size={24} color={colors.text} />
               </TouchableOpacity>
             </View>
             <ScrollView style={styles.modalBody}>
@@ -187,7 +189,7 @@ export default function ManageTeamWeb() {
                     <Switch
                       value={isSelected}
                       onValueChange={() => toggleTool(tool.id)}
-                      trackColor={{ false: "#767577", true: Colors.light.tint }}
+                      trackColor={{ false: "#767577", true: colors.tint }}
                     />
                   </View>
                 );
@@ -200,7 +202,10 @@ export default function ManageTeamWeb() {
   );
 }
 
-const styles = StyleSheet.create({
+
+
+function createStyles(colors: any, isDark: boolean) {
+  return StyleSheet.create({
   centered: {
     flex: 1,
     justifyContent: "center",
@@ -209,54 +214,61 @@ const styles = StyleSheet.create({
   header: {
     padding: 30,
     borderBottomWidth: 1,
-    borderBottomColor: "#eee",
+    borderBottomColor: colors.border,
+    backgroundColor: colors.background,
   },
   title: {
     fontSize: 28,
     fontWeight: "700",
-    color: "#000",
+    color: colors.text,
   },
   subtitle: {
     fontSize: 16,
-    color: "#666",
+    color: colors.text,
+    opacity: 0.6,
     marginTop: 5,
   },
   tableContainer: {
     padding: 20,
+    backgroundColor: colors.backgroundSecondary,
   },
   tableHeader: {
     flexDirection: "row",
     paddingVertical: 12,
     borderBottomWidth: 2,
-    borderBottomColor: "#eee",
-    backgroundColor: "#fafafa",
+    borderBottomColor: colors.border,
+    backgroundColor: colors.card,
   },
   columnHeader: {
     fontWeight: "bold",
-    color: "#333",
+    color: colors.text,
     paddingHorizontal: 10,
   },
   categoryRow: {
-    backgroundColor: "#f0f0f0",
+    backgroundColor: colors.backgroundSecondary,
     padding: 10,
     marginTop: 20,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
   categoryText: {
     fontWeight: "bold",
     textTransform: "uppercase",
     letterSpacing: 1,
     fontSize: 12,
-    color: "#555",
+    color: colors.text,
+    opacity: 0.8,
   },
   row: {
     flexDirection: "row",
     paddingVertical: 15,
     borderBottomWidth: 1,
-    borderBottomColor: "#eee",
+    borderBottomColor: colors.border,
     alignItems: "center",
+    backgroundColor: colors.card,
   },
   cell: {
     paddingHorizontal: 10,
@@ -264,13 +276,16 @@ const styles = StyleSheet.create({
   memberName: {
     fontWeight: "600",
     fontSize: 16,
+    color: colors.text,
   },
   username: {
     fontSize: 14,
-    color: "#888",
+    color: colors.text,
+    opacity: 0.6,
   },
   roleTitle: {
     fontSize: 15,
+    color: colors.text,
   },
   toggleButton: {
     flexDirection: "row",
@@ -279,14 +294,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: "#ddd",
+    borderColor: colors.border,
   },
   toggleOn: {
-    backgroundColor: Colors.light.tint,
-    borderColor: Colors.light.tint,
+    backgroundColor: colors.tint,
+    borderColor: colors.tint,
   },
   toggleOff: {
-    backgroundColor: "#fff",
+    backgroundColor: colors.card,
   },
   toggleText: {
     marginLeft: 5,
@@ -296,17 +311,17 @@ const styles = StyleSheet.create({
   permissionButton: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#fff",
+    backgroundColor: colors.card,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 15,
     borderWidth: 1,
-    borderColor: "#ddd",
+    borderColor: colors.border,
   },
   permissionButtonText: {
     marginLeft: 6,
     fontSize: 12,
-    color: "#444",
+    color: colors.text,
     fontWeight: "600",
   },
   modalOverlay: {
@@ -318,10 +333,10 @@ const styles = StyleSheet.create({
   modalContent: {
     width: 500,
     maxWidth: "90%",
-    backgroundColor: "white",
+    backgroundColor: colors.card,
     borderRadius: 12,
     padding: 24,
-    shadowColor: "#000",
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 12,
@@ -337,6 +352,7 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 20,
     fontWeight: "bold",
+    color: colors.text,
   },
   modalBody: {
     width: "100%",
@@ -347,7 +363,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
+    borderBottomColor: colors.border,
   },
   toolInfo: {
     flexDirection: "row",
@@ -358,9 +374,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     marginBottom: 4,
+    color: colors.text,
   },
   toolDesc: {
     fontSize: 13,
-    color: "#666",
+    color: colors.text,
+    opacity: 0.6,
   },
-});
+  });
+}

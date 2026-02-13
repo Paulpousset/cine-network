@@ -1,22 +1,24 @@
 import ClapLoading from "@/components/ClapLoading";
-import Colors from "@/constants/Colors";
 import { GlobalStyles } from "@/constants/Styles";
 import { ALL_TOOLS } from "@/constants/Tools";
+import { useTheme } from "@/providers/ThemeProvider";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useState } from "react";
 import {
-    Modal,
-    ScrollView,
-    SectionList,
-    StyleSheet,
-    Switch,
-    Text,
-    TouchableOpacity,
-    View,
+  Modal,
+  ScrollView,
+  SectionList,
+  StyleSheet,
+  Switch,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { useManageTeam } from "./useManageTeam";
 
 export default function ManageTeam() {
+  const { colors, isDark } = useTheme();
+  const styles = createStyles(colors, isDark);
   const {
     loading,
     sections,
@@ -56,7 +58,7 @@ export default function ManageTeam() {
       <View style={styles.container}>
         <ClapLoading
           size={50}
-          color={Colors.light.primary}
+          color={colors.tint}
           style={{ marginTop: 50 }}
         />
       </View>
@@ -70,10 +72,10 @@ export default function ManageTeam() {
           onPress={() => router.replace("/(tabs)/my-projects")}
           style={styles.backButton}
         >
-          <Ionicons name="home" size={18} color={Colors.light.text} />
+          <Ionicons name="home" size={18} color={colors.text} />
           <Text style={styles.backButtonText}>Accueil</Text>
         </TouchableOpacity>
-        <Text style={GlobalStyles.title2}>Gérer les Admins</Text>
+        <Text style={[GlobalStyles.title2, { color: colors.text }]}>Gérer les Admins</Text>
         <View style={{ width: 40 }} />
       </View>
 
@@ -93,13 +95,13 @@ export default function ManageTeam() {
               onPress={() => openPermissions(title)}
               style={styles.permissionsLink}
             >
-              <Ionicons name="settings-outline" size={16} color="#666" />
+              <Ionicons name="settings-outline" size={16} color={colors.text} />
               <Text style={styles.permissionsLinkText}>Gérer les outils</Text>
             </TouchableOpacity>
           </View>
         )}
         renderItem={({ item }) => (
-          <View style={GlobalStyles.card}>
+          <View style={[GlobalStyles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <View style={{ flex: 1 }}>
               <Text style={styles.name}>
                 {item.assigned_profile?.full_name ||
@@ -115,9 +117,9 @@ export default function ManageTeam() {
                 onValueChange={() =>
                   toggleAdmin(item.id, item.is_category_admin)
                 }
-                trackColor={{ false: "#767577", true: Colors.light.primary }}
+                trackColor={{ false: "#767577", true: colors.tint }}
                 thumbColor={
-                  item.is_category_admin ? Colors.light.tint : "#f4f3f4"
+                  item.is_category_admin ? "white" : "#f4f3f4"
                 }
               />
             </View>
@@ -150,7 +152,7 @@ export default function ManageTeam() {
                 Outils autorisés : {selectedCategory}
               </Text>
               <TouchableOpacity onPress={closePermissions}>
-                <Ionicons name="close" size={24} color="#000" />
+                <Ionicons name="close" size={24} color={colors.text} />
               </TouchableOpacity>
             </View>
             <ScrollView style={styles.modalBody}>
@@ -175,7 +177,7 @@ export default function ManageTeam() {
                     <Switch
                       value={isSelected}
                       onValueChange={() => toggleTool(tool.id)}
-                      trackColor={{ false: "#767577", true: Colors.light.tint }}
+                      trackColor={{ false: "#767577", true: colors.tint }}
                     />
                   </View>
                 );
@@ -188,10 +190,13 @@ export default function ManageTeam() {
   );
 }
 
-const styles = StyleSheet.create({
+
+
+function createStyles(colors: any, isDark: boolean) {
+  return StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.light.backgroundSecondary,
+    backgroundColor: colors.backgroundSecondary,
     padding: 20,
   },
   headerRow: {
@@ -205,26 +210,27 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 5,
-    backgroundColor: Colors.light.background,
+    backgroundColor: colors.background,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: Colors.light.border,
+    borderColor: colors.border,
   },
   backButtonText: {
     fontSize: 12,
     fontWeight: "600",
-    color: Colors.light.text,
+    color: colors.text,
   },
   subtitle: {
-    color: "#666",
+    color: colors.text,
+    opacity: 0.6,
     marginBottom: 20,
     fontSize: 14,
     fontStyle: "italic",
   },
   sectionHeader: {
-    backgroundColor: Colors.light.backgroundSecondary,
+    backgroundColor: colors.backgroundSecondary,
     paddingVertical: 8,
     paddingHorizontal: 10,
     marginTop: 15,
@@ -235,7 +241,8 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontWeight: "bold",
-    color: "#555",
+    color: colors.text,
+    opacity: 0.8,
     fontSize: 14,
   },
   permissionsLink: {
@@ -245,7 +252,8 @@ const styles = StyleSheet.create({
   },
   permissionsLinkText: {
     fontSize: 12,
-    color: "#666",
+    color: colors.text,
+    opacity: 0.6,
     textDecorationLine: "underline",
   },
   modalOverlay: {
@@ -254,7 +262,7 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end",
   },
   modalContent: {
-    backgroundColor: "white",
+    backgroundColor: colors.card,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     padding: 24,
@@ -269,6 +277,7 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 18,
     fontWeight: "bold",
+    color: colors.text,
   },
   modalBody: {
     width: "100%",
@@ -279,7 +288,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
+    borderBottomColor: colors.border,
   },
   toolInfo: {
     flexDirection: "row",
@@ -290,18 +299,21 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     marginBottom: 4,
+    color: colors.text,
   },
   toolDesc: {
     fontSize: 12,
-    color: "#666",
+    color: colors.text,
+    opacity: 0.6,
   },
   name: {
     fontWeight: "bold",
     fontSize: 16,
     marginBottom: 4,
-    color: Colors.light.text,
+    color: colors.text,
   },
-  role: { color: "#666", fontSize: 14 },
-  switchLabel: { fontSize: 10, color: "#888", marginBottom: 2 },
-  emptyText: { textAlign: "center", marginTop: 30, color: "#999" },
-});
+  role: { color: colors.text, opacity: 0.6, fontSize: 14 },
+  switchLabel: { fontSize: 10, color: colors.text, opacity: 0.5, marginBottom: 2 },
+  emptyText: { textAlign: "center", marginTop: 30, color: colors.text, opacity: 0.6 },
+  });
+}

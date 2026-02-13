@@ -1,8 +1,8 @@
 import WebDatePicker from "@/components/WebDatePicker";
-import Colors from "@/constants/Colors";
 import { useUserMode } from "@/hooks/useUserMode";
 import { Database } from "@/lib/database.types";
 import { supabase } from "@/lib/supabase";
+import { useTheme } from "@/providers/ThemeProvider";
 import { WeatherService, getWeatherCodeInfo } from "@/services/WeatherService";
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
@@ -27,221 +27,223 @@ import {
   View,
 } from "react-native";
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#f8f9fa",
-  },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingTop: 60, // Safe Area top padding approx
-    paddingBottom: 20,
-    backgroundColor: "white",
-    borderBottomWidth: 1,
-    borderBottomColor: "#eee",
-  },
-  headerLeft: {
-    minWidth: 45,
-    alignItems: "flex-start",
-  },
-  headerRight: {
-    minWidth: 45,
-    alignItems: "flex-end",
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#000",
-  },
-  headerButton: {
-    padding: 4,
-  },
-  listContent: {
-    padding: 16,
-  },
-  addButton: {
-    marginRight: 10,
-  },
-  itemContainer: {
-    backgroundColor: "white",
-    padding: 16,
-    marginBottom: 12,
-    borderRadius: 12,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  itemHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 6,
-  },
-  dayTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#000",
-  },
-  callTime: {
-    fontSize: 14,
-    color: "#666",
-    fontWeight: "500",
-  },
-  subtext: {
-    fontSize: 14,
-    color: "#666",
-  },
-  scenesSummary: {
-    marginTop: 10,
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: "#f0f0f0",
-  },
-  sceneSummaryItem: {
-    marginBottom: 8,
-  },
-  sceneBrief: {
-    fontSize: 13,
-    color: Colors.light.tint,
-  },
-  sceneAddress: {
-    fontSize: 11,
-    color: "#999",
-    marginTop: 2,
-  },
-  emptyText: {
-    textAlign: "center",
-    color: "#999",
-    marginTop: 40,
-    fontSize: 16,
-  },
-  // Modal Styles
-  modalContainer: {
-    flex: 1,
-    justifyContent: "flex-end",
-    backgroundColor: "rgba(0,0,0,0.5)",
-  },
-  modalContent: {
-    backgroundColor: "white",
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 20,
-    paddingBottom: Platform.OS === "ios" ? 40 : 20,
-    maxHeight: "90%",
-  },
-  modalHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 20,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-  },
-  inputGroup: {
-    marginBottom: 16,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: "600",
-    marginBottom: 8,
-    color: "#333",
-  },
-  input: {
-    backgroundColor: "#f0f2f5",
-    padding: 12,
-    borderRadius: 8,
-    fontSize: 16,
-    color: "#333",
-  },
-  saveButton: {
-    backgroundColor: Colors.light.tint,
-    padding: 16,
-    borderRadius: 12,
-    alignItems: "center",
-    marginTop: 10,
-  },
-  disabledButton: {
-    opacity: 0.7,
-  },
-  saveButtonText: {
-    color: "white",
-    fontSize: 16,
-    fontWeight: "bold",
-  },
-  sectionHeader: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "#666",
-    marginTop: 10,
-    marginBottom: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: "#eee",
-    paddingBottom: 5,
-  },
-  // Selector Styles
-  selectorContainer: {
-    flexDirection: "row",
-    backgroundColor: "#f1f3f5",
-    borderRadius: 8,
-    padding: 4,
-    marginBottom: 10,
-  },
-  selectorOption: {
-    flex: 1,
-    paddingVertical: 8,
-    alignItems: "center",
-    borderRadius: 6,
-  },
-  selectorOptionSelected: {
-    backgroundColor: "white",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 1,
-    elevation: 1,
-  },
-  selectorText: {
-    fontSize: 13,
-    color: "#868e96",
-    fontWeight: "500",
-  },
-  selectorTextSelected: {
-    color: Colors.light.tint,
-    fontWeight: "600",
-  },
-  sceneListContainer: {
-    backgroundColor: "#f8f9fa",
-    borderRadius: 8,
-    padding: 10,
-    marginBottom: 10,
-  },
-  sceneSelectMap: {
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: "#eee",
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  sceneSelectMapSelected: {
-    backgroundColor: "white",
-  },
-  sceneSelectText: {
-    fontSize: 14,
-    color: "#495057",
-  },
-  sceneSelectTextSelected: {
-    color: Colors.light.tint,
-    fontWeight: "600",
-  },
-});
+const createStyles = (colors: any, isDark: boolean) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    header: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      paddingHorizontal: 16,
+      paddingTop: 60, // Safe Area top padding approx
+      paddingBottom: 20,
+      backgroundColor: colors.card,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    headerLeft: {
+      minWidth: 45,
+      alignItems: "flex-start",
+    },
+    headerRight: {
+      minWidth: 45,
+      alignItems: "flex-end",
+    },
+    headerTitle: {
+      fontSize: 24,
+      fontWeight: "bold",
+      color: colors.text,
+    },
+    headerButton: {
+      padding: 4,
+    },
+    listContent: {
+      padding: 16,
+    },
+    addButton: {
+      marginRight: 10,
+    },
+    itemContainer: {
+      backgroundColor: colors.card,
+      padding: 16,
+      marginBottom: 12,
+      borderRadius: 12,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: isDark ? 0.3 : 0.1,
+      shadowRadius: 2,
+      elevation: 2,
+    },
+    itemHeader: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginBottom: 6,
+    },
+    dayTitle: {
+      fontSize: 16,
+      fontWeight: "600",
+      color: colors.text,
+    },
+    callTime: {
+      fontSize: 14,
+      color: colors.textSecondary,
+      fontWeight: "500",
+    },
+    subtext: {
+      fontSize: 14,
+      color: colors.secondary,
+    },
+    scenesSummary: {
+      marginTop: 10,
+      paddingTop: 10,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+    },
+    sceneSummaryItem: {
+      marginBottom: 8,
+    },
+    sceneBrief: {
+      fontSize: 13,
+      color: colors.tint,
+    },
+    sceneAddress: {
+      fontSize: 11,
+      color: colors.textSecondary,
+      marginTop: 2,
+    },
+    emptyText: {
+      textAlign: "center",
+      color: colors.textSecondary,
+      marginTop: 40,
+      fontSize: 16,
+    },
+    // Modal Styles
+    modalContainer: {
+      flex: 1,
+      justifyContent: "flex-end",
+      backgroundColor: "rgba(0,0,0,0.5)",
+    },
+    modalContent: {
+      backgroundColor: colors.background,
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
+      padding: 20,
+      paddingBottom: Platform.OS === "ios" ? 40 : 20,
+      maxHeight: "90%",
+    },
+    modalHeader: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginBottom: 20,
+    },
+    modalTitle: {
+      fontSize: 20,
+      fontWeight: "bold",
+      color: colors.text,
+    },
+    inputGroup: {
+      marginBottom: 16,
+    },
+    label: {
+      fontSize: 14,
+      fontWeight: "600",
+      marginBottom: 8,
+      color: colors.secondary,
+    },
+    input: {
+      backgroundColor: isDark ? colors.backgroundSecondary : "#f0f2f5",
+      padding: 12,
+      borderRadius: 8,
+      fontSize: 16,
+      color: colors.text,
+    },
+    saveButton: {
+      backgroundColor: colors.tint,
+      padding: 16,
+      borderRadius: 12,
+      alignItems: "center",
+      marginTop: 10,
+    },
+    disabledButton: {
+      opacity: 0.7,
+    },
+    saveButtonText: {
+      color: "white",
+      fontSize: 16,
+      fontWeight: "bold",
+    },
+    sectionHeader: {
+      fontSize: 16,
+      fontWeight: "bold",
+      color: colors.textSecondary,
+      marginTop: 10,
+      marginBottom: 10,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+      paddingBottom: 5,
+    },
+    // Selector Styles
+    selectorContainer: {
+      flexDirection: "row",
+      backgroundColor: isDark ? colors.backgroundSecondary : "#f1f3f5",
+      borderRadius: 8,
+      padding: 4,
+      marginBottom: 10,
+    },
+    selectorOption: {
+      flex: 1,
+      paddingVertical: 8,
+      alignItems: "center",
+      borderRadius: 6,
+    },
+    selectorOptionSelected: {
+      backgroundColor: colors.card,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.1,
+      shadowRadius: 1,
+      elevation: 1,
+    },
+    selectorText: {
+      fontSize: 13,
+      color: colors.textSecondary,
+      fontWeight: "500",
+    },
+    selectorTextSelected: {
+      color: colors.tint,
+      fontWeight: "600",
+    },
+    sceneListContainer: {
+      backgroundColor: isDark ? colors.backgroundSecondary : "#f8f9fa",
+      borderRadius: 8,
+      padding: 10,
+      marginBottom: 10,
+    },
+    sceneSelectMap: {
+      paddingVertical: 10,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+    },
+    sceneSelectMapSelected: {
+      backgroundColor: isDark ? colors.backgroundSecondary : "white",
+    },
+    sceneSelectText: {
+      fontSize: 14,
+      color: colors.textSecondary,
+    },
+    sceneSelectTextSelected: {
+      color: colors.tint,
+      fontWeight: "600",
+    },
+  });
 
 type ShootDay = Database["public"]["Tables"]["shoot_days"]["Row"];
 type Scene = Database["public"]["Tables"]["scenes"]["Row"];
@@ -282,10 +284,12 @@ const Selector = ({
   options,
   value,
   onChange,
+  styles,
 }: {
   options: string[];
   value: string;
   onChange: (val: string) => void;
+  styles: any;
 }) => (
   <View style={styles.selectorContainer}>
     {options.map((opt) => (
@@ -325,6 +329,8 @@ const ShootDayItem = ({
   scenesCount: number;
   pagesCount: number;
 }) => {
+  const { colors, isDark } = useTheme();
+  const styles = createStyles(colors, isDark);
   const [weather, setWeather] = useState<any>(null);
   const [sceneWeather, setSceneWeather] = useState<Record<string, any>>({});
 
@@ -468,7 +474,7 @@ const ShootDayItem = ({
                 flexDirection: "row",
                 alignItems: "center",
                 gap: 4,
-                backgroundColor: "#e7f5ff",
+                backgroundColor: isDark ? colors.backgroundSecondary : "#e7f5ff",
                 paddingHorizontal: 6,
                 paddingVertical: 2,
                 borderRadius: 4,
@@ -477,10 +483,10 @@ const ShootDayItem = ({
               <Ionicons
                 name={getWeatherCodeInfo(weather.weathercode).icon as any}
                 size={14}
-                color="#1c7ed6"
+                color={isDark ? colors.tint : "#1c7ed6"}
               />
               <Text
-                style={{ fontSize: 12, fontWeight: "bold", color: "#1c7ed6" }}
+                style={{ fontSize: 12, fontWeight: "bold", color: isDark ? colors.tint : "#1c7ed6" }}
               >
                 {Math.round(weather.temperature_2m)}°C
               </Text>
@@ -529,10 +535,10 @@ const ShootDayItem = ({
                             .icon as any
                         }
                         size={12}
-                        color="#666"
+                        color={colors.textSecondary}
                       />
                       <Text
-                        style={{ fontSize: 10, color: "#666", marginLeft: 4 }}
+                        style={{ fontSize: 10, color: colors.textSecondary, marginLeft: 4 }}
                       >
                         {Math.round(sceneWeather[ls.id].temperature_2m)}°C
                       </Text>
@@ -540,7 +546,7 @@ const ShootDayItem = ({
                   )}
                 </View>
                 <Text style={styles.sceneAddress} numberOfLines={1}>
-                  <Ionicons name="location-outline" size={10} color="#999" />{" "}
+                  <Ionicons name="location-outline" size={10} color={colors.textSecondary} />{" "}
                   {address || item.location || "Lieu non défini"}
                 </Text>
               </View>
@@ -556,7 +562,7 @@ const ShootDayItem = ({
           justifyContent: "flex-end",
         }}
       >
-        <Text style={{ color: Colors.light.tint, fontSize: 13 }}>
+        <Text style={{ color: colors.tint, fontSize: 13 }}>
           Voir détails
         </Text>
       </View>
@@ -565,6 +571,8 @@ const ShootDayItem = ({
 };
 
 export default function ProductionScreen() {
+  const { colors, isDark } = useTheme();
+  const styles = createStyles(colors, isDark);
   const router = useRouter();
   const { mode } = useUserMode();
   const local = useLocalSearchParams<{ id: string }>();
@@ -1383,7 +1391,7 @@ export default function ProductionScreen() {
               }
               style={{ padding: 4 }}
             >
-              <Ionicons name="arrow-back" size={28} color="#000" />
+              <Ionicons name="arrow-back" size={28} color={colors.text} />
             </TouchableOpacity>
           )}
         </View>
@@ -1400,15 +1408,15 @@ export default function ProductionScreen() {
                 disabled={generating}
                 style={[
                   styles.headerButton,
-                  { backgroundColor: "#f0f0f0", paddingHorizontal: 12 },
+                  { backgroundColor: colors.card, paddingHorizontal: 12 },
                 ]}
               >
                 {generating ? (
-                  <ActivityIndicator size="small" color={Colors.light.tint} />
+                  <ActivityIndicator size="small" color={colors.tint} />
                 ) : (
                   <Text
                     style={{
-                      color: Colors.light.tint,
+                      color: colors.tint,
                       fontWeight: "bold",
                       fontSize: 12,
                     }}
@@ -1424,7 +1432,7 @@ export default function ProductionScreen() {
                 <Ionicons
                   name="add-circle"
                   size={32}
-                  color={Colors.light.tint}
+                  color={colors.tint}
                 />
               </TouchableOpacity>
             </View>
@@ -1435,7 +1443,7 @@ export default function ProductionScreen() {
       {loading ? (
         <ActivityIndicator
           size="large"
-          color={Colors.light.tint}
+          color={colors.tint}
           style={{ marginTop: 20 }}
         />
       ) : (
@@ -1464,7 +1472,7 @@ export default function ProductionScreen() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Ajouter un jour de tournage</Text>
               <TouchableOpacity onPress={() => setModalVisible(false)}>
-                <Ionicons name="close" size={24} color="#666" />
+                <Ionicons name="close" size={24} color={colors.textSecondary} />
               </TouchableOpacity>
             </View>
 
@@ -1478,6 +1486,7 @@ export default function ProductionScreen() {
                   options={DAY_TYPES}
                   value={dayType}
                   onChange={setDayType}
+                  styles={styles}
                 />
               </View>
 
@@ -1496,7 +1505,7 @@ export default function ProductionScreen() {
                       onPress={() => setShowDatePicker(!showDatePicker)}
                     >
                       <Text
-                        style={{ color: date ? Colors.light.text : "#999" }}
+                        style={{ color: date ? colors.text : colors.textSecondary }}
                       >
                         {date
                           ? new Date(date).toLocaleDateString("fr-FR")
@@ -1510,7 +1519,7 @@ export default function ProductionScreen() {
                           mode="date"
                           display="default"
                           onChange={onDateChange}
-                          textColor={Colors.light.text}
+                          textColor={colors.text}
                         />
                         {Platform.OS === "ios" && (
                           <TouchableOpacity
@@ -1518,12 +1527,12 @@ export default function ProductionScreen() {
                             style={{
                               marginTop: 10,
                               padding: 10,
-                              backgroundColor: "#eee",
+                              backgroundColor: colors.backgroundSecondary,
                               borderRadius: 8,
                               alignItems: "center",
                             }}
                           >
-                            <Text style={{ fontWeight: "bold", color: "#666" }}>
+                            <Text style={{ fontWeight: "bold", color: colors.textSecondary }}>
                               Valider la date
                             </Text>
                           </TouchableOpacity>
@@ -1551,7 +1560,7 @@ export default function ProductionScreen() {
                       >
                         <Text
                           style={{
-                            color: callTime ? Colors.light.text : "#999",
+                            color: callTime ? colors.text : colors.textSecondary,
                           }}
                         >
                           {callTime || "08:00"}
@@ -1576,6 +1585,7 @@ export default function ProductionScreen() {
                             is24Hour={true}
                             display="spinner"
                             onChange={onCallTimeChange}
+                            textColor={colors.text}
                           />
                           {Platform.OS === "ios" && (
                             <TouchableOpacity
@@ -1583,11 +1593,11 @@ export default function ProductionScreen() {
                               style={{
                                 marginTop: 5,
                                 padding: 8,
-                                backgroundColor: "#eee",
+                                backgroundColor: colors.backgroundSecondary,
                                 borderRadius: 5,
                               }}
                             >
-                              <Text style={{ fontSize: 12, color: "#666" }}>
+                              <Text style={{ fontSize: 12, color: colors.textSecondary }}>
                                 OK
                               </Text>
                             </TouchableOpacity>
@@ -1613,7 +1623,7 @@ export default function ProductionScreen() {
                       >
                         <Text
                           style={{
-                            color: wrapTime ? Colors.light.text : "#999",
+                            color: wrapTime ? colors.text : colors.textSecondary,
                           }}
                         >
                           {wrapTime || "19:00"}
@@ -1638,6 +1648,7 @@ export default function ProductionScreen() {
                             is24Hour={true}
                             display="spinner"
                             onChange={onWrapTimeChange}
+                            textColor={colors.text}
                           />
                           {Platform.OS === "ios" && (
                             <TouchableOpacity
@@ -1645,11 +1656,11 @@ export default function ProductionScreen() {
                               style={{
                                 marginTop: 5,
                                 padding: 8,
-                                backgroundColor: "#eee",
+                                backgroundColor: colors.backgroundSecondary,
                                 borderRadius: 5,
                               }}
                             >
-                              <Text style={{ fontSize: 12, color: "#666" }}>
+                              <Text style={{ fontSize: 12, color: colors.textSecondary }}>
                                 OK
                               </Text>
                             </TouchableOpacity>
@@ -1730,7 +1741,7 @@ export default function ProductionScreen() {
                               <Ionicons
                                 name="checkmark-circle"
                                 size={16}
-                                color={Colors.light.tint}
+                                color={colors.tint}
                               />
                             )}
                           </TouchableOpacity>
@@ -1747,7 +1758,7 @@ export default function ProductionScreen() {
                               <Text
                                 style={{
                                   fontSize: 12,
-                                  color: "#666",
+                                  color: colors.secondary,
                                   marginRight: 8,
                                 }}
                               >
@@ -1778,12 +1789,12 @@ export default function ProductionScreen() {
                                 <>
                                   <TouchableOpacity
                                     style={{
-                                      backgroundColor: "#fff",
+                                      backgroundColor: colors.background,
                                       paddingHorizontal: 8,
                                       paddingVertical: 4,
                                       borderRadius: 4,
                                       borderWidth: 1,
-                                      borderColor: "#ddd",
+                                      borderColor: colors.border,
                                     }}
                                     onPress={() =>
                                       setEditingSceneTime(scene.id)
@@ -1793,8 +1804,8 @@ export default function ProductionScreen() {
                                       style={{
                                         fontSize: 12,
                                         color: selectedItem?.time
-                                          ? "#000"
-                                          : "#999",
+                                          ? colors.text
+                                          : colors.textSecondary,
                                       }}
                                     >
                                       {selectedItem?.time || "--:--"}
@@ -1860,7 +1871,7 @@ export default function ProductionScreen() {
                   value={parkingInfo}
                   onChangeText={setParkingInfo}
                   placeholder="Infos parking..."
-                  placeholderTextColor="#999"
+                  placeholderTextColor={colors.textSecondary}
                 />
               </View>
 
@@ -1881,7 +1892,7 @@ export default function ProductionScreen() {
                     >
                       <Text
                         style={{
-                          color: lunchTime ? Colors.light.text : "#999",
+                          color: lunchTime ? colors.text : colors.textSecondary,
                         }}
                       >
                         {lunchTime || "13:00"}
@@ -1906,6 +1917,7 @@ export default function ProductionScreen() {
                           is24Hour={true}
                           display="spinner"
                           onChange={onLunchTimeChange}
+                          textColor={colors.text}
                         />
                         {Platform.OS === "ios" && (
                           <TouchableOpacity
@@ -1913,11 +1925,11 @@ export default function ProductionScreen() {
                             style={{
                               marginTop: 5,
                               padding: 8,
-                              backgroundColor: "#eee",
+                              backgroundColor: colors.backgroundSecondary,
                               borderRadius: 5,
                             }}
                           >
-                            <Text style={{ fontSize: 12, color: "#666" }}>
+                            <Text style={{ fontSize: 12, color: colors.textSecondary }}>
                               OK
                             </Text>
                           </TouchableOpacity>
@@ -1934,7 +1946,7 @@ export default function ProductionScreen() {
                   value={cateringInfo}
                   onChangeText={setCateringInfo}
                   placeholder="Cantine, Resto..."
-                  placeholderTextColor="#999"
+                  placeholderTextColor={colors.textSecondary}
                 />
               </View>
 
@@ -1948,7 +1960,7 @@ export default function ProductionScreen() {
                   value={notes}
                   onChangeText={setNotes}
                   placeholder="Notes importantes..."
-                  placeholderTextColor="#999"
+                  placeholderTextColor={colors.textSecondary}
                   multiline
                 />
               </View>
@@ -1986,12 +1998,12 @@ export default function ProductionScreen() {
               <TouchableOpacity
                 onPress={() => setOptStartDateModalVisible(false)}
               >
-                <Ionicons name="close" size={24} color="#666" />
+                <Ionicons name="close" size={24} color={colors.textSecondary} />
               </TouchableOpacity>
             </View>
 
             <View style={{ paddingVertical: 10 }}>
-              <Text style={{ color: "#666", marginBottom: 15 }}>
+              <Text style={{ color: colors.textSecondary, marginBottom: 15 }}>
                 Veuillez choisir la date de début de votre tournage pour lancer
                 l'optimisation.
               </Text>
@@ -2009,7 +2021,7 @@ export default function ProductionScreen() {
                     style={[styles.input, { justifyContent: "center" }]}
                     onPress={() => setShowOptDatePicker(true)}
                   >
-                    <Text style={{ color: optStartDate ? "#000" : "#999" }}>
+                    <Text style={{ color: optStartDate ? colors.text : colors.textSecondary }}>
                       {optStartDate || "Choisir une date..."}
                     </Text>
                   </TouchableOpacity>
@@ -2026,6 +2038,7 @@ export default function ProductionScreen() {
                           );
                         }
                       }}
+                      textColor={colors.text}
                     />
                   )}
                 </>
@@ -2062,12 +2075,12 @@ export default function ProductionScreen() {
                   setProposedDays(null);
                 }}
               >
-                <Ionicons name="close" size={24} color="#666" />
+                <Ionicons name="close" size={24} color={colors.textSecondary} />
               </TouchableOpacity>
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false}>
-              <Text style={{ color: "#666", marginBottom: 15 }}>
+              <Text style={{ color: colors.textSecondary, marginBottom: 15 }}>
                 Voici le planning généré automatiquement. Vous pouvez l'accepter
                 pour l'ajouter à votre plan de travail.
               </Text>
@@ -2077,7 +2090,7 @@ export default function ProductionScreen() {
                   key={idx}
                   style={[
                     styles.itemContainer,
-                    { borderWidth: 1, borderColor: "#eee", elevation: 0 },
+                    { borderWidth: 1, borderColor: colors.border, elevation: 0 },
                   ]}
                 >
                   <View style={styles.itemHeader}>
@@ -2101,7 +2114,7 @@ export default function ProductionScreen() {
                       <Text
                         style={{
                           fontSize: 12,
-                          color: "#666",
+                          color: colors.textSecondary,
                           fontWeight: "bold",
                         }}
                       >
@@ -2119,14 +2132,14 @@ export default function ProductionScreen() {
                             size={18}
                             color={
                               day.weatherForecast.code > 3
-                                ? "#adb5bd"
+                                ? colors.textSecondary
                                 : "#fcc419"
                             }
                           />
                           <Text
                             style={{
                               fontSize: 12,
-                              color: "#666",
+                              color: colors.textSecondary,
                               marginLeft: 4,
                               fontWeight: "bold",
                             }}
@@ -2138,13 +2151,13 @@ export default function ProductionScreen() {
                         <Ionicons
                           name={day.isGoodWeather ? "sunny" : "cloudy"}
                           size={18}
-                          color={day.isGoodWeather ? "#fcc419" : "#adb5bd"}
+                          color={day.isGoodWeather ? "#fcc419" : colors.textSecondary}
                         />
                       )}
                     </View>
                   </View>
                   <Text
-                    style={{ fontSize: 13, color: "#666", fontWeight: "bold" }}
+                    style={{ fontSize: 13, color: colors.text, fontWeight: "bold" }}
                   >
                     {day.location}
                   </Text>
@@ -2159,14 +2172,14 @@ export default function ProductionScreen() {
                         }}
                       >
                         <Text
-                          style={{ fontSize: 12, color: Colors.light.tint }}
+                          style={{ fontSize: 12, color: colors.tint }}
                         >
                           • SC. {s.scene_number} - {s.title}
                         </Text>
                         <Text
                           style={{
                             fontSize: 12,
-                            color: "#666",
+                            color: colors.textSecondary,
                             fontWeight: "500",
                           }}
                         >
@@ -2183,14 +2196,14 @@ export default function ProductionScreen() {
               <TouchableOpacity
                 style={[
                   styles.saveButton,
-                  { flex: 1, backgroundColor: "#adb5bd" },
+                  { flex: 1, backgroundColor: colors.backgroundSecondary },
                 ]}
                 onPress={() => {
                   setPreviewModalVisible(false);
                   setProposedDays(null);
                 }}
               >
-                <Text style={styles.saveButtonText}>Annuler</Text>
+                <Text style={[styles.saveButtonText, { color: colors.textSecondary }]}>Annuler</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.saveButton, { flex: 2 }]}

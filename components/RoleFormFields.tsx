@@ -1,5 +1,5 @@
-import Colors from "@/constants/Colors";
 import { GlobalStyles } from "@/constants/Styles";
+import { useTheme } from "@/providers/ThemeProvider";
 import React from "react";
 import { StyleSheet, Text, TextInput, View } from "react-native";
 import { Hoverable } from "./Hoverable";
@@ -27,6 +27,9 @@ export default function RoleFormFields({
   data,
   onChange,
 }: RoleFormFieldsProps) {
+  const { colors, isDark } = useTheme();
+  const styles = createStyles(colors, isDark);
+  
   const updateField = (key: string, value: any) => {
     onChange({ ...data, [key]: value });
   };
@@ -48,21 +51,21 @@ export default function RoleFormFields({
   if (category === "acteur") {
     return (
       <View>
-        <Text style={GlobalStyles.sectionTitle}>
+        <Text style={[GlobalStyles.sectionTitle, { color: colors.text }]}>
           Caractéristiques physiques
         </Text>
 
-        <Text style={GlobalStyles.label}>Taille (cm)</Text>
+        <Text style={[GlobalStyles.label, { color: colors.text }]}>Taille (cm)</Text>
         <TextInput
           placeholder="Ex: 175"
-          placeholderTextColor={Colors.light.tabIconDefault}
+          placeholderTextColor={colors.text + "80"}
           keyboardType="numeric"
-          style={GlobalStyles.input}
+          style={[GlobalStyles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.background }]}
           value={data.height ? String(data.height) : ""}
           onChangeText={(t) => updateField("height", t ? parseInt(t) : null)}
         />
 
-        <Text style={GlobalStyles.label}>Cheveux</Text>
+        <Text style={[GlobalStyles.label, { color: colors.text }]}>Cheveux</Text>
         <View style={styles.rowWrap}>
           {HAIR_COLORS.map((c) => (
             <Hoverable
@@ -79,7 +82,7 @@ export default function RoleFormFields({
                 style={{
                   color: toArray(data.hairColor).includes(c)
                     ? "white"
-                    : Colors.light.text,
+                    : colors.text,
                 }}
               >
                 {c}
@@ -88,7 +91,7 @@ export default function RoleFormFields({
           ))}
         </View>
 
-        <Text style={GlobalStyles.label}>Yeux</Text>
+        <Text style={[GlobalStyles.label, { color: colors.text }]}>Yeux</Text>
         <View style={styles.rowWrap}>
           {EYE_COLORS.map((c) => (
             <Hoverable
@@ -105,7 +108,7 @@ export default function RoleFormFields({
                 style={{
                   color: toArray(data.eyeColor).includes(c)
                     ? "white"
-                    : Colors.light.text,
+                    : colors.text,
                 }}
               >
                 {c}
@@ -120,25 +123,25 @@ export default function RoleFormFields({
   if (["image", "son", "post_prod", "deco", "technicien"].includes(category)) {
     return (
       <View>
-        <Text style={GlobalStyles.sectionTitle}>Compétences techniques</Text>
+        <Text style={[GlobalStyles.sectionTitle, { color: colors.text }]}>Compétences techniques</Text>
 
-        <Text style={GlobalStyles.label}>Matériel requis / utilisé</Text>
+        <Text style={[GlobalStyles.label, { color: colors.text }]}>Matériel requis / utilisé</Text>
         <Text style={styles.helper}>
           Liste du matériel que la personne devra manipuler ou apporter.
         </Text>
         <TextInput
           placeholder="Ex: Caméra RED, Micro HF, Kit Lumière..."
-          placeholderTextColor={Colors.light.tabIconDefault}
-          style={GlobalStyles.input}
+          placeholderTextColor={colors.text + "80"}
+          style={[GlobalStyles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.background }]}
           value={data.equipment || ""}
           onChangeText={(t) => updateField("equipment", t)}
         />
 
-        <Text style={GlobalStyles.label}>Logiciels maitrisés</Text>
+        <Text style={[GlobalStyles.label, { color: colors.text }]}>Logiciels maitrisés</Text>
         <TextInput
           placeholder="Ex: DaVinci Resolve, Pro Tools, After Effects..."
-          placeholderTextColor={Colors.light.tabIconDefault}
-          style={GlobalStyles.input}
+          placeholderTextColor={colors.text + "80"}
+          style={[GlobalStyles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.background }]}
           value={data.software || ""}
           onChangeText={(t) => updateField("software", t)}
         />
@@ -149,13 +152,13 @@ export default function RoleFormFields({
   if (category === "hmc") {
     return (
       <View>
-        <Text style={GlobalStyles.sectionTitle}>Spécificités HMC</Text>
+        <Text style={[GlobalStyles.sectionTitle, { color: colors.text }]}>Spécificités HMC</Text>
 
-        <Text style={GlobalStyles.label}>Spécialités</Text>
+        <Text style={[GlobalStyles.label, { color: colors.text }]}>Spécialités</Text>
         <TextInput
           placeholder="Ex: Maquillage FX, Coiffure d'époque, Couture..."
-          placeholderTextColor={Colors.light.tabIconDefault}
-          style={GlobalStyles.input}
+          placeholderTextColor={colors.text + "80"}
+          style={[GlobalStyles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.background }]}
           value={data.specialties || ""}
           onChangeText={(t) => updateField("specialties", t)}
         />
@@ -166,10 +169,10 @@ export default function RoleFormFields({
   return null;
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   helper: {
     fontSize: 12,
-    color: Colors.light.tabIconDefault,
+    color: colors.text + "80",
     marginBottom: 6,
     fontStyle: "italic",
     textAlign: "center",
@@ -185,11 +188,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: Colors.light.border,
-    backgroundColor: Colors.light.background,
+    borderColor: colors.border,
+    backgroundColor: colors.background,
   },
   chipSelected: {
-    backgroundColor: Colors.light.primary,
-    borderColor: Colors.light.primary,
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
 });
+

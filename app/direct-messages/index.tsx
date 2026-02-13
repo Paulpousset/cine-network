@@ -1,274 +1,85 @@
-import ClapLoading from "@/components/ClapLoading";
-import Colors from "@/constants/Colors";
-import { appEvents, EVENTS } from "@/lib/events";
-import { supabase } from "@/lib/supabase";
-import { Ionicons } from "@expo/vector-icons";
-import { Stack, useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import ConversationList from "@/components/ConversationList";
+import { useTheme } from "@/providers/ThemeProvider";
+import { Stack } from "expo-router";
+import React from "react";
 import {
-    FlatList,
-    Image,
-    Platform,
-    RefreshControl,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Platform,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
 } from "react-native";
 
 export default function DirectMessagesList() {
-  const router = useRouter();
-  const [conversations, setConversations] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const { colors, isDark } = useTheme();
+  const styles = createStyles(colors, isDark);
+  const { width } = useWindowDimensions();
+  const isWebLarge = Platform.OS === "web" && width >= 768;
 
-  useEffect(() => {
-    fetchConversations();
-
-    // Listen for new messages via GlobalRealtimeListener to update the list immediately
-    const unsubscribeNew = appEvents.on(EVENTS.NEW_MESSAGE, () => {
-      console.log("DM List: New message event received, refreshing list");
-      fetchConversations();
-    });
-
-    // Listen for read events to update badges instantly
-    const unsubscribeRead = appEvents.on(EVENTS.MESSAGES_READ, () => {
-      fetchConversations();
-    });
-
-    // Special handling for Web focus to refresh list
-    const onWebFocus = () => {
-      if (Platform.OS === "web") {
-        fetchConversations();
-      }
-    };
-    if (Platform.OS === "web") {
-      window.addEventListener("focus", onWebFocus);
-    }
-
-    return () => {
-      unsubscribeNew();
-      unsubscribeRead();
-      if (Platform.OS === "web") {
-        window.removeEventListener("focus", onWebFocus);
-      }
-    };
-  }, []);
-
-  async function fetchConversations() {
-    try {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      if (!session) return;
-      setCurrentUserId(session.user.id);
-
-      // Use the efficient Database Function (RPC)
-      const { data: convs, error } = await supabase.rpc("get_conversations");
-
-      if (error) throw error;
-
-      // 2. Fetch blocked users IDs to filter them out
-      const { data: blocks } = await supabase
-        .from("user_blocks")
-        .select("blocker_id, blocked_id")
-        .or(
-          `blocker_id.eq.${session.user.id},blocked_id.eq.${session.user.id}`,
-        );
-
-      const blockedIds = new Set(
-        blocks?.map((b: any) =>
-          b.blocker_id === session.user.id ? b.blocked_id : b.blocker_id,
-        ) || [],
-      );
-
-      // Transform RPC result to match the expected state format
-      // State expects: { user: { ...profile }, lastMessage: { ...msg } }
-      const formattedConversations = convs
-        .filter((c: any) => !blockedIds.has(c.conversation_user_id))
-        .map((c: any) => ({
-          user: {
-            id: c.conversation_user_id,
-            full_name: c.full_name,
-            avatar_url: c.avatar_url,
-          },
-          lastMessage: {
-            content: c.last_message_content,
-            created_at: c.last_message_created_at,
-            is_read: c.is_read,
-            sender_id: c.sender_id,
-            receiver_id: c.receiver_id,
-          },
-        }));
-
-      setConversations(formattedConversations || []);
-    } catch (e) {
-      console.log("Error fetching conversations:", e);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
+  if (isWebLarge) {
+    return (
+      <View style={styles.webPlaceholder}>
+        <View style={styles.placeholderIconContainer}>
+          <Text style={{ fontSize: 50 }}>💬</Text>
+        </View>
+        <Text style={styles.placeholderText}>Sélectionnez une discussion</Text>
+        <Text style={styles.placeholderSubText}>
+          Choisissez une conversation dans la liste de gauche pour commencer à discuter.
+        </Text>
+      </View>
+    );
   }
 
   return (
     <View style={styles.container}>
+      
       <Stack.Screen
         options={{
           headerTitle: "Messages",
           headerBackTitle: "Retour",
-          headerTintColor: Colors.light.tint,
+          headerTintColor: colors.primary,
         }}
       />
-
-      {loading && !refreshing ? (
-        <View style={styles.center}>
-          <ClapLoading size={50} color={Colors.light.primary} />
-        </View>
-      ) : (
-        <FlatList
-          data={conversations}
-          keyExtractor={(item) => item.user.id}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={() => {
-                setRefreshing(true);
-                fetchConversations();
-              }}
-            />
-          }
-          ListEmptyComponent={
-            <View style={styles.center}>
-              <Text style={styles.emptyText}>Aucune conversation.</Text>
-              <Text style={styles.emptySubText}>
-                Allez sur le profil d'un utilisateur pour démarrer un chat.
-              </Text>
-            </View>
-          }
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              style={styles.card}
-              onPress={() =>
-                router.push({
-                  pathname: "/direct-messages/[id]",
-                  params: { id: item.user.id },
-                })
-              }
-            >
-              <Image
-                source={{
-                  uri:
-                    item.user.avatar_url ||
-                    "https://ui-avatars.com/api/?name=" +
-                      (item.user.full_name || "User"),
-                }}
-                style={styles.avatar}
-              />
-              {!item.lastMessage.is_read &&
-                item.lastMessage.receiver_id === currentUserId && (
-                  <View
-                    style={{
-                      position: "absolute",
-                      left: 55,
-                      top: 15,
-                      width: 12,
-                      height: 12,
-                      borderRadius: 6,
-                      backgroundColor: Colors.light.tint,
-                      borderWidth: 2,
-                      borderColor: "white",
-                      zIndex: 10,
-                    }}
-                  />
-                )}
-              <View style={{ flex: 1 }}>
-                <View
-                  style={{
-                    flexDirection: "row",
-                    justifyContent: "space-between",
-                    marginBottom: 4,
-                  }}
-                >
-                  <Text style={styles.name}>
-                    {item.user.full_name || item.user.username}
-                  </Text>
-                  <Text style={styles.date}>
-                    {new Date(item.lastMessage.created_at).toLocaleDateString()}
-                  </Text>
-                </View>
-                <Text
-                  style={[
-                    styles.message,
-                    !item.lastMessage.is_read &&
-                      item.lastMessage.receiver_id === currentUserId && {
-                        fontWeight: "bold",
-                        color: Colors.light.text,
-                      },
-                  ]}
-                  numberOfLines={1}
-                >
-                  {item.lastMessage.sender_id === currentUserId ? "Vous: " : ""}
-                  {item.lastMessage.content}
-                </Text>
-              </View>
-              <Ionicons
-                name="chevron-forward"
-                size={20}
-                color={Colors.light.tabIconDefault}
-              />
-            </TouchableOpacity>
-          )}
-        />
-      )}
+      <ConversationList />
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.light.background },
-  center: {
+const createStyles = (colors: any, isDark: boolean) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.background },
+  webPlaceholder: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    padding: 20,
+    padding: 40,
+    backgroundColor: colors.backgroundSecondary,
   },
-  card: {
-    flexDirection: "row",
+  placeholderIconContainer: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: colors.background,
+    justifyContent: "center",
     alignItems: "center",
-    padding: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.light.border,
-    backgroundColor: "white",
+    marginBottom: 20,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
   },
-  avatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    marginRight: 15,
-    backgroundColor: "#eee",
-  },
-  name: {
+  placeholderText: {
+    fontSize: 20,
     fontWeight: "bold",
-    fontSize: 16,
-    color: Colors.light.text,
+    color: colors.text,
+    marginBottom: 8,
   },
-  date: {
-    fontSize: 12,
-    color: "#999",
-  },
-  message: {
-    fontSize: 14,
-    color: "#666",
-  },
-  emptyText: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: Colors.light.text,
-    marginBottom: 10,
-  },
-  emptySubText: {
+  placeholderSubText: {
+    fontSize: 15,
+    color: colors.text + "80",
     textAlign: "center",
-    color: "#666",
+    maxWidth: 300,
+    lineHeight: 22,
   },
 });
+
+

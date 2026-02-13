@@ -7,26 +7,27 @@ import ImpersonationHUD from "@/components/ImpersonationHUD";
 import NotificationToast from "@/components/NotificationToast";
 import Sidebar from "@/components/Sidebar";
 import { TutorialOverlay } from "@/components/TutorialOverlay";
-import Colors from "@/constants/Colors";
 import { appEvents, EVENTS } from "@/lib/events";
 import { TutorialProvider } from "@/providers/TutorialProvider";
 import { UserModeProvider } from "@/providers/UserModeProvider";
+import { UserProvider, useUser } from "@/providers/UserProvider";
 import { Session } from "@supabase/supabase-js";
 import * as Linking from "expo-linking";
 import { Stack, usePathname, useRouter, useSegments } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
-    Platform,
-    Text,
-    TouchableOpacity,
-    useWindowDimensions,
-    View,
+  Platform,
+  Text,
+  TouchableOpacity,
+  useWindowDimensions,
+  View,
 } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { supabase } from "../lib/supabase";
 
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { useUserMode } from "@/hooks/useUserMode";
+import { ThemeProvider, useTheme } from "@/providers/ThemeProvider";
 import analytics from "@react-native-firebase/analytics";
 import crashlytics from "@react-native-firebase/crashlytics";
 
@@ -42,6 +43,7 @@ function RootLayoutContent({
   pathname: string;
 }) {
   const { isSidebarCollapsed } = useUserMode();
+  const { colors } = useTheme();
 
   // Initialize push notifications on mobile/tablet
   usePushNotifications();
@@ -88,6 +90,15 @@ function RootLayoutContent({
             options={{ headerShown: true, title: "Confidentialité" }}
           />
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen
+            name="direct-messages"
+            options={{
+              headerShown: Platform.OS !== "web",
+              title: "Messages",
+              headerTintColor: colors.tint,
+              headerBackTitle: "Retour",
+            }}
+          />
           <Stack.Screen name="project" options={{ headerShown: false }} />
           <Stack.Screen name="network" options={{ headerShown: false }} />
           <Stack.Screen name="profile/[id]" options={{ headerShown: false }} />
@@ -109,37 +120,49 @@ function RootLayoutContent({
 }
 
 export default function RootLayout() {
-  const [session, setSession] = useState<Session | null>(null);
-  const [initialized, setInitialized] = useState(false);
-  const [isProfileComplete, setIsProfileComplete] = useState<boolean | null>(
-    null,
+  return (
+    <SafeAreaProvider>
+      <ErrorBoundary>
+        <ThemeProvider>
+          <UserProvider>
+            <UserModeProvider>
+              <TutorialProvider>
+                <RootLayoutInner />
+              </TutorialProvider>
+            </UserModeProvider>
+          </UserProvider>
+        </ThemeProvider>
+      </ErrorBoundary>
+    </SafeAreaProvider>
   );
+}
+
+function RootLayoutInner() {
+  const { colors, isDark } = useTheme();
+  const {
+    session,
+    isLoading: userLoading,
+    isProfileComplete,
+    refreshProfile,
+  } = useUser();
   const [isMobileWeb, setIsMobileWeb] = useState(false);
   const [showFilmTransition, setShowFilmTransition] = useState(false);
   const [filmTransitionTarget, setFilmTransitionTarget] = useState<
     string | null
   >(null);
+  const [hasInitialized, setHasInitialized] = useState(false);
+
+  useEffect(() => {
+    if (!userLoading) {
+      setHasInitialized(true);
+    }
+  }, [userLoading]);
 
   const { width } = useWindowDimensions();
   const isWebLarge = Platform.OS === "web" && width >= 768;
   const segments = useSegments();
   const pathname = usePathname() as string;
   const router = useRouter();
-
-  const checkProfileCompleteness = useCallback(async (userId: string) => {
-    try {
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("username, role")
-        .eq("id", userId)
-        .single();
-
-      setIsProfileComplete(!!(profile?.username && profile?.role));
-    } catch (error) {
-      console.error("Error checking profile completeness:", error);
-      setIsProfileComplete(false);
-    }
-  }, []);
 
   useEffect(() => {
     let fallbackTimer: ReturnType<typeof setTimeout>;
@@ -157,9 +180,7 @@ export default function RootLayout() {
     );
 
     const unsubProfile = appEvents.on(EVENTS.PROFILE_UPDATED, () => {
-      if (session?.user?.id) {
-        checkProfileCompleteness(session.user.id);
-      }
+      refreshProfile();
     });
 
     return () => {
@@ -167,7 +188,7 @@ export default function RootLayout() {
       unsubProfile();
       if (fallbackTimer) clearTimeout(fallbackTimer);
     };
-  }, [session, checkProfileCompleteness]);
+  }, [refreshProfile]);
 
   const onFilmScreenCovered = useCallback(() => {
     if (filmTransitionTarget) {
@@ -232,20 +253,10 @@ export default function RootLayout() {
       if (url) handleDeepLink({ url });
     });
 
-    // 2. Écouter l'état de l'authentification (Connexion / Déconnexion)
+    // 2. Écouter uniquement les événements spécifiques de navigation
     const {
       data: { subscription: authSubscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
-      setSession(session);
-
-      if (session) {
-        checkProfileCompleteness(session.user.id);
-      } else {
-        setIsProfileComplete(null);
-      }
-
-      setInitialized(true);
-
+    } = supabase.auth.onAuthStateChange(async (event) => {
       if (event === "PASSWORD_RECOVERY") {
         router.push("/update-password");
       }
@@ -258,7 +269,7 @@ export default function RootLayout() {
   }, []);
 
   useEffect(() => {
-    if (!initialized) return;
+    if (userLoading) return;
 
     // Définir les pages publiques (accessible sans connexion)
     const isPublicPage =
@@ -302,7 +313,7 @@ export default function RootLayout() {
         router.replace("/my-projects"); // Direction le dashboard
       }
     }
-  }, [session, initialized, pathname, isProfileComplete]);
+  }, [session, userLoading, pathname, isProfileComplete]);
 
   // 3. Bloquer l'accès web sur mobile
   useEffect(() => {
@@ -332,10 +343,10 @@ export default function RootLayout() {
   }, [pathname]);
 
   // Petit écran de chargement au lancement de l'app
-  if (!initialized) {
+  if (!hasInitialized) {
     return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-        <ClapLoading size={50} color={Colors.light.primary} />
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: colors.background }}>
+        <ClapLoading size={50} color={colors.primary} />
       </View>
     );
   }
@@ -349,7 +360,7 @@ export default function RootLayout() {
           justifyContent: "center",
           alignItems: "center",
           padding: 20,
-          backgroundColor: "#fff",
+          backgroundColor: colors.background,
         }}
       >
         <Text
@@ -358,6 +369,7 @@ export default function RootLayout() {
             fontWeight: "bold",
             marginBottom: 20,
             textAlign: "center",
+            color: colors.text,
           }}
         >
           Tita Mobile
@@ -367,7 +379,7 @@ export default function RootLayout() {
             fontSize: 16,
             textAlign: "center",
             marginBottom: 40,
-            color: "#666",
+            color: isDark ? "#9CA3AF" : "#666",
             lineHeight: 24,
           }}
         >
@@ -384,7 +396,7 @@ export default function RootLayout() {
             window.location.href = deepLink;
           }}
           style={{
-            backgroundColor: Colors.light.primary,
+            backgroundColor: colors.primary,
             paddingHorizontal: 30,
             paddingVertical: 15,
             borderRadius: 25,
@@ -400,25 +412,19 @@ export default function RootLayout() {
   }
 
   return (
-    <SafeAreaProvider>
-      <ErrorBoundary>
-        <UserModeProvider>
-          <TutorialProvider>
-            <RootLayoutContent
-              session={session}
-              isProfileComplete={isProfileComplete}
-              isWebLarge={isWebLarge}
-              pathname={pathname}
-            />
-            <FilmStripTransition
-              isVisible={showFilmTransition}
-              onScreenCovered={onFilmScreenCovered}
-              onAnimationComplete={onFilmAnimationComplete}
-            />
-            <TutorialOverlay />
-          </TutorialProvider>
-        </UserModeProvider>
-      </ErrorBoundary>
-    </SafeAreaProvider>
+    <>
+      <RootLayoutContent
+        session={session}
+        isProfileComplete={isProfileComplete}
+        isWebLarge={isWebLarge}
+        pathname={pathname}
+      />
+      <FilmStripTransition
+        isVisible={showFilmTransition}
+        onScreenCovered={onFilmScreenCovered}
+        onAnimationComplete={onFilmAnimationComplete}
+      />
+      <TutorialOverlay />
+    </>
   );
 }

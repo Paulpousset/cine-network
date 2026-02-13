@@ -1,14 +1,15 @@
-import Colors from "@/constants/Colors";
 import { useNotificationCount } from "@/hooks/useNotificationCount";
+import { useTheme } from "@/providers/ThemeProvider";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { Link } from "expo-router";
 import React from "react";
-import { StyleSheet, Text, useColorScheme, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 
 import { Hoverable } from "./Hoverable";
 
 export default function NotificationIconWithBadge() {
-  const colorScheme = useColorScheme();
+  const { colors, isDark } = useTheme();
+  const styles = createStyles(colors, isDark);
   const { total: unreadCount } = useNotificationCount();
 
   return (
@@ -26,7 +27,7 @@ export default function NotificationIconWithBadge() {
             <FontAwesome
               name="bell"
               size={25}
-              color={Colors[colorScheme ?? "light"].text}
+              color={colors.text}
             />
             {unreadCount > 0 && (
               <View style={styles.badge}>
@@ -42,19 +43,19 @@ export default function NotificationIconWithBadge() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   badge: {
     position: "absolute",
     right: -6,
     top: -3,
-    backgroundColor: Colors.light.tint,
+    backgroundColor: colors.primary,
     borderRadius: 9,
     width: 18,
     height: 18,
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 1.5,
-    borderColor: "white",
+    borderColor: colors.background,
   },
   badgeText: {
     color: "white",
@@ -62,3 +63,4 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
 });
+

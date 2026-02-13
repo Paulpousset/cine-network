@@ -1,5 +1,5 @@
-import Colors from "@/constants/Colors";
 import { useUserMode } from "@/hooks/useUserMode";
+import { useTheme } from "@/providers/ThemeProvider";
 import { useTutorial } from "@/providers/TutorialProvider";
 import { Ionicons } from "@expo/vector-icons";
 import React from "react";
@@ -15,6 +15,8 @@ import Animated, { FadeIn, SlideInDown } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export function TutorialOverlay() {
+  const { colors, isDark } = useTheme();
+  const styles = createStyles(colors, isDark);
   const {
     currentStep,
     isTutorialActive,
@@ -66,7 +68,7 @@ export function TutorialOverlay() {
               <Ionicons
                 name="bulb-outline"
                 size={20}
-                color={Colors.light.tint}
+                color={colors.primary}
               />
             </View>
             <Text style={styles.title} numberOfLines={1}>
@@ -77,7 +79,7 @@ export function TutorialOverlay() {
               style={styles.closeButton}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
-              <Ionicons name="close" size={18} color="#999" />
+              <Ionicons name="close" size={18} color={colors.text + "80"} />
             </TouchableOpacity>
           </View>
 
@@ -86,7 +88,7 @@ export function TutorialOverlay() {
           <View style={styles.footer}>
             <Text style={styles.stepText}>Étape {currentStepIndex + 1}</Text>
             <View style={styles.buttons}>
-              <TouchableOpacity onPress={nextStep} style={styles.nextButton}>
+              <TouchableOpacity onPress={nextStep} style={[styles.nextButton, { backgroundColor: colors.primary, shadowColor: colors.primary }]}>
                 <Text style={styles.nextButtonText}>Suivant</Text>
                 <Ionicons
                   name="arrow-forward"
@@ -103,7 +105,7 @@ export function TutorialOverlay() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   overlay: {
     ...StyleSheet.absoluteFillObject,
     zIndex: 9999,
@@ -112,18 +114,16 @@ const styles = StyleSheet.create({
     // Container constraints handled inline or here
   },
   card: {
-    backgroundColor: "rgba(255, 255, 255, 0.95)",
+    backgroundColor: isDark ? "rgba(30, 30, 45, 0.95)" : "rgba(255, 255, 255, 0.95)",
     borderRadius: 16,
     padding: 16,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
+    shadowOpacity: isDark ? 0.3 : 0.15,
     shadowRadius: 12,
     elevation: 8,
     borderWidth: 1,
-    borderColor: "rgba(0,0,0,0.05)",
-    // backdropFilter type might assume web text, so avoid explicit typescript error for mobile if possible,
-    // but react-native-web handles it.
+    borderColor: isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.05)",
     // @ts-ignore
     backdropFilter: "blur(10px)",
   },
@@ -136,7 +136,7 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: Colors.light.tint + "15",
+    backgroundColor: colors.primary + "26",
     justifyContent: "center",
     alignItems: "center",
     marginRight: 8,
@@ -144,7 +144,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 15,
     fontWeight: "700",
-    color: "#1a1a1a",
+    color: colors.text,
     flex: 1,
   },
   closeButton: {
@@ -153,7 +153,7 @@ const styles = StyleSheet.create({
   content: {
     fontSize: 13,
     lineHeight: 18,
-    color: "#4a4a4a",
+    color: colors.text + "CC",
     marginBottom: 16,
   },
   footer: {
@@ -163,7 +163,7 @@ const styles = StyleSheet.create({
   },
   stepText: {
     fontSize: 12,
-    color: "#888",
+    color: colors.text + "80",
     fontWeight: "500",
   },
   buttons: {
@@ -171,13 +171,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   nextButton: {
-    backgroundColor: Colors.light.tint,
     paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: 20,
     flexDirection: "row",
     alignItems: "center",
-    shadowColor: Colors.light.tint,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
     shadowRadius: 4,
@@ -188,3 +186,4 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
 });
+

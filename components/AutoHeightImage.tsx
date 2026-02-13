@@ -1,12 +1,12 @@
 import ClapLoading from "@/components/ClapLoading";
-import Colors from "@/constants/Colors";
+import { useTheme } from "@/providers/ThemeProvider";
 import React, { useEffect, useState } from "react";
 import {
-    Image,
-    Platform,
-    TouchableOpacity,
-    useWindowDimensions,
-    View,
+  Image,
+  Platform,
+  TouchableOpacity,
+  useWindowDimensions,
+  View,
 } from "react-native";
 
 const AutoHeightImage = ({
@@ -16,6 +16,7 @@ const AutoHeightImage = ({
   uri: string;
   onPress: () => void;
 }) => {
+  const { colors } = useTheme();
   const [aspectRatio, setAspectRatio] = useState(1); // Default square
   const [loading, setLoading] = useState(true);
   const { width: windowWidth } = useWindowDimensions();
@@ -47,14 +48,14 @@ const AutoHeightImage = ({
         style={{
           width: "100%",
           height: 200,
-          backgroundColor: Colors.light.backgroundSecondary,
+          backgroundColor: colors.backgroundSecondary,
           justifyContent: "center",
           alignItems: "center",
           borderRadius: 8,
           marginBottom: 10,
         }}
       >
-        <ClapLoading size={30} color={Colors.light.primary} />
+        <ClapLoading size={30} />
       </View>
     );
   }
@@ -68,7 +69,7 @@ const AutoHeightImage = ({
     overflow: "hidden",
     borderRadius: 8,
     alignItems: "center",
-    backgroundColor: Colors.light.backgroundSecondary,
+    backgroundColor: colors.backgroundSecondary,
   };
 
   return (

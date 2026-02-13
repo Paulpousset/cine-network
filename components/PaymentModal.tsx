@@ -1,5 +1,5 @@
-import Colors from "@/constants/Colors";
 import { GlobalStyles } from "@/constants/Styles";
+import { useTheme } from "@/providers/ThemeProvider";
 import { PaymentService } from "@/services/PaymentService";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useState } from "react";
@@ -22,6 +22,8 @@ export default function PaymentModal({
   onClose,
   onSuccess,
 }: PaymentModalProps) {
+  const { colors, isDark } = useTheme();
+  const styles = createStyles(colors, isDark);
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -55,16 +57,16 @@ export default function PaymentModal({
           <Hoverable
             style={styles.closeButton}
             onPress={onClose}
-            hoverStyle={{ backgroundColor: "#f0f0f0" }}
+            hoverStyle={{ backgroundColor: colors.backgroundSecondary }}
           >
-            <Ionicons name="close" size={24} color="#333" />
+            <Ionicons name="close" size={24} color={colors.text} />
           </Hoverable>
 
           <View style={styles.header}>
             <Ionicons
               name="card-outline"
               size={40}
-              color={Colors.light.primary}
+              color={colors.primary}
             />
             <Text style={styles.title}>Paiement Sécurisé</Text>
           </View>
@@ -82,7 +84,7 @@ export default function PaymentModal({
           {error && <Text style={styles.error}>{error}</Text>}
 
           <Hoverable
-            style={[GlobalStyles.primaryButton, styles.payButton]}
+            style={[GlobalStyles.primaryButton, styles.payButton, { backgroundColor: colors.primary }]}
             onPress={handlePayment}
             disabled={processing}
             hoverStyle={{ opacity: 0.9, transform: [{ scale: 1.02 }] }}
@@ -101,7 +103,7 @@ export default function PaymentModal({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.5)",
@@ -110,23 +112,26 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   content: {
-    backgroundColor: "white",
+    backgroundColor: colors.background,
     borderRadius: 20,
     padding: 25,
     width: "100%",
     maxWidth: 400,
     alignItems: "center",
-    shadowColor: "#000",
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
     elevation: 5,
+    borderWidth: isDark ? 1 : 0,
+    borderColor: colors.border,
   },
   closeButton: {
     position: "absolute",
     top: 15,
     right: 15,
     padding: 5,
+    borderRadius: 20,
   },
   header: {
     alignItems: "center",
@@ -135,12 +140,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 20,
     fontWeight: "bold",
-    color: Colors.light.text,
+    color: colors.text,
     marginTop: 10,
   },
   details: {
     width: "100%",
-    backgroundColor: Colors.light.backgroundSecondary,
+    backgroundColor: colors.backgroundSecondary,
     padding: 15,
     borderRadius: 12,
     alignItems: "center",
@@ -148,24 +153,24 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 16,
-    color: Colors.light.text,
+    color: colors.text,
     marginBottom: 5,
     textAlign: "center",
   },
   amount: {
     fontSize: 24,
     fontWeight: "bold",
-    color: Colors.light.primary,
+    color: colors.primary,
   },
   info: {
     fontSize: 12,
-    color: "#666",
+    color: colors.text + "80",
     textAlign: "center",
     marginBottom: 20,
     fontStyle: "italic",
   },
   error: {
-    color: Colors.light.danger,
+    color: colors.danger,
     marginBottom: 15,
     textAlign: "center",
   },
@@ -173,3 +178,4 @@ const styles = StyleSheet.create({
     width: "100%",
   },
 });
+

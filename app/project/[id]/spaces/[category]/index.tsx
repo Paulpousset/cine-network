@@ -1,8 +1,8 @@
 import ClapLoading from "@/components/ClapLoading";
-import Colors from "@/constants/Colors";
 import { ALL_TOOLS, getDefaultTools } from "@/constants/Tools";
 import { useUserMode } from "@/hooks/useUserMode";
 import { supabase } from "@/lib/supabase";
+import { useTheme } from "@/providers/ThemeProvider";
 import { Ionicons } from "@expo/vector-icons";
 import { decode } from "base64-arraybuffer";
 import * as DocumentPicker from "expo-document-picker";
@@ -38,6 +38,8 @@ function ChatView({
   category: string;
   canWrite: boolean;
 }) {
+  const { colors, isDark } = useTheme();
+  const styles = createStyles(colors, isDark);
   const insets = useSafeAreaInsets();
   const [messages, setMessages] = useState<any[]>([]);
   const [inputText, setInputText] = useState("");
@@ -473,6 +475,9 @@ function FilesView({
 // --- Main Dashboard Component ---
 
 export default function ChannelSpace() {
+  const { colors, isDark } = useTheme();
+  const styles = createStyles(colors, isDark);
+  const fileStyles = createFileStyles(colors, isDark);
   const local = useLocalSearchParams();
   const global = useGlobalSearchParams();
   const { mode } = useUserMode();
@@ -574,7 +579,7 @@ export default function ChannelSpace() {
       <Ionicons
         name={icon}
         size={20}
-        color={activeTab === tab ? Colors.light.tint : "#666"}
+        color={activeTab === tab ? colors.tint : colors.textSecondary}
       />
       <Text
         style={[styles.tabLabel, activeTab === tab && styles.activeTabLabel]}
@@ -585,13 +590,14 @@ export default function ChannelSpace() {
   );
 
   return (
-    <View style={{ flex: 1, backgroundColor: "#fff" }}>
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
       <Stack.Screen
         options={{
           headerShown: true,
           headerTitleAlign: "center",
           headerShadowVisible: false,
-          headerStyle: { backgroundColor: "#fff" },
+          headerStyle: { backgroundColor: colors.background },
+          headerTintColor: colors.text,
           headerLeft: () => (
             <TouchableOpacity
               onPress={() => {
@@ -609,7 +615,7 @@ export default function ChannelSpace() {
               }}
               hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
             >
-              <Ionicons name="arrow-back" size={24} color={Colors.light.text} />
+              <Ionicons name="arrow-back" size={24} color={colors.text} />
             </TouchableOpacity>
           ),
           headerTitle: `Espace ${(category || "").toUpperCase()}`,
@@ -691,207 +697,211 @@ export default function ChannelSpace() {
   );
 }
 
-const styles = StyleSheet.create({
-  tabsHeader: {
-    flexDirection: "row",
-    backgroundColor: "white",
-    borderBottomWidth: 1,
-    borderBottomColor: "#eee",
-  },
-  tabButton: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 12,
-    gap: 8,
-    borderBottomWidth: 2,
-    borderBottomColor: "transparent",
-  },
-  activeTabButton: {
-    borderBottomColor: Colors.light.tint,
-  },
-  tabLabel: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#666",
-  },
-  activeTabLabel: {
-    color: Colors.light.tint,
-  },
+const createStyles = (colors: any, isDark: boolean) =>
+  StyleSheet.create({
+    tabsHeader: {
+      flexDirection: "row",
+      backgroundColor: colors.background,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    tabButton: {
+      flex: 1,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      paddingVertical: 12,
+      gap: 8,
+      borderBottomWidth: 2,
+      borderBottomColor: "transparent",
+    },
+    activeTabButton: {
+      borderBottomColor: colors.tint,
+    },
+    tabLabel: {
+      fontSize: 14,
+      fontWeight: "600",
+      color: colors.textSecondary,
+    },
+    activeTabLabel: {
+      color: colors.tint,
+    },
 
-  // Chat Styles
-  messageBubble: {
-    padding: 10,
-    borderRadius: 12,
-    marginBottom: 8,
-    maxWidth: "80%",
-  },
-  myMessage: {
-    alignSelf: "flex-end",
-    backgroundColor: Colors.light.tint,
-  },
-  theirMessage: {
-    alignSelf: "flex-start",
-    backgroundColor: "#e0e0e0",
-  },
-  senderName: {
-    fontSize: 10,
-    color: "#555",
-    marginBottom: 2,
-  },
-  myText: { color: "white" },
-  theirText: { color: "#333" },
-  inputContainer: {
-    flexDirection: "row",
-    padding: 10,
-    backgroundColor: "white",
-    borderTopWidth: 1,
-    borderTopColor: "#eee",
-    alignItems: "center",
-  },
-  input: {
-    flex: 1,
-    backgroundColor: "#f0f2f5",
-    borderRadius: 20,
-    paddingHorizontal: 15,
-    paddingVertical: 10,
-    marginRight: 10,
-    maxHeight: 100,
-    minHeight: 40,
-  },
-  sendButton: {
-    backgroundColor: Colors.light.tint,
-    padding: 10,
-    borderRadius: 20,
-  },
+    // Chat Styles
+    messageBubble: {
+      padding: 10,
+      borderRadius: 12,
+      marginBottom: 8,
+      maxWidth: "80%",
+    },
+    myMessage: {
+      alignSelf: "flex-end",
+      backgroundColor: colors.tint,
+    },
+    theirMessage: {
+      alignSelf: "flex-start",
+      backgroundColor: isDark ? colors.card : "#e0e0e0",
+    },
+    senderName: {
+      fontSize: 10,
+      color: colors.textSecondary,
+      marginBottom: 2,
+    },
+    myText: { color: "#fff" },
+    theirText: { color: colors.text },
+    inputContainer: {
+      flexDirection: "row",
+      padding: 10,
+      backgroundColor: colors.background,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+      alignItems: "center",
+    },
+    input: {
+      flex: 1,
+      backgroundColor: isDark ? colors.card : "#f0f2f5",
+      borderRadius: 20,
+      paddingHorizontal: 15,
+      paddingVertical: 10,
+      marginRight: 10,
+      maxHeight: 100,
+      minHeight: 40,
+      color: colors.text,
+    },
+    sendButton: {
+      backgroundColor: colors.tint,
+      padding: 10,
+      borderRadius: 20,
+    },
 
-  // Placeholder Styles
-  centerContent: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 40,
-  },
-  placeholderText: {
-    marginTop: 20,
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#666",
-  },
-  subText: {
-    marginTop: 10,
-    textAlign: "center",
-    color: "#999",
-  },
+    // Placeholder Styles
+    centerContent: {
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center",
+      padding: 40,
+    },
+    placeholderText: {
+      marginTop: 20,
+      fontSize: 18,
+      fontWeight: "bold",
+      color: colors.textSecondary,
+    },
+    subText: {
+      marginTop: 10,
+      textAlign: "center",
+      color: colors.textSecondary,
+      opacity: 0.7,
+    },
 
-  // Tools Styles
-  toolsContainer: {
-    padding: 15,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    marginBottom: 5,
-    color: "#333",
-  },
-  toolsGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 12,
-    marginTop: 10,
-  },
-  toolCard: {
-    width: Platform.OS === "web" ? "100%" : "48%",
-    flexDirection: Platform.OS === "web" ? "row" : "column",
-    alignItems: "center",
-    backgroundColor: "white",
-    padding: 15,
-    borderRadius: 16,
-    marginBottom: Platform.OS === "web" ? 12 : 0,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 3,
-    borderWidth: 1,
-    borderColor: "#f0f0f0",
-  },
-  iconBox: {
-    width: 56,
-    height: 56,
-    borderRadius: 16,
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: Platform.OS === "web" ? 15 : 0,
-    marginBottom: Platform.OS === "web" ? 0 : 12,
-  },
-  toolTextContainer: {
-    flex: Platform.OS === "web" ? 1 : 0,
-    alignItems: Platform.OS === "web" ? "flex-start" : "center",
-  },
-  toolTitle: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#333",
-    textAlign: "center",
-  },
-  toolDesc: {
-    fontSize: 12,
-    color: "#666",
-    textAlign: "center",
-  },
-});
+    // Tools Styles
+    toolsContainer: {
+      padding: 15,
+    },
+    sectionTitle: {
+      fontSize: 18,
+      fontWeight: "bold",
+      marginBottom: 5,
+      color: colors.text,
+    },
+    toolsGrid: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: 12,
+      marginTop: 10,
+    },
+    toolCard: {
+      width: Platform.OS === "web" ? "100%" : "48%",
+      flexDirection: Platform.OS === "web" ? "row" : "column",
+      alignItems: "center",
+      backgroundColor: colors.card,
+      padding: 15,
+      borderRadius: 16,
+      marginBottom: Platform.OS === "web" ? 12 : 0,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: isDark ? 0.3 : 0.08,
+      shadowRadius: 4,
+      elevation: 3,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    iconBox: {
+      width: 56,
+      height: 56,
+      borderRadius: 16,
+      justifyContent: "center",
+      alignItems: "center",
+      marginRight: Platform.OS === "web" ? 15 : 0,
+      marginBottom: Platform.OS === "web" ? 0 : 12,
+    },
+    toolTextContainer: {
+      flex: Platform.OS === "web" ? 1 : 0,
+      alignItems: Platform.OS === "web" ? "flex-start" : "center",
+    },
+    toolTitle: {
+      fontSize: 14,
+      fontWeight: "700",
+      color: colors.text,
+      textAlign: "center",
+    },
+    toolDesc: {
+      fontSize: 12,
+      color: colors.textSecondary,
+      textAlign: "center",
+    },
+  });
 
-const fileStyles = StyleSheet.create({
-  uploadButton: {
-    backgroundColor: Colors.light.tint,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 20,
-    gap: 8,
-  },
-  uploadButtonText: {
-    color: "#fff",
-    fontWeight: "600",
-    fontSize: 16,
-  },
-  fileCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#fff",
-    padding: 12,
-    borderRadius: 12,
-    gap: 12,
-    borderWidth: 1,
-    borderColor: "#eee",
-  },
-  fileIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 8,
-    backgroundColor: "#f5f5f5",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  fileName: {
-    fontSize: 16,
-    fontWeight: "500",
-    color: "#333",
-  },
-  fileInfo: {
-    fontSize: 12,
-    color: "#999",
-    marginTop: 2,
-  },
-  uploadingOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(255, 255, 255, 0.8)",
-    zIndex: 10,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-});
+const createFileStyles = (colors: any, isDark: boolean) =>
+  StyleSheet.create({
+    uploadButton: {
+      backgroundColor: colors.tint,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: 12,
+      borderRadius: 8,
+      marginBottom: 20,
+      gap: 8,
+    },
+    uploadButtonText: {
+      color: "#fff",
+      fontWeight: "600",
+      fontSize: 16,
+    },
+    fileCard: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: colors.card,
+      padding: 12,
+      borderRadius: 12,
+      gap: 12,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    fileIcon: {
+      width: 48,
+      height: 48,
+      borderRadius: 8,
+      backgroundColor: isDark ? colors.backgroundSecondary : "#f5f5f5",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    fileName: {
+      fontSize: 16,
+      fontWeight: "500",
+      color: colors.text,
+    },
+    fileInfo: {
+      fontSize: 12,
+      color: colors.textSecondary,
+      marginTop: 2,
+    },
+    uploadingOverlay: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: isDark ? "rgba(0, 0, 0, 0.7)" : "rgba(255, 255, 255, 0.8)",
+      zIndex: 10,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+  });

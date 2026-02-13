@@ -1,25 +1,24 @@
-import { useColorScheme } from "@/components/useColorScheme";
-import Colors from "@/constants/Colors";
 import { getDefaultTools } from "@/constants/Tools";
 import { useUserMode } from "@/hooks/useUserMode";
 import { supabase } from "@/lib/supabase";
+import { useTheme } from "@/providers/ThemeProvider";
 import { Ionicons } from "@expo/vector-icons";
 import { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import {
-    Stack,
-    Tabs,
-    useLocalSearchParams,
-    usePathname,
-    useRouter,
+  Stack,
+  Tabs,
+  useLocalSearchParams,
+  usePathname,
+  useRouter,
 } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-    Platform,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
-    useWindowDimensions,
+  Platform,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+  useWindowDimensions,
 } from "react-native";
 
 function CustomProjectTabBar({
@@ -34,9 +33,9 @@ function CustomProjectTabBar({
   isOwner: boolean;
   allowedTools: string[];
 }) {
-  const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? "light"];
+  const { colors, isDark } = useTheme();
   const { width } = useWindowDimensions();
+  const styles = createStyles(colors, isDark);
 
   // Hide on desktop web as we have the sidebar
   if (Platform.OS === "web" && width >= 768) {
@@ -68,7 +67,7 @@ function CustomProjectTabBar({
         if (!visibleRoutes.includes(route.name)) return null;
 
         const isFocused = state.index === index;
-        const color = isFocused ? colors.tint : "#999";
+        const color = isFocused ? colors.tint : colors.secondary;
 
         const onPress = () => {
           const event = navigation.emit({
@@ -123,7 +122,7 @@ export default function ProjectIdLayout() {
   const [userCategory, setUserCategory] = useState<string | null>(null);
   const [allowedTools, setAllowedTools] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
-  const colorScheme = useColorScheme();
+  const { colors, isDark } = useTheme();
 
   useEffect(() => {
     checkAccess();
@@ -222,8 +221,8 @@ export default function ProjectIdLayout() {
         )}
         screenOptions={{
           headerShown: false,
-          tabBarActiveTintColor: Colors[colorScheme ?? "light"].tint,
-          tabBarInactiveTintColor: "#999",
+          tabBarActiveTintColor: colors.tint,
+          tabBarInactiveTintColor: colors.secondary,
         }}
       >
         <Tabs.Screen
@@ -326,29 +325,30 @@ export default function ProjectIdLayout() {
   );
 }
 
-const styles = StyleSheet.create({
-  tabBarContainer: {
-    flexDirection: "row",
-    height: 85,
-    alignItems: "center",
-    borderTopWidth: 1,
-    paddingBottom: 25,
-    paddingTop: 10,
-  },
-  tabItem: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 4,
-  },
-  tabLabel: {
-    fontSize: 10,
-    fontWeight: "600",
-    fontFamily: "System",
-  },
-  divider: {
-    width: 2,
-    height: 24,
-    borderRadius: 2,
-  },
-});
+const createStyles = (colors: any, isDark: boolean) =>
+  StyleSheet.create({
+    tabBarContainer: {
+      flexDirection: "row",
+      height: 85,
+      alignItems: "center",
+      borderTopWidth: 1,
+      paddingBottom: 25,
+      paddingTop: 10,
+    },
+    tabItem: {
+      flex: 1,
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 4,
+    },
+    tabLabel: {
+      fontSize: 10,
+      fontWeight: "600",
+      fontFamily: "System",
+    },
+    divider: {
+      width: 2,
+      height: 24,
+      borderRadius: 2,
+    },
+  });

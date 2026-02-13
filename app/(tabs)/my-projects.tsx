@@ -1,5 +1,4 @@
 import ClapLoading from "@/components/ClapLoading";
-import Colors from "@/constants/Colors";
 import { GlobalStyles } from "@/constants/Styles";
 import { useUserMode } from "@/hooks/useUserMode";
 import { useTutorial } from "@/providers/TutorialProvider";
@@ -33,7 +32,11 @@ type Project = {
   is_paid?: boolean;
 };
 
+import { useTheme } from "@/providers/ThemeProvider";
+
 export default function MyProjects() {
+  const { colors, isDark } = useTheme();
+  const styles = createStyles(colors, isDark);
   const router = useRouter(); // <--- Hook de navigation
   const { width } = useWindowDimensions();
   const isWebLarge = Platform.OS === "web" && width >= 768;
@@ -228,7 +231,7 @@ export default function MyProjects() {
                 <Ionicons
                   name="calendar-outline"
                   size={14}
-                  color={Colors.light.primary}
+                  color={colors.primary}
                 />
                 <Text style={styles.cardActionText}>Calendrier</Text>
               </TouchableOpacity>
@@ -242,7 +245,7 @@ export default function MyProjects() {
                 <Ionicons
                   name="people-outline"
                   size={14}
-                  color={Colors.light.primary}
+                  color={colors.primary}
                 />
                 <Text style={styles.cardActionText}>Équipe</Text>
               </TouchableOpacity>
@@ -257,7 +260,7 @@ export default function MyProjects() {
                   <Ionicons
                     name="settings-outline"
                     size={14}
-                    color={Colors.light.primary}
+                    color={colors.primary}
                   />
                   <Text style={styles.cardActionText}>Gérer</Text>
                 </TouchableOpacity>
@@ -300,10 +303,10 @@ export default function MyProjects() {
             <View
               style={[
                 styles.webStatIconContainer,
-                { backgroundColor: Colors.light.primary + "15" },
+                { backgroundColor: colors.primary + "15" },
               ]}
             >
-              <Ionicons name="film" size={24} color={Colors.light.primary} />
+              <Ionicons name="film" size={24} color={colors.primary} />
             </View>
             <View>
               <Text style={styles.webStatValue}>
@@ -353,7 +356,7 @@ export default function MyProjects() {
       {loading ? (
         <ClapLoading
           size={50}
-          color={Colors.light.primary}
+          color={colors.primary}
           style={{ marginTop: 50 }}
         />
       ) : isWebLarge ? (
@@ -412,18 +415,18 @@ export default function MyProjects() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F8FAFC" },
+function createStyles(colors: any, isDark: boolean) { return StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.backgroundSecondary },
   webHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 40,
     paddingVertical: 20,
-    backgroundColor: "white",
+    backgroundColor: colors.card,
     borderBottomWidth: 1,
     borderBottomColor: "#E2E8F0",
-    shadowColor: "#000",
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.02,
     shadowRadius: 10,
@@ -432,17 +435,17 @@ const styles = StyleSheet.create({
   webHeaderTitle: {
     fontSize: 24,
     fontWeight: "800",
-    color: "#0F172A",
+    color: colors.text,
   },
   webHeaderButton: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: Colors.light.primary,
+    backgroundColor: colors.primary,
     paddingVertical: 10,
     paddingHorizontal: 18,
     borderRadius: 12,
     gap: 8,
-    shadowColor: Colors.light.primary,
+    shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 10,
@@ -463,15 +466,15 @@ const styles = StyleSheet.create({
   },
   webStatCard: {
     flex: 1,
-    backgroundColor: "white",
+    backgroundColor: colors.card,
     borderRadius: 20,
     padding: 24,
     flexDirection: "row",
     alignItems: "center",
     gap: 15,
     borderWidth: 1,
-    borderColor: "#F1F5F9",
-    shadowColor: "#000",
+    borderColor: colors.border,
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 15,
@@ -486,7 +489,7 @@ const styles = StyleSheet.create({
   webStatValue: {
     fontSize: 24,
     fontWeight: "bold",
-    color: "#0F172A",
+    color: colors.text,
   },
   webStatLabel: {
     fontSize: 13,
@@ -498,7 +501,7 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     marginTop: 20,
     marginBottom: 10,
-    color: Colors.light.text,
+    color: colors.text,
     backgroundColor: "transparent",
   },
   webSectionHeaderContainer: {
@@ -508,7 +511,7 @@ const styles = StyleSheet.create({
   },
   webSectionHeader: {
     fontSize: 22,
-    color: "#0F172A",
+    color: colors.text,
     backgroundColor: "transparent",
     marginTop: 0,
     marginBottom: 5,
@@ -516,7 +519,7 @@ const styles = StyleSheet.create({
   webSectionUnderline: {
     width: 30,
     height: 4,
-    backgroundColor: Colors.light.primary,
+    backgroundColor: colors.primary,
     borderRadius: 2,
     marginLeft: 2,
   },
@@ -544,10 +547,10 @@ const styles = StyleSheet.create({
   },
   webProjectCard: {
     borderRadius: 24,
-    backgroundColor: "white",
+    backgroundColor: colors.card,
     borderWidth: 1,
-    borderColor: "#F1F5F9",
-    shadowColor: "#000",
+    borderColor: colors.border,
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.04,
     shadowRadius: 20,
@@ -566,13 +569,13 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: Colors.light.danger,
+    backgroundColor: colors.danger,
     zIndex: 1,
   },
   projectTitle: {
     fontSize: 18,
     fontWeight: "700",
-    color: "#1E293B",
+    color: colors.text,
     flexShrink: 1,
     marginRight: 10,
   },
@@ -585,8 +588,8 @@ const styles = StyleSheet.create({
   },
   cardType: {
     fontSize: 10,
-    color: Colors.light.primary,
-    backgroundColor: Colors.light.primary + "10",
+    color: colors.primary,
+    backgroundColor: colors.primary + "10",
     paddingVertical: 4,
     paddingHorizontal: 10,
     borderRadius: 8,
@@ -620,7 +623,7 @@ const styles = StyleSheet.create({
     marginTop: 20,
     paddingTop: 15,
     borderTopWidth: 1,
-    borderTopColor: "#F1F5F9",
+    borderTopColor: colors.border,
     justifyContent: "space-between",
   },
   cardAction: {
@@ -638,7 +641,7 @@ const styles = StyleSheet.create({
     width: 90,
     height: 90,
     borderRadius: 16,
-    backgroundColor: "#F1F5F9",
+    backgroundColor: colors.backgroundSecondary,
   },
   webProjectImage: {
     width: 110,
@@ -648,7 +651,7 @@ const styles = StyleSheet.create({
   projectImagePlaceholder: {
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#f0f0f0",
+    backgroundColor: colors.backgroundSecondary,
   },
   emptyText: {
     textAlign: "center",
@@ -660,16 +663,17 @@ const styles = StyleSheet.create({
     position: "absolute",
     bottom: 30,
     right: 30,
-    backgroundColor: Colors.light.primary,
+    backgroundColor: colors.primary,
     width: 56,
     height: 56,
     borderRadius: 28,
     justifyContent: "center",
     alignItems: "center",
     elevation: 4,
-    shadowColor: Colors.light.shadow,
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 4,
   },
 });
+}

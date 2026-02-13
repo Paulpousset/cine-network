@@ -1,5 +1,5 @@
 import { Hoverable } from "@/components/Hoverable";
-import Colors from "@/constants/Colors";
+import { useTheme } from "@/providers/ThemeProvider";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import React, { useEffect } from "react";
@@ -41,6 +41,8 @@ export default function FeatureDetailsModal({
   onClose,
   feature,
 }: FeatureDetailsModalProps) {
+  const { colors, isDark } = useTheme();
+  const styles = createStyles(colors, isDark);
   const shutterValue = useSharedValue(0);
   const contentOpacity = useSharedValue(0);
 
@@ -101,7 +103,7 @@ export default function FeatureDetailsModal({
         {/* Iris Shutter Effect Background */}
         <Animated.View style={[styles.iris, irisStyle]}>
           <LinearGradient
-            colors={["#2c1a4d", "#1a1a2e"]}
+            colors={isDark ? ["#1a1033", "#08080c"] : ["#2c1a4d", "#1a1a2e"]}
             style={StyleSheet.absoluteFill}
           />
         </Animated.View>
@@ -127,7 +129,7 @@ export default function FeatureDetailsModal({
                 <Ionicons
                   name={feature.icon}
                   size={40}
-                  color={Colors.light.primary}
+                  color={colors.primary}
                 />
               </View>
               <Text style={styles.title}>{feature.title}</Text>
@@ -135,7 +137,7 @@ export default function FeatureDetailsModal({
             </View>
 
             <View style={styles.detailsBox}>
-              <View style={styles.detailsDecorator} />
+              <View style={[styles.detailsDecorator, { backgroundColor: colors.primary }]} />
               <Text style={styles.detailsText}>{feature.details}</Text>
             </View>
 
@@ -161,7 +163,7 @@ export default function FeatureDetailsModal({
             </View>
 
             <Hoverable
-              style={styles.actionButton}
+              style={[styles.actionButton, { backgroundColor: colors.primary, shadowColor: colors.primary }]}
               hoverStyle={{ opacity: 0.9, transform: [{ scale: 1.02 }] }}
               onPress={handleClose}
             >
@@ -174,7 +176,7 @@ export default function FeatureDetailsModal({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "transparent",
@@ -218,12 +220,12 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 25,
-    backgroundColor: "rgba(108, 92, 231, 0.15)",
+    backgroundColor: colors.primary + "26", // 26 is ~15% opacity
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: "rgba(108, 92, 231, 0.3)",
+    borderColor: colors.primary + "4D", // 4D is ~30% opacity
   },
   title: {
     fontSize: 42,
@@ -256,7 +258,6 @@ const styles = StyleSheet.create({
     left: 0,
     width: 6,
     height: "100%",
-    backgroundColor: Colors.light.primary,
   },
   detailsText: {
     color: "rgba(255,255,255,0.85)",
@@ -299,15 +300,13 @@ const styles = StyleSheet.create({
   },
   screenOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(108, 92, 231, 0.03)",
+    backgroundColor: colors.primary + "08", // 08 is ~3% opacity
   },
   actionButton: {
-    backgroundColor: Colors.light.primary,
     paddingVertical: 20,
     borderRadius: 22,
     alignItems: "center",
     marginTop: 20,
-    shadowColor: Colors.light.primary,
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.4,
     shadowRadius: 15,
@@ -320,3 +319,4 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
 });
+

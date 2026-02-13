@@ -1,7 +1,7 @@
 import ClapLoading from "@/components/ClapLoading";
-import Colors from "@/constants/Colors";
 import { GlobalStyles } from "@/constants/Styles";
 import { supabase } from "@/lib/supabase";
+import { useTheme } from "@/providers/ThemeProvider";
 import { Ionicons } from "@expo/vector-icons";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
@@ -19,6 +19,8 @@ import {
 import * as ImagePicker from "expo-image-picker";
 
 export default function ProjectSettingsActions() {
+  const { colors, isDark } = useTheme();
+  const styles = createStyles(colors, isDark);
   const { id } = useLocalSearchParams();
   const router = useRouter();
   const [project, setProject] = useState<any>(null);
@@ -162,7 +164,8 @@ export default function ProjectSettingsActions() {
           <Text
             style={{
               textAlign: "center",
-              color: "#666",
+              color: colors.text,
+              opacity: 0.6,
               marginTop: 5,
               marginBottom: 20,
             }}
@@ -171,7 +174,7 @@ export default function ProjectSettingsActions() {
           </Text>
           <TouchableOpacity
             onPress={() => router.push("/hall-of-fame")}
-            style={GlobalStyles.primaryButton}
+            style={[GlobalStyles.primaryButton, { backgroundColor: colors.tint }]}
           >
             <Text style={GlobalStyles.buttonText}>Voir le Hall of Fame</Text>
           </TouchableOpacity>
@@ -188,7 +191,7 @@ export default function ProjectSettingsActions() {
           <Ionicons
             name="warning"
             size={32}
-            color={Colors.light.danger}
+            color={colors.danger}
             style={{ marginBottom: 10 }}
           />
           <Text style={styles.warningTitle}>Zone de Danger</Text>
@@ -219,36 +222,37 @@ export default function ProjectSettingsActions() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>🎬 C'est dans la boîte ?</Text>
-            <Text style={{ marginBottom: 15, color: "#444" }}>
+            <Text style={{ marginBottom: 15, color: colors.text, opacity: 0.8 }}>
               Ajoutez le lien vers le résultat final ou uploadez votre bande
               annonce (max 30 Mo).
             </Text>
 
             <View style={{ gap: 10, marginBottom: 20 }}>
-              <Text style={{ fontWeight: "600", color: "#333" }}>
+              <Text style={{ fontWeight: "600", color: colors.text }}>
                 Option 1: Lien Externe
               </Text>
               <TextInput
-                style={GlobalStyles.input}
+                style={[GlobalStyles.input, { color: colors.text, borderColor: colors.border }]}
                 placeholder="https://youtube.com/watch?v=..."
+                placeholderTextColor={colors.text + "80"}
                 value={videoUrl}
                 onChangeText={setVideoUrl}
                 autoCapitalize="none"
               />
 
-              <Text style={{ fontWeight: "600", color: "#333", marginTop: 10 }}>
+              <Text style={{ fontWeight: "600", color: colors.text, marginTop: 10 }}>
                 Option 2: Uploader une vidéo
               </Text>
               <TouchableOpacity
                 style={[
                   GlobalStyles.secondaryButton,
-                  { borderColor: Colors.light.primary },
+                  { borderColor: colors.tint },
                 ]}
                 onPress={pickVideo}
                 disabled={uploading}
               >
                 {uploading ? (
-                  <Text style={{ color: "#666" }}>Upload en cours...</Text>
+                  <Text style={{ color: colors.text, opacity: 0.6 }}>Upload en cours...</Text>
                 ) : (
                   <View
                     style={{
@@ -261,10 +265,10 @@ export default function ProjectSettingsActions() {
                     <Ionicons
                       name="cloud-upload-outline"
                       size={20}
-                      color={Colors.light.primary}
+                      color={colors.tint}
                     />
                     <Text
-                      style={{ color: Colors.light.primary, fontWeight: "600" }}
+                      style={{ color: colors.tint, fontWeight: "600" }}
                     >
                       Choisir un fichier
                     </Text>
@@ -272,22 +276,22 @@ export default function ProjectSettingsActions() {
                 )}
               </TouchableOpacity>
               {uploading && (
-                <ClapLoading size={20} color={Colors.light.primary} />
+                <ClapLoading size={20} color={colors.tint} />
               )}
             </View>
 
             <View style={{ flexDirection: "row", gap: 10, marginTop: 10 }}>
               <TouchableOpacity
-                style={[GlobalStyles.secondaryButton, { flex: 1 }]}
+                style={[GlobalStyles.secondaryButton, { flex: 1, borderColor: colors.border }]}
                 onPress={() => setCloseModalVisible(false)}
               >
-                <Text style={{ color: "#333" }}>Annuler</Text>
+                <Text style={{ color: colors.text }}>Annuler</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
                 style={[
                   GlobalStyles.primaryButton,
-                  { flex: 1, backgroundColor: Colors.light.success },
+                  { flex: 1, backgroundColor: colors.success },
                 ]}
                 onPress={handleCloseProject}
                 disabled={closing || uploading || !videoUrl}
@@ -306,33 +310,34 @@ export default function ProjectSettingsActions() {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: any, isDark: boolean) {
+  return StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.light.backgroundSecondary,
+    backgroundColor: colors.backgroundSecondary,
   },
   warningCard: {
-    backgroundColor: "#FEF2F2",
+    backgroundColor: isDark ? colors.danger + "20" : "#FEF2F2",
     borderRadius: 12,
     padding: 20,
     borderWidth: 1,
-    borderColor: "#FECACA",
+    borderColor: isDark ? colors.danger + "40" : "#FECACA",
     alignItems: "center",
   },
   warningTitle: {
     fontSize: 18,
     fontWeight: "bold",
-    color: Colors.light.danger,
+    color: colors.danger,
     marginBottom: 5,
   },
   warningText: {
-    color: "#7F1D1D",
+    color: isDark ? colors.text : "#7F1D1D",
     textAlign: "center",
     marginBottom: 20,
     lineHeight: 20,
   },
   dangerButton: {
-    backgroundColor: Colors.light.danger,
+    backgroundColor: colors.danger,
     paddingVertical: 12,
     paddingHorizontal: 20,
     borderRadius: 8,
@@ -351,7 +356,7 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   modalContent: {
-    backgroundColor: "white",
+    backgroundColor: colors.card,
     borderRadius: 16,
     padding: 20,
   },
@@ -359,6 +364,7 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: "bold",
     marginBottom: 10,
-    color: Colors.light.text,
+    color: colors.text,
   },
-});
+  });
+}

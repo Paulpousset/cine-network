@@ -4,7 +4,7 @@
     "slug": "tita",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/logoapp.jpg",
+    "icon": "./assets/images/logoapp.png",
     "scheme": "tita",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -23,7 +23,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/logoapp.jpg",
+        "foregroundImage": "./assets/images/logoapp.png",
         "backgroundColor": "#ffffff"
       },
       "package": "com.titasorganization.tita",
@@ -32,7 +32,7 @@
     "web": {
       "bundler": "metro",
       "output": "static",
-      "favicon": "./assets/images/logoapp.jpg"
+      "favicon": "./assets/images/logoapp.png"
     },
     "plugins": [
       "./plugins/withModularHeaders",
@@ -50,7 +50,8 @@
         }
       ],
       "@react-native-firebase/app",
-      "@react-native-firebase/crashlytics"
+      "@react-native-firebase/crashlytics",
+      "@react-native-community/datetimepicker"
     ],
     "experiments": {
       "typedRoutes": true

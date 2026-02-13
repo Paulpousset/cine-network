@@ -1,20 +1,20 @@
 import ClapLoading from "@/components/ClapLoading";
-import Colors from "@/constants/Colors";
 import { GlobalStyles } from "@/constants/Styles";
 import { supabase } from "@/lib/supabase";
+import { useTheme } from "@/providers/ThemeProvider";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { useGlobalSearchParams, useLocalSearchParams } from "expo-router";
 import React, { useCallback, useState } from "react";
 import {
-    Alert,
-    FlatList,
-    Modal,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  FlatList,
+  Modal,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -37,6 +37,8 @@ type BudgetItem = {
 };
 
 export default function LogisticsScreen() {
+  const { colors, isDark } = useTheme();
+  const styles = createStyles(colors, isDark);
   const insets = useSafeAreaInsets();
   const localParams = useLocalSearchParams();
   const globalParams = useGlobalSearchParams();
@@ -254,7 +256,7 @@ export default function LogisticsScreen() {
       {loading ? (
         <ClapLoading
           style={{ marginTop: 20 }}
-          color={Colors.light.primary}
+          color={colors.primary}
           size={50}
         />
       ) : activeTab === "inventory" ? (
@@ -267,7 +269,7 @@ export default function LogisticsScreen() {
               <Text style={styles.empty}>Aucun matériel listé.</Text>
             }
             renderItem={({ item }) => (
-              <View style={GlobalStyles.card}>
+              <View style={[GlobalStyles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
                 <View
                   style={{
                     flexDirection: "row",
@@ -276,13 +278,13 @@ export default function LogisticsScreen() {
                   }}
                 >
                   <View style={{ flex: 1 }}>
-                    <Text style={{ fontWeight: "bold", fontSize: 16 }}>
+                    <Text style={{ fontWeight: "bold", fontSize: 16, color: colors.text }}>
                       {item.item_name}
                     </Text>
-                    <Text style={{ color: "#666" }}>Qté: {item.quantity}</Text>
+                    <Text style={{ color: colors.text, opacity: 0.6 }}>Qté: {item.quantity}</Text>
                     {item.assignee && (
                       <Text
-                        style={{ fontSize: 12, color: Colors.light.primary }}
+                        style={{ fontSize: 12, color: colors.primary }}
                       >
                         Assigné à: {item.assignee.full_name}
                       </Text>
@@ -293,13 +295,17 @@ export default function LogisticsScreen() {
                     style={{
                       padding: 5,
                       backgroundColor:
-                        item.status === "acquired" ? "#e8f5e9" : "#fff3e0",
+                        item.status === "acquired" 
+                          ? (isDark ? "#1b3320" : "#e8f5e9") 
+                          : (isDark ? "#332b1b" : "#fff3e0"),
                       borderRadius: 5,
                     }}
                   >
                     <Text
                       style={{
-                        color: item.status === "acquired" ? "green" : "orange",
+                        color: item.status === "acquired" 
+                          ? (isDark ? "#4caf50" : "green") 
+                          : (isDark ? "#ff9800" : "orange"),
                         fontWeight: "bold",
                         fontSize: 12,
                       }}
@@ -330,7 +336,7 @@ export default function LogisticsScreen() {
               <Text
                 style={[
                   styles.budgetValue,
-                  { color: totalActual > totalEstimated ? "red" : "green" },
+                  { color: totalActual > totalEstimated ? (isDark ? "#ff6b6b" : "red") : (isDark ? "#2ecc71" : "green") },
                 ]}
               >
                 {totalActual} €
@@ -350,7 +356,7 @@ export default function LogisticsScreen() {
                 onLongPress={() => deleteBudgetItem(item)}
                 onPress={() => openEditBudget(item)}
                 activeOpacity={0.7}
-                style={GlobalStyles.card}
+                style={[GlobalStyles.card, { backgroundColor: colors.card, borderColor: colors.border }]}
               >
                 <View
                   style={{
@@ -359,20 +365,20 @@ export default function LogisticsScreen() {
                   }}
                 >
                   <View style={{ flex: 1 }}>
-                    <Text style={{ fontWeight: "bold" }}>{item.item_name}</Text>
-                    <Text style={{ fontSize: 12, color: "#999" }}>
+                    <Text style={{ fontWeight: "bold", color: colors.text }}>{item.item_name}</Text>
+                    <Text style={{ fontSize: 12, color: colors.text, opacity: 0.5 }}>
                       {item.category}
                     </Text>
                   </View>
                   <View style={{ alignItems: "flex-end" }}>
-                    <Text>Est: {item.estimated_cost} €</Text>
+                    <Text style={{ color: colors.text }}>Est: {item.estimated_cost} €</Text>
                     <Text
                       style={{
                         fontWeight: "bold",
                         color:
                           (item.actual_cost || 0) > (item.estimated_cost || 0)
-                            ? "red"
-                            : "green",
+                            ? (isDark ? "#ff6b6b" : "red")
+                            : (isDark ? "#2ecc71" : "green"),
                       }}
                     >
                       Act: {item.actual_cost} €
@@ -381,7 +387,7 @@ export default function LogisticsScreen() {
                   <Ionicons
                     name="chevron-forward"
                     size={20}
-                    color="#ccc"
+                    color={isDark ? "#444" : "#ccc"}
                     style={{ marginLeft: 10, alignSelf: "center" }}
                   />
                 </View>
@@ -408,27 +414,29 @@ export default function LogisticsScreen() {
       <Modal visible={inventoryModalVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text style={GlobalStyles.modalTitle}>Ajouter Matériel</Text>
+            <Text style={[GlobalStyles.modalTitle, { color: colors.text }]}>Ajouter Matériel</Text>
             <TextInput
-              style={GlobalStyles.input}
+              style={[GlobalStyles.input, { backgroundColor: colors.backgroundSecondary, color: colors.text, marginBottom: 10 }]}
               placeholder="Nom de l'objet"
+              placeholderTextColor={isDark ? "#999" : "#666"}
               value={newItemName}
               onChangeText={setNewItemName}
             />
             <TextInput
-              style={GlobalStyles.input}
+              style={[GlobalStyles.input, { backgroundColor: colors.backgroundSecondary, color: colors.text, marginBottom: 10 }]}
               placeholder="Quantité"
+              placeholderTextColor={isDark ? "#999" : "#666"}
               value={newItemQty}
               onChangeText={setNewItemQty}
               keyboardType="numeric"
             />
             <View style={styles.modalActions}>
               <TouchableOpacity onPress={() => setInventoryModalVisible(false)}>
-                <Text style={{ color: "red", marginRight: 20 }}>Annuler</Text>
+                <Text style={{ color: colors.danger, marginRight: 20 }}>Annuler</Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={addInventoryItem}>
                 <Text
-                  style={{ color: Colors.light.primary, fontWeight: "bold" }}
+                  style={{ color: colors.primary, fontWeight: "bold" }}
                 >
                   Ajouter
                 </Text>
@@ -450,18 +458,20 @@ export default function LogisticsScreen() {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text style={GlobalStyles.modalTitle}>
+            <Text style={[GlobalStyles.modalTitle, { color: colors.text }]}>
               {editingBudgetItem ? "Modifier Dépense" : "Ajouter Dépense"}
             </Text>
             <TextInput
-              style={GlobalStyles.input}
+              style={[GlobalStyles.input, { backgroundColor: colors.backgroundSecondary, color: colors.text, marginBottom: 10 }]}
               placeholder="Nom (ex: Location Caméra)"
+              placeholderTextColor={isDark ? "#999" : "#666"}
               value={newItemName}
               onChangeText={setNewItemName}
             />
             <TextInput
-              style={GlobalStyles.input}
+              style={[GlobalStyles.input, { backgroundColor: colors.backgroundSecondary, color: colors.text, marginBottom: 10 }]}
               placeholder="Catégorie (ex: materiel)"
+              placeholderTextColor={isDark ? "#999" : "#666"}
               value={newCategory}
               onChangeText={setNewCategory}
             />
@@ -469,7 +479,7 @@ export default function LogisticsScreen() {
               <View style={{ flex: 1 }}>
                 <Text style={styles.label}>Estimé (€)</Text>
                 <TextInput
-                  style={GlobalStyles.input}
+                  style={[GlobalStyles.input, { backgroundColor: colors.backgroundSecondary, color: colors.text, marginBottom: 10 }]}
                   value={newCostEst}
                   onChangeText={setNewCostEst}
                   keyboardType="numeric"
@@ -478,7 +488,7 @@ export default function LogisticsScreen() {
               <View style={{ flex: 1 }}>
                 <Text style={styles.label}>Réel (€)</Text>
                 <TextInput
-                  style={GlobalStyles.input}
+                  style={[GlobalStyles.input, { backgroundColor: colors.backgroundSecondary, color: colors.text, marginBottom: 10 }]}
                   value={newCostAct}
                   onChangeText={setNewCostAct}
                   keyboardType="numeric"
@@ -492,11 +502,11 @@ export default function LogisticsScreen() {
                   setEditingBudgetItem(null);
                 }}
               >
-                <Text style={{ color: "red", marginRight: 20 }}>Annuler</Text>
+                <Text style={{ color: colors.danger, marginRight: 20 }}>Annuler</Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={addBudgetItem}>
                 <Text
-                  style={{ color: Colors.light.primary, fontWeight: "bold" }}
+                  style={{ color: colors.primary, fontWeight: "bold" }}
                 >
                   {editingBudgetItem ? "Enregistrer" : "Ajouter"}
                 </Text>
@@ -509,25 +519,25 @@ export default function LogisticsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.light.backgroundSecondary },
+const createStyles = (colors: any, isDark: boolean) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.backgroundSecondary },
 
   header: {
     paddingBottom: 15,
     paddingHorizontal: 20,
-    backgroundColor: "white",
+    backgroundColor: colors.card,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.light.border,
+    borderBottomColor: colors.border,
     alignItems: "center",
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: "bold",
-    color: Colors.light.text,
+    color: colors.text,
   },
   tabs: {
     flexDirection: "row",
-    backgroundColor: "white",
+    backgroundColor: colors.card,
     elevation: 2,
   },
   tab: {
@@ -538,19 +548,19 @@ const styles = StyleSheet.create({
     borderBottomColor: "transparent",
   },
   activeTab: {
-    borderBottomColor: Colors.light.primary,
+    borderBottomColor: colors.primary,
   },
   tabText: {
     fontWeight: "600",
-    color: "#999",
+    color: isDark ? "#666" : "#999",
   },
   activeTabText: {
-    color: Colors.light.primary,
+    color: colors.primary,
   },
   empty: {
     textAlign: "center",
     marginTop: 50,
-    color: "#999",
+    color: isDark ? "#666" : "#999",
   },
   fab: {
     position: "absolute",
@@ -559,7 +569,7 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: Colors.light.primary,
+    backgroundColor: colors.primary,
     justifyContent: "center",
     alignItems: "center",
     elevation: 5,
@@ -571,7 +581,7 @@ const styles = StyleSheet.create({
   budgetSummary: {
     flexDirection: "row",
     padding: 20,
-    backgroundColor: "white",
+    backgroundColor: colors.card,
     marginBottom: 10,
   },
   budgetCol: {
@@ -580,13 +590,13 @@ const styles = StyleSheet.create({
   },
   budgetLabel: {
     fontSize: 12,
-    color: "#999",
+    color: isDark ? "#666" : "#999",
     textTransform: "uppercase",
   },
   budgetValue: {
     fontSize: 24,
     fontWeight: "bold",
-    color: "#333",
+    color: colors.text,
   },
   modalOverlay: {
     flex: 1,
@@ -595,7 +605,7 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   modalContent: {
-    backgroundColor: "white",
+    backgroundColor: colors.card,
     borderRadius: 10,
     padding: 20,
   },
@@ -607,6 +617,7 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 12,
     marginBottom: 4,
-    color: "#666",
+    color: colors.text,
+    opacity: 0.6,
   },
 });

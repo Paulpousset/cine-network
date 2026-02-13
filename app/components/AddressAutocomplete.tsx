@@ -1,6 +1,6 @@
 import ClapLoading from "@/components/ClapLoading";
-import Colors from "@/constants/Colors";
 import { GlobalStyles } from "@/constants/Styles";
+import { useTheme } from "@/providers/ThemeProvider";
 import React, { useEffect, useState } from "react";
 import {
   ScrollView,
@@ -30,6 +30,8 @@ export default function AddressAutocomplete({
   currentValue,
   placeholder,
 }: AddressAutocompleteProps) {
+  const { colors, isDark } = useTheme();
+  const styles = createStyles(colors, isDark);
   const [query, setQuery] = useState(currentValue || "");
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -92,14 +94,14 @@ export default function AddressAutocomplete({
         <TextInput
           style={GlobalStyles.input}
           placeholder={placeholder || "Adresse précise..."}
-          placeholderTextColor={Colors.light.tabIconDefault}
+          placeholderTextColor={colors.tabIconDefault}
           value={query}
           onChangeText={searchAddress}
         />
         {loading && (
           <ClapLoading
             size={20}
-            color={Colors.light.tint}
+            color={colors.tint}
             style={styles.loader}
           />
         )}
@@ -127,7 +129,8 @@ export default function AddressAutocomplete({
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: any, isDark: boolean) {
+  return StyleSheet.create({
   container: {
     marginBottom: 15,
     zIndex: 1000,
@@ -143,14 +146,14 @@ const styles = StyleSheet.create({
     top: 15, // Adjusted to align with input height
   },
   suggestionsBox: {
-    backgroundColor: Colors.light.background,
+    backgroundColor: colors.background,
     borderWidth: 1,
-    borderColor: Colors.light.border,
+    borderColor: colors.border,
     borderTopWidth: 0,
     maxHeight: 200,
     borderRadius: 8,
     marginTop: 2,
-    shadowColor: Colors.light.shadow,
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -159,10 +162,11 @@ const styles = StyleSheet.create({
   item: {
     padding: 15,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.light.backgroundSecondary,
+    borderBottomColor: colors.backgroundSecondary,
   },
   itemText: {
     fontSize: 14,
-    color: Colors.light.text,
+    color: colors.text,
   },
-});
+  });
+}

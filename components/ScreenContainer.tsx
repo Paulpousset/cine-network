@@ -1,4 +1,4 @@
-import Colors from "@/constants/Colors";
+import { useTheme } from "@/providers/ThemeProvider";
 import React from "react";
 import {
     Platform,
@@ -27,6 +27,8 @@ export default function ScreenContainer({
   contentContainerStyle,
   scrollable = true,
 }: ScreenContainerProps) {
+  const { colors, isDark } = useTheme();
+  const styles = createStyles(colors, isDark);
   const { width } = useWindowDimensions();
   const isWeb = Platform.OS === "web";
   const isLargeScreen = width > 1024; // Augmenté pour correspondre à une vue desktop
@@ -60,36 +62,40 @@ export default function ScreenContainer({
   );
 }
 
-const styles = StyleSheet.create({
-  outerContainer: {
-    flex: 1,
-    backgroundColor: Platform.select({
-      web: "#f5f5f5", // Light grey background for web "gutters"
-      default: "transparent",
-    }),
-  },
-  wrapper: {
-    flex: 1,
-  },
-  webContentContainer: {
-    alignItems: "center",
-    paddingVertical: 20,
-  },
-  innerContainer: {
-    flex: 1,
-    width: "100%",
-    backgroundColor: Colors.light.background,
-  },
-  innerContainerWeb: {
-    maxWidth: 700, // Réduit la largeur maximale pour que ça ne prenne pas tout l'écran
-    alignSelf: "center", // S'assure que le contenu est bien centré
-    minHeight: "100%",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    elevation: 5,
-    borderRadius: 8,
-    overflow: "hidden",
-  },
-});
+function createStyles(colors: any, isDark: boolean) {
+  return StyleSheet.create({
+    outerContainer: {
+      flex: 1,
+      backgroundColor: Platform.select({
+        web: colors.backgroundSecondary, // Light grey background for web "gutters"
+        default: "transparent",
+      }),
+    },
+    wrapper: {
+      flex: 1,
+    },
+    webContentContainer: {
+      alignItems: "center",
+      paddingVertical: 20,
+    },
+    innerContainer: {
+      flex: 1,
+      width: "100%",
+      backgroundColor: colors.background,
+    },
+    innerContainerWeb: {
+      maxWidth: 700, // Réduit la largeur maximale pour que ça ne prenne pas tout l'écran
+      alignSelf: "center", // S'assure que le contenu est bien centré
+      minHeight: "100%",
+      shadowColor: colors.shadow,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 10,
+      elevation: 5,
+      borderRadius: 8,
+      overflow: "hidden",
+      borderWidth: isDark ? 1 : 0,
+      borderColor: colors.border,
+    },
+  });
+}

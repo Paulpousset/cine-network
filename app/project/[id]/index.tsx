@@ -1,9 +1,9 @@
 import { Hoverable } from "@/components/Hoverable";
 import PaymentModal from "@/components/PaymentModal";
 import RoleFormFields from "@/components/RoleFormFields";
-import Colors from "@/constants/Colors";
-import { GlobalStyles } from "@/constants/Styles";
+import { useThemedStyles } from "@/hooks/useThemedStyles";
 import { useUserMode } from "@/hooks/useUserMode";
+import { useTheme } from "@/providers/ThemeProvider";
 import { useTutorial } from "@/providers/TutorialProvider";
 import { NotificationService } from "@/services/NotificationService";
 import { JOB_TITLES } from "@/utils/roles";
@@ -12,20 +12,20 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
-    Alert,
-    Animated,
-    Easing,
-    FlatList,
-    Image,
-    Modal,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    useWindowDimensions,
-    View,
+  Alert,
+  Animated,
+  Easing,
+  FlatList,
+  Image,
+  Modal,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  useWindowDimensions,
+  View,
 } from "react-native";
 import { supabase } from "../../../lib/supabase";
 
@@ -42,6 +42,8 @@ function ProjectShowcase({
   onToggleLike: () => void;
 }) {
   const router = useRouter();
+  const { colors, isDark } = useTheme();
+  const themedGlobalStyles = useThemedStyles();
 
   // Filter only published roles that are not assigned
   // We align with the logic that if it's not draft and not assigned, it's open.
@@ -50,9 +52,9 @@ function ProjectShowcase({
   );
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: Colors.light.background }}>
+    <ScrollView style={{ flex: 1, backgroundColor: colors.background }}>
       {/* Hero Image */}
-      <View style={{ height: 250, width: "100%", backgroundColor: "#eee" }}>
+      <View style={{ height: 250, width: "100%", backgroundColor: colors.backgroundSecondary }}>
         {project.image_url ? (
           <Image
             source={{ uri: project.image_url }}
@@ -64,7 +66,7 @@ function ProjectShowcase({
               flex: 1,
               justifyContent: "center",
               alignItems: "center",
-              backgroundColor: Colors.light.primary,
+              backgroundColor: colors.primary,
             }}
           >
             <Ionicons name="film-outline" size={80} color="white" />
@@ -111,7 +113,6 @@ function ProjectShowcase({
             height: 50,
             justifyContent: "center",
             alignItems: "center",
-            backdropFilter: "blur(10px)",
           }}
         >
           <Ionicons
@@ -126,8 +127,8 @@ function ProjectShowcase({
         {/* Info Bar */}
         <View style={{ flexDirection: "row", gap: 15, marginBottom: 20 }}>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
-            <Ionicons name="location-outline" size={16} color="#666" />
-            <Text style={{ color: "#666" }}>
+            <Ionicons name="location-outline" size={16} color={colors.text + "80"} />
+            <Text style={{ color: colors.text + "80" }}>
               {project.ville || "Lieu inconnu"}
             </Text>
           </View>
@@ -135,8 +136,8 @@ function ProjectShowcase({
             <View
               style={{ flexDirection: "row", alignItems: "center", gap: 5 }}
             >
-              <Ionicons name="calendar-outline" size={16} color="#666" />
-              <Text style={{ color: "#666" }}>
+              <Ionicons name="calendar-outline" size={16} color={colors.text + "80"} />
+              <Text style={{ color: colors.text + "80" }}>
                 {new Date(project.start_date).toLocaleDateString(undefined, {
                   month: "long",
                   year: "numeric",
@@ -147,12 +148,12 @@ function ProjectShowcase({
         </View>
 
         {/* Synopsis */}
-        <Text style={GlobalStyles.title2}>Synopsis</Text>
+        <Text style={{ fontSize: 18, fontWeight: "bold", color: colors.text, marginBottom: 10 }}>Synopsis</Text>
         <Text
           style={{
             fontSize: 16,
             lineHeight: 24,
-            color: "#444",
+            color: colors.text + "CC",
             marginBottom: 30,
           }}
         >
@@ -161,9 +162,9 @@ function ProjectShowcase({
         </Text>
 
         {/* Open Roles */}
-        <Text style={GlobalStyles.title2}>Casting ({openRoles.length})</Text>
+        <Text style={{ fontSize: 18, fontWeight: "bold", color: colors.text, marginBottom: 10 }}>Casting ({openRoles.length})</Text>
         {openRoles.length === 0 ? (
-          <Text style={{ color: "#666", fontStyle: "italic" }}>
+          <Text style={{ color: colors.text + "60", fontStyle: "italic" }}>
             Aucun rôle ouvert pour le moment.
           </Text>
         ) : (
@@ -173,14 +174,14 @@ function ProjectShowcase({
                 key={role.id}
                 onPress={() => router.push(`/project/role/${role.id}`)}
                 style={{
-                  backgroundColor: "white",
+                  backgroundColor: colors.card,
                   padding: 15,
                   borderRadius: 12,
                   borderWidth: 1,
-                  borderColor: Colors.light.border,
-                  shadowColor: "#000",
+                  borderColor: colors.border,
+                  shadowColor: colors.shadow,
                   shadowOffset: { width: 0, height: 2 },
-                  shadowOpacity: 0.05,
+                  shadowOpacity: isDark ? 0.3 : 0.05,
                   shadowRadius: 8,
                   elevation: 2,
                 }}
@@ -196,7 +197,7 @@ function ProjectShowcase({
                     <Text
                       style={{
                         fontSize: 10,
-                        color: Colors.light.primary,
+                        color: colors.primary,
                         fontWeight: "bold",
                         textTransform: "uppercase",
                         marginBottom: 4,
@@ -209,17 +210,18 @@ function ProjectShowcase({
                         fontSize: 18,
                         fontWeight: "bold",
                         marginBottom: 5,
+                        color: colors.text,
                       }}
                     >
                       {role.title}
                     </Text>
-                    <Text style={{ color: "#666" }} numberOfLines={2}>
+                    <Text style={{ color: colors.text + "99" }} numberOfLines={2}>
                       {role.description}
                     </Text>
                   </View>
                   <View
                     style={{
-                      backgroundColor: Colors.light.backgroundSecondary,
+                      backgroundColor: colors.backgroundSecondary,
                       padding: 8,
                       borderRadius: 8,
                     }}
@@ -227,7 +229,7 @@ function ProjectShowcase({
                     <Ionicons
                       name="chevron-forward"
                       size={20}
-                      color={Colors.light.text}
+                      color={colors.text}
                     />
                   </View>
                 </View>
@@ -243,11 +245,12 @@ function ProjectShowcase({
 // Custom Loading Component
 const SpinningClap = ({
   size = 50,
-  color = "#841584",
+  color,
 }: {
   size?: number;
   color?: string;
 }) => {
+  const { colors } = useTheme();
   const spinValue = React.useRef(new Animated.Value(0)).current;
 
   React.useEffect(() => {
@@ -270,7 +273,7 @@ const SpinningClap = ({
 
   return (
     <Animated.View style={{ transform: [{ rotate: spin }] }}>
-      <MaterialCommunityIcons name="movie-open" size={size} color={color} />
+      <MaterialCommunityIcons name="movie-open" size={size} color={color || colors.primary} />
     </Animated.View>
   );
 };
@@ -290,19 +293,25 @@ const HAIR_COLORS = [
 const EYE_COLORS = ["Marron", "Bleu", "Vert", "Noisette", "Gris", "Vairons"];
 
 // Petites couleurs pour égayer l'interface selon la catégorie
-const CATEGORY_COLORS: Record<string, string> = {
-  realisateur: "#E91E63", // Rose
-  acteur: "#9C27B0", // Violet
-  image: "#2196F3", // Bleu
-  son: "#FF9800", // Orange
-  production: "#4CAF50", // Vert
-  hmc: "#E91E63", // Rose foncé
-  deco: "#795548", // Marron
-  post_prod: "#607D8B", // Gris bleu
-  technicien: "#607D8B",
+const getCategoryColor = (category: string, colors: any) => {
+  const mapping: Record<string, string> = {
+    realisateur: "#E91E63", // Rose
+    acteur: colors.primary, // Dynamic primary color replaces violet
+    image: "#2196F3", // Bleu
+    son: "#FF9800", // Orange
+    production: "#4CAF50", // Vert
+    hmc: "#E91E63", // Rose foncé
+    deco: "#795548", // Marron
+    post_prod: "#607D8B", // Gris bleu
+    technicien: "#607D8B",
+  };
+  return mapping[category] || colors.text + "80";
 };
 
 export default function ProjectDetails() {
+  const { colors, isDark } = useTheme();
+  const themedGlobalStyles = useThemedStyles();
+  const styles = createStyles(colors, isDark);
   const { id } = useLocalSearchParams();
   const router = useRouter();
   const { width } = useWindowDimensions();
@@ -1537,15 +1546,15 @@ export default function ProjectDetails() {
                   flexDirection: "row",
                   alignItems: "center",
                   gap: 5,
-                  backgroundColor: "#f0f0f0",
+                  backgroundColor: isDark ? colors.backgroundSecondary : "#f0f0f0",
                   paddingHorizontal: 12,
                   paddingVertical: 8,
                   borderRadius: 20,
                 }}
               >
-                <Ionicons name="home" size={18} color="#333" />
+                <Ionicons name="home" size={18} color={colors.text} />
                 <Text
-                  style={{ fontSize: 12, fontWeight: "600", color: "#333" }}
+                  style={{ fontSize: 12, fontWeight: "600", color: colors.text }}
                 >
                   Accueil
                 </Text>
@@ -1574,7 +1583,7 @@ export default function ProjectDetails() {
                     <Ionicons
                       name="shield-checkmark-outline"
                       size={24}
-                      color="black"
+                      color={colors.text}
                     />
                   </TouchableOpacity>
 
@@ -1590,7 +1599,7 @@ export default function ProjectDetails() {
                     <Ionicons
                       name="settings-outline"
                       size={24}
-                      color="#841584"
+                      color={colors.primary}
                     />
                   </TouchableOpacity>
 
@@ -1601,7 +1610,7 @@ export default function ProjectDetails() {
                     <Ionicons
                       name="notifications-outline"
                       size={24}
-                      color="black"
+                      color={colors.text}
                     />
                     {applications.length > 0 && (
                       <View
@@ -1639,7 +1648,7 @@ export default function ProjectDetails() {
                 onPress={openAddRole}
                 style={
                   {
-                    backgroundColor: "#841584",
+                    backgroundColor: colors.primary,
                     paddingHorizontal: 12,
                     paddingVertical: 6,
                     borderRadius: 20,
@@ -1663,7 +1672,7 @@ export default function ProjectDetails() {
           >
             {groupedRolesSections.length === 0 ? (
               <Text
-                style={{ textAlign: "center", marginTop: 20, color: "#999" }}
+                style={{ textAlign: "center", marginTop: 20, color: colors.text + "80" }}
               >
                 Aucun rôle créé pour le moment.
               </Text>
@@ -1675,7 +1684,7 @@ export default function ProjectDetails() {
                       style={{
                         fontSize: 14,
                         fontWeight: "bold",
-                        color: "#666",
+                        color: colors.text + "99",
                         textTransform: "uppercase",
                       }}
                     >
@@ -1691,7 +1700,7 @@ export default function ProjectDetails() {
                     }
                   >
                     {section.data.map((item: any) => {
-                      const color = CATEGORY_COLORS[item.category] || "#666";
+                      const color = getCategoryColor(item.category, colors);
                       const hasDrafts = item.items.some(
                         (r: any) =>
                           r.status === "draft" && !r.assigned_profile_id,
@@ -1721,7 +1730,7 @@ export default function ProjectDetails() {
                               ? {
                                   transform: [{ scale: 1.01 }],
                                   shadowOpacity: 0.1,
-                                  borderColor: Colors.light.primary,
+                                  borderColor: colors.primary,
                                 }
                               : {}
                           }
@@ -1885,7 +1894,7 @@ export default function ProjectDetails() {
                               <Ionicons
                                 name="create-outline"
                                 size={24}
-                                color="#841584"
+                                color={colors.primary}
                               />
                             </View>
                           )}
@@ -1910,7 +1919,7 @@ export default function ProjectDetails() {
         <View
           style={{
             flex: 1,
-            backgroundColor: "white",
+            backgroundColor: colors.background,
             paddingTop: Platform.OS === "ios" ? 50 : 20,
             alignItems: "center",
           }}
@@ -1924,14 +1933,14 @@ export default function ProjectDetails() {
                 marginBottom: 20,
                 paddingBottom: 15,
                 borderBottomWidth: 1,
-                borderBottomColor: Colors.light.border,
+                borderBottomColor: colors.border,
               }}
             >
               <Text
                 style={{
                   fontSize: 20,
                   fontWeight: "bold",
-                  color: Colors.light.text,
+                  color: colors.text,
                 }}
               >
                 {editingRole?.id ? "Modifier le rôle" : "Ajouter un rôle"}
@@ -1942,7 +1951,7 @@ export default function ProjectDetails() {
                 style={{ cursor: "pointer" } as any}
                 hoverStyle={{ opacity: 0.7 }}
               >
-                <Ionicons name="close" size={24} color={Colors.light.text} />
+                <Ionicons name="close" size={24} color={colors.text} />
               </Hoverable>
             </View>
 
@@ -1987,10 +1996,10 @@ export default function ProjectDetails() {
                         style={[
                           styles.catButton,
                           {
-                            borderColor: CATEGORY_COLORS[cat] || "#841584",
+                            borderColor: getCategoryColor(cat, colors),
                             backgroundColor:
                               editingRole.category === cat
-                                ? CATEGORY_COLORS[cat] || "#841584"
+                                ? getCategoryColor(cat, colors)
                                 : "transparent",
                             cursor: "pointer",
                           } as any,
@@ -2002,7 +2011,7 @@ export default function ProjectDetails() {
                             color:
                               editingRole.category === cat
                                 ? "white"
-                                : CATEGORY_COLORS[cat] || "#333",
+                                : getCategoryColor(cat, colors),
                           }}
                         >
                           {cat.charAt(0).toUpperCase() +
@@ -2060,7 +2069,7 @@ export default function ProjectDetails() {
                               color:
                                 editingRole.title === job
                                   ? "white"
-                                  : Colors.light.text,
+                                  : colors.text,
                             }}
                           >
                             {job}
@@ -2074,7 +2083,7 @@ export default function ProjectDetails() {
                       styles.input,
                       { textAlign: "left", paddingLeft: 15 },
                     ]}
-                    placeholderTextColor="#999"
+                    placeholderTextColor={colors.text + "80"}
                     value={editingRole.title}
                     onChangeText={(t) =>
                       setEditingRole({ ...editingRole, title: t })
@@ -2105,7 +2114,7 @@ export default function ProjectDetails() {
                           styles.input,
                           { textAlign: "left", paddingLeft: 15 },
                         ]}
-                        placeholderTextColor="#999"
+                        placeholderTextColor={colors.text + "80"}
                         value={editingRole.description}
                         onChangeText={(t) =>
                           setEditingRole({ ...editingRole, description: t })
@@ -2125,8 +2134,8 @@ export default function ProjectDetails() {
                         style={[
                           styles.catButton,
                           toArray(editingRole.experience).includes(lvl) && {
-                            backgroundColor: "#333",
-                            borderColor: "#333",
+                            backgroundColor: colors.primary,
+                            borderColor: colors.primary,
                           },
                           { cursor: "pointer" } as any,
                         ]}
@@ -2135,7 +2144,7 @@ export default function ProjectDetails() {
                           style={{
                             color: toArray(editingRole.experience).includes(lvl)
                               ? "white"
-                              : "#333",
+                              : colors.text,
                           }}
                         >
                           {lvl.charAt(0).toUpperCase() + lvl.slice(1)}
@@ -2155,8 +2164,8 @@ export default function ProjectDetails() {
                         style={[
                           styles.catButton,
                           toArray(editingRole.gender).includes(g) && {
-                            backgroundColor: "#333",
-                            borderColor: "#333",
+                            backgroundColor: colors.primary,
+                            borderColor: colors.primary,
                           },
                           { cursor: "pointer" } as any,
                         ]}
@@ -2165,7 +2174,7 @@ export default function ProjectDetails() {
                           style={{
                             color: toArray(editingRole.gender).includes(g)
                               ? "white"
-                              : "#333",
+                              : colors.text,
                           }}
                         >
                           {g.charAt(0).toUpperCase() + g.slice(1)}
@@ -2219,15 +2228,15 @@ export default function ProjectDetails() {
                       style={[
                         styles.catButton,
                         editingRole.isPaid && {
-                          backgroundColor: "#333",
-                          borderColor: "#333",
+                          backgroundColor: colors.primary,
+                          borderColor: colors.primary,
                         },
                         { cursor: "pointer" } as any,
                       ]}
                     >
                       <Text
                         style={{
-                          color: editingRole.isPaid ? "white" : "#333",
+                          color: editingRole.isPaid ? "white" : colors.text,
                         }}
                       >
                         Rémunéré
@@ -2241,15 +2250,15 @@ export default function ProjectDetails() {
                       style={[
                         styles.catButton,
                         !editingRole.isPaid && {
-                          backgroundColor: "#333",
-                          borderColor: "#333",
+                          backgroundColor: colors.primary,
+                          borderColor: colors.primary,
                         },
                         { cursor: "pointer" } as any,
                       ]}
                     >
                       <Text
                         style={{
-                          color: !editingRole.isPaid ? "white" : "#333",
+                          color: !editingRole.isPaid ? "white" : colors.text,
                         }}
                       >
                         Bénévole
@@ -2338,7 +2347,7 @@ export default function ProjectDetails() {
                             styles.catButton,
                             editingRole.status === st && {
                               backgroundColor:
-                                st === "draft" ? "#FF9800" : "#4CAF50",
+                                st === "draft" ? "#FF9800" : colors.primary,
                               borderColor: "transparent",
                             },
                             { cursor: "pointer" } as any,
@@ -2347,7 +2356,7 @@ export default function ProjectDetails() {
                           <Text
                             style={{
                               color:
-                                editingRole.status === st ? "white" : "#333",
+                                editingRole.status === st ? "white" : colors.text,
                             }}
                           >
                             {st === "draft" ? "Brouillon" : "Ouvert au casting"}
@@ -2367,8 +2376,8 @@ export default function ProjectDetails() {
                       style={[
                         styles.catButton,
                         !editingRole.createPost && {
-                          backgroundColor: "#333",
-                          borderColor: "#333",
+                          backgroundColor: colors.primary,
+                          borderColor: colors.primary,
                         },
                         editingRole.status !== "published" && { opacity: 0.5 },
                         {
@@ -2381,7 +2390,7 @@ export default function ProjectDetails() {
                     >
                       <Text
                         style={{
-                          color: !editingRole.createPost ? "white" : "#333",
+                          color: !editingRole.createPost ? "white" : colors.text,
                         }}
                       >
                         Jobs uniquement
@@ -2395,8 +2404,8 @@ export default function ProjectDetails() {
                       style={[
                         styles.catButton,
                         editingRole.createPost && {
-                          backgroundColor: "#4CAF50",
-                          borderColor: "#4CAF50",
+                          backgroundColor: colors.primary,
+                          borderColor: colors.primary,
                         },
                         editingRole.status !== "published" && { opacity: 0.5 },
                         {
@@ -2432,7 +2441,7 @@ export default function ProjectDetails() {
                         }
                         style={{ cursor: "pointer" } as any}
                       >
-                        <Ionicons name="close-circle" size={20} color="#666" />
+                        <Ionicons name="close-circle" size={20} color={colors.text + "80"} />
                       </Hoverable>
                     </View>
                   ) : (
@@ -2446,7 +2455,7 @@ export default function ProjectDetails() {
                         {
                           padding: 10,
                           borderWidth: 1,
-                          borderColor: "#841584",
+                          borderColor: colors.primary,
                           borderStyle: "dashed",
                           borderRadius: 8,
                           alignItems: "center",
@@ -2454,7 +2463,7 @@ export default function ProjectDetails() {
                         } as any
                       }
                     >
-                      <Text style={{ color: "#841584", fontWeight: "600" }}>
+                      <Text style={{ color: colors.primary, fontWeight: "600" }}>
                         + Choisir un profil
                       </Text>
                     </Hoverable>
@@ -2463,7 +2472,7 @@ export default function ProjectDetails() {
                   <Hoverable
                     style={
                       {
-                        backgroundColor: "#841584",
+                        backgroundColor: colors.primary,
                         padding: 15,
                         borderRadius: 8,
                         alignItems: "center",
@@ -2508,7 +2517,7 @@ export default function ProjectDetails() {
                     }
                     hoverStyle={{ opacity: 0.7 }}
                   >
-                    <Text style={{ color: "#666", fontSize: 16 }}>
+                    <Text style={{ color: colors.text + "B3", fontSize: 16 }}>
                       ← Retour
                     </Text>
                   </Hoverable>
@@ -2518,13 +2527,14 @@ export default function ProjectDetails() {
                       styles.input,
                       { textAlign: "left", paddingLeft: 10 },
                     ]}
+                    placeholderTextColor={colors.text + "80"}
                     value={formSearchQuery}
                     onChangeText={searchProfilesForForm}
                     autoFocus
                   />
                   {isFormSearching ? (
                     <View style={{ padding: 20, alignItems: "center" }}>
-                      <SpinningClap size={30} color="#841584" />
+                      <SpinningClap size={30} color={colors.primary} />
                     </View>
                   ) : (
                     <FlatList
@@ -2537,7 +2547,7 @@ export default function ProjectDetails() {
                             {
                               padding: 12,
                               borderBottomWidth: 1,
-                              borderColor: "#eee",
+                              borderColor: colors.border,
                               flexDirection: "row",
                               justifyContent: "space-between",
                               alignItems: "center",
@@ -2546,11 +2556,11 @@ export default function ProjectDetails() {
                           }
                           onPress={() => selectProfileInForm(item)}
                           hoverStyle={{
-                            backgroundColor: Colors.light.backgroundSecondary,
+                            backgroundColor: colors.backgroundSecondary,
                           }}
                         >
                           <View>
-                            <Text style={{ fontWeight: "600", fontSize: 16 }}>
+                            <Text style={{ fontWeight: "600", fontSize: 16, color: colors.text }}>
                               {item.full_name || item.username}
                             </Text>
                             <View
@@ -2564,7 +2574,7 @@ export default function ProjectDetails() {
                                 <Text
                                   style={{
                                     fontSize: 12,
-                                    color: "#841584",
+                                    color: colors.primary,
                                     fontWeight: "600",
                                   }}
                                 >
@@ -2572,7 +2582,7 @@ export default function ProjectDetails() {
                                 </Text>
                               )}
                               {item.ville ? (
-                                <Text style={{ fontSize: 12, color: "#666" }}>
+                                <Text style={{ fontSize: 12, color: colors.text + "99" }}>
                                   {item.role ? `• ${item.ville}` : item.ville}
                                 </Text>
                               ) : null}
@@ -2581,7 +2591,7 @@ export default function ProjectDetails() {
                           <Ionicons
                             name="add-circle-outline"
                             size={24}
-                            color="#841584"
+                            color={colors.primary}
                           />
                         </Hoverable>
                       )}
@@ -2622,10 +2632,10 @@ export default function ProjectDetails() {
                     {manageRole.title} ({manageRole.totalQty})
                   </Text>
                   <TouchableOpacity onPress={() => setManageRole(null)}>
-                    <Ionicons name="close" size={24} color="#333" />
+                    <Ionicons name="close" size={24} color={colors.text} />
                   </TouchableOpacity>
                 </View>
-                <Text style={{ color: "#666", marginBottom: 15 }}>
+                <Text style={{ color: colors.text + "99", marginBottom: 15 }}>
                   {manageRole.description}
                 </Text>
 
@@ -2639,11 +2649,11 @@ export default function ProjectDetails() {
                         key={roleItem.id}
                         style={{
                           borderWidth: 1,
-                          borderColor: "#eee",
+                          borderColor: colors.border,
                           borderRadius: 8,
                           padding: 10,
                           marginBottom: 10,
-                          backgroundColor: "#f9f9f9",
+                          backgroundColor: isDark ? colors.backgroundSecondary : "#f9f9f9",
                         }}
                       >
                         <View
@@ -2654,7 +2664,7 @@ export default function ProjectDetails() {
                           }}
                         >
                           <Text
-                            style={{ fontWeight: "bold", color: "#841584" }}
+                            style={{ fontWeight: "bold", color: colors.primary }}
                           >
                             Poste #{index + 1}
                           </Text>
@@ -2669,7 +2679,7 @@ export default function ProjectDetails() {
                               <Ionicons
                                 name="create-outline"
                                 size={18}
-                                color="#666"
+                                color={colors.text + "99"}
                               />
                             </TouchableOpacity>
                             <TouchableOpacity
@@ -2678,7 +2688,7 @@ export default function ProjectDetails() {
                               <Ionicons
                                 name="trash-outline"
                                 size={18}
-                                color="red"
+                                color="#FF4444"
                               />
                             </TouchableOpacity>
                           </View>
@@ -2899,7 +2909,7 @@ export default function ProjectDetails() {
                 />
                 {searching && (
                   <View style={{ padding: 20, alignItems: "center" }}>
-                    <SpinningClap size={30} color="#841584" />
+                    <SpinningClap size={30} color={colors.primary} />
                   </View>
                 )}
 
@@ -2912,7 +2922,7 @@ export default function ProjectDetails() {
                           style={{
                             padding: 10,
                             borderBottomWidth: 1,
-                            borderColor: "#eee",
+                            borderColor: colors.border,
                             flexDirection: "row",
                             justifyContent: "space-between",
                             alignItems: "center",
@@ -2920,7 +2930,7 @@ export default function ProjectDetails() {
                           onPress={() => assignUserToRole(u)}
                         >
                           <View>
-                            <Text style={{ fontWeight: "600", fontSize: 16 }}>
+                            <Text style={{ fontWeight: "600", fontSize: 16, color: colors.text }}>
                               {u.full_name || u.username}
                             </Text>
                             <View
@@ -2934,7 +2944,7 @@ export default function ProjectDetails() {
                                 <Text
                                   style={{
                                     fontSize: 12,
-                                    color: "#841584",
+                                    color: colors.primary,
                                     fontWeight: "600",
                                   }}
                                 >
@@ -2942,7 +2952,7 @@ export default function ProjectDetails() {
                                 </Text>
                               )}
                               {u.ville ? (
-                                <Text style={{ fontSize: 12, color: "#666" }}>
+                                <Text style={{ fontSize: 12, color: colors.text + "80" }}>
                                   {u.role ? `• ${u.ville}` : u.ville}
                                 </Text>
                               ) : null}
@@ -2951,7 +2961,7 @@ export default function ProjectDetails() {
                           <Ionicons
                             name="add-circle-outline"
                             size={20}
-                            color="#841584"
+                            color={colors.primary}
                           />
                         </TouchableOpacity>
                       ))}
@@ -2972,7 +2982,7 @@ export default function ProjectDetails() {
         onRequestClose={() => setApplicationsModalVisible(false)}
       >
         <View
-          style={{ flex: 1, backgroundColor: "white", alignItems: "center" }}
+          style={{ flex: 1, backgroundColor: colors.background, alignItems: "center" }}
         >
           <View style={{ flex: 1, width: "100%", maxWidth: 800, padding: 20 }}>
             <View
@@ -2984,13 +2994,13 @@ export default function ProjectDetails() {
                 marginTop: 20,
               }}
             >
-              <Text style={{ fontSize: 22, fontWeight: "bold" }}>
+              <Text style={{ fontSize: 22, fontWeight: "bold", color: colors.text }}>
                 Candidatures ({applications.length})
               </Text>
               <TouchableOpacity
                 onPress={() => setApplicationsModalVisible(false)}
               >
-                <Ionicons name="close" size={28} color="black" />
+                <Ionicons name="close" size={28} color={colors.text} />
               </TouchableOpacity>
             </View>
 
@@ -2999,7 +3009,7 @@ export default function ProjectDetails() {
               keyExtractor={(item) => item.id}
               ListEmptyComponent={
                 <Text
-                  style={{ textAlign: "center", color: "#666", marginTop: 50 }}
+                  style={{ textAlign: "center", color: colors.text + "80", marginTop: 50 }}
                 >
                   Aucune candidature en attente.
                 </Text>
@@ -3009,9 +3019,10 @@ export default function ProjectDetails() {
                   style={{
                     padding: 15,
                     borderWidth: 1,
-                    borderColor: "#eee",
+                    borderColor: colors.border,
                     borderRadius: 10,
                     marginBottom: 10,
+                    backgroundColor: colors.card,
                   }}
                 >
                   <View style={{ marginBottom: 10 }}>
@@ -3025,20 +3036,20 @@ export default function ProjectDetails() {
                         style={{
                           fontWeight: "bold",
                           fontSize: 16,
-                          color: Colors.light.primary,
+                          color: colors.primary,
                           textDecorationLine: "underline",
                         }}
                       >
                         {item.profiles?.full_name || item.profiles?.username}
                       </Text>
                     </TouchableOpacity>
-                    <Text style={{ color: "#666" }}>
+                    <Text style={{ color: colors.text + "99" }}>
                       Candidat pour :{" "}
-                      <Text style={{ fontWeight: "600", color: "#333" }}>
+                      <Text style={{ fontWeight: "600", color: colors.text }}>
                         {item.project_roles?.title}
                       </Text>
                     </Text>
-                    <Text style={{ fontSize: 12, color: "#999", marginTop: 4 }}>
+                    <Text style={{ fontSize: 12, color: colors.text + "80", marginTop: 4 }}>
                       Message: {item.message || "Aucun message"}
                     </Text>
                   </View>
@@ -3100,44 +3111,44 @@ export default function ProjectDetails() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.light.backgroundSecondary },
+const createStyles = (colors: any, isDark: boolean) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.backgroundSecondary },
   header: {
     padding: 20,
     paddingTop: 60,
-    backgroundColor: Colors.light.background,
+    backgroundColor: colors.background,
     borderBottomWidth: 1,
-    borderColor: Colors.light.border,
+    borderColor: colors.border,
   },
   title: {
     fontSize: 18,
     fontWeight: "bold",
     textAlign: "center",
-    color: Colors.light.text,
+    color: colors.text,
   },
-  subtitle: { color: "#666", marginTop: 5, textAlign: "center" },
+  subtitle: { color: isDark ? "#aaa" : "#666", marginTop: 5, textAlign: "center" },
   sectionHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     padding: 15,
   },
-  sectionTitle: { fontSize: 18, fontWeight: "bold", color: Colors.light.text },
+  sectionTitle: { fontSize: 18, fontWeight: "bold", color: colors.text },
 
   roleCard: {
     flexDirection: "row",
-    backgroundColor: "white",
+    backgroundColor: colors.card,
     padding: 15,
     borderRadius: 10,
     marginBottom: 10,
     alignItems: "center",
-    shadowColor: Colors.light.shadow,
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: isDark ? 0.3 : 0.1,
     shadowRadius: 5,
     elevation: 3,
     borderWidth: 1,
-    borderColor: Colors.light.border,
+    borderColor: colors.border,
   },
   roleCategoryTag: {
     fontSize: 10,
@@ -3148,13 +3159,13 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     marginRight: 5,
   },
-  roleTitle: { fontWeight: "600", fontSize: 16, color: Colors.light.text },
-  descText: { fontSize: 12, color: "#999", marginTop: 2, fontStyle: "italic" },
+  roleTitle: { fontWeight: "600", fontSize: 16, color: colors.text },
+  descText: { fontSize: 12, color: isDark ? "#888" : "#999", marginTop: 2, fontStyle: "italic" },
 
   assignedCard: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#E8F5E9",
+    backgroundColor: isDark ? "#1B5E20" : "#E8F5E9",
     padding: 10,
     borderRadius: 8,
     marginTop: 5,
@@ -3169,7 +3180,7 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   modalContent: {
-    backgroundColor: "white",
+    backgroundColor: colors.card,
     borderRadius: 15,
     padding: 20,
     maxHeight: "85%",
@@ -3181,23 +3192,23 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     marginBottom: 15,
     textAlign: "center",
-    color: Colors.light.text,
+    color: colors.text,
   },
   input: {
     borderWidth: 1,
-    borderColor: Colors.light.border,
+    borderColor: colors.border,
     borderRadius: 8,
     padding: 10,
     marginBottom: 10,
-    backgroundColor: Colors.light.backgroundSecondary,
+    backgroundColor: colors.backgroundSecondary,
     textAlign: "center",
-    color: Colors.light.text,
+    color: colors.text,
   },
   label: {
     marginBottom: 8,
     fontWeight: "600",
     fontSize: 13,
-    color: "#666",
+    color: isDark ? "#aaa" : "#666",
     textAlign: "center",
   },
 
@@ -3207,7 +3218,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 20,
     marginRight: 8,
-    borderColor: Colors.light.border,
+    borderColor: colors.border,
   },
   rowWrap: {
     flexDirection: "row",
@@ -3223,14 +3234,14 @@ const styles = StyleSheet.create({
     marginBottom: 15,
   },
   jobChip: {
-    backgroundColor: Colors.light.backgroundSecondary,
+    backgroundColor: colors.backgroundSecondary,
     paddingVertical: 6,
     paddingHorizontal: 10,
     borderRadius: 15,
     borderWidth: 1,
-    borderColor: Colors.light.border,
+    borderColor: colors.border,
   },
-  jobChipSelected: { backgroundColor: Colors.light.primary },
+  jobChipSelected: { backgroundColor: colors.primary },
 });
 
 function setResults(arg0: never[]) {

@@ -1,7 +1,7 @@
 import ClapLoading from "@/components/ClapLoading";
 import PostCard, { FeedPost } from "@/components/PostCard";
-import Colors from "@/constants/Colors";
 import { useFeed } from "@/hooks/useFeed";
+import { useTheme } from "@/providers/ThemeProvider";
 import { Ionicons } from "@expo/vector-icons";
 import { FlashList } from "@shopify/flash-list";
 import { router, Stack } from "expo-router";
@@ -18,6 +18,8 @@ import {
 } from "react-native";
 
 export default function FeedScreen() {
+  const { colors, isDark } = useTheme();
+  const styles = createStyles(colors, isDark);
   const {
     posts,
     loading,
@@ -34,7 +36,7 @@ export default function FeedScreen() {
   );
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <Stack.Screen
         options={{
           headerTitle: "Fil d'actualité",
@@ -52,7 +54,7 @@ export default function FeedScreen() {
                 <Ionicons
                   name="documents-outline"
                   size={24}
-                  color={Colors.light.text}
+                  color={colors.text}
                 />
               </TouchableOpacity>
 
@@ -60,7 +62,7 @@ export default function FeedScreen() {
                 <Ionicons
                   name="add-circle-outline"
                   size={24}
-                  color={Colors.light.text}
+                  color={colors.text}
                 />
               </TouchableOpacity>
             </View>
@@ -86,16 +88,16 @@ export default function FeedScreen() {
               <Ionicons
                 name="documents-outline"
                 size={18}
-                color={Colors.light.text}
+                color={colors.text}
               />
-              <Text style={styles.webHeaderButtonText}>Mes posts</Text>
+              <Text style={[styles.webHeaderButtonText, { color: colors.text }]}>Mes posts</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
               onPress={() => router.push("/post/new")}
               style={[
                 styles.webHeaderButton,
-                { backgroundColor: Colors.light.tint },
+                { backgroundColor: colors.primary },
               ]}
             >
               <Ionicons name="add-circle-outline" size={18} color="white" />
@@ -158,7 +160,7 @@ export default function FeedScreen() {
         {loading && !refreshing ? (
           <ClapLoading
             style={{ marginTop: 40 }}
-            color={Colors.light.primary}
+            color={colors.primary}
             size={40}
           />
         ) : (
@@ -207,108 +209,111 @@ export default function FeedScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#f8f9fa",
-  },
-  feedWrapper: {
-    flex: 1,
-    width: "100%",
-    maxWidth: 700,
-    alignSelf: "center",
-  },
-  listContent: {
-    padding: 12,
-    paddingBottom: 80,
-  },
-  webHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-    backgroundColor: "white",
-    borderBottomWidth: 1,
-    borderBottomColor: "#eee",
-  },
-  webHeaderTitle: {
-    fontSize: 22,
-    fontWeight: "800",
-    color: Colors.light.text,
-  },
-  webHeaderButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#f0f0f0",
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 20,
-    gap: 6,
-  },
-  webHeaderButtonText: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: Colors.light.text,
-  },
-  filterContainer: {
-    padding: 12,
-    backgroundColor: "white",
-    borderBottomWidth: 1,
-    borderBottomColor: "#eee",
-    width: "100%",
-  },
-  segmentedControl: {
-    flexDirection: "row",
-    backgroundColor: "#f0f0f0",
-    borderRadius: 10,
-    padding: 3,
-  },
-  filterBtn: {
-    flex: 1,
-    paddingVertical: 8,
-    borderRadius: 8,
-    alignItems: "center",
-  },
-  filterBtnActive: {
-    backgroundColor: "white",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  filterText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#666",
-  },
-  filterTextActive: {
-    color: Colors.light.tint,
-  },
-  emptyText: {
-    textAlign: "center",
-    marginTop: 60,
-    color: "#999",
-    fontSize: 15,
-    paddingHorizontal: 40,
-    lineHeight: 22,
-  },
-  modalContainer: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.9)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  closeButton: {
-    position: "absolute",
-    top: 50,
-    right: 20,
-    zIndex: 1,
-    padding: 10,
-  },
-  fullImage: {
-    width: "100%",
-    height: "100%",
-  },
-});
+function createStyles(colors: any, isDark: boolean) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.backgroundSecondary,
+    },
+    feedWrapper: {
+      flex: 1,
+      width: "100%",
+      maxWidth: 700,
+      alignSelf: "center",
+    },
+    listContent: {
+      padding: 12,
+      paddingBottom: 80,
+    },
+    webHeader: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      paddingHorizontal: 20,
+      paddingVertical: 15,
+      backgroundColor: colors.card,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    webHeaderTitle: {
+      fontSize: 22,
+      fontWeight: "800",
+      color: colors.text,
+    },
+    webHeaderButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: colors.backgroundSecondary,
+      paddingVertical: 8,
+      paddingHorizontal: 12,
+      borderRadius: 20,
+      gap: 6,
+    },
+    webHeaderButtonText: {
+      fontSize: 13,
+      fontWeight: "600",
+      color: colors.text,
+    },
+    filterContainer: {
+      padding: 12,
+      backgroundColor: colors.card,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+      width: "100%",
+    },
+    segmentedControl: {
+      flexDirection: "row",
+      backgroundColor: colors.backgroundSecondary,
+      borderRadius: 10,
+      padding: 3,
+    },
+    filterBtn: {
+      flex: 1,
+      paddingVertical: 8,
+      borderRadius: 8,
+      alignItems: "center",
+    },
+    filterBtnActive: {
+      backgroundColor: isDark ? colors.background : "white",
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.1,
+      shadowRadius: 2,
+      elevation: 2,
+    },
+    filterText: {
+      fontSize: 14,
+      fontWeight: "600",
+      color: isDark ? "#A0A0A0" : "#666",
+    },
+    filterTextActive: {
+      color: colors.primary,
+    },
+    emptyText: {
+      textAlign: "center",
+      marginTop: 60,
+      color: colors.text,
+      opacity: 0.6,
+      fontSize: 15,
+      paddingHorizontal: 40,
+      lineHeight: 22,
+    },
+    modalContainer: {
+      flex: 1,
+      backgroundColor: "rgba(0,0,0,0.9)",
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    closeButton: {
+      position: "absolute",
+      top: 50,
+      right: 20,
+      zIndex: 1,
+      padding: 10,
+    },
+    fullImage: {
+      width: "100%",
+      height: "100%",
+    },
+  });
+}

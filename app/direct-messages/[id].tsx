@@ -1,7 +1,8 @@
 import ClapLoading from "@/components/ClapLoading";
-import Colors from "@/constants/Colors";
 import { appEvents, EVENTS } from "@/lib/events";
 import { supabase } from "@/lib/supabase";
+import { useTheme } from "@/providers/ThemeProvider";
+import { useUser } from "@/providers/UserProvider";
 import { NotificationService } from "@/services/NotificationService";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image"; // Better image component
@@ -30,13 +31,17 @@ export default function DirectMessageChat() {
   const { id } = useLocalSearchParams(); // Other user ID
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { colors, isDark } = useTheme();
+  const styles = createStyles(colors, isDark);
+  const { user, profile: currentUser } = useUser();
   const [messages, setMessages] = useState<any[]>([]);
   const [inputText, setTextInput] = useState("");
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const [currentUserProfile, setCurrentUserProfile] = useState<any>(null);
   const [otherUser, setOtherUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const flatListRef = useRef<FlatList>(null);
+
+  const currentUserId = user?.id;
+  const currentUserProfile = currentUser;
 
   const isFocusedRef = useRef(false);
 
@@ -53,14 +58,7 @@ export default function DirectMessageChat() {
   );
 
   async function markAllAsRead() {
-    let myId = currentUserId;
-    if (!myId) {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      myId = session?.user?.id || null;
-      if (myId) setCurrentUserId(myId);
-    }
+    const myId = currentUserId;
 
     if (!myId || !id) {
       console.log("markAllAsRead: Missing IDs", { myId, id });
@@ -189,34 +187,32 @@ export default function DirectMessageChat() {
     };
   }, [id, currentUserId]);
 
+  useEffect(() => {
+    if (currentUserId && id) {
+      setup();
+    }
+  }, [currentUserId, id]);
+currentUserId
   async function setup() {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    if (!session) return;
-    setCurrentUserId(session.user.id);
-
-    // Fetch my profile for sender name in notifications
-    const { data: myProfile } = await supabase
-      .from("profiles")
-      .select("full_name, username")
-      .eq("id", session.user.id)
-      .single();
-    setCurrentUserProfile(myProfile);
+    if (!currentUserId) return;
 
     // Fetch other user details
-    const { data: user } = await supabase
+    const { data: profile } = await supabase
       .from("profiles")
       .select("*")
       .eq("id", id)
       .single();
-    setOtherUser(user);
+    setOtherUser(profile);
 
-    await fetchMessages(session.user.id);
+    await fetchMessages(currentUserId);
   }
 
   async function fetchMessages(myId: string) {
     try {
+      if (messages.length === 0) {
+        setLoading(true);
+      }
+
       const { data, error } = await supabase
         .from("direct_messages")
         .select("*")
@@ -300,26 +296,11 @@ export default function DirectMessageChat() {
     if (Platform.OS !== "web") return null;
 
     return (
-      <View
-        style={{
-          flexDirection: "row",
-          alignItems: "center",
-          padding: 10,
-          borderBottomWidth: 1,
-          borderBottomColor: "#eee",
-          backgroundColor: "#fff",
-          gap: 12,
-        }}
-      >
+      <View style={styles.webHeader}>
         {otherUser?.avatar_url ? (
           <Image
             source={{ uri: otherUser.avatar_url }}
-            style={{
-              width: 40,
-              height: 40,
-              borderRadius: 20,
-              backgroundColor: "#eee",
-            }}
+            style={styles.avatarLarge}
             contentFit="cover"
             transition={200}
           />
@@ -327,15 +308,15 @@ export default function DirectMessageChat() {
           <Ionicons
             name="person-circle-outline"
             size={40}
-            color={Colors.light.tabIconDefault}
+            color={colors.tabIconDefault}
           />
         )}
         <View>
-          <Text style={{ fontSize: 16, fontWeight: "600" }}>
+          <Text style={styles.webHeaderText}>
             {otherUser?.full_name || otherUser?.username || "Chat"}
           </Text>
           {otherUser?.role && (
-            <Text style={{ fontSize: 12, color: "gray" }}>
+            <Text style={styles.webHeaderSubtitle}>
               {otherUser.role.toUpperCase()}
             </Text>
           )}
@@ -345,7 +326,7 @@ export default function DirectMessageChat() {
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: Colors.light.background }}>
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
       <Stack.Screen
         options={{
           headerTitle: () => (
@@ -355,12 +336,7 @@ export default function DirectMessageChat() {
               {otherUser?.avatar_url ? (
                 <Image
                   source={{ uri: otherUser.avatar_url }}
-                  style={{
-                    width: 35,
-                    height: 35,
-                    borderRadius: 17.5,
-                    backgroundColor: "#eee",
-                  }}
+                  style={styles.avatarSmall}
                   contentFit="cover"
                   transition={200}
                 />
@@ -368,15 +344,15 @@ export default function DirectMessageChat() {
                 <Ionicons
                   name="person-circle-outline"
                   size={35}
-                  color={Colors.light.tabIconDefault}
+                  color={colors.tabIconDefault}
                 />
               )}
               <View>
-                <Text style={{ fontSize: 16, fontWeight: "600" }}>
+                <Text style={{ fontSize: 16, fontWeight: "600", color: colors.text }}>
                   {otherUser?.full_name || otherUser?.username || "Chat"}
                 </Text>
                 {otherUser?.role && (
-                  <Text style={{ fontSize: 10, color: "gray" }}>
+                  <Text style={{ fontSize: 10, color: colors.text + "80" }}>
                     {otherUser.role.toUpperCase()}
                   </Text>
                 )}
@@ -395,11 +371,13 @@ export default function DirectMessageChat() {
               style={{ padding: 10, marginLeft: -5 }}
               hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
             >
-              <Ionicons name="arrow-back" size={24} color={Colors.light.tint} />
+              <Ionicons name="arrow-back" size={24} color={colors.primary} />
             </TouchableOpacity>
           ),
-          headerTintColor: Colors.light.tint,
+          headerTintColor: colors.primary,
           headerBackTitle: "", // Hide back title text on iOS
+          headerStyle: { backgroundColor: colors.background },
+          headerTitleStyle: { color: colors.text },
           // On Web, default header is often hidden or looks bad in this sidebar layout
           // We can force it shown, OR we can hide it and render our own View.
           // Given the user report "I don't see who I am writing to",
@@ -419,7 +397,7 @@ export default function DirectMessageChat() {
         {loading ? (
           <ClapLoading
             style={{ flex: 1 }}
-            color={Colors.light.primary}
+            color={colors.primary}
             size={50}
           />
         ) : (
@@ -441,7 +419,7 @@ export default function DirectMessageChat() {
                   <Text
                     style={[
                       styles.msgText,
-                      isMe ? { color: "white" } : { color: Colors.light.text },
+                      isMe ? { color: "white" } : { color: colors.text },
                     ]}
                   >
                     {item.content}
@@ -451,7 +429,7 @@ export default function DirectMessageChat() {
                       styles.dateText,
                       isMe
                         ? { color: "rgba(255,255,255,0.7)" }
-                        : { color: "#999" },
+                        : { color: colors.text + "80" },
                     ]}
                   >
                     {new Date(item.created_at).toLocaleTimeString([], {
@@ -474,6 +452,7 @@ export default function DirectMessageChat() {
           <TextInput
             style={styles.input}
             placeholder="Votre message..."
+            placeholderTextColor={colors.text + "80"}
             value={inputText}
             onChangeText={setTextInput}
             multiline
@@ -505,7 +484,7 @@ export default function DirectMessageChat() {
             <Ionicons
               name="send"
               size={24}
-              color={inputText.trim() ? Colors.light.primary : "#ccc"}
+              color={inputText.trim() ? colors.primary : colors.text + "40"}
             />
           </TouchableOpacity>
         </View>
@@ -514,47 +493,82 @@ export default function DirectMessageChat() {
   );
 }
 
-const styles = StyleSheet.create({
-  bubble: {
-    maxWidth: "80%",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 16,
-    marginBottom: 4,
-  },
-  bubbleMe: {
-    alignSelf: "flex-end",
-    backgroundColor: Colors.light.primary,
-    borderBottomRightRadius: 2,
-  },
-  bubbleOther: {
-    alignSelf: "flex-start",
-    backgroundColor: "#E5E5EA",
-    borderBottomLeftRadius: 2,
-  },
-  msgText: {
-    fontSize: 16,
-  },
-  dateText: {
-    fontSize: 10,
-    marginTop: 2,
-    alignSelf: "flex-end",
-  },
-  inputContainer: {
-    flexDirection: "row",
-    alignItems: "flex-end",
-    padding: 10,
-    borderTopWidth: 1,
-    borderTopColor: Colors.light.border,
-    backgroundColor: "white",
-  },
-  input: {
-    flex: 1,
-    backgroundColor: Colors.light.backgroundSecondary,
-    borderRadius: 20,
-    paddingHorizontal: 15,
-    paddingVertical: 10,
-    maxHeight: 100,
-    minHeight: 40,
-  },
-});
+function createStyles(colors: any, isDark: boolean) {
+  return StyleSheet.create({
+    bubble: {
+      maxWidth: "80%",
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: 16,
+      marginBottom: 4,
+    },
+    bubbleMe: {
+      alignSelf: "flex-end",
+      backgroundColor: colors.primary,
+      borderBottomRightRadius: 2,
+    },
+    bubbleOther: {
+      alignSelf: "flex-start",
+      backgroundColor: isDark ? colors.backgroundSecondary : "#E5E5EA",
+      borderBottomLeftRadius: 2,
+    },
+    msgText: {
+      fontSize: 16,
+    },
+    dateText: {
+      fontSize: 10,
+      marginTop: 2,
+      alignSelf: "flex-end",
+    },
+    inputContainer: {
+      flexDirection: "row",
+      alignItems: "flex-end",
+      padding: 10,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+      backgroundColor: colors.background,
+    },
+    input: {
+      flex: 1,
+      backgroundColor: colors.backgroundSecondary,
+      borderRadius: 20,
+      paddingHorizontal: 15,
+      paddingVertical: 10,
+      maxHeight: 100,
+      minHeight: 40,
+      color: colors.text,
+    },
+    webHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingHorizontal: 20,
+      paddingVertical: 14,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+      backgroundColor: colors.background,
+      gap: 12,
+    },
+    webHeaderText: {
+      fontSize: 17,
+      fontWeight: "700",
+      color: colors.text,
+    },
+    webHeaderSubtitle: {
+      fontSize: 12,
+      color: colors.text + "80",
+      fontWeight: "500",
+    },
+    avatarLarge: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: colors.backgroundSecondary,
+    },
+    avatarSmall: {
+      width: 35,
+      height: 35,
+      borderRadius: 17.5,
+      backgroundColor: colors.backgroundSecondary,
+    }
+  });
+}

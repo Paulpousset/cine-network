@@ -1,16 +1,16 @@
-import Colors from "@/constants/Colors";
+import { useTheme } from "@/providers/ThemeProvider";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useEffect, useState } from "react";
 import {
-    FlatList,
-    Modal,
-    Platform,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    TouchableWithoutFeedback,
-    View,
+  FlatList,
+  Modal,
+  Platform,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
+  View,
 } from "react-native";
 
 interface AddressAutocompleteProps {
@@ -29,6 +29,8 @@ export default function AddressAutocomplete({
   placeholder = "Rechercher une adresse",
   style,
 }: AddressAutocompleteProps) {
+  const { colors, isDark } = useTheme();
+  const styles = createStyles(colors, isDark);
   const [query, setQuery] = useState(value);
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [modalVisible, setModalVisible] = useState(false);
@@ -84,12 +86,12 @@ export default function AddressAutocomplete({
         style={styles.inputTrigger}
       >
         <Text
-          style={[styles.inputText, !query && { color: "#999" }]}
+          style={[styles.inputText, !query && { color: colors.text + "80" }]}
           numberOfLines={1}
         >
           {query || placeholder}
         </Text>
-        <Ionicons name="location-outline" size={20} color="#999" />
+        <Ionicons name="location-outline" size={20} color={colors.text + "80"} />
       </TouchableOpacity>
 
       <Modal
@@ -105,17 +107,17 @@ export default function AddressAutocomplete({
 
           <View style={styles.modalContent}>
             <View style={styles.searchHeader}>
-              <Ionicons name="search" size={20} color="#666" />
+              <Ionicons name="search" size={20} color={colors.text + "80"} />
               <TextInput
                 style={styles.searchInput}
                 value={query}
                 onChangeText={setQuery}
                 placeholder="Rechercher une adresse..."
-                placeholderTextColor="#999"
+                placeholderTextColor={colors.text + "80"}
                 autoFocus
               />
               {loading && (
-                <Text style={{ fontSize: 10, color: "#666" }}>...</Text>
+                <Text style={{ fontSize: 10, color: colors.text + "80" }}>...</Text>
               )}
             </View>
 
@@ -133,7 +135,7 @@ export default function AddressAutocomplete({
                   <Ionicons
                     name="location"
                     size={20}
-                    color={Colors.light.tint}
+                    color={colors.primary}
                   />
                   <View style={{ flex: 1 }}>
                     <Text style={styles.cityName}>{item.properties.label}</Text>
@@ -156,20 +158,20 @@ export default function AddressAutocomplete({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   inputTrigger: {
-    backgroundColor: "#fff",
+    backgroundColor: colors.background,
     borderRadius: 8,
     padding: 12,
     borderWidth: 1,
-    borderColor: "#ccc",
+    borderColor: colors.border,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
   },
   inputText: {
     fontSize: 16,
-    color: "#333",
+    color: colors.text,
     flex: 1,
     marginRight: 8,
   },
@@ -181,7 +183,7 @@ const styles = StyleSheet.create({
     paddingTop: Platform.OS === "ios" ? 60 : 40,
   },
   modalContent: {
-    backgroundColor: "white",
+    backgroundColor: colors.background,
     borderRadius: 12,
     maxHeight: 400,
     overflow: "hidden",
@@ -191,35 +193,38 @@ const styles = StyleSheet.create({
     alignItems: "center",
     padding: 15,
     borderBottomWidth: 1,
-    borderBottomColor: "#eee",
+    borderBottomColor: colors.border,
     gap: 10,
   },
   searchInput: {
     flex: 1,
     fontSize: 16,
-    color: "#333",
-    height: 40,
+    color: colors.text,
   },
   suggestionItem: {
-    flexDirection: "row",
-    alignItems: "center",
     padding: 15,
     borderBottomWidth: 1,
-    borderBottomColor: "#f5f5f5",
-    gap: 12,
+    borderBottomColor: colors.border,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
   },
   cityName: {
-    fontSize: 14,
-    fontWeight: "500",
-    color: "#333",
+    fontSize: 16,
+    fontWeight: "600",
+    color: colors.text,
   },
   cityContext: {
     fontSize: 12,
-    color: "#999",
+    color: colors.text + "80",
+    marginTop: 2,
   },
   emptyText: {
-    textAlign: "center",
     padding: 20,
-    color: "#999",
+    textAlign: "center",
+    color: colors.text + "80",
+    fontSize: 14,
   },
 });
+
+   

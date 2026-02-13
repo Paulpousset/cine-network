@@ -8,11 +8,11 @@ import ChatIconWithBadge from "@/components/ChatIconWithBadge";
 import ClapLoading from "@/components/ClapLoading";
 import CustomTabBar from "@/components/CustomTabBar"; // Imported
 import NotificationIconWithBadge from "@/components/NotificationIconWithBadge";
-import { useColorScheme } from "@/components/useColorScheme";
+import { useTheme } from "@/providers/ThemeProvider";
 import Colors from "@/constants/Colors";
 import { appEvents, EVENTS } from "@/lib/events";
-import { supabase } from "@/lib/supabase";
-import { useEffect, useState } from "react";
+import { useUser } from "@/providers/UserProvider";
+import { useEffect } from "react";
 import { Platform } from "react-native";
 
 // You can explore the built-in icon families and icons on the web at https://icons.expo.fyi/
@@ -24,57 +24,24 @@ function TabBarIcon(props: {
 }
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
+  const { colors, isDark } = useTheme();
   const router = useRouter();
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
-  const [userRole, setUserRole] = useState<string | null>(null);
+  const { profile, refreshProfile, isLoading: userLoading } = useUser();
 
   useEffect(() => {
-    fetchUserData();
-
-    const {
-      data: { subscription: authSubscription },
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      console.log("TabLayout: Auth state changed", _event);
-      if (session) {
-        await fetchUserData();
-      } else {
-        setAvatarUrl(null);
-        setUserRole(null);
-      }
-    });
-
     // Écouter spécifiquement les mises à jour de profil pour forcer le rafraîchissement
     const unsubProfile = appEvents.on(EVENTS.PROFILE_UPDATED, () => {
       console.log("TabLayout: Profile updated event received");
-      fetchUserData();
+      refreshProfile();
     });
 
     return () => {
-      authSubscription.unsubscribe();
       unsubProfile();
     };
-  }, []);
+  }, [refreshProfile]);
 
-  async function fetchUserData() {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    if (!session) return;
-
-    // Fetch avatar and role
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("avatar_url, role")
-      .eq("id", session.user.id)
-      .single();
-
-    if (profile) {
-      setAvatarUrl(profile.avatar_url);
-      setUserRole(profile.role);
-      console.log("TabLayout: User role updated to", profile.role);
-    }
-  }
+  const avatarUrl = profile?.avatar_url;
+  const userRole = profile?.role;
 
   const ProfileIcon = ({ pressed }: { pressed: boolean }) => {
     if (avatarUrl) {
@@ -88,7 +55,7 @@ export default function TabLayout() {
             marginLeft: 15,
             opacity: pressed ? 0.5 : 1,
             borderWidth: 1,
-            borderColor: Colors[colorScheme ?? "light"].border,
+            borderColor: colors.border,
           }}
         />
       );
@@ -97,7 +64,7 @@ export default function TabLayout() {
       <FontAwesome
         name="user-circle"
         size={25}
-        color={Colors[colorScheme ?? "light"].text}
+        color={colors.text}
         style={{ marginLeft: 15, opacity: pressed ? 0.5 : 1 }}
       />
     );
@@ -109,10 +76,11 @@ export default function TabLayout() {
     [],
   );
 
-  if (!userRole) {
+  // Uniquement bloquant au tout premier chargement
+  if (userLoading && !userRole) {
     return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-        <ClapLoading size={40} color={Colors.light.primary} />
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: colors.background }}>
+        <ClapLoading size={40} color={colors.primary} />
       </View>
     );
   }
@@ -121,22 +89,20 @@ export default function TabLayout() {
 
   return (
     <Tabs
-      key={`layout-${userRole}`}
       tabBar={renderTabBar}
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? "light"].tint,
+        tabBarActiveTintColor: colors.tint,
         headerShown: Platform.OS !== "web",
         headerStyle: {
-          backgroundColor: Colors[colorScheme ?? "light"].background,
+          backgroundColor: colors.background,
           elevation: 0,
           shadowOpacity: 0,
           borderBottomWidth: 1,
-          borderBottomColor: Colors[colorScheme ?? "light"].border,
+          borderBottomColor: colors.border,
         },
         headerTitleStyle: {
-          fontWeight: "700" as const,
-          fontSize: 18,
-          color: Colors[colorScheme ?? "light"].text,
+          color: colors.text,
+          fontWeight: "700",
         },
       }}
     >

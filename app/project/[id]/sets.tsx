@@ -1,8 +1,8 @@
 import AddressAutocomplete from "@/components/AddressAutocomplete";
-import Colors from "@/constants/Colors";
 import { useUserMode } from "@/hooks/useUserMode";
 import { Database } from "@/lib/database.types";
 import { supabase } from "@/lib/supabase";
+import { useTheme } from "@/providers/ThemeProvider";
 import { Ionicons } from "@expo/vector-icons";
 import { decode } from "base64-arraybuffer";
 import * as FileSystem from "expo-file-system/legacy";
@@ -10,18 +10,18 @@ import * as ImagePicker from "expo-image-picker";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    FlatList,
-    Image,
-    Modal,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  Image,
+  Modal,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 type ProjectSet = Database["public"]["Tables"]["project_sets"]["Row"];
@@ -61,6 +61,8 @@ export default function SetsScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { mode } = useUserMode();
+  const { colors, isDark } = useTheme();
+  const styles = createStyles(colors, isDark);
 
   const [loading, setLoading] = useState(true);
   const [sets, setSets] = useState<ProjectSet[]>([]);
@@ -307,8 +309,8 @@ export default function SetsScreen() {
 
   if (checkingAccess) {
     return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-        <ActivityIndicator size="large" color={Colors.light.tint} />
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: colors.background }}>
+        <ActivityIndicator size="large" color={colors.tint} />
       </View>
     );
   }
@@ -357,7 +359,7 @@ export default function SetsScreen() {
               onPress={() => openEditModal(item)}
               style={styles.actionButton}
             >
-              <Ionicons name="pencil" size={20} color={Colors.light.tint} />
+              <Ionicons name="pencil" size={20} color={colors.tint} />
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => handleDelete(item.id)}
@@ -546,14 +548,15 @@ export default function SetsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: any, isDark: boolean) {
+  return StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f5f5f5",
+    backgroundColor: colors.backgroundSecondary,
   },
   uploadButton: {
     flexDirection: "row",
-    backgroundColor: Colors.light.tint,
+    backgroundColor: colors.tint,
     padding: 12,
     borderRadius: 8,
     alignItems: "center",
@@ -572,9 +575,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 15,
     paddingTop: Platform.OS === "ios" ? 60 : 16,
-    backgroundColor: "#fff",
+    backgroundColor: colors.background,
     borderBottomWidth: 1,
-    borderBottomColor: "#eee",
+    borderBottomColor: colors.border,
   },
   headerLeft: {
     width: 45,
@@ -590,9 +593,10 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 20,
     fontWeight: "bold",
+    color: colors.text,
   },
   addButton: {
-    backgroundColor: Colors.light.tint,
+    backgroundColor: colors.tint,
     padding: 8,
     borderRadius: 20,
   },
@@ -605,22 +609,24 @@ const styles = StyleSheet.create({
   accessDeniedText: {
     marginTop: 16,
     fontSize: 16,
-    color: "#666",
+    color: colors.tabIconDefault,
     textAlign: "center",
   },
   listContent: {
     padding: 16,
   },
   card: {
-    backgroundColor: "#fff",
+    backgroundColor: colors.card,
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
-    shadowColor: "#000",
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 4,
     elevation: 2,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   cardHeader: {
     flexDirection: "row",
@@ -631,6 +637,7 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 18,
     fontWeight: "600",
+    color: colors.text,
   },
   cardActions: {
     flexDirection: "row",
@@ -646,12 +653,12 @@ const styles = StyleSheet.create({
   },
   infoText: {
     marginLeft: 6,
-    color: "#444",
+    color: colors.text,
     fontSize: 14,
   },
   description: {
     fontSize: 14,
-    color: "#666",
+    color: colors.tabIconDefault,
     lineHeight: 20,
     marginBottom: 12,
   },
@@ -664,11 +671,11 @@ const styles = StyleSheet.create({
     height: 70,
     borderRadius: 6,
     marginRight: 8,
-    backgroundColor: "#eee",
+    backgroundColor: colors.backgroundSecondary,
   },
   emptyText: {
     textAlign: "center",
-    color: "#999",
+    color: colors.tabIconDefault,
     marginTop: 32,
   },
   modalOverlay: {
@@ -677,7 +684,7 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end",
   },
   modalContent: {
-    backgroundColor: "#fff",
+    backgroundColor: colors.card,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     padding: 20,
@@ -692,21 +699,23 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 20,
     fontWeight: "bold",
+    color: colors.text,
   },
   label: {
     fontSize: 14,
     fontWeight: "600",
     marginBottom: 8,
-    color: "#333",
+    color: colors.text,
     marginTop: 12,
   },
   input: {
-    backgroundColor: "#f9f9f9",
+    backgroundColor: colors.backgroundSecondary,
     borderWidth: 1,
-    borderColor: "#e0e0e0",
+    borderColor: colors.border,
     borderRadius: 8,
     padding: 12,
     fontSize: 16,
+    color: colors.text,
   },
   textArea: {
     height: 100,
@@ -719,7 +728,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    backgroundColor: "#f0f0f0",
+    backgroundColor: colors.backgroundSecondary,
     padding: 8,
     borderRadius: 6,
     marginBottom: 4,
@@ -727,11 +736,11 @@ const styles = StyleSheet.create({
   photoUrl: {
     flex: 1,
     fontSize: 12,
-    color: "#555",
+    color: colors.tabIconDefault,
     marginRight: 8,
   },
   saveButton: {
-    backgroundColor: Colors.light.tint,
+    backgroundColor: colors.tint,
     padding: 16,
     borderRadius: 12,
     alignItems: "center",
@@ -743,4 +752,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
   },
-});
+  });
+}

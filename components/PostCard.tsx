@@ -1,9 +1,12 @@
 import AutoHeightImage from "@/components/AutoHeightImage";
-import Colors from "@/constants/Colors";
+import PopcornLikeButton from "@/components/PopcornLikeButton";
 import { GlobalStyles } from "@/constants/Styles";
+import { usePostActions } from "@/hooks/usePostActions";
+import { supabase } from "@/lib/supabase";
+import { useTheme } from "@/providers/ThemeProvider";
 import { Ionicons } from "@expo/vector-icons";
 import { Href, router } from "expo-router";
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   Alert,
   Image,
@@ -14,6 +17,8 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { PostCommentsModal } from "./PostCommentsModal";
+import { PostShareModal } from "./PostShareModal";
 
 export interface FeedPost {
   id: string;
@@ -35,6 +40,9 @@ export interface FeedPost {
     start_date?: string;
     end_date?: string;
   };
+  likes_count: number;
+  comments_count: number;
+  user_has_liked: boolean;
 }
 
 interface PostCardProps {
@@ -43,6 +51,19 @@ interface PostCardProps {
 }
 
 const PostCard = ({ item, onImagePress }: PostCardProps) => {
+  const { colors, isDark } = useTheme();
+  const styles = getStyles(colors, isDark);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [isCommentsVisible, setIsCommentsVisible] = useState(false);
+  const [isShareVisible, setIsShareVisible] = useState(false);
+  const { toggleLike } = usePostActions(item.id);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) setUserId(user.id);
+    });
+  }, []);
+
   const renderContent = (content: string) => {
     const lines = content
       .split("\n")
@@ -226,7 +247,7 @@ const PostCard = ({ item, onImagePress }: PostCardProps) => {
               <Ionicons
                 name="film"
                 size={24}
-                color={Colors.light.tabIconDefault}
+                color={colors.tabIconDefault}
               />
             </View>
           )}
@@ -268,30 +289,71 @@ const PostCard = ({ item, onImagePress }: PostCardProps) => {
           <Ionicons
             name="chevron-forward"
             size={20}
-            color={Colors.light.border}
+            color={colors.border}
             style={{ marginRight: 5 }}
           />
         </TouchableOpacity>
       )}
 
       <View style={styles.footer}>
-        {/* Actions like Like/Comment could go here */}
+        <View style={styles.actionsRow}>
+          <View style={styles.actionLeft}>
+            <PopcornLikeButton
+              liked={item.user_has_liked}
+              initialLikes={item.likes_count}
+              onLike={(status) => userId && toggleLike(userId, status)}
+              size={22}
+            />
+
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={() => setIsCommentsVisible(true)}
+            >
+              <Ionicons name="chatbubble-outline" size={20} color="#666" />
+              <Text style={styles.actionText}>{item.comments_count}</Text>
+            </TouchableOpacity>
+          </View>
+
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={() => setIsShareVisible(true)}
+          >
+            <Ionicons name="paper-plane-outline" size={20} color="#666" />
+            <Text style={styles.actionText}>Partager</Text>
+          </TouchableOpacity>
+        </View>
       </View>
+
+      <PostCommentsModal
+        visible={isCommentsVisible}
+        onClose={() => setIsCommentsVisible(false)}
+        postId={item.id}
+        userId={userId}
+      />
+
+      <PostShareModal
+        visible={isShareVisible}
+        onClose={() => setIsShareVisible(false)}
+        post={item}
+        userId={userId}
+      />
     </View>
   );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   postCard: {
-    backgroundColor: "white",
+    backgroundColor: colors.card,
     borderRadius: 16,
     padding: 16,
     marginBottom: 16,
-    shadowColor: "#000",
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
+    shadowOpacity: isDark ? 0.3 : 0.05,
     shadowRadius: 8,
     elevation: 3,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   header: {
     flexDirection: "row",
@@ -307,15 +369,15 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: "#eee",
+    backgroundColor: colors.backgroundSecondary,
   },
   name: {
     fontWeight: "700",
     fontSize: 16,
-    color: Colors.light.text,
+    color: colors.text,
   },
   date: {
-    color: "#888",
+    color: isDark ? "#999" : "#888",
     fontSize: 12,
     marginTop: 1,
   },
@@ -327,7 +389,7 @@ const styles = StyleSheet.create({
   },
   kvKey: {
     fontWeight: "700",
-    color: Colors.light.primary,
+    color: colors.primary,
     textTransform: "uppercase",
     fontSize: 11,
     letterSpacing: 0.5,
@@ -338,11 +400,11 @@ const styles = StyleSheet.create({
     marginBottom: 5,
   },
   linkButton: {
-    backgroundColor: Colors.light.tint,
+    backgroundColor: colors.primary,
     paddingVertical: 10,
     paddingHorizontal: 20,
     borderRadius: 25,
-    shadowColor: Colors.light.tint,
+    shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 6,
@@ -356,7 +418,7 @@ const styles = StyleSheet.create({
   webProjectHeaderInfo: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#f0f0f0",
+    backgroundColor: colors.backgroundSecondary,
     padding: 4,
     paddingRight: 10,
     borderRadius: 20,
@@ -372,7 +434,7 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: "#ddd",
+    backgroundColor: isDark ? "#333" : "#ddd",
     marginRight: 6,
     justifyContent: "center",
     alignItems: "center",
@@ -380,15 +442,15 @@ const styles = StyleSheet.create({
   webProjectHeaderText: {
     fontSize: 11,
     fontWeight: "600",
-    color: "#444",
+    color: colors.text,
   },
   projectCard: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#f9fafb",
+    backgroundColor: colors.backgroundSecondary,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#f0f0f0",
+    borderColor: colors.border,
     padding: 10,
     gap: 12,
   },
@@ -396,13 +458,13 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 8,
-    backgroundColor: "#eee",
+    backgroundColor: colors.backgroundSecondary,
   },
   projectCardPlaceholder: {
     width: 60,
     height: 60,
     borderRadius: 8,
-    backgroundColor: "#f0f0f0",
+    backgroundColor: isDark ? "#333" : "#f0f0f0",
     justifyContent: "center",
     alignItems: "center",
   },
@@ -412,31 +474,55 @@ const styles = StyleSheet.create({
   projectCardTitle: {
     fontSize: 15,
     fontWeight: "700",
-    color: Colors.light.text,
+    color: colors.text,
   },
   projectCardType: {
     fontSize: 9,
     fontWeight: "800",
-    color: Colors.light.primary,
-    backgroundColor: "#fff",
+    color: colors.primary,
+    backgroundColor: colors.background,
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
     borderWidth: 1,
-    borderColor: Colors.light.primary + "30",
+    borderColor: colors.primary + "30",
     overflow: "hidden",
   },
   projectCardMeta: {
     fontSize: 12,
-    color: "#666",
+    color: isDark ? "#aaa" : "#666",
     marginLeft: 4,
   },
   projectCardDate: {
     fontSize: 10,
-    color: "#999",
+    color: isDark ? "#888" : "#999",
   },
   footer: {
-    marginTop: 5,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    marginTop: 12,
+    paddingTop: 12,
+  },
+  actionsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  actionLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 15,
+  },
+  actionButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingVertical: 4,
+  },
+  actionText: {
+    fontSize: 13,
+    color: isDark ? "#aaa" : "#666",
+    fontWeight: "500",
   },
 });
 

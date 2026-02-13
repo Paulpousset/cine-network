@@ -1,7 +1,8 @@
+import DynamicLogo from "@/components/DynamicLogo";
 import FeatureDetailsModal from "@/components/FeatureDetailsModal";
 import { Hoverable } from "@/components/Hoverable";
-import Colors from "@/constants/Colors";
 import { appEvents, EVENTS } from "@/lib/events";
+import { useTheme } from "@/providers/ThemeProvider";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
@@ -9,13 +10,12 @@ import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   Dimensions,
-  Image,
   Linking,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
-  View,
+  View
 } from "react-native";
 import Animated, {
   FadeIn,
@@ -31,6 +31,8 @@ import Animated, {
 const { width } = Dimensions.get("window");
 
 export default function LandingPage() {
+  const { colors, isDark } = useTheme();
+  const styles = getStyles(colors, isDark);
   const router = useRouter();
   const floatingValue = useSharedValue(0);
   const [selectedFeature, setSelectedFeature] = useState<any>(null);
@@ -109,10 +111,9 @@ export default function LandingPage() {
         <View style={styles.bgDecorCircle2} />
 
         <Animated.View entering={FadeIn.duration(800)} style={styles.header}>
-          <Image
-            source={require("@/assets/images/logo.jpg")}
-            style={styles.logo}
-            resizeMode="contain"
+          <DynamicLogo
+            width={120}
+            height={60}
           />
           <View style={styles.headerButtons}>
             <Hoverable
@@ -130,14 +131,14 @@ export default function LandingPage() {
 
         <View style={styles.heroWrapper}>
           <LinearGradient
-            colors={["#6C5CE710", "#fff"]}
+            colors={[colors.primary + "10", colors.background]}
             style={styles.heroGradient}
           />
           <View style={styles.heroSection}>
             <Animated.View entering={FadeInDown.delay(200).duration(800)}>
               <Animated.Text style={[styles.heroTitle, animatedHeroStyle]}>
                 La plateforme ultime pour les{" "}
-                <Text style={{ color: Colors.light.primary }}>
+                <Text style={{ color: colors.primary }}>
                   professionnels ou passionnés
                 </Text>{" "}
                 du cinéma
@@ -216,7 +217,7 @@ export default function LandingPage() {
           style={styles.supportContainer}
         >
           <LinearGradient
-            colors={[Colors.light.primary, "#8E7CFE"]}
+            colors={[colors.primary, isDark ? "#4834d4" : "#8E7CFE"]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={StyleSheet.absoluteFill}
@@ -233,7 +234,7 @@ export default function LandingPage() {
           <Hoverable
             style={styles.supportButton}
             hoverStyle={{
-              backgroundColor: "#f3f0ff",
+              backgroundColor: isDark ? "#1f1f1f" : "#f3f0ff",
               transform: [{ scale: 1.02 }],
               shadowOpacity: 0.3,
             }}
@@ -242,9 +243,9 @@ export default function LandingPage() {
             <Ionicons
               name="help-circle-outline"
               size={24}
-              color={Colors.light.primary}
+              color={colors.primary}
             />
-            <Text style={styles.supportButtonText}>Contacter le support</Text>
+            <Text style={[styles.supportButtonText, { color: colors.primary }]}>Contacter le support</Text>
           </Hoverable>
         </Animated.View>
 
@@ -281,6 +282,8 @@ function FeatureCard({
   index,
   onPress,
 }: FeatureCardProps) {
+  const { colors } = useTheme();
+  const styles = getStyles(colors, false); // and we don't care about isDark for these specific styles if they don't use it
   return (
     <Hoverable
       onPress={onPress}
@@ -292,7 +295,7 @@ function FeatureCard({
         style={styles.featureCard}
       >
         <View style={styles.featureIconContainer}>
-          <Ionicons name={icon as any} size={32} color={Colors.light.primary} />
+          <Ionicons name={icon as any} size={32} color={colors.primary} />
         </View>
         <Text style={styles.featureTitle}>{title}</Text>
         <Text style={styles.featureDescription}>{description}</Text>
@@ -301,7 +304,7 @@ function FeatureCard({
           <Ionicons
             name="chevron-forward"
             size={16}
-            color={Colors.light.primary}
+            color={colors.primary}
           />
         </View>
       </Animated.View>
@@ -309,10 +312,10 @@ function FeatureCard({
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: colors.background,
   },
   contentContainer: {
     paddingBottom: 40,
@@ -324,7 +327,7 @@ const styles = StyleSheet.create({
     width: 300,
     height: 300,
     borderRadius: 150,
-    backgroundColor: "#6C5CE705",
+    backgroundColor: colors.primary + "05",
   },
   bgDecorCircle2: {
     position: "absolute",
@@ -333,7 +336,7 @@ const styles = StyleSheet.create({
     width: 400,
     height: 400,
     borderRadius: 200,
-    backgroundColor: "#6C5CE703",
+    backgroundColor: colors.primary + "03",
   },
   header: {
     flexDirection: "row",
@@ -356,10 +359,10 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: Colors.light.primary,
+    borderColor: colors.primary,
   },
   loginButtonText: {
-    color: Colors.light.primary,
+    color: colors.primary,
     fontWeight: "700",
   },
   heroWrapper: {
@@ -379,18 +382,18 @@ const styles = StyleSheet.create({
   statsContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#fff",
+    backgroundColor: colors.card,
     paddingHorizontal: 30,
     paddingVertical: 15,
     borderRadius: 20,
     marginBottom: 40,
-    shadowColor: "#000",
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
+    shadowOpacity: isDark ? 0.3 : 0.05,
     shadowRadius: 10,
     elevation: 2,
     borderWidth: 1,
-    borderColor: "#F3F4F6",
+    borderColor: colors.border,
   },
   statItem: {
     alignItems: "center",
@@ -399,22 +402,22 @@ const styles = StyleSheet.create({
   statNumber: {
     fontSize: 20,
     fontWeight: "800",
-    color: Colors.light.primary,
+    color: colors.primary,
   },
   statLabel: {
     fontSize: 12,
-    color: "#6B7280",
+    color: isDark ? "#aaa" : "#6B7280",
     fontWeight: "500",
   },
   statDivider: {
     width: 1,
     height: 30,
-    backgroundColor: "#F3F4F6",
+    backgroundColor: colors.border,
   },
   heroTitle: {
     fontSize: width > 768 ? 58 : 36,
     fontWeight: "900",
-    color: "#1a1a1a",
+    color: colors.text,
     marginBottom: 24,
     textAlign: "center",
     maxWidth: 900,
@@ -422,20 +425,20 @@ const styles = StyleSheet.create({
   },
   heroSubtitle: {
     fontSize: width > 768 ? 20 : 16,
-    color: "#4B5563",
+    color: isDark ? "#aaa" : "#4B5563",
     marginBottom: 40,
     textAlign: "center",
     maxWidth: 650,
     lineHeight: 28,
   },
   ctaButton: {
-    backgroundColor: Colors.light.primary,
+    backgroundColor: colors.primary,
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 36,
     paddingVertical: 18,
     borderRadius: 100,
-    shadowColor: Colors.light.primary,
+    shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.3,
     shadowRadius: 20,
@@ -457,13 +460,13 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 40,
     borderRadius: 32,
-    backgroundColor: "#fff",
+    backgroundColor: colors.card,
     borderWidth: 1,
-    borderColor: "#F3F4F6",
+    borderColor: colors.border,
     alignItems: "center",
-    shadowColor: "#000",
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.05,
+    shadowOpacity: isDark ? 0.3 : 0.05,
     shadowRadius: 15,
     elevation: 3,
   },
@@ -471,7 +474,7 @@ const styles = StyleSheet.create({
     width: 70,
     height: 70,
     borderRadius: 24,
-    backgroundColor: "#6C5CE710",
+    backgroundColor: colors.primary + "10",
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 20,
@@ -480,11 +483,11 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: "800",
     marginBottom: 16,
-    color: "#1F2937",
+    color: colors.text,
     textAlign: "center",
   },
   featureDescription: {
-    color: "#6B7280",
+    color: isDark ? "#aaa" : "#6B7280",
     fontSize: 16,
     lineHeight: 24,
     textAlign: "center",
@@ -496,7 +499,7 @@ const styles = StyleSheet.create({
     marginTop: "auto",
   },
   learnMoreText: {
-    color: Colors.light.primary,
+    color: colors.primary,
     fontWeight: "700",
     fontSize: 14,
     marginRight: 4,
@@ -508,7 +511,7 @@ const styles = StyleSheet.create({
     borderRadius: 40,
     alignItems: "center",
     overflow: "hidden",
-    shadowColor: Colors.light.primary,
+    shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 20 },
     shadowOpacity: 0.2,
     shadowRadius: 30,
@@ -538,7 +541,7 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   supportButtonText: {
-    color: Colors.light.primary,
+    color: colors.primary,
     fontWeight: "800",
     fontSize: 16,
     marginLeft: 10,
@@ -547,7 +550,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 60,
     borderTopWidth: 1,
-    borderTopColor: "#F3F4F6",
+    borderTopColor: colors.border,
     marginHorizontal: 40,
   },
   footerText: {
@@ -565,3 +568,4 @@ const styles = StyleSheet.create({
     textDecorationLine: "underline",
   },
 });
+

@@ -1,4 +1,4 @@
-import Colors from "@/constants/Colors";
+import { useTheme } from "@/providers/ThemeProvider";
 import { Ionicons } from "@expo/vector-icons";
 import { Stack, useRouter } from "expo-router";
 import React from "react";
@@ -13,6 +13,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function CharteConfidentialite() {
   const router = useRouter();
+  const { colors, isDark } = useTheme();
+  const styles = createStyles(colors, isDark);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -25,7 +27,7 @@ export default function CharteConfidentialite() {
               onPress={() => router.back()}
               style={{ marginLeft: 10 }}
             >
-              <Ionicons name="arrow-back" size={24} color={Colors.light.text} />
+              <Ionicons name="arrow-back" size={24} color={colors.text} />
             </TouchableOpacity>
           ),
         }}
@@ -221,10 +223,11 @@ export default function CharteConfidentialite() {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: any, isDark: boolean) {
+  return StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: colors.background,
   },
   container: {
     padding: 20,
@@ -233,19 +236,19 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: "bold",
     marginBottom: 20,
-    color: Colors.light.primary,
+    color: colors.primary,
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: "bold",
     marginTop: 20,
     marginBottom: 10,
-    color: "#333",
+    color: colors.text,
   },
   text: {
     fontSize: 16,
     lineHeight: 24,
-    color: "#444",
+    color: colors.text + "CC",
     marginBottom: 10,
   },
   list: {
@@ -255,7 +258,8 @@ const styles = StyleSheet.create({
   listItem: {
     fontSize: 16,
     lineHeight: 24,
-    color: "#444",
+    color: colors.text + "CC",
     marginBottom: 8,
   },
-});
+  });
+}

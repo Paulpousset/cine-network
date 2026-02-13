@@ -1,30 +1,30 @@
 import AddressAutocomplete from "@/app/components/AddressAutocomplete";
 import CityPicker from "@/app/components/CityPicker";
 import WebDatePicker from "@/components/WebDatePicker";
-import Colors from "@/constants/Colors";
 import { useUserMode } from "@/hooks/useUserMode";
 import { supabase } from "@/lib/supabase";
+import { useTheme } from "@/providers/ThemeProvider";
 import { getWeatherCodeInfo, WeatherService } from "@/services/WeatherService";
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import {
-    useGlobalSearchParams,
-    useLocalSearchParams,
-    useRouter,
+  useGlobalSearchParams,
+  useLocalSearchParams,
+  useRouter,
 } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    FlatList,
-    Modal,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  Modal,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 const DAY_TYPES = ["SHOOT", "SCOUT", "PREP", "OFF", "TRAVEL"];
@@ -39,39 +39,41 @@ const RISK_TAGS = [
   "HEIGHT",
 ];
 
-const Selector = ({
-  options,
-  value,
-  onChange,
-}: {
-  options: string[];
-  value: string;
-  onChange: (val: string) => void;
-}) => (
-  <View style={styles.selectorContainer}>
-    {options.map((opt) => (
-      <TouchableOpacity
-        key={opt}
-        style={[
-          styles.selectorOption,
-          value === opt && styles.selectorOptionSelected,
-        ]}
-        onPress={() => onChange(opt)}
-      >
-        <Text
-          style={[
-            styles.selectorText,
-            value === opt && styles.selectorTextSelected,
-          ]}
-        >
-          {opt}
-        </Text>
-      </TouchableOpacity>
-    ))}
-  </View>
-);
-
 export default function DayDetailScreen() {
+  const { colors, isDark } = useTheme();
+  const styles = createStyles(colors, isDark);
+
+  const Selector = ({
+    options,
+    value,
+    onChange,
+  }: {
+    options: string[];
+    value: string;
+    onChange: (val: string) => void;
+  }) => (
+    <View style={styles.selectorContainer}>
+      {options.map((opt) => (
+        <TouchableOpacity
+          key={opt}
+          style={[
+            styles.selectorOption,
+            value === opt && styles.selectorOptionSelected,
+          ]}
+          onPress={() => onChange(opt)}
+        >
+          <Text
+            style={[
+              styles.selectorText,
+              value === opt && styles.selectorTextSelected,
+            ]}
+          >
+            {opt}
+          </Text>
+        </TouchableOpacity>
+      ))}
+    </View>
+  );
   const local = useLocalSearchParams();
   const global = useGlobalSearchParams();
   const { mode } = useUserMode();
@@ -695,12 +697,12 @@ export default function DayDetailScreen() {
               <Ionicons
                 name="trash-outline"
                 size={24}
-                color={Colors.light.tint}
+                color={colors.tint}
               />
             </TouchableOpacity>
           )}
           <TouchableOpacity onPress={() => setEditing(!editing)}>
-            <Text style={{ color: Colors.light.tint, fontWeight: "600" }}>
+            <Text style={{ color: colors.tint, fontWeight: "600" }}>
               {editing ? "Annuler" : "Modifier"}
             </Text>
           </TouchableOpacity>
@@ -732,7 +734,7 @@ export default function DayDetailScreen() {
                   >
                     <Text
                       style={{
-                        color: formData.call_time ? Colors.light.text : "#999",
+                        color: formData.call_time ? colors.text : colors.textSecondary,
                       }}
                     >
                       {formData.call_time || "08:00"}
@@ -777,7 +779,7 @@ export default function DayDetailScreen() {
                   >
                     <Text
                       style={{
-                        color: formData.wrap_time ? Colors.light.text : "#999",
+                        color: formData.wrap_time ? colors.text : colors.textSecondary,
                       }}
                     >
                       {formData.wrap_time || "19:00"}
@@ -826,7 +828,7 @@ export default function DayDetailScreen() {
                   style={[
                     styles.badge,
                     {
-                      backgroundColor: "#e7f5ff",
+                      backgroundColor: isDark ? colors.tint + "20" : "#e7f5ff",
                       flexDirection: "row",
                       gap: 6,
                     },
@@ -837,9 +839,9 @@ export default function DayDetailScreen() {
                       getWeatherCodeInfo(dayWeather.weathercode).icon as any
                     }
                     size={16}
-                    color="#1c7ed6"
+                    color={isDark ? colors.tint : "#1c7ed6"}
                   />
-                  <Text style={[styles.badgeText, { color: "#1c7ed6" }]}>
+                  <Text style={[styles.badgeText, { color: isDark ? colors.tint : "#1c7ed6" }]}>
                     {Math.round(dayWeather.temperature_2m)}°C
                   </Text>
                 </View>
@@ -877,7 +879,7 @@ export default function DayDetailScreen() {
               <Ionicons
                 name="add-circle-outline"
                 size={24}
-                color={Colors.light.tint}
+                color={colors.tint}
               />
             </TouchableOpacity>
           </View>
@@ -896,7 +898,7 @@ export default function DayDetailScreen() {
                   <Text
                     style={{
                       fontWeight: "600",
-                      color: item.schedule_time ? "#000" : "#999",
+                      color: item.schedule_time ? colors.text : colors.textSecondary,
                       fontSize: 13,
                       marginRight: 8,
                     }}
@@ -907,18 +909,18 @@ export default function DayDetailScreen() {
                     {"   |   "}
                   </Text>
                   <Text
-                    style={{ fontWeight: "bold", color: Colors.light.tint }}
+                    style={{ fontWeight: "bold", color: colors.tint }}
                   >
                     SC. {item.scene?.scene_number}
                   </Text>
                   {item.scene?.title && (
-                    <Text style={{ fontWeight: "bold", color: "#000" }}>
+                    <Text style={{ fontWeight: "bold", color: colors.text }}>
                       {" - "}
                       {item.scene.title.toUpperCase()}
                     </Text>
                   )}
                 </Text>
-                <Text style={{ color: "#333", marginTop: 2 }}>
+                <Text style={{ color: colors.textSecondary, marginTop: 2 }}>
                   {item.scene?.int_ext} {item.scene?.slugline} -{" "}
                   {item.scene?.day_night}
                 </Text>
@@ -931,7 +933,7 @@ export default function DayDetailScreen() {
                           flexDirection: "row",
                           alignItems: "center",
                           gap: 4,
-                          backgroundColor: "#e7f5ff",
+                          backgroundColor: isDark ? colors.tint + "20" : "#e7f5ff",
                         },
                       ]}
                     >
@@ -941,13 +943,13 @@ export default function DayDetailScreen() {
                             .icon as any
                         }
                         size={12}
-                        color="#1c7ed6"
+                        color={isDark ? colors.tint : "#1c7ed6"}
                       />
                       <Text
                         style={{
                           fontSize: 10,
                           fontWeight: "bold",
-                          color: "#1c7ed6",
+                          color: isDark ? colors.tint : "#1c7ed6",
                         }}
                       >
                         {Math.round(weatherData[item.id].temperature_2m)}°C
@@ -1085,7 +1087,7 @@ export default function DayDetailScreen() {
                     }}
                   >
                     <View style={styles.infoRow}>
-                      <Ionicons name="location" size={18} color="#666" />
+                      <Ionicons name="location" size={18} color={colors.textSecondary} />
                       <Text style={styles.infoText}>
                         {loc.name || "Lieu non défini"}
                       </Text>
@@ -1100,14 +1102,14 @@ export default function DayDetailScreen() {
                 ))
               ) : (
                 <View style={styles.infoRow}>
-                  <Ionicons name="location" size={18} color="#666" />
+                  <Ionicons name="location" size={18} color={colors.textSecondary} />
                   <Text style={styles.infoText}>Lieu non défini</Text>
                 </View>
               )}
 
               {day.base_camp_location && (
                 <View style={styles.infoRow}>
-                  <Ionicons name="bus" size={18} color="#666" />
+                  <Ionicons name="bus" size={18} color={colors.textSecondary} />
                   <Text style={styles.infoText}>
                     Régie: {day.base_camp_location}
                   </Text>
@@ -1115,7 +1117,7 @@ export default function DayDetailScreen() {
               )}
               {day.parking_info && (
                 <View style={styles.noteBox}>
-                  <Text style={{ fontSize: 12 }}>PKG: {day.parking_info}</Text>
+                  <Text style={{ fontSize: 12, color: colors.text }}>PKG: {day.parking_info}</Text>
                 </View>
               )}
 
@@ -1153,7 +1155,7 @@ export default function DayDetailScreen() {
                   >
                     <Text
                       style={{
-                        color: formData.lunch_time ? Colors.light.text : "#999",
+                        color: formData.lunch_time ? colors.text : colors.textSecondary,
                       }}
                     >
                       {formData.lunch_time || "13:00"}
@@ -1207,7 +1209,7 @@ export default function DayDetailScreen() {
               <Text style={styles.infoText}>
                 🍽 {day.lunch_time || "--:--"}
               </Text>
-              <Text style={{ marginLeft: 10, flex: 1, color: "#666" }}>
+              <Text style={{ marginLeft: 10, flex: 1, color: colors.textSecondary }}>
                 {day.catering_info || "Pas d'infos"}
               </Text>
             </View>
@@ -1227,6 +1229,7 @@ export default function DayDetailScreen() {
                   setFormData({ ...formData, weather_summary: t })
                 }
                 placeholder="Soleil, 20°C"
+                placeholderTextColor={colors.textSecondary + "80"}
               />
 
               <Text style={styles.label}>Risques</Text>
@@ -1255,7 +1258,7 @@ export default function DayDetailScreen() {
           ) : (
             <>
               <View style={styles.infoRow}>
-                <Ionicons name="sunny" size={18} color="#666" />
+                <Ionicons name="sunny" size={18} color={colors.textSecondary} />
                 <Text style={styles.infoText}>
                   {day.weather_summary || "-"}
                 </Text>
@@ -1272,10 +1275,10 @@ export default function DayDetailScreen() {
                   {day.risks.map((t: string) => (
                     <View
                       key={t}
-                      style={[styles.smallChip, { backgroundColor: "#ffe3e3" }]}
+                      style={[styles.smallChip, { backgroundColor: isDark ? "#c92a2a40" : "#ffe3e3" }]}
                     >
                       <Text
-                        style={[styles.smallChipText, { color: "#c92a2a" }]}
+                        style={[styles.smallChipText, { color: isDark ? "#ffc9c9" : "#c92a2a" }]}
                       >
                         {t}
                       </Text>
@@ -1302,7 +1305,7 @@ export default function DayDetailScreen() {
             <TouchableOpacity
               style={[
                 styles.mainSaveButton,
-                { backgroundColor: "#fff0f6", marginTop: -10 },
+                { backgroundColor: isDark ? "#c92a2a30" : "#fff0f6", marginTop: -10 },
               ]}
               onPress={handleDeleteDay}
             >
@@ -1317,7 +1320,7 @@ export default function DayDetailScreen() {
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Convocations ({calls.length})</Text>
           <TouchableOpacity onPress={openCallModal}>
-            <Ionicons name="add-circle" size={24} color={Colors.light.tint} />
+            <Ionicons name="add-circle" size={24} color={colors.tint} />
           </TouchableOpacity>
         </View>
 
@@ -1340,7 +1343,7 @@ export default function DayDetailScreen() {
                   : day.call_time?.slice(0, 5) || "--:--"}
               </Text>
               <TouchableOpacity onPress={() => handleDeleteCall(call.id)}>
-                <Ionicons name="trash-outline" size={20} color="red" />
+                <Ionicons name="trash-outline" size={20} color={isDark ? "#ff5252" : "red"} />
               </TouchableOpacity>
             </View>
           </View>
@@ -1361,7 +1364,7 @@ export default function DayDetailScreen() {
             style={{
               flexDirection: "row",
               marginBottom: 20,
-              backgroundColor: "#f1f3f5",
+              backgroundColor: isDark ? colors.backgroundSecondary : "#f1f3f5",
               padding: 4,
               borderRadius: 8,
             }}
@@ -1372,7 +1375,7 @@ export default function DayDetailScreen() {
                 padding: 8,
                 alignItems: "center",
                 backgroundColor:
-                  callMode === "individual" ? "white" : "transparent",
+                  callMode === "individual" ? (isDark ? colors.card : "white") : "transparent",
                 borderRadius: 6,
               }}
               onPress={() => setCallMode("individual")}
@@ -1380,6 +1383,7 @@ export default function DayDetailScreen() {
               <Text
                 style={{
                   fontWeight: callMode === "individual" ? "bold" : "normal",
+                  color: colors.text,
                 }}
               >
                 Par Personne
@@ -1391,7 +1395,7 @@ export default function DayDetailScreen() {
                 padding: 8,
                 alignItems: "center",
                 backgroundColor:
-                  callMode === "category" ? "white" : "transparent",
+                  callMode === "category" ? (isDark ? colors.card : "white") : "transparent",
                 borderRadius: 6,
               }}
               onPress={() => setCallMode("category")}
@@ -1399,6 +1403,7 @@ export default function DayDetailScreen() {
               <Text
                 style={{
                   fontWeight: callMode === "category" ? "bold" : "normal",
+                  color: colors.text,
                 }}
               >
                 Par Catégorie
@@ -1421,8 +1426,8 @@ export default function DayDetailScreen() {
                     ]}
                     onPress={() => setSelectedRole(item.id)}
                   >
-                    <Text style={{ fontWeight: "bold" }}>{item.title}</Text>
-                    <Text>{item.assigned_profile?.full_name || "Vacant"}</Text>
+                    <Text style={{ fontWeight: "bold", color: colors.text }}>{item.title}</Text>
+                    <Text style={{ color: colors.textSecondary }}>{item.assigned_profile?.full_name || "Vacant"}</Text>
                   </TouchableOpacity>
                 )}
               />
@@ -1442,7 +1447,7 @@ export default function DayDetailScreen() {
                     ]}
                     onPress={() => setSelectedCategory(item as string)}
                   >
-                    <Text style={{ fontWeight: "bold" }}>{item as string}</Text>
+                    <Text style={{ fontWeight: "bold", color: colors.text }}>{item as string}</Text>
                   </TouchableOpacity>
                 )}
               />
@@ -1455,11 +1460,12 @@ export default function DayDetailScreen() {
             value={individualCallTime}
             onChangeText={setIndividualCallTime}
             placeholder="08:00 (laisser vide pour heure générale)"
+            placeholderTextColor={colors.textSecondary + "80"}
           />
 
           <View style={{ flexDirection: "row", gap: 10, marginTop: 20 }}>
             <TouchableOpacity
-              style={[styles.saveButton, { flex: 1, backgroundColor: "#ccc" }]}
+              style={[styles.saveButton, { flex: 1, backgroundColor: isDark ? colors.backgroundSecondary : "#ccc" }]}
               onPress={() => setCallModalVisible(false)}
             >
               <Text style={styles.saveButtonText}>Annuler</Text>
@@ -1495,13 +1501,13 @@ export default function DayDetailScreen() {
                 style={styles.sceneOption}
                 onPress={() => handleLinkScene(item.id)}
               >
-                <Text style={{ fontWeight: "bold", marginRight: 10 }}>
+                <Text style={{ fontWeight: "bold", marginRight: 10, color: colors.text }}>
                   {item.scene_number}
                 </Text>
-                <Text style={{ flex: 1 }} numberOfLines={1}>
+                <Text style={{ flex: 1, color: colors.text }} numberOfLines={1}>
                   {item.slugline}
                 </Text>
-                <Text style={{ fontSize: 12, color: "#999" }}>
+                <Text style={{ fontSize: 12, color: colors.textSecondary }}>
                   {item.script_pages}p
                 </Text>
               </TouchableOpacity>
@@ -1510,7 +1516,7 @@ export default function DayDetailScreen() {
           <TouchableOpacity
             style={[
               styles.saveButton,
-              { backgroundColor: "#ccc", marginTop: 20 },
+              { backgroundColor: isDark ? colors.backgroundSecondary : "#ccc", marginTop: 20 },
             ]}
             onPress={() => setSceneModalVisible(false)}
           >
@@ -1522,244 +1528,247 @@ export default function DayDetailScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f8f9fa" },
-  header: {
-    paddingTop: 60,
-    paddingBottom: 20,
-    paddingHorizontal: 20,
-    backgroundColor: "white",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    borderBottomWidth: 1,
-    borderBottomColor: "#eee",
-  },
-  headerTitle: { fontSize: 18, fontWeight: "bold" },
-  card: {
-    backgroundColor: "white",
-    padding: 15,
-    borderRadius: 12,
-    marginBottom: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  cardTitle: {
-    fontSize: 16,
-    fontWeight: "bold",
-    marginBottom: 15,
-    color: "#495057",
-    borderBottomWidth: 1,
-    borderBottomColor: "#f1f3f5",
-    paddingBottom: 8,
-  },
-  infoRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    marginBottom: 8,
-  },
-  infoText: {
-    fontSize: 15,
-    color: "#333",
-  },
-  subInfo: {
-    fontSize: 13,
-    color: "#666",
-    marginLeft: 28,
-    marginBottom: 8,
-  },
-  noteBox: {
-    backgroundColor: "#f8f9fa",
-    padding: 10,
-    borderRadius: 8,
-    marginTop: 5,
-    borderLeftWidth: 3,
-    borderLeftColor: Colors.light.tint,
-  },
-  sectionHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 10,
-    marginTop: 10,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "#666",
-  },
-  callItem: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    backgroundColor: "white",
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 8,
-  },
-  roleTitle: { fontWeight: "bold", fontSize: 14 },
-  personName: { fontSize: 13, color: "#666" },
-  timeBadge: {
-    backgroundColor: "#e7f5ff",
-    color: "#1c7ed6",
-    fontWeight: "bold",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
-    overflow: "hidden",
-  },
-  // Form
-  label: {
-    fontSize: 13,
-    fontWeight: "600",
-    marginBottom: 5,
-    color: "#666",
-    marginTop: 10,
-  },
-  input: {
-    backgroundColor: "#f1f3f5",
-    padding: 10,
-    borderRadius: 8,
-    marginBottom: 5,
-  },
-  textArea: { height: 80, textAlignVertical: "top" },
-  saveButton: {
-    backgroundColor: Colors.light.tint,
-    padding: 12,
-    borderRadius: 8,
-    alignItems: "center",
-  },
-  saveButtonText: { color: "white", fontWeight: "bold" },
-  mainSaveButton: {
-    backgroundColor: Colors.light.tint,
-    padding: 16,
-    borderRadius: 8,
-    alignItems: "center",
-    marginBottom: 20,
-  },
-  mainSaveButtonText: { color: "white", fontWeight: "bold", fontSize: 16 },
+const createStyles = (colors: any, isDark: boolean) =>
+  StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.background },
+    header: {
+      paddingTop: 60,
+      paddingBottom: 20,
+      paddingHorizontal: 20,
+      backgroundColor: colors.card,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    headerTitle: { fontSize: 18, fontWeight: "bold", color: colors.text },
+    card: {
+      backgroundColor: colors.card,
+      padding: 15,
+      borderRadius: 12,
+      marginBottom: 20,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: isDark ? 0.3 : 0.05,
+      shadowRadius: 2,
+      elevation: 2,
+    },
+    cardTitle: {
+      fontSize: 16,
+      fontWeight: "bold",
+      marginBottom: 15,
+      color: colors.textSecondary,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+      paddingBottom: 8,
+    },
+    infoRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+      marginBottom: 8,
+    },
+    infoText: {
+      fontSize: 15,
+      color: colors.text,
+    },
+    subInfo: {
+      fontSize: 13,
+      color: colors.textSecondary,
+      marginLeft: 28,
+      marginBottom: 8,
+    },
+    noteBox: {
+      backgroundColor: isDark ? colors.backgroundSecondary : "#f8f9fa",
+      padding: 10,
+      borderRadius: 8,
+      marginTop: 5,
+      borderLeftWidth: 3,
+      borderLeftColor: colors.tint,
+    },
+    sectionHeader: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginBottom: 10,
+      marginTop: 10,
+    },
+    sectionTitle: {
+      fontSize: 16,
+      fontWeight: "bold",
+      color: colors.textSecondary,
+    },
+    callItem: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      backgroundColor: colors.card,
+      padding: 12,
+      borderRadius: 8,
+      marginBottom: 8,
+    },
+    roleTitle: { fontWeight: "bold", fontSize: 14, color: colors.text },
+    personName: { fontSize: 13, color: colors.textSecondary },
+    timeBadge: {
+      backgroundColor: isDark ? colors.tint + "20" : "#e7f5ff",
+      color: isDark ? colors.tint : "#1c7ed6",
+      fontWeight: "bold",
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 4,
+      overflow: "hidden",
+    },
+    // Form
+    label: {
+      fontSize: 13,
+      fontWeight: "600",
+      marginBottom: 5,
+      color: colors.textSecondary,
+      marginTop: 10,
+    },
+    input: {
+      backgroundColor: isDark ? colors.backgroundSecondary : "#f1f3f5",
+      padding: 10,
+      borderRadius: 8,
+      marginBottom: 5,
+      color: colors.text,
+    },
+    textArea: { height: 80, textAlignVertical: "top" },
+    saveButton: {
+      backgroundColor: colors.tint,
+      padding: 12,
+      borderRadius: 8,
+      alignItems: "center",
+    },
+    saveButtonText: { color: "#fff", fontWeight: "bold" },
+    mainSaveButton: {
+      backgroundColor: colors.tint,
+      padding: 16,
+      borderRadius: 8,
+      alignItems: "center",
+      marginBottom: 20,
+    },
+    mainSaveButtonText: { color: "#fff", fontWeight: "bold", fontSize: 16 },
 
-  // Modal
-  modalContent: { flex: 1, padding: 20, paddingTop: 50 },
-  modalTitle: { fontSize: 20, fontWeight: "bold", marginBottom: 20 },
-  roleOption: {
-    padding: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#eee",
-  },
-  selectedRoleOption: {
-    backgroundColor: "#e7f5ff",
-  },
-  rowInputs: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  readOnlyRow: { flexDirection: "row", alignItems: "center", marginBottom: 5 },
-  badge: {
-    backgroundColor: "#e9ecef",
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 4,
-    marginRight: 8,
-  },
-  badgeText: { fontSize: 12, fontWeight: "bold", color: "#495057" },
+    // Modal
+    modalContent: { flex: 1, padding: 20, paddingTop: 50, backgroundColor: colors.background },
+    modalTitle: { fontSize: 20, fontWeight: "bold", marginBottom: 20, color: colors.text },
+    roleOption: {
+      padding: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    selectedRoleOption: {
+      backgroundColor: isDark ? colors.tint + "20" : "#e7f5ff",
+    },
+    rowInputs: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+    },
+    readOnlyRow: { flexDirection: "row", alignItems: "center", marginBottom: 5 },
+    badge: {
+      backgroundColor: isDark ? colors.card : "#e9ecef",
+      paddingHorizontal: 8,
+      paddingVertical: 2,
+      borderRadius: 4,
+      marginRight: 8,
+    },
+    badgeText: { fontSize: 12, fontWeight: "bold", color: colors.textSecondary },
 
-  // Tag chips
-  tagContainer: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-    marginTop: 5,
-  },
-  chip: {
-    backgroundColor: "#f1f3f5",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "transparent",
-  },
-  chipSelected: {
-    backgroundColor: "#dbe4ff",
-    borderColor: "#4c6ef5",
-  },
-  chipText: {
-    fontSize: 12,
-    color: "#495057",
-  },
-  chipTextSelected: {
-    color: "#364fc7",
-    fontWeight: "600",
-  },
-  smallChip: {
-    backgroundColor: "#e9ecef",
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  smallChipText: { fontSize: 10, color: "#495057" },
+    // Tag chips
+    tagContainer: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: 8,
+      marginTop: 5,
+    },
+    chip: {
+      backgroundColor: isDark ? colors.backgroundSecondary : "#f1f3f5",
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: "transparent",
+    },
+    chipSelected: {
+      backgroundColor: isDark ? colors.tint + "20" : "#dbe4ff",
+      borderColor: colors.tint,
+    },
+    chipText: {
+      fontSize: 12,
+      color: colors.textSecondary,
+    },
+    chipTextSelected: {
+      color: colors.tint,
+      fontWeight: "600",
+    },
+    smallChip: {
+      backgroundColor: isDark ? colors.backgroundSecondary : "#e9ecef",
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+      borderRadius: 4,
+    },
+    smallChipText: { fontSize: 10, color: colors.textSecondary },
 
-  // Scene items
-  sceneItem: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f1f3f5",
-  },
-  sceneTitle: { fontSize: 14, color: "#333" },
-  miniTag: {
-    fontSize: 10,
-    color: "#868e96",
-    backgroundColor: "#f8f9fa",
-    paddingHorizontal: 4,
-    borderRadius: 2,
-  },
-  statsRow: { flexDirection: "row", gap: 15, marginBottom: 10 },
-  statText: { fontSize: 12, color: "#adb5bd", fontWeight: "600" },
-  sceneOption: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: "#eee",
-  },
+    // Scene items
+    sceneItem: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      paddingVertical: 10,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    sceneTitle: { fontSize: 14, color: colors.text },
+    miniTag: {
+      fontSize: 10,
+      color: colors.textSecondary,
+      backgroundColor: isDark ? colors.background : "#f8f9fa",
+      paddingHorizontal: 4,
+      borderRadius: 2,
+    },
+    statsRow: { flexDirection: "row", gap: 15, marginBottom: 10 },
+    statText: { fontSize: 12, color: colors.textSecondary, fontWeight: "600", opacity: 0.6 },
+    sceneOption: {
+      flexDirection: "row",
+      alignItems: "center",
+      padding: 15,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
 
-  // Selector Styles
-  selectorContainer: {
-    flexDirection: "row",
-    backgroundColor: "#f1f3f5",
-    borderRadius: 8,
-    padding: 4,
-    marginBottom: 10,
-  },
-  selectorOption: {
-    flex: 1,
-    paddingVertical: 8,
-    alignItems: "center",
-    borderRadius: 6,
-  },
-  selectorOptionSelected: {
-    backgroundColor: "white",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 1,
-    elevation: 1,
-  },
-  selectorText: {
-    fontSize: 13,
-    color: "#868e96",
-    fontWeight: "500",
-  },
-  selectorTextSelected: {
-    color: Colors.light.tint,
-    fontWeight: "600",
-  },
-});
+    // Selector Styles
+    selectorContainer: {
+      flexDirection: "row",
+      backgroundColor: isDark ? colors.backgroundSecondary : "#f1f3f5",
+      borderRadius: 8,
+      padding: 4,
+      marginBottom: 10,
+    },
+    selectorOption: {
+      flex: 1,
+      paddingVertical: 8,
+      alignItems: "center",
+      borderRadius: 6,
+    },
+    selectorOptionSelected: {
+      backgroundColor: colors.card,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.1,
+      shadowRadius: 1,
+      elevation: 1,
+    },
+    selectorText: {
+      fontSize: 13,
+      color: colors.textSecondary,
+      fontWeight: "500",
+    },
+    selectorTextSelected: {
+      color: colors.tint,
+      fontWeight: "600",
+    },
+  });
+

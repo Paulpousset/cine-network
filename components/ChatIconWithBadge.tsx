@@ -1,15 +1,31 @@
 import Colors from "@/constants/Colors";
 import { appEvents, EVENTS } from "@/lib/events";
 import { supabase } from "@/lib/supabase";
+import { useUser } from "@/providers/UserProvider";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { Link } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { useColorScheme, View } from "react-native";
 import { Hoverable } from "./Hoverable";
 
 export default function ChatIconWithBadge() {
   const colorScheme = useColorScheme();
+  const { user } = useUser();
   const [unreadCount, setUnreadCount] = useState(0);
+
+  const fetchUnreadCount = useCallback(async () => {
+    if (!user) return;
+
+    const { count, error } = await supabase
+      .from("direct_messages")
+      .select("*", { count: "exact", head: true })
+      .eq("receiver_id", user.id)
+      .eq("is_read", false);
+
+    if (!error) {
+      setUnreadCount(count || 0);
+    }
+  }, [user]);
 
   useEffect(() => {
     fetchUnreadCount();
@@ -26,24 +42,7 @@ export default function ChatIconWithBadge() {
       unsubscribeNew();
       unsubscribeRead();
     };
-  }, []);
-
-  async function fetchUnreadCount() {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    if (!session) return;
-
-    const { count, error } = await supabase
-      .from("direct_messages")
-      .select("*", { count: "exact", head: true })
-      .eq("receiver_id", session.user.id)
-      .eq("is_read", false);
-
-    if (!error) {
-      setUnreadCount(count || 0);
-    }
-  }
+  }, [fetchUnreadCount]);
 
   return (
     <Link href="/direct-messages" asChild>

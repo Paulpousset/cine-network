@@ -1,56 +1,38 @@
 import { appEvents, EVENTS } from "@/lib/events";
 import { supabase } from "@/lib/supabase";
+import { useUser } from "@/providers/UserProvider";
 import { NotificationService } from "@/services/NotificationService";
 import { fuzzySearch } from "@/utils/search";
-import { useCallback, useEffect, useState } from "react";
-import { Alert } from "react-native";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Alert, AppState } from "react-native";
 
 export function useTalents() {
+  const { user, profile: currentUserProfile } = useUser();
   const [allProfiles, setAllProfiles] = useState<any[]>([]);
   const [profiles, setProfiles] = useState<any[]>([]);
   const [suggestedProfiles, setSuggestedProfiles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingSuggestions, setLoadingSuggestions] = useState(true);
   const [pendingCount, setPendingCount] = useState(0);
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const [currentUserProfile, setCurrentUserProfile] = useState<any>(null);
   const [availableCities, setAvailableCities] = useState<string[]>([]);
+  const isFetchingRef = useRef(false);
 
   // Filters State
   const [selectedRole, setSelectedRole] = useState<string>("all");
   const [selectedCity, setSelectedCity] = useState<string>("all");
   const [query, setQuery] = useState<string>("");
 
-  const fetchCurrentUserId = useCallback(async () => {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    if (session) {
-      setCurrentUserId(session.user.id);
-      fetchSuggestions(session.user.id);
-
-      // Fetch profile for notification sender name
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("full_name, username")
-        .eq("id", session.user.id)
-        .maybeSingle();
-      if (profile) setCurrentUserProfile(profile);
-    }
-  }, []);
+  const currentUserId = user?.id || null;
 
   const fetchPendingCount = useCallback(async () => {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    if (!session) return;
+    if (!currentUserId) return;
     const { count } = await supabase
       .from("connections")
       .select("*", { count: "exact", head: true })
-      .eq("receiver_id", session.user.id)
+      .eq("receiver_id", currentUserId)
       .eq("status", "pending");
     setPendingCount(count || 0);
-  }, []);
+  }, [currentUserId]);
 
   const fetchSuggestions = async (uid: string) => {
     try {
@@ -136,26 +118,27 @@ export function useTalents() {
   };
 
   const fetchProfiles = useCallback(async () => {
+    if (isFetchingRef.current) return;
     try {
-      setLoading(true);
-
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+      isFetchingRef.current = true;
+      if (allProfiles.length === 0) {
+        setLoading(true);
+      }
+      console.log("[useTalents] Start fetching profiles");
 
       let q = supabase.from("profiles").select("*");
 
-      if (session) {
+      if (currentUserId) {
         const { data: blocks } = await supabase
           .from("user_blocks")
           .select("blocker_id, blocked_id")
           .or(
-            `blocker_id.eq.${session.user.id},blocked_id.eq.${session.user.id}`,
+            `blocker_id.eq.${currentUserId},blocked_id.eq.${currentUserId}`,
           );
 
         const blockedIds =
           blocks?.map((b: any) =>
-            b.blocker_id === session.user.id ? b.blocked_id : b.blocker_id,
+            b.blocker_id === currentUserId ? b.blocked_id : b.blocker_id,
           ) || [];
         if (blockedIds.length > 0) {
           q = q.not("id", "in", `(${blockedIds.join(",")})`);
@@ -177,9 +160,11 @@ export function useTalents() {
     } catch (error) {
       Alert.alert("Erreur", (error as Error).message);
     } finally {
+      isFetchingRef.current = false;
       setLoading(false);
+      console.log("[useTalents] Fetching profiles finished");
     }
-  }, [selectedRole, selectedCity]);
+  }, [selectedRole, selectedCity, currentUserId]);
 
   const sendConnectionRequest = async (targetId: string) => {
     try {
@@ -210,6 +195,13 @@ export function useTalents() {
   };
 
   useEffect(() => {
+    if (currentUserId) {
+      fetchSuggestions(currentUserId);
+      fetchPendingCount();
+    }
+  }, [currentUserId, fetchPendingCount]);
+
+  useEffect(() => {
     fetchProfiles();
     fetchCities();
 
@@ -221,11 +213,27 @@ export function useTalents() {
     const unsubBlock = appEvents.on(EVENTS.USER_BLOCKED, () => {
       fetchProfiles();
     });
+    const unsubConnection = appEvents.on(EVENTS.CONNECTIONS_UPDATED, () => {
+      fetchPendingCount();
+    });
     return () => {
       unsubTutorial();
       unsubBlock();
+      unsubConnection();
     };
-  }, [fetchProfiles, currentUserId]);
+  }, [fetchProfiles, currentUserId, fetchPendingCount]);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (nextAppState) => {
+      if (nextAppState === "active") {
+        fetchProfiles();
+        fetchCities();
+        fetchPendingCount();
+        if (currentUserId) fetchSuggestions(currentUserId);
+      }
+    });
+    return () => subscription.remove();
+  }, [fetchProfiles, currentUserId, fetchPendingCount]);
 
   useEffect(() => {
     const normalizedQuery = query.trim();
@@ -255,7 +263,6 @@ export function useTalents() {
     setSelectedCity,
     query,
     setQuery,
-    fetchCurrentUserId,
     fetchPendingCount,
     sendConnectionRequest,
     refreshProfiles: fetchProfiles,

@@ -1,7 +1,7 @@
 import ClapLoading from "@/components/ClapLoading";
 import RoleFormFields from "@/components/RoleFormFields";
-import Colors from "@/constants/Colors";
 import { useUserMode } from "@/hooks/useUserMode";
+import { useTheme } from "@/providers/ThemeProvider";
 import { JOB_TITLES } from "@/utils/roles";
 import { fuzzySearch } from "@/utils/search";
 import { Ionicons } from "@expo/vector-icons";
@@ -9,7 +9,6 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
   Alert,
-  Button,
   FlatList,
   Modal,
   Platform,
@@ -17,7 +16,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  View,
+  View
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { supabase } from "../../../lib/supabase";
@@ -75,6 +74,33 @@ export default function ProjectSetupWizard() {
   const { id } = params;
   const router = useRouter();
   const { mode } = useUserMode();
+  const { colors, isDark } = useTheme();
+  const styles = createStyles(colors, isDark);
+
+  const getCategoryColor = (category: string) => {
+    switch (category?.toLowerCase()) {
+      case "acteur":
+        return "#E91E63";
+      case "realisateur":
+        return "#9C27B0";
+      case "image":
+        return "#2196F3";
+      case "son":
+        return "#4CAF50";
+      case "production":
+        return "#FF9800";
+      case "hmc":
+        return "#FF4081";
+      case "deco":
+        return "#795548";
+      case "post_prod":
+        return "#607D8B";
+      case "technicien":
+        return "#9E9E9E";
+      default:
+        return colors.primary;
+    }
+  };
 
   const [project, setProject] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -371,11 +397,11 @@ export default function ProjectSetupWizard() {
   }
 
   if (loading)
-    return <ClapLoading style={{ marginTop: 50 }} color="#841584" size={30} />;
+    return <ClapLoading style={{ marginTop: 50 }} color={colors.primary} size={30} />;
 
   return (
     <SafeAreaView
-      style={{ flex: 1, backgroundColor: Colors.light.backgroundSecondary }}
+      style={{ flex: 1, backgroundColor: colors.backgroundSecondary }}
       edges={["top"]}
     >
       <View style={styles.container}>
@@ -387,7 +413,7 @@ export default function ProjectSetupWizard() {
                 width: 40,
                 height: 40,
                 borderRadius: 20,
-                backgroundColor: "#fff",
+                backgroundColor: colors.card,
                 justifyContent: "center",
                 alignItems: "center",
                 marginBottom: 15,
@@ -398,7 +424,7 @@ export default function ProjectSetupWizard() {
                 elevation: 3,
               }}
             >
-              <Ionicons name="arrow-back" size={24} color={Colors.light.text} />
+              <Ionicons name="arrow-back" size={24} color={colors.text} />
             </TouchableOpacity>
           )}
           <Text style={styles.title}>Préparer le tournage</Text>
@@ -411,7 +437,7 @@ export default function ProjectSetupWizard() {
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Définir les rôles</Text>
           <TouchableOpacity onPress={addDraftRole}>
-            <Text style={{ color: "#841584", fontWeight: "bold" }}>
+            <Text style={{ color: colors.primary, fontWeight: "bold" }}>
               + Ajouter un rôle
             </Text>
           </TouchableOpacity>
@@ -717,12 +743,15 @@ export default function ProjectSetupWizard() {
         />
 
         <View style={styles.footer}>
-          <Button
-            title={saving ? "Enregistrement..." : "Enregistrer ces rôles"}
+          <TouchableOpacity
+            style={[styles.saveButton, saving && { opacity: 0.7 }]}
             onPress={saveAll}
-            color="#841584"
             disabled={saving}
-          />
+          >
+            <Text style={styles.saveButtonText}>
+              {saving ? "Enregistrement..." : "Enregistrer ces rôles"}
+            </Text>
+          </TouchableOpacity>
         </View>
         <Modal
           visible={!!pickerOpen}
@@ -735,12 +764,13 @@ export default function ProjectSetupWizard() {
               <Text style={styles.modalTitle}>Rechercher un profil</Text>
               <TextInput
                 placeholder="Nom / ville / pseudo"
+                placeholderTextColor={colors.text + "80"}
                 value={query}
                 onChangeText={searchProfiles}
                 style={styles.input}
               />
               {searching ? (
-                <ClapLoading color="#841584" size={30} />
+                <ClapLoading color={colors.primary} size={30} />
               ) : (
                 <FlatList
                   data={results}
@@ -764,7 +794,7 @@ export default function ProjectSetupWizard() {
                       style={styles.profileRow}
                     >
                       <View>
-                        <Text style={{ fontWeight: "600", fontSize: 16 }}>
+                        <Text style={{ fontWeight: "600", fontSize: 16, color: colors.text }}>
                           {item.full_name || item.username || "Profil"}
                         </Text>
                         <View
@@ -778,7 +808,7 @@ export default function ProjectSetupWizard() {
                             <Text
                               style={{
                                 fontSize: 12,
-                                color: "#841584",
+                                color: colors.primary,
                                 fontWeight: "600",
                               }}
                             >
@@ -786,7 +816,7 @@ export default function ProjectSetupWizard() {
                             </Text>
                           )}
                           {item.ville ? (
-                            <Text style={{ fontSize: 12, color: "#666" }}>
+                            <Text style={{ fontSize: 12, color: colors.text + "80" }}>
                               {item.role ? `• ${item.ville}` : item.ville}
                             </Text>
                           ) : null}
@@ -795,7 +825,7 @@ export default function ProjectSetupWizard() {
                     </TouchableOpacity>
                   )}
                   ListEmptyComponent={
-                    <Text style={{ textAlign: "center", color: "#999" }}>
+                    <Text style={{ textAlign: "center", color: colors.text + "80" }}>
                       Aucun résultat
                     </Text>
                   }
@@ -804,15 +834,19 @@ export default function ProjectSetupWizard() {
               <View
                 style={{
                   flexDirection: "row",
-                  justifyContent: "space-between",
+                  justifyContent: "center",
                   marginTop: 10,
                 }}
               >
-                <Button
-                  title="Fermer"
-                  color="#999"
+                <TouchableOpacity
                   onPress={() => setPickerOpen(null)}
-                />
+                  style={{
+                    paddingVertical: 10,
+                    paddingHorizontal: 20,
+                  }}
+                >
+                  <Text style={{ color: colors.text + "80", fontWeight: "600" }}>Fermer</Text>
+                </TouchableOpacity>
               </View>
             </View>
           </View>
@@ -822,34 +856,34 @@ export default function ProjectSetupWizard() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.light.backgroundSecondary },
+const createStyles = (colors: any, isDark: boolean) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.backgroundSecondary },
   header: {
     padding: 20,
-    backgroundColor: Colors.light.background,
+    backgroundColor: colors.background,
     borderBottomWidth: 1,
-    borderColor: Colors.light.border,
+    borderColor: colors.border,
   },
-  title: { fontSize: 22, fontWeight: "bold", color: Colors.light.text },
-  subtitle: { color: "#666", marginTop: 4 },
+  title: { fontSize: 22, fontWeight: "bold", color: colors.text },
+  subtitle: { color: colors.text + "80", marginTop: 4 },
   sectionHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     padding: 15,
   },
-  sectionTitle: { fontSize: 18, fontWeight: "bold", color: Colors.light.text },
+  sectionTitle: { fontSize: 18, fontWeight: "bold", color: colors.text },
   roleCard: {
-    backgroundColor: "white",
+    backgroundColor: colors.card,
     borderRadius: 12,
     padding: 12,
     marginBottom: 12,
-    shadowColor: Colors.light.shadow,
+    shadowColor: "#000",
     shadowOpacity: 0.05,
     shadowRadius: 3,
     elevation: 2,
     borderWidth: 1,
-    borderColor: Colors.light.border,
+    borderColor: colors.border,
   },
   rowWrap: {
     flexDirection: "row",
@@ -859,41 +893,41 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   catChip: {
-    borderColor: Colors.light.primary,
+    borderColor: colors.border,
     borderWidth: 1,
     paddingVertical: 6,
     paddingHorizontal: 10,
     borderRadius: 16,
   },
-  catChipSelected: { backgroundColor: Colors.light.primary },
+  catChipSelected: { backgroundColor: colors.primary, borderColor: colors.primary },
   jobChip: {
-    backgroundColor: Colors.light.backgroundSecondary,
+    backgroundColor: colors.backgroundSecondary,
     paddingVertical: 6,
     paddingHorizontal: 10,
     borderRadius: 15,
     borderWidth: 1,
-    borderColor: Colors.light.border,
+    borderColor: colors.border,
   },
   jobChipSelected: {
-    backgroundColor: Colors.light.text,
-    borderColor: Colors.light.text,
+    backgroundColor: colors.text,
+    borderColor: colors.text,
   },
-  roleHeader: { fontSize: 12, color: "#999", marginBottom: 8 },
+  roleHeader: { fontSize: 12, color: colors.text + "80", marginBottom: 8 },
   label: {
     fontSize: 14,
     fontWeight: "600",
     marginBottom: 6,
-    color: Colors.light.text,
+    color: colors.text,
     textAlign: "center",
   },
   input: {
     borderWidth: 1,
-    borderColor: Colors.light.border,
+    borderColor: colors.border,
     borderRadius: 8,
     padding: 10,
     marginBottom: 10,
-    backgroundColor: Colors.light.backgroundSecondary,
-    color: Colors.light.text,
+    backgroundColor: colors.backgroundSecondary,
+    color: colors.text,
   },
   assigneeRow: {
     flexDirection: "row",
@@ -901,12 +935,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     padding: 10,
     borderWidth: 1,
-    borderColor: Colors.light.border,
+    borderColor: colors.border,
     borderRadius: 8,
-    backgroundColor: Colors.light.background,
+    backgroundColor: colors.background,
   },
   assignBtn: {
-    backgroundColor: Colors.light.primary,
+    backgroundColor: colors.primary,
     padding: 10,
     alignItems: "center",
     borderRadius: 8,
@@ -916,12 +950,22 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: Colors.light.background,
+    backgroundColor: colors.background,
     padding: 10,
     borderTopWidth: 1,
-    borderColor: Colors.light.border,
+    borderColor: colors.border,
   },
-
+  saveButton: {
+    backgroundColor: colors.primary,
+    padding: 15,
+    borderRadius: 12,
+    alignItems: "center",
+  },
+  saveButtonText: {
+    color: "white",
+    fontWeight: "bold",
+    fontSize: 16,
+  },
   modalOverlay: {
     flex: 1,
     justifyContent: "center",
@@ -929,20 +973,21 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   modalContent: {
-    backgroundColor: Colors.light.background,
+    backgroundColor: colors.background,
     borderRadius: 15,
     padding: 20,
+    maxHeight: "80%",
   },
   modalTitle: {
     fontSize: 18,
     fontWeight: "bold",
     textAlign: "center",
-    marginBottom: 10,
-    color: Colors.light.text,
+    marginBottom: 15,
+    color: colors.text,
   },
   profileRow: {
-    paddingVertical: 10,
+    paddingVertical: 12,
     borderBottomWidth: 1,
-    borderColor: Colors.light.border,
+    borderColor: colors.border,
   },
 });

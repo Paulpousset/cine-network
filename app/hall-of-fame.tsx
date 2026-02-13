@@ -1,28 +1,28 @@
 import ClapLoading from "@/components/ClapLoading";
 import HallOfFameCard from "@/components/HallOfFameCard";
-import Colors from "@/constants/Colors";
-import { GlobalStyles } from "@/constants/Styles";
 import { HallOfFameProject, useHallOfFame } from "@/hooks/useHallOfFame";
+import { useThemedStyles } from "@/hooks/useThemedStyles";
 import { supabase } from "@/lib/supabase";
+import { useTheme } from "@/providers/ThemeProvider";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { FlashList } from "@shopify/flash-list";
 import * as ImagePicker from "expo-image-picker";
 import { Stack, useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
-    Alert,
-    FlatList,
-    Image,
-    Linking,
-    Modal,
-    Platform,
-    RefreshControl,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    useWindowDimensions,
-    View,
+  Alert,
+  FlatList,
+  Image,
+  Linking,
+  Modal,
+  Platform,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  useWindowDimensions,
+  View,
 } from "react-native";
 
 export default function HallOfFameScreen({
@@ -30,6 +30,9 @@ export default function HallOfFameScreen({
 }: {
   forceOnlyMine?: boolean;
 }) {
+  const { colors, isDark } = useTheme();
+  const themedGlobalStyles = useThemedStyles();
+  const styles = getStyles(colors, isDark);
   const router = useRouter();
   const { width } = useWindowDimensions();
   const isWebLarge = Platform.OS === "web" && width >= 768;
@@ -253,7 +256,7 @@ export default function HallOfFameScreen({
             onPress={() => router.back()}
             style={styles.mobileBackButton}
           >
-            <Ionicons name="arrow-back" size={24} color={Colors.light.text} />
+            <Ionicons name="arrow-back" size={24} color={colors.text} />
           </TouchableOpacity>
           <Text style={styles.mobileHeaderTitle}>Mes Réalisations</Text>
           <View style={{ width: 40 }} />
@@ -271,7 +274,7 @@ export default function HallOfFameScreen({
                 <Ionicons
                   name="arrow-back"
                   size={isWebLarge ? 24 : 20}
-                  color={Colors.light.text}
+                  color={colors.text}
                 />
               </TouchableOpacity>
             ) : null}
@@ -368,14 +371,14 @@ export default function HallOfFameScreen({
 
             <Text style={styles.label}>Titre</Text>
             <TextInput
-              style={GlobalStyles.input}
+              style={styles.textInput}
               value={editTitle}
               onChangeText={setEditTitle}
             />
 
             <Text style={styles.label}>Description</Text>
             <TextInput
-              style={[GlobalStyles.input, { height: 80 }]}
+              style={[styles.textInput, { height: 80 }]}
               multiline
               value={editDesc}
               onChangeText={setEditDesc}
@@ -387,8 +390,8 @@ export default function HallOfFameScreen({
 
             <TouchableOpacity
               style={[
-                GlobalStyles.secondaryButton,
-                { marginBottom: 10, borderColor: Colors.light.primary },
+                styles.uploadButton,
+                { marginBottom: 10, borderColor: colors.primary },
               ]}
               onPress={pickVideoForEdit}
               disabled={uploading}
@@ -407,10 +410,10 @@ export default function HallOfFameScreen({
                   <Ionicons
                     name="cloud-upload-outline"
                     size={20}
-                    color={Colors.light.primary}
+                    color={colors.primary}
                   />
                   <Text
-                    style={{ color: Colors.light.primary, fontWeight: "600" }}
+                    style={{ color: colors.primary, fontWeight: "600" }}
                   >
                     Uploader une vidéo
                   </Text>
@@ -419,7 +422,7 @@ export default function HallOfFameScreen({
             </TouchableOpacity>
 
             <TextInput
-              style={GlobalStyles.input}
+              style={styles.urlInput}
               value={editUrl}
               onChangeText={setEditUrl}
               placeholder="https://..."
@@ -428,20 +431,20 @@ export default function HallOfFameScreen({
 
             <View style={{ flexDirection: "row", gap: 10, marginTop: 15 }}>
               <TouchableOpacity
-                style={[GlobalStyles.secondaryButton, { flex: 1 }]}
+                style={[styles.cancelButton, { flex: 1 }]}
                 onPress={() => setEditModalVisible(false)}
               >
                 <Text>Annuler</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[GlobalStyles.primaryButton, { flex: 1 }]}
+                style={[styles.saveButton, { flex: 1 }]}
                 onPress={saveEdit}
                 disabled={saving || uploading}
               >
                 {saving ? (
                   <ClapLoading color="white" />
                 ) : (
-                  <Text style={GlobalStyles.buttonText}>Sauvegarder</Text>
+                  <Text style={{ color: "white", fontWeight: "600" }}>Sauvegarder</Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -463,7 +466,7 @@ export default function HallOfFameScreen({
                 Équipe : {selectedProjectTitle}
               </Text>
               <TouchableOpacity onPress={() => setTeamModalVisible(false)}>
-                <Ionicons name="close" size={24} color={Colors.light.text} />
+                <Ionicons name="close" size={24} color={colors.text} />
               </TouchableOpacity>
             </View>
 
@@ -535,10 +538,11 @@ export default function HallOfFameScreen({
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any, isDark: boolean) =>
+  StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.light.backgroundSecondary,
+    backgroundColor: colors.backgroundSecondary,
   },
   mobileHeader: {
     flexDirection: "row",
@@ -559,7 +563,7 @@ const styles = StyleSheet.create({
   mobileHeaderTitle: {
     fontSize: 18,
     fontWeight: "bold",
-    color: Colors.light.text,
+    color: colors.text,
   },
   webHeader: {
     flexDirection: "row",
@@ -619,7 +623,7 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 18,
     fontWeight: "bold",
-    color: Colors.light.text,
+    color: colors.text,
     marginBottom: 10,
   },
   emptySubtext: {
@@ -642,13 +646,41 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: "bold",
     marginBottom: 20,
-    color: Colors.light.text,
+    color: colors.text,
   },
   label: {
     fontWeight: "600",
     marginBottom: 5,
     marginTop: 10,
     color: "#444",
+  },
+  textInput: {
+    borderWidth: 1,
+    borderColor: "#ddd",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 10,
+    color: colors.text,
+    backgroundColor: colors.backgroundSecondary,
+  },
+  uploadButton: {
+    borderWidth: 1,
+    borderStyle: "dashed",
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    alignItems: "center",
+  },
+  urlInput: {
+    borderWidth: 1,
+    borderColor: "#ddd",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 10,
+    color: colors.text,
+    backgroundColor: colors.backgroundSecondary,
   },
   // Team Modal Styles
   teamModalHeader: {
@@ -662,7 +694,7 @@ const styles = StyleSheet.create({
   teamModalTitle: {
     fontSize: 18,
     fontWeight: "bold",
-    color: Colors.light.text,
+    color: colors.text,
     flex: 1,
     marginRight: 10,
   },
@@ -680,7 +712,7 @@ const styles = StyleSheet.create({
   categoryTitle: {
     fontSize: 12,
     fontWeight: "bold",
-    color: Colors.light.primary,
+    color: colors.primary,
     letterSpacing: 1,
   },
   teamMemberRow: {
@@ -700,7 +732,7 @@ const styles = StyleSheet.create({
   memberName: {
     fontSize: 16,
     fontWeight: "600",
-    color: Colors.light.text,
+    color: colors.text,
   },
   memberRole: {
     fontSize: 13,
@@ -711,5 +743,23 @@ const styles = StyleSheet.create({
     color: "#999",
     marginTop: 20,
     fontStyle: "italic",
+  },
+  cancelButton: {
+    borderWidth: 1,
+    borderColor: "#ddd",
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.backgroundSecondary,
+  },
+  saveButton: {
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.primary,
   },
 });

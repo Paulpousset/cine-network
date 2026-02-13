@@ -1,6 +1,5 @@
 import { Hoverable } from "@/components/Hoverable";
-import { useColorScheme } from "@/components/useColorScheme";
-import Colors from "@/constants/Colors";
+import { useTheme } from "@/providers/ThemeProvider";
 import { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import React from "react";
 import {
@@ -16,8 +15,7 @@ export default function CustomTabBar({
   descriptors,
   navigation,
 }: BottomTabBarProps) {
-  const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? "light"];
+  const { colors } = useTheme();
   const { width } = useWindowDimensions();
 
   // On Web, if the screen is large enough, the Sidebar is already showing.
@@ -91,7 +89,7 @@ export default function CustomTabBar({
                         ? 18
                         : 16,
                     borderRadius: 9,
-                    backgroundColor: Colors[colorScheme ?? "light"].tint,
+                    backgroundColor: colors.tint,
                     alignItems: "center",
                     justifyContent: "center",
                     borderWidth: 1.5,

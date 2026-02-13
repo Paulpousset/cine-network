@@ -1,6 +1,6 @@
-import Colors from "@/constants/Colors";
 import { GlobalStyles } from "@/constants/Styles";
 import { appEvents, EVENTS } from "@/lib/events";
+import { useTheme } from "@/providers/ThemeProvider";
 import { Ionicons } from "@expo/vector-icons";
 import { Stack, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
@@ -19,6 +19,8 @@ import { supabase } from "../../lib/supabase";
 
 export default function NetworkConnections() {
   const router = useRouter();
+  const { colors, isDark } = useTheme();
+  const styles = createStyles(colors, isDark);
   const [loading, setLoading] = useState(true);
   const [connections, setConnections] = useState<any[]>([]);
   const [blockedUsers, setBlockedUsers] = useState<any[]>([]);
@@ -209,7 +211,7 @@ export default function NetworkConnections() {
             <Ionicons
               name="trash-outline"
               size={20}
-              color={Colors.light.danger}
+              color={colors.danger}
             />
           </TouchableOpacity>
         </View>
@@ -226,21 +228,21 @@ export default function NetworkConnections() {
               style={[
                 styles.avatar,
                 {
-                  backgroundColor: "#EEE",
+                  backgroundColor: colors.backgroundSecondary,
                   justifyContent: "center",
                   alignItems: "center",
                   marginRight: 10,
                 },
               ]}
             >
-              <Ionicons name="person" size={24} color="#BBB" />
+              <Ionicons name="person" size={24} color={colors.tabIconDefault} />
             </View>
 
             <View style={{ flex: 1 }}>
               <Text style={GlobalStyles.title2}>
                 {otherUser.full_name || otherUser.username}
               </Text>
-              <Text style={[GlobalStyles.caption, { color: Colors.light.red }]}>
+              <Text style={[GlobalStyles.caption, { color: colors.danger }]}>
                 Bloqué
               </Text>
             </View>
@@ -267,7 +269,7 @@ export default function NetworkConnections() {
               onPress={() => router.back()}
               style={{ marginRight: 10 }}
             >
-              <Ionicons name="arrow-back" size={24} color={Colors.light.text} />
+              <Ionicons name="arrow-back" size={24} color={colors.text} />
             </TouchableOpacity>
           ),
         }}
@@ -330,13 +332,14 @@ export default function NetworkConnections() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.light.backgroundSecondary },
+function createStyles(colors: any, isDark: boolean) {
+  return StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.backgroundSecondary },
   tabBar: {
     flexDirection: "row",
-    backgroundColor: "white",
+    backgroundColor: colors.card,
     borderBottomWidth: 1,
-    borderBottomColor: "#eee",
+    borderBottomColor: colors.border,
   },
   tabItem: {
     flex: 1,
@@ -346,15 +349,15 @@ const styles = StyleSheet.create({
     borderBottomColor: "transparent",
   },
   tabItemActive: {
-    borderBottomColor: Colors.light.primary,
+    borderBottomColor: colors.primary,
   },
   tabText: {
     fontSize: 14,
-    color: "#666",
+    color: colors.tabIconDefault,
     fontWeight: "500",
   },
   tabTextActive: {
-    color: Colors.light.primary,
+    color: colors.primary,
     fontWeight: "700",
   },
   info: {
@@ -369,7 +372,7 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   unblockButton: {
-    backgroundColor: Colors.light.primary,
+    backgroundColor: colors.primary,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 15,
@@ -379,4 +382,5 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "600",
   },
-});
+  });
+}

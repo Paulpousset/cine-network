@@ -1,21 +1,23 @@
-import Colors from "@/constants/Colors";
 import { appEvents, EVENTS } from "@/lib/events";
 import { supabase } from "@/lib/supabase";
+import { useTheme } from "@/providers/ThemeProvider";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-  FlatList,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    FlatList,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { Hoverable } from "./Hoverable";
 
 export default function FloatingChatWidget({ userId }: { userId: string }) {
+  const { colors, isDark } = useTheme();
+  const styles = createStyles(colors, isDark);
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [conversations, setConversations] = useState<any[]>([]);
@@ -375,12 +377,12 @@ export default function FloatingChatWidget({ userId }: { userId: string }) {
                 <Ionicons
                   name="arrow-back"
                   size={24}
-                  color="#333"
+                  color={colors.text}
                   style={{ marginRight: 8 }}
                 />
                 <Text
                   numberOfLines={1}
-                  style={[styles.headerTitle, { maxWidth: 200 }]}
+                  style={[styles.headerTitle, { maxWidth: 200, color: colors.text }]}
                 >
                   {activeConversation.type === "channel"
                     ? `${activeConversation.projectTitle} - ${activeConversation.category}`
@@ -389,7 +391,7 @@ export default function FloatingChatWidget({ userId }: { userId: string }) {
                 </Text>
               </TouchableOpacity>
             ) : (
-              <Text style={styles.headerTitle}>Discussion</Text>
+              <Text style={[styles.headerTitle, { color: colors.text }]}>Discussion</Text>
             )}
 
             <TouchableOpacity
@@ -398,7 +400,7 @@ export default function FloatingChatWidget({ userId }: { userId: string }) {
                 setActiveConversation(null);
               }}
             >
-              <Ionicons name="close" size={24} color="#333" />
+              <Ionicons name="close" size={24} color={colors.text} />
             </TouchableOpacity>
           </View>
 
@@ -418,15 +420,15 @@ export default function FloatingChatWidget({ userId }: { userId: string }) {
                       style={{
                         alignSelf: isMe ? "flex-end" : "flex-start",
                         backgroundColor: isMe
-                          ? Colors.light.primary
-                          : "#E5E5EA",
+                          ? colors.primary
+                          : colors.backgroundSecondary,
                         borderRadius: 16,
                         padding: 10,
                         marginVertical: 4,
                         maxWidth: "80%",
                       }}
                     >
-                      <Text style={{ color: isMe ? "white" : "black" }}>
+                      <Text style={{ color: isMe ? "white" : colors.text }}>
                         {item.content}
                       </Text>
                     </View>
@@ -435,15 +437,16 @@ export default function FloatingChatWidget({ userId }: { userId: string }) {
               />
               <View style={styles.inputContainer}>
                 <TextInput
-                  style={styles.chatInput}
+                  style={[styles.chatInput, { color: colors.text, backgroundColor: colors.backgroundSecondary }]}
                   placeholder="Écrivez un message..."
+                  placeholderTextColor={colors.text + "80"}
                   value={inputText}
                   onChangeText={setTextInput}
                   onSubmitEditing={sendMessage}
                 />
                 <TouchableOpacity
                   onPress={sendMessage}
-                  style={styles.sendButton}
+                  style={[styles.sendButton, { backgroundColor: colors.primary }]}
                 >
                   <Ionicons name="send" size={20} color="white" />
                 </TouchableOpacity>
@@ -456,12 +459,13 @@ export default function FloatingChatWidget({ userId }: { userId: string }) {
                 style={{
                   padding: 10,
                   borderBottomWidth: 1,
-                  borderColor: "#eee",
+                  borderColor: colors.border,
                 }}
               >
                 <TextInput
                   placeholder="Rechercher..."
-                  style={styles.input}
+                  placeholderTextColor={colors.text + "80"}
+                  style={[styles.input, { color: colors.text, backgroundColor: colors.backgroundSecondary }]}
                   value={searchQuery}
                   onChangeText={setSearchQuery}
                 />
@@ -472,7 +476,7 @@ export default function FloatingChatWidget({ userId }: { userId: string }) {
                 style={{
                   flexDirection: "row",
                   borderBottomWidth: 1,
-                  borderColor: "#eee",
+                  borderColor: colors.border,
                 }}
               >
                 <TouchableOpacity
@@ -482,13 +486,13 @@ export default function FloatingChatWidget({ userId }: { userId: string }) {
                     padding: 10,
                     alignItems: "center",
                     borderBottomWidth: activeTab === "dm" ? 2 : 0,
-                    borderBottomColor: Colors.light.primary,
+                    borderBottomColor: colors.primary,
                   }}
                 >
                   <Text
                     style={{
                       fontWeight: activeTab === "dm" ? "bold" : "normal",
-                      color: activeTab === "dm" ? Colors.light.primary : "#666",
+                      color: activeTab === "dm" ? colors.primary : colors.text + "80",
                     }}
                   >
                     Privé
@@ -501,14 +505,14 @@ export default function FloatingChatWidget({ userId }: { userId: string }) {
                     padding: 10,
                     alignItems: "center",
                     borderBottomWidth: activeTab === "project" ? 2 : 0,
-                    borderBottomColor: Colors.light.primary,
+                    borderBottomColor: colors.primary,
                   }}
                 >
                   <Text
                     style={{
                       fontWeight: activeTab === "project" ? "bold" : "normal",
                       color:
-                        activeTab === "project" ? Colors.light.primary : "#666",
+                        activeTab === "project" ? colors.primary : colors.text + "80",
                     }}
                   >
                     Projets
@@ -526,7 +530,7 @@ export default function FloatingChatWidget({ userId }: { userId: string }) {
                       style={{
                         textAlign: "center",
                         marginTop: 20,
-                        color: "#999",
+                        color: colors.text + "60",
                       }}
                     >
                       Aucune conversation.
@@ -544,12 +548,12 @@ export default function FloatingChatWidget({ userId }: { userId: string }) {
                             padding: 12,
                             alignItems: "center",
                             borderBottomWidth: 1,
-                            borderColor: "#f5f5f5",
-                            backgroundColor: isUnread ? "#fafafa" : "white",
+                            borderColor: colors.border,
+                            backgroundColor: isUnread ? colors.primary + "10" : colors.background,
                             cursor: "pointer",
                           } as any
                         }
-                        hoverStyle={{ backgroundColor: "#f0f0f0" }}
+                        hoverStyle={{ backgroundColor: colors.backgroundSecondary }}
                         onPress={() =>
                           setActiveConversation({ ...item, type: "dm" })
                         }
@@ -559,7 +563,7 @@ export default function FloatingChatWidget({ userId }: { userId: string }) {
                             width: 40,
                             height: 40,
                             borderRadius: 20,
-                            backgroundColor: "#eee",
+                            backgroundColor: colors.backgroundSecondary,
                             marginRight: 10,
                             justifyContent: "center",
                             alignItems: "center",
@@ -576,7 +580,7 @@ export default function FloatingChatWidget({ userId }: { userId: string }) {
                               style={{
                                 fontSize: 16,
                                 fontWeight: "bold",
-                                color: "#666",
+                                color: colors.text + "80",
                               }}
                             >
                               {item.user.full_name?.[0] ||
@@ -596,12 +600,13 @@ export default function FloatingChatWidget({ userId }: { userId: string }) {
                               style={{
                                 fontWeight: isUnread ? "bold" : "600",
                                 fontSize: 14,
+                                color: colors.text,
                               }}
                             >
                               {item.user.full_name || item.user.username}
                             </Text>
                             {item.lastMessage.created_at && (
-                              <Text style={{ fontSize: 10, color: "#999" }}>
+                              <Text style={{ fontSize: 10, color: colors.text + "60" }}>
                                 {new Date(
                                   item.lastMessage.created_at,
                                 ).toLocaleDateString()}
@@ -611,7 +616,7 @@ export default function FloatingChatWidget({ userId }: { userId: string }) {
                           <Text
                             numberOfLines={1}
                             style={{
-                              color: isUnread ? "#333" : "#888",
+                              color: isUnread ? colors.text : colors.text + "80",
                               fontWeight: isUnread ? "600" : "normal",
                               fontSize: 12,
                               marginTop: 2,
@@ -626,7 +631,7 @@ export default function FloatingChatWidget({ userId }: { userId: string }) {
                               width: 8,
                               height: 8,
                               borderRadius: 4,
-                              backgroundColor: "#E91E63",
+                              backgroundColor: colors.primary,
                               marginLeft: 8,
                             }}
                           />
@@ -647,7 +652,7 @@ export default function FloatingChatWidget({ userId }: { userId: string }) {
                       style={{
                         textAlign: "center",
                         marginTop: 20,
-                        color: "#999",
+                        color: colors.text + "60",
                       }}
                     >
                       Aucun espace de projet.
@@ -662,12 +667,12 @@ export default function FloatingChatWidget({ userId }: { userId: string }) {
                             padding: 12,
                             alignItems: "center",
                             borderBottomWidth: 1,
-                            borderColor: "#f5f5f5",
-                            backgroundColor: "white",
+                            borderColor: colors.border,
+                            backgroundColor: colors.background,
                             cursor: "pointer",
                           } as any
                         }
-                        hoverStyle={{ backgroundColor: "#f0f0f0" }}
+                        hoverStyle={{ backgroundColor: colors.backgroundSecondary }}
                         onPress={() => setActiveConversation(item)}
                       >
                         <View
@@ -675,7 +680,7 @@ export default function FloatingChatWidget({ userId }: { userId: string }) {
                             width: 40,
                             height: 40,
                             borderRadius: 8,
-                            backgroundColor: "#E0E0E0",
+                            backgroundColor: colors.backgroundSecondary,
                             marginRight: 10,
                             justifyContent: "center",
                             alignItems: "center",
@@ -688,14 +693,14 @@ export default function FloatingChatWidget({ userId }: { userId: string }) {
                               style={{ width: 40, height: 40 }}
                             />
                           ) : (
-                            <Ionicons name="briefcase" size={20} color="#666" />
+                            <Ionicons name="briefcase" size={20} color={colors.text + "80"} />
                           )}
                         </View>
                         <View style={{ flex: 1 }}>
-                          <Text style={{ fontWeight: "600", fontSize: 14 }}>
+                          <Text style={{ fontWeight: "600", fontSize: 14, color: colors.text }}>
                             {item.tournage.title}
                           </Text>
-                          <Text style={{ fontSize: 12, color: "#666" }}>
+                          <Text style={{ fontSize: 12, color: colors.text + "80" }}>
                             #{item.category}
                           </Text>
                         </View>
@@ -710,7 +715,7 @@ export default function FloatingChatWidget({ userId }: { userId: string }) {
       )}
 
       <TouchableOpacity
-        style={styles.fab}
+        style={[styles.fab, { backgroundColor: colors.primary }]}
         onPress={() => setIsOpen(!isOpen)}
         activeOpacity={0.8}
       >
@@ -725,7 +730,7 @@ export default function FloatingChatWidget({ userId }: { userId: string }) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   container: {
     position: "absolute",
     bottom: 20,
@@ -737,7 +742,6 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: Colors.light.primary,
     justifyContent: "center",
     alignItems: "center",
     shadowColor: "#000",
@@ -766,7 +770,7 @@ const styles = StyleSheet.create({
   popover: {
     width: 350,
     height: 500,
-    backgroundColor: "white",
+    backgroundColor: colors.background,
     borderRadius: 12,
     marginBottom: 15, // Space between popover and FAB
     shadowColor: "#000",
@@ -776,7 +780,7 @@ const styles = StyleSheet.create({
     elevation: 10,
     overflow: "hidden",
     borderWidth: 1,
-    borderColor: "#eee",
+    borderColor: colors.border,
   },
   header: {
     flexDirection: "row",
@@ -784,42 +788,39 @@ const styles = StyleSheet.create({
     alignItems: "center",
     padding: 15,
     borderBottomWidth: 1,
-    borderColor: "#eee",
-    backgroundColor: "#fafafa",
+    borderColor: colors.border,
+    backgroundColor: colors.backgroundSecondary,
   },
   headerTitle: {
     fontWeight: "bold",
     fontSize: 16,
   },
   input: {
-    backgroundColor: "#f5f5f5",
     padding: 8,
     borderRadius: 8,
     fontSize: 14,
   },
   footer: {
     borderTopWidth: 1,
-    borderColor: "#eee",
-    backgroundColor: "#fafafa",
+    borderColor: colors.border,
+    backgroundColor: colors.backgroundSecondary,
   },
   inputContainer: {
     flexDirection: "row",
     alignItems: "center",
     padding: 10,
     borderTopWidth: 1,
-    borderTopColor: "#eee",
-    backgroundColor: "white",
+    borderTopColor: colors.border,
+    backgroundColor: colors.background,
   },
   chatInput: {
     flex: 1,
-    backgroundColor: "#f5f5f5",
     paddingHorizontal: 15,
     paddingVertical: 10,
     borderRadius: 20,
     marginRight: 10,
   },
   sendButton: {
-    backgroundColor: Colors.light.primary,
     padding: 10,
     borderRadius: 20,
     alignItems: "center",

@@ -1,5 +1,5 @@
-import Colors from "@/constants/Colors";
 import { GlobalStyles } from "@/constants/Styles";
+import { useTheme } from "@/providers/ThemeProvider";
 import { useRouter } from "expo-router";
 import React from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
@@ -10,16 +10,19 @@ interface JobCardProps {
 
 export const JobCard = React.memo(({ item }: JobCardProps) => {
   const router = useRouter();
+  const { colors, isDark } = useTheme();
+  const styles = createStyles(colors, isDark);
   const isBoosted = item.is_boosted;
 
   return (
     <TouchableOpacity
       style={[
         GlobalStyles.card,
+        { backgroundColor: colors.card, borderColor: colors.border },
         isBoosted && {
           borderColor: "#FFD700",
           borderWidth: 1,
-          backgroundColor: "#FFFBE6",
+          backgroundColor: isDark ? "#2C2600" : "#FFFBE6",
         },
       ]}
       onPress={() => router.push(`/project/role/${item.id}`)}
@@ -60,27 +63,29 @@ export const JobCard = React.memo(({ item }: JobCardProps) => {
 
       <View style={styles.divider} />
 
-      <Text style={[GlobalStyles.title2, { color: Colors.light.primary }]}>
+      <Text style={[GlobalStyles.title2, { color: colors.primary }]}>
         {item.title}
       </Text>
 
       {item.description ? (
-        <Text style={GlobalStyles.body} numberOfLines={2}>
+        <Text style={[GlobalStyles.body, { color: colors.text }]} numberOfLines={2}>
           {item.description}
         </Text>
       ) : null}
 
-      <Text style={styles.ctaText}>Voir l'annonce →</Text>
+      <Text style={[styles.ctaText, { color: colors.primary }]}>Voir l'annonce →</Text>
     </TouchableOpacity>
   );
 });
 
 export const ProjectJobCard = React.memo(({ item }: { item: any }) => {
   const router = useRouter();
+  const { colors, isDark } = useTheme();
+  const styles = createStyles(colors, isDark);
 
   return (
     <TouchableOpacity
-      style={GlobalStyles.card}
+      style={[GlobalStyles.card, { backgroundColor: colors.card, borderColor: colors.border }]}
       onPress={() => router.push(`/project/${item.id}`)}
     >
       <View style={styles.cardHeader}>
@@ -95,12 +100,12 @@ export const ProjectJobCard = React.memo(({ item }: { item: any }) => {
           </Text>
         </View>
         <View
-          style={[styles.badge, { backgroundColor: Colors.light.tint + "20" }]}
+          style={[styles.badge, { backgroundColor: colors.primary + "20" }]}
         >
           <Text
             style={[
               styles.badgeText,
-              { color: Colors.light.tint, fontSize: 12 },
+              { color: colors.primary, fontSize: 12 },
             ]}
           >
             {item.roleCount} OFFRE{item.roleCount > 1 ? "S" : ""}
@@ -115,48 +120,49 @@ export const ProjectJobCard = React.memo(({ item }: { item: any }) => {
           <View
             key={r.id}
             style={{
-              backgroundColor: "#f5f5f5",
+              backgroundColor: colors.backgroundSecondary,
               paddingHorizontal: 8,
               paddingVertical: 4,
               borderRadius: 4,
             }}
           >
-            <Text style={{ fontSize: 10, color: "#666" }}>{r.title}</Text>
+            <Text style={{ fontSize: 10, color: colors.text + "99" }}>{r.title}</Text>
           </View>
         ))}
         {item.roles.length > 3 && (
-          <Text style={{ fontSize: 10, color: "#999", alignSelf: "center" }}>
+          <Text style={{ fontSize: 10, color: colors.text + "66", alignSelf: "center" }}>
             +{item.roles.length - 3} autres
           </Text>
         )}
       </View>
 
-      <Text style={styles.ctaText}>Voir le projet →</Text>
+      <Text style={[styles.ctaText, { color: colors.primary }]}>Voir le projet →</Text>
     </TouchableOpacity>
   );
 });
 
-const styles = StyleSheet.create({
-  cardHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-  },
-  projectTitle: { fontSize: 16, fontWeight: "bold", color: "#333" },
-  projectSubtitle: { fontSize: 12, color: "#999", marginTop: 2 },
-  badge: {
-    backgroundColor: "#f3e5f5",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  badgeText: { fontSize: 10, color: Colors.light.primary, fontWeight: "bold" },
-  divider: { height: 1, backgroundColor: "#eee", marginVertical: 12 },
-  ctaText: {
-    color: Colors.light.primary,
-    fontWeight: "bold",
-    textAlign: "right",
-    fontSize: 12,
-    marginTop: 5,
-  },
-});
+function createStyles(colors: any, isDark: boolean) {
+  return StyleSheet.create({
+    cardHeader: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "flex-start",
+    },
+    projectTitle: { fontSize: 16, fontWeight: "bold", color: colors.text },
+    projectSubtitle: { fontSize: 12, color: colors.text + "80", marginTop: 2 },
+    badge: {
+      backgroundColor: colors.primary + "20",
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 6,
+    },
+    badgeText: { fontSize: 10, color: colors.primary, fontWeight: "bold" },
+    divider: { height: 1, backgroundColor: colors.border, marginVertical: 12 },
+    ctaText: {
+      fontWeight: "bold",
+      textAlign: "right",
+      fontSize: 12,
+      marginTop: 5,
+    },
+  });
+}

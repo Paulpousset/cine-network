@@ -1,7 +1,7 @@
 const tintColorLight = '#6C5CE7'; // Violet Électrique (Creative)
 const tintColorDark = '#A29BFE';
 
-export default {
+const Colors = {
   light: {
     text: '#1F2937', // Gris très foncé (presque noir) pour la lisibilité (Minimal)
     background: '#FFFFFF', // Blanc pur (Minimal)
@@ -10,6 +10,7 @@ export default {
     tabIconDefault: '#9CA3AF',
     tabIconSelected: tintColorLight,
     border: '#E5E7EB', // Gris clair pour les séparations fines (Minimal)
+    textSecondary: '#6B7280', // Text gris moyen
     primary: '#6C5CE7', // Violet principal
     secondary: '#00D2D3', // Teal pour les accents
     danger: '#FF6B6B',
@@ -25,6 +26,7 @@ export default {
     tabIconDefault: '#6B7280',
     tabIconSelected: tintColorDark,
     border: '#374151',
+    textSecondary: '#9CA3AF',
     primary: '#A29BFE',
     secondary: '#81ECEC',
     danger: '#FF8787',
@@ -33,3 +35,14 @@ export default {
     shadow: '#000000',
   },
 };
+
+export default Colors;
+
+export function updateGlobalColors(newColors: any) {
+  if (newColors.light) {
+    Object.assign(Colors.light, newColors.light);
+  }
+  if (newColors.dark) {
+    Object.assign(Colors.dark, newColors.dark);
+  }
+}

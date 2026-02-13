@@ -1,27 +1,27 @@
-import Colors from "@/constants/Colors";
 import { useUserMode } from "@/hooks/useUserMode";
 import { Database } from "@/lib/database.types";
 import { supabase } from "@/lib/supabase";
+import { useTheme } from "@/providers/ThemeProvider";
 import { Ionicons } from "@expo/vector-icons";
 import {
-    useGlobalSearchParams,
-    useLocalSearchParams,
-    useRouter,
+  useGlobalSearchParams,
+  useLocalSearchParams,
+  useRouter,
 } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    FlatList,
-    KeyboardAvoidingView,
-    Modal,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 type Scene = Database["public"]["Tables"]["scenes"]["Row"];
@@ -57,6 +57,8 @@ const ALLOWED_ROLES = [
 export default function BreakdownScreen() {
   const router = useRouter();
   const { mode } = useUserMode();
+  const { colors, isDark } = useTheme();
+  const styles = createStyles(colors, isDark);
   const local = useLocalSearchParams<{ id: string }>();
   const global = useGlobalSearchParams<{ id: string }>();
   const id = local.id || global.id;
@@ -502,7 +504,7 @@ export default function BreakdownScreen() {
               }}
               style={styles.headerButton}
             >
-              <Ionicons name="add-circle" size={32} color={Colors.light.tint} />
+              <Ionicons name="add-circle" size={32} color={colors.tint} />
             </TouchableOpacity>
           )}
         </View>
@@ -510,7 +512,7 @@ export default function BreakdownScreen() {
 
       {loading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={Colors.light.tint} />
+          <ActivityIndicator size="large" color={colors.tint} />
         </View>
       ) : (
         <FlatList
@@ -555,6 +557,7 @@ export default function BreakdownScreen() {
                   value={sceneNumber}
                   onChangeText={setSceneNumber}
                   placeholder="Ex: 1, 12A"
+                  placeholderTextColor={colors.text + "80"}
                   autoCapitalize="characters"
                 />
               </View>
@@ -566,6 +569,7 @@ export default function BreakdownScreen() {
                   value={slugline}
                   onChangeText={setSlugline}
                   placeholder="Ex: CHAMBRE DE PAUL"
+                  placeholderTextColor={colors.text + "80"}
                   autoCapitalize="characters"
                 />
 
@@ -584,17 +588,17 @@ export default function BreakdownScreen() {
                         <TouchableOpacity
                           key={set.id}
                           style={{
-                            backgroundColor: Colors.light.backgroundSecondary,
+                            backgroundColor: colors.backgroundSecondary,
                             paddingHorizontal: 10,
                             paddingVertical: 6,
                             borderRadius: 16,
                             marginRight: 8,
                             borderWidth: 1,
-                            borderColor: Colors.light.border,
+                            borderColor: colors.border,
                           }}
                           onPress={() => setSlugline(set.name.toUpperCase())}
                         >
-                          <Text style={{ fontSize: 12, color: "#333" }}>
+                          <Text style={{ fontSize: 12, color: colors.text }}>
                             {set.name}
                           </Text>
                         </TouchableOpacity>
@@ -612,6 +616,7 @@ export default function BreakdownScreen() {
                 value={title}
                 onChangeText={setTitle}
                 placeholder="Ex: Rencontre avec le boss"
+                placeholderTextColor={colors.text + "80"}
               />
             </View>
 
@@ -644,7 +649,7 @@ export default function BreakdownScreen() {
                   keyboardType="numeric"
                   onChangeText={setScriptPages}
                   placeholder="Ex: 1.5"
-                  placeholderTextColor="#999"
+                  placeholderTextColor={colors.text + "80"}
                 />
               </View>
 
@@ -656,7 +661,7 @@ export default function BreakdownScreen() {
                   onChangeText={setEstimatedDuration}
                   keyboardType="numeric"
                   placeholder="Ex: 45"
-                  placeholderTextColor="#999"
+                  placeholderTextColor={colors.text + "80"}
                 />
               </View>
             </View>
@@ -695,7 +700,7 @@ export default function BreakdownScreen() {
                     </TouchableOpacity>
                   ))}
                   {availableCharacters.length === 0 && (
-                    <Text style={{ color: "#999", fontStyle: "italic" }}>
+                    <Text style={{ color: colors.text, opacity: 0.5, fontStyle: "italic" }}>
                       Aucun personnage créé. Allez dans Outils &gt; Casting.
                     </Text>
                   )}
@@ -709,7 +714,7 @@ export default function BreakdownScreen() {
                   value={extras}
                   onChangeText={setExtras}
                   placeholder="Ex: 10 passants"
-                  placeholderTextColor="#999"
+                  placeholderTextColor={colors.text + "80"}
                 />
               </View>
             </View>
@@ -843,10 +848,11 @@ export default function BreakdownScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: any, isDark: boolean) {
+  return StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f8f9fa",
+    backgroundColor: colors.backgroundSecondary,
   },
   header: {
     flexDirection: "row",
@@ -855,9 +861,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 60, // Safe Area top padding approx
     paddingBottom: 20,
-    backgroundColor: "white",
+    backgroundColor: colors.background,
     borderBottomWidth: 1,
-    borderBottomColor: "#eee",
+    borderBottomColor: colors.border,
   },
   headerLeft: {
     width: 45,
@@ -870,7 +876,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 24,
     fontWeight: "bold",
-    color: "#000",
+    color: colors.text,
   },
   headerButton: {
     padding: 4,
@@ -886,20 +892,23 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     textAlign: "center",
-    color: "#6c757d",
+    color: colors.text,
+    opacity: 0.6,
     marginTop: 40,
     fontSize: 16,
   },
   sceneItem: {
-    backgroundColor: "white",
+    backgroundColor: colors.card,
     padding: 16,
     borderRadius: 12,
     marginBottom: 12,
-    shadowColor: "#000",
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 3,
     elevation: 2,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   sceneHeader: {
     flexDirection: "row",
@@ -916,17 +925,17 @@ const styles = StyleSheet.create({
   sceneNumber: {
     fontWeight: "bold",
     fontSize: 16,
-    color: Colors.light.tint,
+    color: colors.tint,
   },
   sceneSlugline: {
     fontWeight: "600",
     fontSize: 16,
-    color: "#212529",
+    color: colors.text,
   },
   scenePages: {
     fontSize: 12,
-    color: "#6c757d",
-    backgroundColor: "#e9ecef",
+    color: colors.text,
+    backgroundColor: colors.backgroundSecondary,
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
@@ -934,10 +943,11 @@ const styles = StyleSheet.create({
   },
   sceneDescription: {
     fontSize: 14,
-    color: "#495057",
+    color: colors.text,
+    opacity: 0.8,
   },
   chip: {
-    backgroundColor: "#e9ecef",
+    backgroundColor: colors.backgroundSecondary,
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 20,
@@ -945,15 +955,15 @@ const styles = StyleSheet.create({
     borderColor: "transparent",
   },
   chipSelected: {
-    backgroundColor: "#dbe4ff",
-    borderColor: "#4c6ef5",
+    backgroundColor: colors.tint + "20",
+    borderColor: colors.tint,
   },
   chipText: {
     fontSize: 12,
-    color: "#495057",
+    color: colors.text,
   },
   chipTextSelected: {
-    color: "#364fc7",
+    color: colors.tint,
     fontWeight: "600",
   },
   badge: {
@@ -972,15 +982,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: "#dee2e6",
-    backgroundColor: "white",
+    borderBottomColor: colors.border,
+    backgroundColor: colors.background,
   },
   modalTitle: {
     fontSize: 18,
     fontWeight: "bold",
+    color: colors.text,
   },
   cancelText: {
-    color: Colors.light.tint,
+    color: colors.tint,
     fontSize: 16,
   },
   modalContent: {
@@ -999,29 +1010,31 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#495057",
+    color: colors.text,
     marginBottom: 8,
   },
   input: {
-    backgroundColor: "#f1f3f5",
+    backgroundColor: colors.backgroundSecondary,
     borderRadius: 8,
     padding: 12,
     fontSize: 16,
-    color: "#212529",
+    color: colors.text,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   textArea: {
     height: 80,
     textAlignVertical: "top",
   },
   saveButton: {
-    backgroundColor: Colors.light.tint,
+    backgroundColor: colors.tint,
     padding: 16,
     borderRadius: 12,
     alignItems: "center",
     marginTop: 10,
   },
   disabledButton: {
-    backgroundColor: "#a5d8ff",
+    backgroundColor: colors.tint + "80",
   },
   saveButtonText: {
     color: "white",
@@ -1031,7 +1044,7 @@ const styles = StyleSheet.create({
   // Selector Styles
   selectorContainer: {
     flexDirection: "row",
-    backgroundColor: "#e9ecef",
+    backgroundColor: colors.backgroundSecondary,
     borderRadius: 8,
     padding: 4,
   },
@@ -1042,8 +1055,8 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   selectorOptionSelected: {
-    backgroundColor: "white",
-    shadowColor: "#000",
+    backgroundColor: colors.card,
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 1,
@@ -1051,11 +1064,13 @@ const styles = StyleSheet.create({
   },
   selectorText: {
     fontSize: 13,
-    color: "#868e96",
+    color: colors.tabIconDefault,
     fontWeight: "500",
   },
   selectorTextSelected: {
-    color: Colors.light.tint,
+    color: colors.tint,
     fontWeight: "600",
   },
-});
+  });
+}
+

@@ -3,25 +3,25 @@ import CityPicker from "@/app/components/CityPicker";
 import CountryPicker from "@/app/components/CountryPicker";
 import ClapLoading from "@/components/ClapLoading";
 import WebDatePicker from "@/components/WebDatePicker";
-import Colors from "@/constants/Colors";
 import { GlobalStyles } from "@/constants/Styles";
 import { useUserMode } from "@/hooks/useUserMode";
 import { supabase } from "@/lib/supabase";
+import { useTheme } from "@/providers/ThemeProvider";
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import * as ImagePicker from "expo-image-picker";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-    Alert,
-    Image,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  Image,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 // @ts-ignore
 
@@ -38,6 +38,8 @@ export default function ProjectSettings() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
   const { mode } = useUserMode();
+  const { colors, isDark } = useTheme();
+  const styles = createStyles(colors, isDark);
   const [project, setProject] = useState<any>(null);
   const [participants, setParticipants] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -375,7 +377,7 @@ export default function ProjectSettings() {
   if (loading)
     return (
       <View style={styles.center}>
-        <ClapLoading size={50} color={Colors.light.primary} />
+        <ClapLoading size={50} color={colors.primary} />
       </View>
     );
 
@@ -386,12 +388,12 @@ export default function ProjectSettings() {
         style={{
           flexDirection: "row",
           alignItems: "center",
-          backgroundColor: Colors.light.background,
+          backgroundColor: colors.background,
           paddingTop: 50,
           paddingBottom: 15,
           paddingHorizontal: 15,
           borderBottomWidth: 1,
-          borderBottomColor: Colors.light.border,
+          borderBottomColor: colors.border,
         }}
       >
         {(Platform.OS !== "web" || mode !== "studio") && (
@@ -399,7 +401,7 @@ export default function ProjectSettings() {
             onPress={() => router.back()}
             style={{ marginRight: 10 }}
           >
-            <Ionicons name="arrow-back" size={24} color={Colors.light.text} />
+            <Ionicons name="arrow-back" size={24} color={colors.text} />
           </TouchableOpacity>
         )}
         <Text style={GlobalStyles.title1}>Paramètres du projet</Text>
@@ -450,7 +452,7 @@ export default function ProjectSettings() {
               style={{
                 flexDirection: "row",
                 alignItems: "center",
-                backgroundColor: Colors.light.tint,
+                backgroundColor: colors.tint,
                 paddingHorizontal: 15,
                 paddingVertical: 10,
                 borderRadius: 20,
@@ -506,18 +508,18 @@ export default function ProjectSettings() {
                   borderRadius: 20,
                   backgroundColor:
                     type === t.value
-                      ? Colors.light.primary
-                      : Colors.light.backgroundSecondary,
+                      ? colors.primary
+                      : colors.backgroundSecondary,
                   borderWidth: 1,
                   borderColor:
                     type === t.value
-                      ? Colors.light.primary
-                      : Colors.light.border,
+                      ? colors.primary
+                      : colors.border,
                 }}
               >
                 <Text
                   style={{
-                    color: type === t.value ? "white" : Colors.light.text,
+                    color: type === t.value ? "white" : colors.text,
                     fontWeight: "600",
                     fontSize: 12,
                   }}
@@ -583,7 +585,7 @@ export default function ProjectSettings() {
                     onPress={() => setShowStartPicker(true)}
                   >
                     <Text
-                      style={{ color: startDate ? Colors.light.text : "#999" }}
+                      style={{ color: startDate ? colors.text : "#999" }}
                     >
                       {startDate || "Choisir une date"}
                     </Text>
@@ -631,7 +633,7 @@ export default function ProjectSettings() {
                     onPress={() => setShowEndPicker(true)}
                   >
                     <Text
-                      style={{ color: endDate ? Colors.light.text : "#999" }}
+                      style={{ color: endDate ? colors.text : "#999" }}
                     >
                       {endDate || "Choisir une date"}
                     </Text>
@@ -695,7 +697,7 @@ export default function ProjectSettings() {
             <TouchableOpacity
               onPress={() => setIsPublic(!isPublic)}
               style={{
-                backgroundColor: isPublic ? Colors.light.success : "#ccc",
+                backgroundColor: isPublic ? colors.success : "#ccc",
                 width: 50,
                 height: 30,
                 borderRadius: 15,
@@ -760,7 +762,7 @@ export default function ProjectSettings() {
                   <Ionicons
                     name="trash-outline"
                     size={20}
-                    color={Colors.light.danger}
+                    color={colors.danger}
                   />
                 </TouchableOpacity>
               </View>
@@ -781,7 +783,7 @@ export default function ProjectSettings() {
         >
           <Text
             style={{
-              color: Colors.light.danger,
+              color: colors.danger,
               fontWeight: "bold",
               marginBottom: 10,
               textTransform: "uppercase",
@@ -796,7 +798,7 @@ export default function ProjectSettings() {
             disabled={saving}
           >
             {saving ? (
-              <ClapLoading color="#d32f2f" size={24} />
+              <ClapLoading color={colors.danger} size={24} />
             ) : (
               <Text style={styles.deleteButtonText}>
                 Supprimer définitivement ce projet
@@ -809,34 +811,36 @@ export default function ProjectSettings() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.light.backgroundSecondary },
+function createStyles(colors: any, isDark: boolean) {
+  return StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.backgroundSecondary },
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
-  label: { fontSize: 14, color: "#666", marginBottom: 5, fontWeight: "600" },
+  label: { fontSize: 14, color: colors.text, marginBottom: 5, fontWeight: "600" },
   textArea: { height: 80, textAlignVertical: "top" },
   row: { flexDirection: "row" },
   participantRow: {
     flexDirection: "row",
     alignItems: "center",
     borderBottomWidth: 1,
-    borderBottomColor: "#eee",
+    borderBottomColor: colors.border,
     paddingVertical: 10,
   },
   participantName: {
     fontWeight: "bold",
     fontSize: 16,
-    color: Colors.light.text,
+    color: colors.text,
   },
-  participantRole: { color: "#666", fontSize: 14, textTransform: "capitalize" },
+  participantRole: { color: colors.tabIconDefault, fontSize: 14, textTransform: "capitalize" },
   removeButton: { padding: 10 },
-  emptyText: { color: "#999", fontStyle: "italic" },
+  emptyText: { color: colors.tabIconDefault, fontStyle: "italic" },
   deleteButton: {
-    backgroundColor: "#ffebee",
+    backgroundColor: isDark ? "#300" : "#ffebee",
     padding: 15,
     borderRadius: 8,
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#ffcdd2",
+    borderColor: isDark ? "#500" : "#ffcdd2",
   },
-  deleteButtonText: { color: "#d32f2f", fontWeight: "bold", fontSize: 16 },
-});
+  deleteButtonText: { color: colors.danger, fontWeight: "bold", fontSize: 16 },
+  });
+}

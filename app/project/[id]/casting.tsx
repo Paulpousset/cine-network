@@ -1,22 +1,22 @@
-import Colors from "@/constants/Colors";
 import { useUserMode } from "@/hooks/useUserMode";
 import { Database } from "@/lib/database.types";
 import { supabase } from "@/lib/supabase";
+import { useTheme } from "@/providers/ThemeProvider";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    FlatList,
-    Image,
-    Modal,
-    Platform,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  Image,
+  Modal,
+  Platform,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 type ProjectCharacter =
@@ -29,6 +29,8 @@ type Profile = Database["public"]["Tables"]["profiles"]["Row"];
 const FORBIDDEN_TITLES = ["Runner", "Chauffeur", "Cantine", "Runner/Chauffeur"];
 
 export default function CastingScreen() {
+  const { colors, isDark } = useTheme();
+  const styles = createStyles(colors, isDark);
   const router = useRouter();
   const { mode } = useUserMode();
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -302,7 +304,7 @@ export default function CastingScreen() {
   if (checkingAccess) {
     return (
       <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color={Colors.light.tint} />
+        <ActivityIndicator size="large" color={colors.tint} />
       </View>
     );
   }
@@ -351,7 +353,7 @@ export default function CastingScreen() {
               }
               style={{ padding: 4 }}
             >
-              <Ionicons name="arrow-back" size={24} color="#000" />
+              <Ionicons name="arrow-back" size={24} color={colors.text} />
             </TouchableOpacity>
           )}
         </View>
@@ -370,7 +372,7 @@ export default function CastingScreen() {
 
       {loading ? (
         <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color={Colors.light.tint} />
+          <ActivityIndicator size="large" color={colors.tint} />
         </View>
       ) : (
         <FlatList
@@ -405,6 +407,7 @@ export default function CastingScreen() {
               value={newCharacterName}
               onChangeText={setNewCharacterName}
               placeholder="Ex: James Bond"
+              placeholderTextColor={colors.text + "80"}
             />
 
             <Text style={styles.label}>Description</Text>
@@ -413,6 +416,7 @@ export default function CastingScreen() {
               value={newCharacterDescription}
               onChangeText={setNewCharacterDescription}
               placeholder="Description physique, caractère..."
+              placeholderTextColor={colors.text + "80"}
               multiline
               numberOfLines={3}
             />
@@ -448,6 +452,7 @@ export default function CastingScreen() {
               value={searchQuery}
               onChangeText={handleSearchUsers}
               placeholder="Rechercher un acteur (nom, pseudo)..."
+              placeholderTextColor={colors.text + "80"}
               autoCapitalize="none"
             />
           </View>
@@ -455,7 +460,7 @@ export default function CastingScreen() {
           {searching ? (
             <ActivityIndicator
               style={{ marginTop: 20 }}
-              color={Colors.light.tint}
+              color={colors.tint}
             />
           ) : (
             <FlatList
@@ -491,7 +496,7 @@ export default function CastingScreen() {
                   <Ionicons
                     name="checkmark-circle-outline"
                     size={24}
-                    color={Colors.light.tint}
+                    color={colors.tint}
                     style={{ marginLeft: "auto" }}
                   />
                 </TouchableOpacity>
@@ -504,16 +509,18 @@ export default function CastingScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: any, isDark: boolean) {
+  return StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f8f9fa",
+    backgroundColor: colors.backgroundSecondary,
   },
   centerContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
     padding: 20,
+    backgroundColor: colors.backgroundSecondary,
   },
   header: {
     flexDirection: "row",
@@ -522,9 +529,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 60,
     paddingBottom: 16,
-    backgroundColor: "white",
+    backgroundColor: colors.background,
     borderBottomWidth: 1,
-    borderBottomColor: "#eee",
+    borderBottomColor: colors.border,
   },
   headerLeft: {
     width: 45,
@@ -537,9 +544,10 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontWeight: "bold",
+    color: colors.text,
   },
   addButton: {
-    backgroundColor: Colors.light.tint,
+    backgroundColor: colors.tint,
     padding: 8,
     borderRadius: 20,
   },
@@ -547,11 +555,11 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   roleItem: {
-    backgroundColor: "white",
+    backgroundColor: colors.card,
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
-    shadowColor: "#000",
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 2,
@@ -560,6 +568,8 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: Platform.OS === "web" ? "center" : "stretch",
     gap: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   roleInfo: {
     flex: 1,
@@ -568,29 +578,31 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "bold",
     marginBottom: 4,
+    color: colors.text,
   },
   roleDescription: {
     fontSize: 14,
-    color: "#6c757d",
+    color: colors.text,
+    opacity: 0.7,
   },
   roleAssignee: {
     minWidth: 200,
   },
   assignButton: {
-    backgroundColor: "#e7f5ff",
+    backgroundColor: colors.tint + "15",
     padding: 10,
     borderRadius: 8,
     alignItems: "center",
   },
   assignButtonText: {
-    color: "#1c7ed6",
+    color: colors.tint,
     fontWeight: "600",
   },
   assignedContainer: {
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    backgroundColor: "#f8f9fa",
+    backgroundColor: colors.backgroundSecondary,
     padding: 8,
     borderRadius: 8,
   },
@@ -598,64 +610,67 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "#dee2e6",
+    backgroundColor: colors.border,
   },
   assignedName: {
     fontWeight: "600",
     fontSize: 14,
+    color: colors.text,
   },
   unassignText: {
     fontSize: 12,
-    color: "#fa5252",
+    color: colors.danger || "#fa5252",
     marginTop: 2,
   },
   emptyText: {
     textAlign: "center",
-    color: "#adb5bd",
+    color: colors.text,
+    opacity: 0.5,
     marginTop: 40,
   },
   // Permissions
   forbiddenText: {
     fontSize: 22,
     fontWeight: "bold",
-    color: "#c92a2a",
+    color: colors.danger || "#c92a2a",
     marginBottom: 8,
   },
   forbiddenSubtext: {
     fontSize: 16,
-    color: "#495057",
+    color: colors.text,
     textAlign: "center",
     marginBottom: 20,
   },
   backButton: {
     padding: 12,
-    backgroundColor: "#f1f3f5",
+    backgroundColor: colors.backgroundSecondary,
     borderRadius: 8,
   },
   backButtonText: {
-    color: "#212529",
+    color: colors.text,
     fontWeight: "600",
   },
   // Modals
   modalContainer: {
     flex: 1,
-    backgroundColor: "#f8f9fa",
+    backgroundColor: colors.backgroundSecondary,
   },
   modalHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     padding: 16,
-    backgroundColor: "white",
+    backgroundColor: colors.background,
     borderBottomWidth: 1,
-    borderBottomColor: "#dee2e6",
+    borderBottomColor: colors.border,
   },
   modalTitle: {
     fontSize: 18,
     fontWeight: "bold",
+    color: colors.text,
   },
   cancelText: {
-    color: Colors.light.tint,
+    color: colors.tint,
     fontSize: 16,
   },
   modalContent: {
@@ -668,23 +683,24 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
     marginBottom: 8,
-    color: "#495057",
+    color: colors.text,
   },
   input: {
-    backgroundColor: "white",
+    backgroundColor: colors.card,
     borderWidth: 1,
-    borderColor: "#dee2e6",
+    borderColor: colors.border,
     borderRadius: 8,
     padding: 12,
     marginBottom: 20,
     fontSize: 16,
+    color: colors.text,
   },
   textArea: {
     height: 100,
     textAlignVertical: "top",
   },
   saveButton: {
-    backgroundColor: Colors.light.tint,
+    backgroundColor: colors.tint,
     padding: 16,
     borderRadius: 12,
     alignItems: "center",
@@ -697,31 +713,37 @@ const styles = StyleSheet.create({
   // Search
   searchContainer: {
     padding: 16,
-    backgroundColor: "white",
+    backgroundColor: colors.background,
     borderBottomWidth: 1,
-    borderBottomColor: "#f1f3f5",
+    borderBottomColor: colors.border,
   },
   searchInput: {
-    backgroundColor: "#f1f3f5",
+    backgroundColor: colors.backgroundSecondary,
     borderRadius: 8,
     padding: 12,
     fontSize: 16,
+    color: colors.text,
   },
   userItem: {
     flexDirection: "row",
     alignItems: "center",
     padding: 12,
-    backgroundColor: "white",
+    backgroundColor: colors.card,
     marginBottom: 8,
     borderRadius: 8,
     gap: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   userName: {
     fontWeight: "bold",
     fontSize: 16,
+    color: colors.text,
   },
   userSub: {
-    color: "#868e96",
+    color: colors.text,
+    opacity: 0.6,
     fontSize: 14,
   },
-});
+  });
+}

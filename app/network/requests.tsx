@@ -1,6 +1,6 @@
-import Colors from "@/constants/Colors";
 import { GlobalStyles } from "@/constants/Styles";
 import { appEvents, EVENTS } from "@/lib/events";
+import { useTheme } from "@/providers/ThemeProvider";
 import { NotificationService } from "@/services/NotificationService";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -20,6 +20,8 @@ import { supabase } from "../../lib/supabase";
 
 export default function ConnectionRequests() {
   const router = useRouter();
+  const { colors, isDark } = useTheme();
+  const styles = createStyles(colors, isDark);
   const [loading, setLoading] = useState(true);
   const [sections, setSections] = useState<any[]>([]);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
@@ -326,7 +328,7 @@ export default function ConnectionRequests() {
                 onPress={() => handleAction(item.id, "reject")}
                 style={[styles.btn, styles.btnReject]}
               >
-                <Ionicons name="close" size={22} color={Colors.light.danger} />
+                <Ionicons name="close" size={22} color={colors.danger} />
               </TouchableOpacity>
             </>
           ) : (
@@ -334,7 +336,7 @@ export default function ConnectionRequests() {
               onPress={() => handleAction(item.id, "cancel")}
               style={[
                 styles.btn,
-                { backgroundColor: Colors.light.backgroundSecondary },
+                { backgroundColor: colors.backgroundSecondary },
               ]}
             >
               <Ionicons name="trash-outline" size={20} color="#666" />
@@ -356,13 +358,13 @@ export default function ConnectionRequests() {
           headerTitle: "Invitations",
           headerTitleAlign: "center",
           headerShadowVisible: false,
-          headerStyle: { backgroundColor: Colors.light.background },
+          headerStyle: { backgroundColor: colors.background },
           headerLeft: () => (
             <TouchableOpacity
               onPress={() => router.back()}
               style={{ padding: 10, marginLeft: -10 }}
             >
-              <Ionicons name="arrow-back" size={24} color={Colors.light.text} />
+              <Ionicons name="arrow-back" size={24} color={colors.text} />
             </TouchableOpacity>
           ),
           headerRight: () =>
@@ -373,7 +375,7 @@ export default function ConnectionRequests() {
               >
                 <Text
                   style={{
-                    color: Colors.light.tint,
+                    color: colors.tint,
                     fontWeight: "600",
                     fontSize: 13,
                   }}
@@ -417,36 +419,38 @@ export default function ConnectionRequests() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.light.backgroundSecondary },
-  sectionHeader: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#666",
-    marginBottom: 10,
-    marginTop: 15,
-    textTransform: "uppercase",
-    letterSpacing: 1,
-  },
-  info: { flex: 1, marginRight: 10 },
-  date: { fontSize: 11, color: "#999" },
-  actions: { flexDirection: "row", gap: 12 },
-  btn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: Colors.light.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  btnAccept: { backgroundColor: Colors.light.success },
-  btnReject: {
-    backgroundColor: "#fff",
-    borderWidth: 1,
-    borderColor: "#ffebee",
-  },
-});
+function createStyles(colors: any, isDark: boolean) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.backgroundSecondary },
+    sectionHeader: {
+      fontSize: 14,
+      fontWeight: "600",
+      color: "#666",
+      marginBottom: 10,
+      marginTop: 15,
+      textTransform: "uppercase",
+      letterSpacing: 1,
+    },
+    info: { flex: 1, marginRight: 10 },
+    date: { fontSize: 11, color: "#999" },
+    actions: { flexDirection: "row", gap: 12 },
+    btn: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      alignItems: "center",
+      justifyContent: "center",
+      shadowColor: colors.shadow,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 2,
+    },
+    btnAccept: { backgroundColor: colors.success },
+    btnReject: {
+      backgroundColor: isDark ? colors.backgroundSecondary : "#fff",
+      borderWidth: 1,
+      borderColor: isDark ? colors.border : "#ffebee",
+    },
+  });
+}

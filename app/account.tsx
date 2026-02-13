@@ -6,6 +6,7 @@ import { GlobalStyles } from "@/constants/Styles";
 import { useUserMode } from "@/hooks/useUserMode";
 import { appEvents, EVENTS } from "@/lib/events";
 import { supabase } from "@/lib/supabase";
+import { ACCENT_COLORS, AccentColor, useTheme } from "@/providers/ThemeProvider";
 import { useTutorial } from "@/providers/TutorialProvider";
 import { Ionicons } from "@expo/vector-icons";
 import * as DocumentPicker from "expo-document-picker";
@@ -88,6 +89,184 @@ export default function Account() {
   const [myParticipations, setMyParticipations] = useState<any[]>([]);
   const [paymentModalVisible, setPaymentModalVisible] = useState(false);
   const { startTutorial, isLoading: isTutorialLoading } = useTutorial();
+
+  const { themeMode, setThemeMode, accentColor, setAccentColor, colors, isDark } = useTheme();
+
+  const styles = StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.backgroundSecondary },
+    center: { flex: 1, justifyContent: "center", alignItems: "center" },
+    header: {
+      paddingTop: 50,
+      paddingBottom: 15,
+      paddingHorizontal: 15,
+      backgroundColor: colors.background,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+    },
+    scrollContent: { padding: 20 },
+    avatar: { width: 100, height: 100, borderRadius: 50 },
+    avatarPlaceholder: {
+      width: 100,
+      height: 100,
+      borderRadius: 50,
+      backgroundColor: isDark ? "#374151" : "#eee",
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    editBadge: {
+      position: "absolute",
+      right: 0,
+      bottom: 0,
+      backgroundColor: colors.primary,
+      padding: 6,
+      borderRadius: 15,
+      borderWidth: 2,
+      borderColor: colors.background,
+    },
+    sectionTitle: {
+      fontSize: 14,
+      fontWeight: "700",
+      marginTop: 25,
+      marginBottom: 15,
+      color: colors.text,
+      textTransform: "uppercase",
+      letterSpacing: 1,
+      opacity: 0.8,
+    },
+    label: { fontSize: 13, color: isDark ? "#9CA3AF" : "#666", marginBottom: 6, fontWeight: "500" },
+    textArea: { height: 100, textAlignVertical: "top" },
+    addButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      padding: 12,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderStyle: "dashed",
+      borderColor: colors.border,
+      marginTop: 5,
+    },
+    skillBadge: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: colors.primary + "15",
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 20,
+      gap: 6,
+    },
+    skillText: { color: colors.primary, fontSize: 13, fontWeight: "600" },
+    docItem: {
+      flexDirection: "row",
+      alignItems: "center",
+      padding: 12,
+      backgroundColor: colors.background,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: colors.border,
+      gap: 12,
+    },
+    radioGroup: { flexDirection: "row", gap: 10, marginTop: 5 },
+    radioButton: {
+      flex: 1,
+      paddingVertical: 10,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: colors.border,
+      alignItems: "center",
+    },
+    radioButtonActive: {
+      borderColor: colors.primary,
+      backgroundColor: colors.primary + "10",
+    },
+    radioText: {
+      fontSize: 14,
+      fontWeight: "600",
+      color: isDark ? "#9CA3AF" : "#666",
+    },
+    radioTextActive: { color: colors.primary, fontWeight: "700" },
+    input: {
+      backgroundColor: colors.background,
+      borderRadius: 12,
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      fontSize: 16,
+      color: colors.text,
+      borderWidth: 1,
+      borderColor: colors.border,
+      marginBottom: 15,
+    },
+    saveButtonFloating: {
+        position: 'absolute',
+        bottom: 30,
+        right: 30,
+        width: 60,
+        height: 60,
+        borderRadius: 30,
+        backgroundColor: colors.primary,
+        justifyContent: 'center',
+        alignItems: 'center',
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 5,
+        elevation: 8,
+    },
+    errorText: {
+      color: colors.danger,
+      fontSize: 12,
+      marginBottom: 10,
+      fontWeight: "500",
+    },
+    tag: {
+      paddingVertical: 8,
+      paddingHorizontal: 12,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: "transparent",
+    },
+    tagSelected: {
+      borderColor: colors.primary,
+      backgroundColor: colors.primary + "10",
+    },
+    tagText: {
+      fontSize: 13,
+      color: isDark ? "#9CA3AF" : "#666",
+      fontWeight: "500",
+    },
+    tagTextSelected: {
+      color: colors.primary,
+      fontWeight: "600",
+    },
+    tagsContainer: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: 8,
+    },
+    skillTag: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: colors.primary + "15",
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 20,
+      gap: 6,
+    },
+    fileButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingVertical: 10,
+      paddingHorizontal: 12,
+      borderRadius: 8,
+      backgroundColor: colors.background,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+  });
 
   useEffect(() => {
     fetchProfile();
@@ -634,7 +813,7 @@ export default function Account() {
   if (loading && !profile.id)
     return (
       <View style={styles.center}>
-        <ClapLoading size={50} color={Colors.light.primary} />
+        <ClapLoading size={50} color={colors.primary} />
       </View>
     );
 
@@ -644,7 +823,7 @@ export default function Account() {
       {/* HEADER */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={{ padding: 5 }}>
-          <Ionicons name="arrow-back" size={24} color={Colors.light.text} />
+          <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
         <Text style={[GlobalStyles.title2, { marginBottom: 0 }]}>
           {/* put the full name here  */}
@@ -657,9 +836,9 @@ export default function Account() {
           style={{ padding: 5 }}
         >
           {loading || uploading ? (
-            <ClapLoading size={24} color={Colors.light.primary} />
+            <ClapLoading size={24} color={colors.primary} />
           ) : (
-            <Text style={{ color: Colors.light.primary, fontWeight: "bold" }}>
+            <Text style={{ color: colors.primary, fontWeight: "bold" }}>
               Enregistrer
             </Text>
           )}
@@ -697,7 +876,7 @@ export default function Account() {
           <View
             style={{
               backgroundColor:
-                subscriptionTier === "studio" ? Colors.light.primary : "#eee",
+                subscriptionTier === "studio" ? colors.primary : "#eee",
               paddingHorizontal: 15,
               paddingVertical: 8,
               borderRadius: 20,
@@ -727,7 +906,7 @@ export default function Account() {
             >
               <TouchableOpacity
                 onPress={() => setPaymentModalVisible(true)}
-                style={[GlobalStyles.primaryButton, { flex: 1 }]}
+                style={[GlobalStyles.primaryButton, { flex: 1, backgroundColor: colors.primary }]}
               >
                 <Text style={GlobalStyles.buttonText}>
                   Passer Pro (9€/mois)
@@ -745,26 +924,71 @@ export default function Account() {
                   width: 44,
                   height: 44,
                   borderRadius: 22,
-                  backgroundColor: Colors.light.backgroundSecondary,
+                  backgroundColor: colors.backgroundSecondary,
                   justifyContent: "center",
                   alignItems: "center",
-                  borderWidth: 1,
-                  borderColor: Colors.light.border,
                 }}
               >
-                <Ionicons
-                  name="information"
-                  size={24}
-                  color={Colors.light.text}
-                />
+                <Ionicons name="information-circle-outline" size={24} color="#666" />
               </TouchableOpacity>
             </View>
           )}
-          {subscriptionTier === "studio" && (
-            <Text style={{ color: Colors.light.success, marginTop: 5 }}>
-              Vous bénéficiez de projets illimités et d'outils avancés.
-            </Text>
-          )}
+        </View>
+
+        {/* THEME SETTINGS */}
+        <View style={GlobalStyles.card}>
+          <Text style={[GlobalStyles.title2, { marginBottom: 15 }]}>Personnalisation</Text>
+          
+          <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text, marginBottom: 10 }}>Mode d'affichage</Text>
+          <View style={{ flexDirection: 'row', gap: 10, marginBottom: 20 }}>
+            {(['light', 'dark', 'system'] as const).map((m) => (
+              <TouchableOpacity
+                key={m}
+                onPress={() => setThemeMode(m)}
+                style={{
+                  flex: 1,
+                  paddingVertical: 10,
+                  borderRadius: 10,
+                  borderWidth: 1,
+                  borderColor: themeMode === m ? colors.primary : colors.border,
+                  backgroundColor: themeMode === m ? colors.primary + '10' : 'transparent',
+                  alignItems: 'center',
+                }}
+              >
+                <Text style={{ 
+                  color: themeMode === m ? colors.primary : '#666',
+                  fontWeight: themeMode === m ? '700' : '500',
+                  textTransform: 'capitalize'
+                }}>
+                  {m === 'light' ? 'Clair' : m === 'dark' ? 'Sombre' : 'Système'}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text, marginBottom: 10 }}>Couleur d'accentuation</Text>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
+            {(Object.keys(ACCENT_COLORS) as AccentColor[]).map((color) => (
+              <TouchableOpacity
+                key={color}
+                onPress={() => setAccentColor(color)}
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 20,
+                  backgroundColor: ACCENT_COLORS[color].light,
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  borderWidth: 3,
+                  borderColor: accentColor === color ? colors.text : 'transparent'
+                }}
+              >
+                {accentColor === color && (
+                  <Ionicons name="checkmark" size={24} color="white" />
+                )}
+              </TouchableOpacity>
+            ))}
+          </View>
         </View>
 
         {/* 1. INFOS GENERALES */}
@@ -904,7 +1128,7 @@ export default function Account() {
             <Ionicons
               name="card-outline"
               size={24}
-              color={Colors.light.primary}
+              color={colors.primary}
             />
             <Text style={{ marginLeft: 15, fontSize: 16, flex: 1 }}>
               Ma carte de profil
@@ -941,7 +1165,7 @@ export default function Account() {
             <Ionicons
               name="bug-outline"
               size={24}
-              color={Colors.light.danger}
+              color={colors.danger}
             />
             <Text style={{ marginLeft: 15, fontSize: 16, flex: 1 }}>
               Signaler un problème
@@ -995,14 +1219,14 @@ export default function Account() {
               borderColor: "#eee",
             }}
           >
-            <Text style={{ fontSize: 14, color: Colors.light.text, flex: 1 }}>
+            <Text style={{ fontSize: 14, color: colors.text, flex: 1 }}>
               Afficher mes contacts sur mon profil public ?
             </Text>
             <Switch
               value={isContactVisible}
               onValueChange={toggleContactVisibility}
-              trackColor={{ false: "#767577", true: Colors.light.primary }}
-              thumbColor={isContactVisible ? Colors.light.tint : "#f4f3f4"}
+              trackColor={{ false: "#767577", true: colors.primary }}
+              thumbColor={isContactVisible ? colors.primary : "#f4f3f4"}
             />
           </View>
         </View>
@@ -1197,12 +1421,12 @@ export default function Account() {
                 <Ionicons
                   name="document-text"
                   size={24}
-                  color={Colors.light.primary}
+                  color={colors.primary}
                 />
                 <Text
                   style={{
                     marginLeft: 10,
-                    color: Colors.light.primary,
+                    color: colors.primary,
                     fontWeight: "600",
                   }}
                 >
@@ -1251,7 +1475,7 @@ export default function Account() {
                   <Ionicons
                     name="close-circle"
                     size={20}
-                    color={Colors.light.danger}
+                    color={colors.danger}
                   />
                 </TouchableOpacity>
               </View>
@@ -1332,9 +1556,9 @@ export default function Account() {
                     onValueChange={(val) => toggleProjectVisibility(p.id, val)}
                     trackColor={{
                       false: "#767577",
-                      true: Colors.light.primary,
+                      true: colors.primary,
                     }}
-                    thumbColor={isVisible ? Colors.light.tint : "#f4f3f4"}
+                    thumbColor={isVisible ? colors.primary : "#f4f3f4"}
                   />
                 </View>
               );
@@ -1367,7 +1591,7 @@ export default function Account() {
                 >
                   <View style={{ flex: 1 }}>
                     <Text style={{ fontWeight: "600" }}>{p.projectTitle}</Text>
-                    <Text style={{ fontSize: 12, color: Colors.light.primary }}>
+                    <Text style={{ fontSize: 12, color: colors.primary }}>
                       Rôle : {p.roleTitle}
                     </Text>
                   </View>
@@ -1378,9 +1602,9 @@ export default function Account() {
                     }
                     trackColor={{
                       false: "#767577",
-                      true: Colors.light.primary,
+                      true: colors.primary,
                     }}
-                    thumbColor={isVisible ? Colors.light.tint : "#f4f3f4"}
+                    thumbColor={isVisible ? colors.primary : "#f4f3f4"}
                   />
                 </View>
               );
@@ -1396,7 +1620,7 @@ export default function Account() {
           }}
           disabled={isTutorialLoading}
           style={{
-            backgroundColor: isTutorialLoading ? "#ccc" : Colors.light.tint,
+            backgroundColor: isTutorialLoading ? "#ccc" : colors.primary,
             padding: 15,
             borderRadius: 12,
             alignItems: "center",
@@ -1414,7 +1638,7 @@ export default function Account() {
             router.replace("/");
           }}
           style={{
-            backgroundColor: Colors.light.danger,
+            backgroundColor: colors.danger,
             padding: 15,
             borderRadius: 12,
             alignItems: "center",
@@ -1434,10 +1658,10 @@ export default function Account() {
               borderRadius: 12,
               alignItems: "center",
               borderWidth: 1,
-              borderColor: Colors.light.danger,
+              borderColor: colors.danger,
             }}
           >
-            <Text style={{ color: Colors.light.danger, fontWeight: "bold" }}>
+            <Text style={{ color: colors.danger, fontWeight: "bold" }}>
               Supprimer mon compte
             </Text>
           </TouchableOpacity>
@@ -1455,95 +1679,3 @@ export default function Account() {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.light.backgroundSecondary },
-  center: { flex: 1, justifyContent: "center", alignItems: "center" },
-  header: {
-    paddingTop: 50,
-    paddingBottom: 15,
-    paddingHorizontal: 15,
-    backgroundColor: Colors.light.background,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.light.border,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  scrollContent: { padding: 20 },
-  avatar: { width: 100, height: 100, borderRadius: 50 },
-  avatarPlaceholder: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: "#eee",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  editBadge: {
-    position: "absolute",
-    right: 0,
-    bottom: 0,
-    backgroundColor: Colors.light.primary,
-    padding: 6,
-    borderRadius: 15,
-    borderWidth: 2,
-    borderColor: "white",
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: "bold",
-    marginTop: 20,
-    marginBottom: 10,
-    color: "#444",
-    textTransform: "uppercase",
-    letterSpacing: 1,
-  },
-  label: { fontSize: 13, color: "#666", marginBottom: 6, fontWeight: "500" },
-  textArea: { height: 80, textAlignVertical: "top" },
-  addButton: {
-    backgroundColor: Colors.light.primary,
-    justifyContent: "center",
-    alignItems: "center",
-    width: 44,
-    height: 44,
-    borderRadius: 8,
-  },
-  tagsContainer: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  tag: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 20,
-    backgroundColor: Colors.light.backgroundSecondary,
-    borderWidth: 1,
-    borderColor: Colors.light.border,
-  },
-  tagSelected: {
-    backgroundColor: Colors.light.primary,
-    borderColor: Colors.light.primary,
-  },
-  tagText: { fontSize: 12, color: Colors.light.text },
-  tagTextSelected: { color: "white" },
-  skillTag: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#e3f2fd",
-    borderColor: "#bbdefb",
-    borderWidth: 1,
-    borderRadius: 20,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-  },
-  fileButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 10,
-    borderRadius: 8,
-  },
-  errorText: {
-    color: Colors.light.danger,
-    fontSize: 12,
-    marginTop: 4,
-    marginBottom: 10,
-  },
-});

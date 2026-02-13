@@ -1,19 +1,19 @@
 import ClapLoading from "@/components/ClapLoading";
-import Colors from "@/constants/Colors";
 import { GlobalStyles } from "@/constants/Styles";
 import { useUserMode } from "@/hooks/useUserMode";
+import { useTheme } from "@/providers/ThemeProvider";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-    Image,
-    Platform,
-    SectionList,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
-    useWindowDimensions,
+  Image,
+  Platform,
+  SectionList,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+  useWindowDimensions,
 } from "react-native";
 import { supabase } from "../../../lib/supabase";
 
@@ -22,6 +22,8 @@ export default function ProjectTeam() {
   const { id } = useLocalSearchParams();
   const { width } = useWindowDimensions();
   const { mode } = useUserMode();
+  const { colors, isDark } = useTheme();
+  const styles = createStyles(colors, isDark);
   const isWebLarge = Platform.OS === "web" && width >= 768;
   const [loading, setLoading] = useState(false);
   const [sections, setSections] = useState<any[]>([]);
@@ -90,7 +92,7 @@ export default function ProjectTeam() {
 
     return (
       <TouchableOpacity
-        style={GlobalStyles.card}
+        style={[GlobalStyles.card, { backgroundColor: colors.card, borderColor: colors.border }]}
         onPress={() =>
           router.push({
             pathname: "/profile/[id]",
@@ -109,7 +111,7 @@ export default function ProjectTeam() {
             </View>
           )}
           <View style={{ flex: 1, marginLeft: 15 }}>
-            <Text style={GlobalStyles.title2}>{name}</Text>
+            <Text style={[GlobalStyles.title2, { color: colors.text }]}>{name}</Text>
             <Text style={styles.roleTitle}>{roleTitle}</Text>
             <View style={styles.metaRow}>
               <View style={styles.badge}>
@@ -120,7 +122,7 @@ export default function ProjectTeam() {
               )}
             </View>
           </View>
-          <Ionicons name="chevron-forward" size={20} color="#ccc" />
+          <Ionicons name="chevron-forward" size={20} color={isDark ? "#444" : "#ccc"} />
         </View>
       </TouchableOpacity>
     );
@@ -134,16 +136,16 @@ export default function ProjectTeam() {
             onPress={() => router.back()}
             style={styles.backButton}
           >
-            <Ionicons name="arrow-back" size={24} color={Colors.light.text} />
+            <Ionicons name="arrow-back" size={24} color={colors.text} />
           </TouchableOpacity>
         )}
-        <Text style={GlobalStyles.title1}>L'Équipe du Film</Text>
+        <Text style={[GlobalStyles.title1, { color: colors.text }]}>L'Équipe du Film</Text>
       </View>
 
       {loading ? (
         <ClapLoading
           size={50}
-          color={Colors.light.primary}
+          color={colors.primary}
           style={{ marginTop: 50 }}
         />
       ) : (
@@ -161,7 +163,7 @@ export default function ProjectTeam() {
             width: "100%",
           }}
           ListEmptyComponent={
-            <Text style={{ textAlign: "center", color: "#666", marginTop: 50 }}>
+            <Text style={{ textAlign: "center", color: colors.text, opacity: 0.6, marginTop: 50 }}>
               Aucun membre assigné pour le moment.
             </Text>
           }
@@ -171,21 +173,21 @@ export default function ProjectTeam() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.light.backgroundSecondary },
+const createStyles = (colors: any, isDark: boolean) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.backgroundSecondary },
   header: {
     padding: 20,
     paddingTop: Platform.OS === "web" ? 20 : 60,
-    backgroundColor: Colors.light.background,
+    backgroundColor: colors.card,
     flexDirection: "row",
     alignItems: "center",
     borderBottomWidth: 1,
-    borderColor: Colors.light.border,
+    borderColor: colors.border,
   },
   sectionHeader: {
     fontSize: 14,
     fontWeight: "bold",
-    color: Colors.light.primary,
+    color: colors.primary,
     marginTop: 20,
     marginBottom: 10,
     letterSpacing: 1,
@@ -195,7 +197,7 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: Colors.light.tint,
+    backgroundColor: colors.tint,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -203,19 +205,19 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: Colors.light.backgroundSecondary,
+    backgroundColor: colors.backgroundSecondary,
   },
   avatarText: { fontSize: 24, fontWeight: "bold", color: "white" },
-  roleTitle: { fontSize: 14, color: Colors.light.text, marginBottom: 5 },
+  roleTitle: { fontSize: 14, color: colors.text, marginBottom: 5 },
   metaRow: { flexDirection: "row", alignItems: "center", gap: 10 },
   badge: {
-    backgroundColor: Colors.light.backgroundSecondary,
+    backgroundColor: colors.backgroundSecondary,
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 4,
     borderWidth: 1,
-    borderColor: Colors.light.border,
+    borderColor: colors.border,
   },
-  badgeText: { fontSize: 10, color: Colors.light.text, fontWeight: "600" },
-  cityText: { fontSize: 12, color: "#999" },
+  badgeText: { fontSize: 10, color: colors.text, fontWeight: "600" },
+  cityText: { fontSize: 12, color: colors.text, opacity: 0.5 },
 });

@@ -1,21 +1,21 @@
 import ClapLoading from "@/components/ClapLoading";
-import Colors from "@/constants/Colors";
 import { GlobalStyles } from "@/constants/Styles";
 import { useUserMode } from "@/hooks/useUserMode";
+import { useTheme } from "@/providers/ThemeProvider";
 import { NotificationService } from "@/services/NotificationService";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-    Alert,
-    Image,
-    Modal,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  Image,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { supabase } from "../../../lib/supabase";
 
@@ -24,6 +24,9 @@ export default function RoleDetails() {
   const id = Array.isArray(rawId) ? rawId[0] : rawId;
   const router = useRouter();
   const { effectiveUserId } = useUserMode();
+  const { colors, isDark } = useTheme();
+  const styles = createStyles(colors, isDark);
+
   const [loading, setLoading] = useState(false);
   const [role, setRole] = useState<any>(null);
   const [hasApplied, setHasApplied] = useState(false);
@@ -163,7 +166,7 @@ export default function RoleDetails() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ClapLoading size={50} color={Colors.light.primary} />
+        <ClapLoading size={50} color={colors.primary} />
       </View>
     );
   }
@@ -307,7 +310,7 @@ export default function RoleDetails() {
             style={styles.backButton}
             onPress={() => router.back()}
           >
-            <Ionicons name="arrow-back" size={24} color={Colors.light.text} />
+            <Ionicons name="arrow-back" size={24} color={colors.text} />
           </TouchableOpacity>
         </View>
 
@@ -317,7 +320,7 @@ export default function RoleDetails() {
             <View style={{ flex: 1 }}>
               <Text style={styles.roleTitle}>{role.title}</Text>
               {isInvitation && (
-                <Text style={{ color: Colors.light.tint, fontWeight: "600" }}>
+                <Text style={{ color: colors.tint, fontWeight: "600" }}>
                   Invitation en attente
                 </Text>
               )}
@@ -334,8 +337,8 @@ export default function RoleDetails() {
               style={[
                 GlobalStyles.card,
                 {
-                  backgroundColor: "#FFF9C4",
-                  borderColor: "#FBC02D",
+                  backgroundColor: isDark ? "#3e3a1e" : "#FFF9C4",
+                  borderColor: isDark ? "#856404" : "#FBC02D",
                   marginBottom: 20,
                 },
               ]}
@@ -346,21 +349,21 @@ export default function RoleDetails() {
                 <Ionicons
                   name="mail-unread-outline"
                   size={24}
-                  color="#FBC02D"
+                  color={isDark ? "#FBC02D" : "#856404"}
                 />
-                <Text style={{ fontWeight: "600", color: "#333" }}>
+                <Text style={{ fontWeight: "600", color: colors.text }}>
                   On vous propose ce rôle !
                 </Text>
               </View>
-              <Text style={{ marginTop: 5, color: "#666" }}>
+              <Text style={{ marginTop: 5, color: colors.text, opacity: 0.8 }}>
                 Vous pouvez accepter ou décliner cette proposition ci-dessous.
               </Text>
             </View>
           )}
 
           {/* PROJECT INFO CARD */}
-          <View style={GlobalStyles.card}>
-            <Text style={GlobalStyles.title2}>Le Projet</Text>
+          <View style={[GlobalStyles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Text style={[GlobalStyles.title2, { color: colors.text }]}>Le Projet</Text>
             <Text style={styles.projectTitle}>{project.title}</Text>
             <Text style={styles.projectMeta}>
               {project.type?.replace("_", " ")} • {project.ville || "Lieu N/C"}
@@ -369,7 +372,7 @@ export default function RoleDetails() {
               <Text style={styles.descriptionText}>{project.description}</Text>
             )}
             <View style={styles.dateRow}>
-              <Ionicons name="calendar-outline" size={16} color="#666" />
+              <Ionicons name="calendar-outline" size={16} color={colors.text} style={{ opacity: 0.6 }} />
               <Text style={styles.dateText}>
                 {project.start_date || "Dates à définir"}
                 {project.end_date ? ` - ${project.end_date}` : ""}
@@ -379,7 +382,7 @@ export default function RoleDetails() {
 
           {/* ROLE DETAILS */}
           <View style={styles.detailsContainer}>
-            <Text style={[GlobalStyles.title2, { marginTop: 20 }]}>
+            <Text style={[GlobalStyles.title2, { marginTop: 20, color: colors.text }]}>
               Détails du poste
             </Text>
 
@@ -481,7 +484,7 @@ export default function RoleDetails() {
             <TouchableOpacity
               style={[
                 GlobalStyles.primaryButton,
-                { flex: 2 },
+                { flex: 2, backgroundColor: colors.primary },
                 applying && { opacity: 0.7 },
               ]}
               onPress={handleAcceptAssignment}
@@ -492,20 +495,20 @@ export default function RoleDetails() {
             <TouchableOpacity
               style={[
                 GlobalStyles.primaryButton,
-                { flex: 1, backgroundColor: "#f0f0f0" },
+                { flex: 1, backgroundColor: colors.backgroundSecondary },
                 applying && { opacity: 0.7 },
               ]}
               onPress={handleDeclineAssignment}
               disabled={applying}
             >
-              <Text style={[GlobalStyles.buttonText, { color: "#666" }]}>
+              <Text style={[GlobalStyles.buttonText, { color: colors.text, opacity: 0.6 }]}>
                 Décliner
               </Text>
             </TouchableOpacity>
           </View>
         ) : isAssignedToMe ? (
           <View
-            style={[GlobalStyles.primaryButton, { backgroundColor: "#4CAF50" }]}
+            style={[GlobalStyles.primaryButton, { backgroundColor: colors.success }]}
           >
             <Text style={GlobalStyles.buttonText}>✓ Membre confirmé</Text>
           </View>
@@ -513,8 +516,9 @@ export default function RoleDetails() {
           <TouchableOpacity
             style={[
               GlobalStyles.primaryButton,
+              { backgroundColor: colors.primary },
               (hasApplied || applying || role.status !== "published") && {
-                backgroundColor: "#ccc",
+                backgroundColor: isDark ? "#333" : "#ccc",
               },
             ]}
             onPress={openApplicationModal}
@@ -552,25 +556,25 @@ export default function RoleDetails() {
                 marginBottom: 15,
               }}
             >
-              <Text style={GlobalStyles.title2}>Postuler</Text>
+              <Text style={[GlobalStyles.title2, { color: colors.text }]}>Postuler</Text>
               <TouchableOpacity
                 onPress={() => setApplicationModalVisible(false)}
               >
-                <Ionicons name="close" size={24} color="#333" />
+                <Ionicons name="close" size={24} color={colors.text} />
               </TouchableOpacity>
             </View>
 
-            <Text style={{ marginBottom: 10, color: "#666" }}>
+            <Text style={{ marginBottom: 10, color: colors.text, opacity: 0.7 }}>
               Vous pouvez ajouter un message personnel à votre candidature.
             </Text>
 
             <View
               style={{
                 borderWidth: 1,
-                borderColor: Colors.light.border,
+                borderColor: colors.border,
                 borderRadius: 8,
                 padding: 10,
-                backgroundColor: Colors.light.backgroundSecondary,
+                backgroundColor: colors.backgroundSecondary,
                 height: 120,
                 marginBottom: 20,
               }}
@@ -579,9 +583,10 @@ export default function RoleDetails() {
                 style={{
                   flex: 1,
                   textAlignVertical: "top",
-                  color: Colors.light.text,
+                  color: colors.text,
                 }}
                 placeholder="Bonjour, je suis très intéressé par ce rôle..."
+                placeholderTextColor={isDark ? "#999" : "#666"}
                 multiline
                 value={applicationMessage}
                 onChangeText={setApplicationMessage}
@@ -590,7 +595,7 @@ export default function RoleDetails() {
             </View>
 
             <TouchableOpacity
-              style={GlobalStyles.primaryButton}
+              style={[GlobalStyles.primaryButton, { backgroundColor: colors.primary }]}
               onPress={handleApply}
               disabled={applying}
             >
@@ -609,139 +614,142 @@ export default function RoleDetails() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.light.backgroundSecondary },
-  loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
-  errorText: {
-    fontSize: 18,
-    color: Colors.light.danger,
-    textAlign: "center",
-    marginTop: 50,
-  },
+function createStyles(colors: { text: string; background: string; backgroundSecondary: string; tint: string; tabIconDefault: string; tabIconSelected: string; border: string; primary: string; secondary: string; danger: string; success: string; card: string; shadow: string; }, isDark: boolean) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.backgroundSecondary },
+    loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
+    errorText: {
+      fontSize: 18,
+      color: colors.danger,
+      textAlign: "center",
+      marginTop: 50,
+    },
 
-  imageHeader: { height: 200, backgroundColor: "#333", position: "relative" },
-  projectImage: { width: "100%", height: "100%", opacity: 0.8 },
-  placeholderImage: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: Colors.light.primary,
-  },
+    imageHeader: { height: 200, backgroundColor: "#333", position: "relative" },
+    projectImage: { width: "100%", height: "100%", opacity: 0.8 },
+    placeholderImage: {
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center",
+      backgroundColor: colors.primary,
+    },
 
-  backButton: {
-    position: "absolute",
-    top: 50,
-    left: 20,
-    backgroundColor: "white",
-    padding: 8,
-    borderRadius: 20,
-    shadowColor: "#000",
-    shadowOpacity: 0.2,
-    shadowRadius: 5,
-  },
+    backButton: {
+      position: "absolute",
+      top: 50,
+      left: 20,
+      backgroundColor: "white",
+      padding: 8,
+      borderRadius: 20,
+      shadowColor: "#000",
+      shadowOpacity: 0.2,
+      shadowRadius: 5,
+    },
 
-  content: {
-    padding: 20,
-    marginTop: -20,
-    backgroundColor: Colors.light.backgroundSecondary,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-  },
+    content: {
+      padding: 20,
+      marginTop: -20,
+      backgroundColor: colors.backgroundSecondary,
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
+    },
 
-  roleHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 20,
-  },
-  roleTitle: {
-    fontSize: 24,
-    fontWeight: "bold",
-    flex: 1,
-    marginRight: 10,
-    color: Colors.light.text,
-  },
-  badge: {
-    backgroundColor: Colors.light.background,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: Colors.light.primary,
-  },
-  badgeText: { color: Colors.light.primary, fontWeight: "bold", fontSize: 12 },
+    roleHeader: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginBottom: 20,
+    },
+    roleTitle: {
+      fontSize: 24,
+      fontWeight: "bold",
+      flex: 1,
+      marginRight: 10,
+      color: colors.text,
+    },
+    badge: {
+      backgroundColor: colors.background,
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: colors.primary,
+    },
+    badgeText: { color: colors.primary, fontWeight: "bold", fontSize: 12 },
 
-  projectTitle: { fontSize: 16, fontWeight: "600", color: Colors.light.text },
-  projectMeta: { fontSize: 14, color: "#666", marginBottom: 8 },
-  dateRow: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: 8 },
-  dateText: { fontSize: 12, color: "#666" },
+    projectTitle: { fontSize: 16, fontWeight: "600", color: colors.text },
+    projectMeta: { fontSize: 14, color: isDark ? "#999" : "#666", marginBottom: 8 },
+    dateRow: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: 8 },
+    dateText: { fontSize: 12, color: isDark ? "#999" : "#666" },
 
-  detailsContainer: {},
-  descriptionText: {
-    fontSize: 16,
-    lineHeight: 24,
-    color: Colors.light.text,
-    marginBottom: 15,
-    textAlign: "justify",
-    paddingVertical: 10,
-  },
+    detailsContainer: {},
+    descriptionText: {
+      fontSize: 16,
+      lineHeight: 24,
+      color: colors.text,
+      marginBottom: 15,
+      textAlign: "justify",
+      paddingVertical: 10,
+    },
 
-  tagsContainer: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 10,
-    marginTop: 10,
-  },
-  tag: {
-    backgroundColor: Colors.light.background,
-    padding: 10,
-    borderRadius: 8,
-    minWidth: "45%",
-    borderWidth: 1,
-    borderColor: Colors.light.border,
-  },
-  tagLabel: {
-    fontSize: 10,
-    color: "#999",
-    textTransform: "uppercase",
-    marginBottom: 2,
-  },
-  tagValue: { fontSize: 14, fontWeight: "600", color: Colors.light.text },
-  tagWide: {
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    borderRadius: 8,
-    backgroundColor: Colors.light.background,
-    width: "100%",
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: Colors.light.border,
-  },
+    tagsContainer: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: 10,
+      marginTop: 10,
+    },
+    tag: {
+      backgroundColor: colors.background,
+      padding: 10,
+      borderRadius: 8,
+      minWidth: "45%",
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    tagLabel: {
+      fontSize: 10,
+      color: isDark ? "#666" : "#999",
+      textTransform: "uppercase",
+      marginBottom: 2,
+    },
+    tagValue: { fontSize: 14, fontWeight: "600", color: colors.text },
+    tagWide: {
+      paddingHorizontal: 12,
+      paddingVertical: 12,
+      borderRadius: 8,
+      backgroundColor: colors.background,
+      width: "100%",
+      marginBottom: 8,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
 
-  footer: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: Colors.light.background,
-    padding: 20,
-    paddingBottom: 40,
-    borderTopWidth: 1,
-    borderColor: Colors.light.border,
-  },
+    footer: {
+      position: "absolute",
+      bottom: 0,
+      left: 0,
+      right: 0,
+      backgroundColor: colors.background,
+      padding: 20,
+      paddingBottom: 40,
+      borderTopWidth: 1,
+      borderColor: colors.border,
+    },
 
-  // Modal Styles (copied from other file for consistency)
-  modalOverlay: {
-    flex: 1,
-    justifyContent: "center",
-    backgroundColor: "rgba(0,0,0,0.5)",
-    padding: 20,
-  },
-  modalContent: {
-    backgroundColor: "white",
-    borderRadius: 15,
-    padding: 20,
-    maxHeight: "80%",
-    width: "100%",
-  },
-});
+    // Modal Styles (copied from other file for consistency)
+    modalOverlay: {
+      flex: 1,
+      justifyContent: "center",
+      backgroundColor: "rgba(0,0,0,0.5)",
+      padding: 20,
+    },
+    modalContent: {
+      backgroundColor: colors.background,
+      borderRadius: 15,
+      padding: 20,
+      maxHeight: "80%",
+      width: "100%",
+    },
+  });
+}
+

@@ -1,37 +1,26 @@
 import ClapLoading from "@/components/ClapLoading";
-import Colors from "@/constants/Colors";
 import { GlobalStyles } from "@/constants/Styles";
 import { useUserMode } from "@/hooks/useUserMode";
+import { useTheme } from "@/providers/ThemeProvider";
 import { useTutorial } from "@/providers/TutorialProvider";
 import { Ionicons } from "@expo/vector-icons";
 import { Stack, useGlobalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-    FlatList,
-    Platform,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    useWindowDimensions,
-    View,
+  FlatList,
+  Platform,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  useWindowDimensions,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { supabase } from "../../../../lib/supabase";
 
-const CATEGORY_COLORS: Record<string, string> = {
-  general: "#78909C",
-  realisateur: "#E91E63",
-  acteur: "#9C27B0",
-  image: "#2196F3",
-  son: "#FF9800",
-  production: "#4CAF50",
-  hmc: "#E91E63",
-  deco: "#795548",
-  post_prod: "#607D8B",
-  technicien: "#607D8B",
-};
-
 export default function ChatList() {
+  const { colors, isDark } = useTheme();
+  const styles = createStyles(colors, isDark);
   const { id } = useGlobalSearchParams();
   const { isTutorialActive, currentStep } = useTutorial();
   const router = useRouter();
@@ -42,6 +31,22 @@ export default function ChatList() {
   const [isOwner, setIsOwner] = useState(false);
   const [project, setProject] = useState<any>(null);
   const [debugInfo, setDebugInfo] = useState("");
+
+  const getCategoryColor = (category: string) => {
+    const mapping: Record<string, string> = {
+      general: "#78909C",
+      realisateur: "#E91E63",
+      acteur: colors.primary,
+      image: "#2196F3",
+      son: "#FF9800",
+      production: "#4CAF50",
+      hmc: "#E91E63",
+      deco: "#795548",
+      post_prod: "#607D8B",
+      technicien: "#607D8B",
+    };
+    return mapping[category] || colors.text + "80";
+  };
 
   const projectId = Array.isArray(id) ? id[0] : id;
 
@@ -138,14 +143,14 @@ export default function ChatList() {
 
   if (loading) {
     return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-        <ClapLoading color={Colors.light.tint} size={50} />
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: colors.background }}>
+        <ClapLoading color={colors.primary} size={50} />
       </View>
     );
   }
 
   return (
-    <SafeAreaView style={GlobalStyles.container} edges={["top"]}>
+    <SafeAreaView style={[GlobalStyles.container, { backgroundColor: colors.background }]} edges={["top"]}>
       <Stack.Screen
         options={{
           headerShown: false,
@@ -168,7 +173,7 @@ export default function ChatList() {
                 flexDirection: "row",
                 alignItems: "center",
                 gap: 5,
-                backgroundColor: "#f0f0f0",
+                backgroundColor: colors.backgroundSecondary,
                 paddingHorizontal: 10,
                 paddingVertical: 6,
                 borderRadius: 20,
@@ -177,8 +182,8 @@ export default function ChatList() {
                 zIndex: 10,
               }}
             >
-              <Ionicons name="home" size={16} color="#333" />
-              <Text style={{ fontSize: 11, fontWeight: "600", color: "#333" }}>
+              <Ionicons name="home" size={16} color={colors.text} />
+              <Text style={{ fontSize: 11, fontWeight: "600", color: colors.text }}>
                 Accueil
               </Text>
             </TouchableOpacity>
@@ -220,7 +225,7 @@ export default function ChatList() {
                 <Ionicons
                   name="settings-outline"
                   size={24}
-                  color={Colors.light.text}
+                  color={colors.text}
                 />
               </TouchableOpacity>
             )}
@@ -243,7 +248,7 @@ export default function ChatList() {
             <Text
               style={{
                 textAlign: "center",
-                color: Colors.light.tabIconDefault,
+                color: colors.text + "80",
                 marginTop: 30,
               }}
             >
@@ -254,7 +259,7 @@ export default function ChatList() {
             {debugInfo ? (
               <Text
                 style={{
-                  color: Colors.light.danger,
+                  color:  "#FF4444",
                   marginTop: 10,
                   fontSize: 10,
                   textAlign: "center",
@@ -266,7 +271,7 @@ export default function ChatList() {
           </View>
         }
         renderItem={({ item }) => {
-          const color = CATEGORY_COLORS[item] || Colors.light.tabIconDefault;
+          const color = getCategoryColor(item);
           return (
             <TouchableOpacity
               style={styles.channelCard}
@@ -292,7 +297,7 @@ export default function ChatList() {
                     : `Équipe ${item.toUpperCase()}`}
                 </Text>
                 <Text
-                  style={{ fontSize: 12, color: Colors.light.tabIconDefault }}
+                  style={{ fontSize: 12, color: colors.text + "80" }}
                 >
                   Appuyez pour entrer
                 </Text>
@@ -300,7 +305,7 @@ export default function ChatList() {
               <Ionicons
                 name="chevron-forward"
                 size={20}
-                color={Colors.light.border}
+                color={colors.border}
               />
             </TouchableOpacity>
           );
@@ -310,22 +315,22 @@ export default function ChatList() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   projectHeader: {
     padding: 15,
-    backgroundColor: "white",
+    backgroundColor: colors.background,
     borderBottomWidth: 1,
-    borderBottomColor: "#eee",
+    borderBottomColor: colors.border,
   },
   title: {
     fontSize: 18,
     fontWeight: "bold",
-    color: "#333",
+    color: colors.text,
     textAlign: "center",
   },
   subtitleProject: {
     fontSize: 12,
-    color: "#666",
+    color: colors.text + "80",
     textTransform: "capitalize",
     textAlign: "center",
   },
@@ -333,24 +338,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 15,
     borderBottomWidth: 1,
-    borderColor: Colors.light.border,
-    backgroundColor: Colors.light.background,
+    borderColor: colors.border,
+    backgroundColor: colors.background,
   },
   subtitle: {
-    color: Colors.light.tabIconDefault,
+    color: colors.text + "B3", // Equivalent to tabIconDefault roughly
     fontWeight: "600",
   },
   channelCard: {
     flexDirection: "row",
     alignItems: "center",
     padding: 15,
-    backgroundColor: Colors.light.card,
+    backgroundColor: colors.card,
     marginBottom: 10,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: Colors.light.border,
+    borderColor: colors.border,
     // Shadow
-    shadowColor: Colors.light.shadow,
+    shadowColor: isDark ? "transparent" : "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 4,
@@ -367,6 +372,6 @@ const styles = StyleSheet.create({
   channelTitle: {
     fontSize: 16,
     fontWeight: "600",
-    color: Colors.light.text,
+    color: colors.text,
   },
 });

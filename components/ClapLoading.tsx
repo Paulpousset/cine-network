@@ -1,4 +1,4 @@
-import Colors from "@/constants/Colors";
+import { useTheme } from "@/providers/ThemeProvider";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React, { useEffect, useRef } from "react";
 import {
@@ -18,9 +18,11 @@ interface ClapLoadingProps {
 
 export default function ClapLoading({
   size = 40,
-  color = Colors.light.primary,
+  color,
   style,
 }: ClapLoadingProps) {
+  const { colors } = useTheme();
+  const finalColor = color || colors.primary;
   const rotation = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -44,7 +46,7 @@ export default function ClapLoading({
   return (
     <View style={[styles.container, style]}>
       <Animated.View style={{ transform: [{ rotate }] }}>
-        <MaterialCommunityIcons name="movie-open" size={size} color={color} />
+        <MaterialCommunityIcons name="movie-open" size={size} color={finalColor} />
       </Animated.View>
     </View>
   );

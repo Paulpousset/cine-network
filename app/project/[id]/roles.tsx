@@ -2,25 +2,25 @@ import AppMap, { Marker } from "@/components/AppMap";
 import ClapLoading from "@/components/ClapLoading";
 import { Hoverable } from "@/components/Hoverable";
 import RoleFormFields from "@/components/RoleFormFields";
-import Colors from "@/constants/Colors";
 import { useUserMode } from "@/hooks/useUserMode";
+import { useTheme } from "@/providers/ThemeProvider";
 import { NotificationService } from "@/services/NotificationService";
 import { fuzzySearch } from "@/utils/search";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
-    Alert,
-    FlatList,
-    Modal,
-    Platform,
-    ScrollView,
-    SectionList,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  FlatList,
+  Modal,
+  Platform,
+  ScrollView,
+  SectionList,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { supabase } from "../../../lib/supabase";
 import { JOB_TITLES } from "../../../utils/roles";
@@ -77,13 +77,238 @@ type RoleItem = {
   };
 };
 
+function createStyles(colors: any, isDark: boolean) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.backgroundSecondary },
+    header: {
+      paddingTop: 60,
+      paddingBottom: 15,
+      paddingHorizontal: 20,
+      backgroundColor: colors.background,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      borderBottomWidth: 1,
+      borderColor: colors.border,
+    },
+    addBtn: {
+      backgroundColor: colors.primary,
+      flexDirection: "row",
+      alignItems: "center",
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: 20,
+      gap: 4,
+    },
+    screenTitle: { fontSize: 20, fontWeight: "bold", color: colors.text },
+    subtitle: { fontSize: 14, color: isDark ? "#aaa" : "#666" },
+    card: {
+      backgroundColor: isDark ? colors.background : "white",
+      marginBottom: 12,
+      borderRadius: 10,
+      padding: 15,
+      shadowColor: colors.shadow,
+      shadowOpacity: 0.05,
+      shadowRadius: 3,
+      elevation: 2,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    cardHeader: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "flex-start",
+      marginBottom: 10,
+    },
+    roleTitle: { fontSize: 16, fontWeight: "bold", color: colors.text },
+    categoryText: {
+      fontSize: 12,
+      color: "#888",
+      marginTop: 4,
+      fontWeight: "600",
+    },
+    draftBadge: {
+      backgroundColor: "#FF9800",
+      borderRadius: 4,
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+    },
+    draftText: { color: "white", fontSize: 10, fontWeight: "bold" },
+
+    actionsRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      borderTopWidth: 1,
+      borderColor: colors.border,
+      paddingTop: 10,
+      marginTop: 5,
+    },
+    actionBtn: {
+      paddingVertical: 6,
+      paddingHorizontal: 12,
+      borderRadius: 6,
+    },
+    btnPublish: { backgroundColor: colors.success },
+    btnUnpublish: { backgroundColor: isDark ? "#333" : "#eee" },
+
+    assignBtn: {
+      padding: 6,
+      borderWidth: 1,
+      borderColor: colors.primary,
+      borderRadius: 6,
+    },
+    assignedContainer: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: isDark ? "#1b3320" : "#E8F5E9",
+      padding: 6,
+      paddingHorizontal: 10,
+      borderRadius: 20,
+      gap: 8,
+    },
+    assignedText: {
+      color: isDark ? "#81c784" : "#2E7D32",
+      fontWeight: "600",
+      fontSize: 13,
+    },
+
+    // Modal
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: "rgba(0,0,0,0.5)",
+      justifyContent: "center",
+      padding: 20,
+    },
+    modalContent: {
+      backgroundColor: colors.background,
+      borderRadius: 12,
+      padding: 20,
+      maxHeight: "80%",
+    },
+    modalTitle: { fontSize: 18, fontWeight: "bold", color: colors.text },
+    input: {
+      backgroundColor: colors.backgroundSecondary,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 8,
+      padding: 10,
+      marginVertical: 10,
+      textAlign: "center",
+      color: colors.text,
+    },
+    userRow: {
+      paddingVertical: 12,
+      borderBottomWidth: 1,
+      borderColor: colors.border,
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+    },
+    label: {
+      fontSize: 16,
+      fontWeight: "600",
+      marginBottom: 8,
+      marginTop: 15,
+      textAlign: "center",
+      color: colors.text,
+    },
+    rowWrap: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      justifyContent: "center",
+      gap: 8,
+    },
+    catChip: {
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: 20,
+      backgroundColor: colors.background,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    catChipSelected: {
+      backgroundColor: colors.primary,
+      borderColor: colors.primary,
+    },
+    jobChip: {
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      borderRadius: 6,
+      backgroundColor: colors.backgroundSecondary,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    jobChipSelected: {
+      backgroundColor: colors.text,
+      borderColor: colors.text,
+    },
+    assignProfileBtn: {
+      backgroundColor: colors.tint,
+      padding: 10,
+      borderRadius: 8,
+      alignItems: "center",
+      justifyContent: "center",
+      borderWidth: 1,
+      borderColor: colors.primary,
+      borderStyle: "dashed",
+    },
+    assigneeRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      backgroundColor: colors.backgroundSecondary,
+      padding: 10,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    listSectionHeader: {
+      paddingVertical: 10,
+      backgroundColor: colors.backgroundSecondary,
+      marginBottom: 5,
+    },
+    listSectionTitle: {
+      fontSize: 18,
+      fontWeight: "bold",
+      color: colors.text,
+    },
+  });
+}
+
 export default function ManageRoles() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
   const { mode } = useUserMode();
+  const { colors, isDark } = useTheme();
+  const styles = createStyles(colors, isDark);
 
-  const [roles, setRoles] = useState<RoleItem[]>([]);
+  const getCategoryColor = (category: string) => {
+    switch (category?.toLowerCase()) {
+      case "acteur":
+        return "#E91E63";
+      case "realisateur":
+        return "#9C27B0";
+      case "image":
+        return "#2196F3";
+      case "son":
+        return "#4CAF50";
+      case "production":
+        return "#FF9800";
+      case "hmc":
+        return "#FF4081";
+      case "deco":
+        return "#795548";
+      case "post_prod":
+        return "#607D8B";
+      case "technicien":
+        return "#9E9E9E";
+      default:
+        return colors.primary;
+    }
+  };
   const [loading, setLoading] = useState(false);
+  const [roles, setRoles] = useState<RoleItem[]>([]);
   const [projectTitle, setProjectTitle] = useState("");
   const [projectData, setProjectData] = useState<any>(null);
   const [viewMode, setViewMode] = useState<"list" | "map">("list");
@@ -1032,13 +1257,13 @@ export default function ManageRoles() {
             style={{
               padding: 8,
               borderRadius: 20,
-              backgroundColor: Colors.light.backgroundSecondary,
+              backgroundColor: colors.backgroundSecondary,
             }}
           >
             <Ionicons
               name={viewMode === "list" ? "map" : "list"}
               size={20}
-              color="#333"
+              color={colors.text}
             />
           </TouchableOpacity>
           <TouchableOpacity onPress={openAddRole} style={styles.addBtn}>
@@ -1050,7 +1275,7 @@ export default function ManageRoles() {
 
       {loading ? (
         <View style={{ marginTop: 40, alignItems: "center" }}>
-          <ClapLoading size={50} color={Colors.light.primary} />
+          <ClapLoading size={50} color={colors.primary} />
         </View>
       ) : viewMode === "map" ? (
         <View style={{ flex: 1 }}>
@@ -1117,7 +1342,7 @@ export default function ManageRoles() {
         <View
           style={{
             flex: 1,
-            backgroundColor: "white",
+            backgroundColor: colors.background,
             paddingTop: Platform.OS === "ios" ? 50 : 20,
             alignItems: "center",
           }}
@@ -1131,14 +1356,14 @@ export default function ManageRoles() {
                 marginBottom: 20,
                 paddingBottom: 15,
                 borderBottomWidth: 1,
-                borderBottomColor: Colors.light.border,
+                borderBottomColor: colors.border,
               }}
             >
               <Text
                 style={{
                   fontSize: 20,
                   fontWeight: "bold",
-                  color: Colors.light.text,
+                  color: colors.text,
                 }}
               >
                 {editingRole?.id ? "Modifier le rôle" : "Ajouter un rôle"}
@@ -1147,7 +1372,7 @@ export default function ManageRoles() {
                 onPress={() => setEditModalVisible(false)}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
-                <Ionicons name="close" size={24} color={Colors.light.text} />
+                <Ionicons name="close" size={24} color={colors.text} />
               </TouchableOpacity>
             </View>
 
@@ -1204,7 +1429,7 @@ export default function ManageRoles() {
                             color:
                               editingRole.category === cat
                                 ? "white"
-                                : Colors.light.text,
+                                : colors.text,
                           }}
                         >
                           {cat.charAt(0).toUpperCase() +
@@ -1262,7 +1487,7 @@ export default function ManageRoles() {
                               color:
                                 editingRole.title === job
                                   ? "white"
-                                  : Colors.light.text,
+                                  : colors.text,
                             }}
                           >
                             {job}
@@ -1337,7 +1562,7 @@ export default function ManageRoles() {
                             fontWeight: "500",
                             color: toArray(editingRole.experience).includes(lvl)
                               ? "white"
-                              : Colors.light.text,
+                              : colors.text,
                           }}
                         >
                           {lvl.charAt(0).toUpperCase() + lvl.slice(1)}
@@ -1369,7 +1594,7 @@ export default function ManageRoles() {
                             fontWeight: "500",
                             color: toArray(editingRole.gender).includes(g)
                               ? "white"
-                              : Colors.light.text,
+                              : colors.text,
                           }}
                         >
                           {g.charAt(0).toUpperCase() + g.slice(1)}
@@ -1430,7 +1655,7 @@ export default function ManageRoles() {
                           fontWeight: "500",
                           color: editingRole.isPaid
                             ? "white"
-                            : Colors.light.text,
+                            : colors.text,
                         }}
                       >
                         Rémunéré
@@ -1452,7 +1677,7 @@ export default function ManageRoles() {
                           fontWeight: "500",
                           color: !editingRole.isPaid
                             ? "white"
-                            : Colors.light.text,
+                            : colors.text,
                         }}
                       >
                         Bénévole
@@ -1557,7 +1782,7 @@ export default function ManageRoles() {
                                 color:
                                   editingRole.status === st
                                     ? "white"
-                                    : Colors.light.text,
+                                    : colors.text,
                               }}
                             >
                               {st === "draft"
@@ -1599,7 +1824,7 @@ export default function ManageRoles() {
                           fontWeight: "500",
                           color: !editingRole.createPost
                             ? "white"
-                            : Colors.light.text,
+                            : colors.text,
                         }}
                       >
                         Jobs uniquement
@@ -1632,7 +1857,7 @@ export default function ManageRoles() {
                           fontWeight: "500",
                           color: editingRole.createPost
                             ? "white"
-                            : Colors.light.text,
+                            : colors.text,
                         }}
                       >
                         Jobs + Feed
@@ -1680,7 +1905,7 @@ export default function ManageRoles() {
                         { cursor: "pointer" } as any,
                       ]}
                     >
-                      <Text style={{ color: "#841584", fontWeight: "600" }}>
+                      <Text style={{ color: colors.primary, fontWeight: "600" }}>
                         Choisir un profil +
                       </Text>
                     </Hoverable>
@@ -1689,7 +1914,7 @@ export default function ManageRoles() {
                   <Hoverable
                     style={
                       {
-                        backgroundColor: "#841584",
+                        backgroundColor: colors.primary,
                         padding: 15,
                         borderRadius: 8,
                         alignItems: "center",
@@ -1750,7 +1975,7 @@ export default function ManageRoles() {
                   />
                   {searching ? (
                     <View style={{ marginTop: 20, alignItems: "center" }}>
-                      <ClapLoading size={40} color={Colors.light.primary} />
+                      <ClapLoading size={40} color={colors.primary} />
                     </View>
                   ) : (
                     <View style={{ marginTop: 10, paddingBottom: 40 }}>
@@ -1776,7 +2001,7 @@ export default function ManageRoles() {
                             ]}
                             onPress={() => selectProfileInEdit(item)}
                             hoverStyle={{
-                              backgroundColor: Colors.light.backgroundSecondary,
+                              backgroundColor: colors.backgroundSecondary,
                             }}
                           >
                             <View>
@@ -1794,7 +2019,7 @@ export default function ManageRoles() {
                                   <Text
                                     style={{
                                       fontSize: 12,
-                                      color: "#841584",
+                                      color: colors.primary,
                                       fontWeight: "600",
                                     }}
                                   >
@@ -1802,7 +2027,7 @@ export default function ManageRoles() {
                                   </Text>
                                 )}
                                 {item.ville ? (
-                                  <Text style={{ fontSize: 12, color: "#666" }}>
+                                  <Text style={{ fontSize: 12, color: colors.text + "80" }}>
                                     {item.role ? `• ${item.ville}` : item.ville}
                                   </Text>
                                 ) : null}
@@ -1811,7 +2036,7 @@ export default function ManageRoles() {
                             <Ionicons
                               name="add-circle-outline"
                               size={24}
-                              color="#841584"
+                              color={colors.primary}
                             />
                           </Hoverable>
                         ))
@@ -1857,7 +2082,7 @@ export default function ManageRoles() {
 
             {searching ? (
               <View style={{ marginVertical: 20, alignItems: "center" }}>
-                <ClapLoading size={40} color={Colors.light.primary} />
+                <ClapLoading size={40} color={colors.primary} />
               </View>
             ) : (
               <FlatList
@@ -1884,7 +2109,7 @@ export default function ManageRoles() {
                           <Text
                             style={{
                               fontSize: 12,
-                              color: "#841584",
+                              color: colors.primary,
                               fontWeight: "600",
                             }}
                           >
@@ -1892,7 +2117,7 @@ export default function ManageRoles() {
                           </Text>
                         )}
                         {item.ville ? (
-                          <Text style={{ fontSize: 12, color: "#666" }}>
+                          <Text style={{ fontSize: 12, color: colors.text + "80" }}>
                             {item.role ? `• ${item.ville}` : item.ville}
                           </Text>
                         ) : null}
@@ -1901,7 +2126,7 @@ export default function ManageRoles() {
                     <Ionicons
                       name="add-circle-outline"
                       size={24}
-                      color="#841584"
+                      color={colors.primary}
                     />
                   </TouchableOpacity>
                 )}
@@ -1921,195 +2146,3 @@ export default function ManageRoles() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.light.backgroundSecondary },
-  header: {
-    paddingTop: 60,
-    paddingBottom: 15,
-    paddingHorizontal: 20,
-    backgroundColor: Colors.light.background,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    borderBottomWidth: 1,
-    borderColor: Colors.light.border,
-  },
-  addBtn: {
-    backgroundColor: Colors.light.primary,
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
-    gap: 4,
-  },
-  screenTitle: { fontSize: 20, fontWeight: "bold", color: Colors.light.text },
-  subtitle: { fontSize: 14, color: "#666" },
-  card: {
-    backgroundColor: "white",
-    marginBottom: 12,
-    borderRadius: 10,
-    padding: 15,
-    shadowColor: Colors.light.shadow,
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 2,
-    borderWidth: 1,
-    borderColor: Colors.light.border,
-  },
-  cardHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginBottom: 10,
-  },
-  roleTitle: { fontSize: 16, fontWeight: "bold", color: Colors.light.text },
-  categoryText: {
-    fontSize: 12,
-    color: "#888",
-    marginTop: 4,
-    fontWeight: "600",
-  },
-  draftBadge: {
-    backgroundColor: "#FF9800",
-    borderRadius: 4,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-  },
-  draftText: { color: "white", fontSize: 10, fontWeight: "bold" },
-
-  actionsRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    borderTopWidth: 1,
-    borderColor: Colors.light.border,
-    paddingTop: 10,
-    marginTop: 5,
-  },
-  actionBtn: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 6,
-  },
-  btnPublish: { backgroundColor: Colors.light.success },
-  btnUnpublish: { backgroundColor: "#eee" },
-
-  assignBtn: {
-    padding: 6,
-    borderWidth: 1,
-    borderColor: Colors.light.primary,
-    borderRadius: 6,
-  },
-  assignedContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#E8F5E9",
-    padding: 6,
-    paddingHorizontal: 10,
-    borderRadius: 20,
-    gap: 8,
-  },
-  assignedText: { color: "#2E7D32", fontWeight: "600", fontSize: 13 },
-
-  // Modal
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "center",
-    padding: 20,
-  },
-  modalContent: {
-    backgroundColor: Colors.light.background,
-    borderRadius: 12,
-    padding: 20,
-    maxHeight: "80%",
-  },
-  modalTitle: { fontSize: 18, fontWeight: "bold", color: Colors.light.text },
-  input: {
-    backgroundColor: Colors.light.backgroundSecondary,
-    borderWidth: 1,
-    borderColor: Colors.light.border,
-    borderRadius: 8,
-    padding: 10,
-    marginVertical: 10,
-    textAlign: "center",
-    color: Colors.light.text,
-  },
-  userRow: {
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderColor: Colors.light.border,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  label: {
-    fontSize: 16,
-    fontWeight: "600",
-    marginBottom: 8,
-    marginTop: 15,
-    textAlign: "center",
-    color: Colors.light.text,
-  },
-  rowWrap: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "center",
-    gap: 8,
-  },
-  catChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: Colors.light.background,
-    borderWidth: 1,
-    borderColor: Colors.light.border,
-  },
-  catChipSelected: {
-    backgroundColor: Colors.light.primary,
-    borderColor: Colors.light.primary,
-  },
-  jobChip: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 6,
-    backgroundColor: Colors.light.backgroundSecondary,
-    borderWidth: 1,
-    borderColor: Colors.light.border,
-  },
-  jobChipSelected: {
-    backgroundColor: Colors.light.text,
-    borderColor: Colors.light.text,
-  },
-  assignProfileBtn: {
-    backgroundColor: Colors.light.tint,
-    padding: 10,
-    borderRadius: 8,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: Colors.light.primary,
-    borderStyle: "dashed",
-  },
-  assigneeRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    backgroundColor: Colors.light.backgroundSecondary,
-    padding: 10,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: Colors.light.border,
-  },
-  listSectionHeader: {
-    paddingVertical: 10,
-    backgroundColor: Colors.light.backgroundSecondary,
-    marginBottom: 5,
-  },
-  listSectionTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: Colors.light.text,
-  },
-});

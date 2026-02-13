@@ -1,6 +1,7 @@
 import ClapLoading from "@/components/ClapLoading";
+import DynamicLogo from "@/components/DynamicLogo";
 import { Hoverable } from "@/components/Hoverable";
-import Colors from "@/constants/Colors";
+import { useTheme } from "@/providers/ThemeProvider";
 import { Ionicons } from "@expo/vector-icons";
 import * as AppleAuthentication from "expo-apple-authentication";
 import { makeRedirectUri } from "expo-auth-session";
@@ -13,14 +14,13 @@ import React, { useEffect, useRef, useState } from "react";
 import {
   Alert,
   Animated,
-  Image,
   Platform,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  View,
+  View
 } from "react-native";
 import { supabase } from "../lib/supabase";
 
@@ -63,6 +63,8 @@ const DB_ROLE_MAPPING: Record<string, string> = {
 };
 
 export default function AuthScreen() {
+  const { colors, isDark } = useTheme();
+  const styles = createStyles(colors, isDark);
   const router = useRouter();
   const [isLogin, setIsLogin] = useState(true);
   const [isReset, setIsReset] = useState(false);
@@ -490,7 +492,7 @@ export default function AuthScreen() {
 
   return (
     <LinearGradient
-      colors={[Colors.light.tint, "#2c1a4d"]}
+      colors={[colors.primary, isDark ? "#1a1a2e" : "#2c1a4d"]}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
       style={styles.background}
@@ -507,10 +509,9 @@ export default function AuthScreen() {
         >
           <View style={styles.headerContainer}>
             <View style={styles.logoContainer}>
-              <Image
-                source={require("@/assets/images/logoapp.jpg")}
-                style={styles.logoImage}
-                resizeMode="cover"
+              <DynamicLogo
+                width={80}
+                height={80}
               />
             </View>
             <Text style={styles.title}>{titleText}</Text>
@@ -612,7 +613,7 @@ export default function AuthScreen() {
                   >
                     <Text
                       style={{
-                        color: Colors.light.tint,
+                        color: colors.primary,
                         fontSize: 14,
                         fontWeight: "700",
                       }}
@@ -654,7 +655,7 @@ export default function AuthScreen() {
             <View style={{ height: 20 }} />
 
             {loading ? (
-              <ClapLoading size={40} color={Colors.light.tint} />
+              <ClapLoading size={40} color={colors.primary} />
             ) : (
               <Hoverable
                 style={styles.primaryButton}
@@ -731,7 +732,7 @@ export default function AuthScreen() {
                   style={{ fontSize: 14, color: "#64748b", fontWeight: "500" }}
                 >
                   Besoin d'aide ?{" "}
-                  <Text style={{ color: Colors.light.tint, fontWeight: "600" }}>
+                  <Text style={{ color: colors.primary, fontWeight: "600" }}>
                     Contacter le support
                   </Text>
                 </Text>
@@ -745,7 +746,7 @@ export default function AuthScreen() {
                   style={{ fontSize: 13, color: "#64748b", fontWeight: "500" }}
                 >
                   En continuant, vous acceptez notre{" "}
-                  <Text style={{ color: Colors.light.tint, fontWeight: "600" }}>
+                  <Text style={{ color: colors.primary, fontWeight: "600" }}>
                     Charte de Confidentialité
                   </Text>
                 </Text>
@@ -770,9 +771,10 @@ export default function AuthScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   background: {
     flex: 1,
+    backgroundColor: colors.background,
   },
   scrollContainer: {
     flexGrow: 1,
@@ -784,14 +786,16 @@ const styles = StyleSheet.create({
   card: {
     width: "100%",
     maxWidth: 420,
-    backgroundColor: "white",
+    backgroundColor: colors.card,
     borderRadius: 32,
     padding: 32,
-    shadowColor: "#000",
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 20 },
-    shadowOpacity: 0.3,
+    shadowOpacity: isDark ? 0.4 : 0.3,
     shadowRadius: 35,
     elevation: 20,
+    borderWidth: isDark ? 1 : 0,
+    borderColor: colors.border,
   },
   headerContainer: {
     alignItems: "center",
@@ -803,7 +807,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     overflow: "hidden",
     marginBottom: 24,
-    shadowColor: Colors.light.tint,
+    shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.2,
     shadowRadius: 10,
@@ -821,19 +825,19 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 32,
     fontWeight: "800",
-    color: "#0f172a",
+    color: colors.text,
     letterSpacing: -0.5,
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
-    color: "#64748b",
+    color: isDark ? "#aaa" : "#64748b",
     textAlign: "center",
     lineHeight: 22,
     paddingHorizontal: 10,
   },
   errorText: {
-    color: "#ef4444",
+    color: colors.danger,
     fontSize: 14,
     marginBottom: 16,
     textAlign: "center",
@@ -845,11 +849,11 @@ const styles = StyleSheet.create({
   inputWrapper: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#f8fafc",
+    backgroundColor: colors.backgroundSecondary,
     borderRadius: 16,
     marginBottom: 16,
     borderWidth: 1.5,
-    borderColor: "#f1f5f9",
+    borderColor: colors.border,
     paddingHorizontal: 16,
     height: 56,
   },
@@ -860,7 +864,7 @@ const styles = StyleSheet.create({
     flex: 1,
     height: "100%",
     fontSize: 16,
-    color: "#1e293b",
+    color: colors.text,
     fontWeight: "500",
     ...Platform.select({
       web: { outlineStyle: "none" } as any,
@@ -873,7 +877,7 @@ const styles = StyleSheet.create({
   roleTitle: {
     fontSize: 15,
     fontWeight: "700",
-    color: "#334155",
+    color: colors.text,
     marginBottom: 12,
   },
   rolesContainer: {
@@ -885,17 +889,17 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: 12,
-    backgroundColor: "#f1f5f9",
+    backgroundColor: colors.backgroundSecondary,
     borderWidth: 1.5,
-    borderColor: "#e2e8f0",
+    borderColor: colors.border,
   },
   roleChipSelected: {
-    backgroundColor: Colors.light.tint,
-    borderColor: Colors.light.tint,
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   roleText: {
     fontSize: 14,
-    color: "#64748b",
+    color: isDark ? "#aaa" : "#64748b",
     fontWeight: "600",
   },
   roleTextSelected: {
@@ -903,12 +907,12 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   primaryButton: {
-    backgroundColor: Colors.light.tint,
+    backgroundColor: colors.primary,
     borderRadius: 18,
     height: 56,
     justifyContent: "center",
     alignItems: "center",
-    shadowColor: Colors.light.tint,
+    shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.3,
     shadowRadius: 15,
@@ -928,11 +932,11 @@ const styles = StyleSheet.create({
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: "#f1f5f9",
+    backgroundColor: colors.border,
   },
   dividerText: {
     marginHorizontal: 16,
-    color: "#94a3b8",
+    color: isDark ? "#aaa" : "#94a3b8",
     fontSize: 13,
     fontWeight: "700",
   },
@@ -948,10 +952,10 @@ const styles = StyleSheet.create({
     height: 52,
     borderRadius: 16,
     borderWidth: 1.5,
-    borderColor: "#f1f5f9",
-    backgroundColor: "white",
+    borderColor: colors.border,
+    backgroundColor: colors.card,
     gap: 10,
-    shadowColor: "#000",
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 5,
@@ -960,7 +964,7 @@ const styles = StyleSheet.create({
   socialButtonText: {
     fontSize: 15,
     fontWeight: "700",
-    color: "#334155",
+    color: colors.text,
   },
   footer: {
     flexDirection: "row",
@@ -970,12 +974,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   footerText: {
-    color: "#64748b",
+    color: isDark ? "#aaa" : "#64748b",
     fontSize: 15,
     fontWeight: "500",
   },
   linkText: {
-    color: Colors.light.tint,
+    color: colors.primary,
     fontSize: 15,
     fontWeight: "700",
   },

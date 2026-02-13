@@ -1,7 +1,6 @@
 import AppMap, { Marker, PROVIDER_DEFAULT } from "@/components/AppMap";
 import ClapLoading from "@/components/ClapLoading";
 import { JobCard, ProjectJobCard } from "@/components/JobCard";
-import Colors from "@/constants/Colors";
 import { useJobs } from "@/hooks/useJobs";
 import { JOB_TITLES } from "@/utils/roles";
 import { Ionicons } from "@expo/vector-icons";
@@ -9,23 +8,27 @@ import { FlashList } from "@shopify/flash-list";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
-  FlatList,
-  Modal,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  TouchableWithoutFeedback,
-  useWindowDimensions,
-  View,
+    FlatList,
+    Modal,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    TouchableWithoutFeedback,
+    useWindowDimensions,
+    View,
 } from "react-native";
+
+import { useTheme } from "@/providers/ThemeProvider";
 
 // On récupère les clés de ton fichier rolesList.ts
 const ROLE_CATEGORIES = ["all", ...Object.keys(JOB_TITLES)];
 
 export default function Discover() {
+  const { colors, isDark } = useTheme();
+  const styles = createStyles(colors, isDark);
   const router = useRouter();
   const { width } = useWindowDimensions();
   const isWebLarge = Platform.OS === "web" && width >= 768;
@@ -106,7 +109,7 @@ export default function Discover() {
         <View
           style={{
             flexDirection: "row",
-            backgroundColor: Colors.light.backgroundSecondary,
+            backgroundColor: colors.backgroundSecondary,
             borderRadius: 8,
             padding: 4,
             marginBottom: 15,
@@ -135,7 +138,7 @@ export default function Discover() {
             <Text
               style={{
                 fontWeight: "600",
-                color: contentType === "roles" ? Colors.light.text : "#999",
+                color: contentType === "roles" ? colors.text : "#999",
               }}
             >
               Offres
@@ -164,7 +167,7 @@ export default function Discover() {
             <Text
               style={{
                 fontWeight: "600",
-                color: contentType === "projects" ? Colors.light.text : "#999",
+                color: contentType === "projects" ? colors.text : "#999",
               }}
             >
               Tournages
@@ -184,7 +187,7 @@ export default function Discover() {
             style={{
               flexDirection: "row",
               alignItems: "center",
-              backgroundColor: Colors.light.primary,
+              backgroundColor: colors.primary,
               paddingVertical: 6,
               paddingHorizontal: 12,
               borderRadius: 20,
@@ -244,7 +247,7 @@ export default function Discover() {
               </Text>
               <View
                 style={{
-                  backgroundColor: Colors.light.tint + "20",
+                  backgroundColor: colors.primary + "20",
                   paddingHorizontal: 6,
                   paddingVertical: 2,
                   borderRadius: 10,
@@ -254,7 +257,7 @@ export default function Discover() {
                   style={{
                     fontSize: 10,
                     fontWeight: "bold",
-                    color: Colors.light.tint,
+                    color: colors.primary,
                   }}
                 >
                   {recommendations.length}
@@ -266,7 +269,7 @@ export default function Discover() {
               <Text
                 style={{
                   fontSize: 12,
-                  color: Colors.light.tint,
+                  color: colors.primary,
                   marginRight: 4,
                 }}
               >
@@ -275,7 +278,7 @@ export default function Discover() {
               <Ionicons
                 name={isRecsCollapsed ? "chevron-down" : "chevron-up"}
                 size={20}
-                color={Colors.light.tint}
+                color={colors.primary}
               />
             </View>
           </TouchableOpacity>
@@ -325,7 +328,7 @@ export default function Discover() {
                     <Ionicons
                       name="chevron-forward"
                       size={14}
-                      color={Colors.light.tint}
+                      color={colors.primary}
                     />
                   </View>
                 </TouchableOpacity>
@@ -338,7 +341,7 @@ export default function Discover() {
       {loading ? (
         <ClapLoading
           size={50}
-          color={Colors.light.primary}
+          color={colors.primary}
           style={{ marginTop: 50 }}
         />
       ) : viewMode === "map" ? (
@@ -484,7 +487,7 @@ export default function Discover() {
                       <Ionicons
                         name="checkmark"
                         size={20}
-                        color={Colors.light.primary}
+                        color={colors.primary}
                       />
                     )}
                   </TouchableOpacity>
@@ -528,7 +531,7 @@ export default function Discover() {
                       <Ionicons
                         name="checkmark"
                         size={20}
-                        color={Colors.light.primary}
+                        color={colors.primary}
                       />
                     )}
                   </TouchableOpacity>
@@ -542,250 +545,253 @@ export default function Discover() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.light.backgroundSecondary },
-  webHeader: {
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-    backgroundColor: "white",
-    borderBottomWidth: 1,
-    borderBottomColor: "#eee",
-  },
-  webHeaderTitle: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: Colors.light.text,
-  },
-  header: {
-    backgroundColor: Colors.light.background,
-    paddingTop: 24,
-    paddingBottom: 15,
-    paddingHorizontal: 20,
-    borderBottomWidth: 1,
-    borderColor: Colors.light.border,
-  },
-  searchContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: Colors.light.backgroundSecondary,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    marginBottom: 15,
-    height: 44,
-  },
-  searchIcon: {
-    marginRight: 8,
-  },
-  searchInput: {
-    flex: 1,
-    height: "100%",
-    fontSize: 16,
-    color: "#333",
-  },
-  headerTitle: {
-    fontSize: 28,
-    fontWeight: "bold",
-    marginBottom: 15,
-  },
-  filtersRow: {
-    flexDirection: "row",
-    gap: 10,
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  filterButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: Colors.light.backgroundSecondary,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: Colors.light.border,
-    gap: 6,
-  },
-  filterLabel: {
-    fontSize: 12,
-    color: "#666",
-  },
-  filterValue: {
-    fontWeight: "600",
-    color: "#333",
-    maxWidth: 100,
-  },
+function createStyles(colors: any, isDark: boolean) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.backgroundSecondary },
+    webHeader: {
+      paddingHorizontal: 20,
+      paddingVertical: 15,
+      backgroundColor: colors.card,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    webHeaderTitle: {
+      fontSize: 24,
+      fontWeight: "bold",
+      color: colors.text,
+    },
+    header: {
+      backgroundColor: colors.background,
+      paddingTop: 24,
+      paddingBottom: 15,
+      paddingHorizontal: 20,
+      borderBottomWidth: 1,
+      borderColor: colors.border,
+    },
+    searchContainer: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: colors.backgroundSecondary,
+      borderRadius: 10,
+      paddingHorizontal: 12,
+      marginBottom: 15,
+      height: 44,
+    },
+    searchIcon: {
+      marginRight: 8,
+    },
+    searchInput: {
+      flex: 1,
+      height: "100%",
+      fontSize: 16,
+      color: colors.text,
+    },
+    headerTitle: {
+      fontSize: 28,
+      fontWeight: "bold",
+      marginBottom: 15,
+    },
+    filtersRow: {
+      flexDirection: "row",
+      gap: 10,
+      justifyContent: "space-between",
+      alignItems: "center",
+    },
+    filterButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: colors.backgroundSecondary,
+      paddingVertical: 8,
+      paddingHorizontal: 12,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: colors.border,
+      gap: 6,
+    },
+    filterLabel: {
+      fontSize: 12,
+      color: isDark ? "#A0A0A0" : "#666",
+    },
+    filterValue: {
+      fontWeight: "600",
+      color: colors.text,
+      maxWidth: 100,
+    },
 
-  listContent: { padding: 15, paddingBottom: 100 },
-  emptyText: { textAlign: "center", marginTop: 50, color: "#999" },
+    listContent: { padding: 15, paddingBottom: 100 },
+    emptyText: { textAlign: "center", marginTop: 50, color: colors.text, opacity: 0.6 },
 
-  cardHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-  },
-  projectTitle: { fontSize: 16, fontWeight: "bold", color: "#333" },
-  projectSubtitle: { fontSize: 12, color: "#999", marginTop: 2 },
+    cardHeader: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "flex-start",
+    },
+    projectTitle: { fontSize: 16, fontWeight: "bold", color: colors.text },
+    projectSubtitle: { fontSize: 12, color: isDark ? "#A0A0A0" : "#999", marginTop: 2 },
 
-  badge: {
-    backgroundColor: "#f3e5f5",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  badgeText: { fontSize: 10, color: Colors.light.primary, fontWeight: "bold" },
+    badge: {
+      backgroundColor: isDark ? "#2d1a4d" : "#f3e5f5",
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 6,
+    },
+    badgeText: { fontSize: 10, color: colors.primary, fontWeight: "bold" },
 
-  divider: { height: 1, backgroundColor: "#eee", marginVertical: 12 },
+    divider: { height: 1, backgroundColor: colors.border, marginVertical: 12 },
 
-  roleTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: Colors.light.primary,
-    marginBottom: 4,
-  },
-  roleQty: { fontSize: 13, color: "#666", marginBottom: 8 },
-  roleDesc: {
-    fontSize: 13,
-    color: "#444",
-    fontStyle: "italic",
-    marginBottom: 10,
-  },
-  ctaText: {
-    color: Colors.light.primary,
-    fontWeight: "bold",
-    textAlign: "right",
-    fontSize: 12,
-    marginTop: 5,
-  },
+    roleTitle: {
+      fontSize: 18,
+      fontWeight: "bold",
+      color: colors.primary,
+      marginBottom: 4,
+    },
+    roleQty: { fontSize: 13, color: isDark ? "#A0A0A0" : "#666", marginBottom: 8 },
+    roleDesc: {
+      fontSize: 13,
+      color: isDark ? "#D1D5DB" : "#444",
+      fontStyle: "italic",
+      marginBottom: 10,
+    },
+    ctaText: {
+      color: colors.primary,
+      fontWeight: "bold",
+      textAlign: "right",
+      fontSize: 12,
+      marginTop: 5,
+    },
 
-  // Modal Styles
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "center",
-    padding: 20,
-  },
-  modalContent: {
-    backgroundColor: "white",
-    borderRadius: 12,
-    padding: 20,
-    maxHeight: 400,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    marginBottom: 15,
-    textAlign: "center",
-  },
-  modalItem: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderColor: "#f0f0f0",
-  },
-  modalItemText: {
-    fontSize: 16,
-    color: "#333",
-  },
-  modalItemTextSelected: {
-    color: Colors.light.primary,
-    fontWeight: "bold",
-  },
-  customMarker: {
-    backgroundColor: Colors.light.primary,
-    padding: 8,
-    borderRadius: 20,
-    borderWidth: 2,
-    borderColor: "white",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 3,
-    elevation: 4,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  recsWrapper: {
-    paddingVertical: 15,
-    backgroundColor: "#f8faff",
-    borderBottomWidth: 1,
-    borderColor: "#eef2ff",
-  },
-  recsSectionHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    marginBottom: 12,
-  },
-  recsSectionTitle: {
-    fontWeight: "800",
-    fontSize: 14,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-    color: Colors.light.primary,
-  },
-  recsSeeMore: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: Colors.light.tint,
-  },
-  recsListContent: {
-    paddingHorizontal: 15,
-  },
-  recCard: {
-    backgroundColor: "white",
-    padding: 12,
-    borderRadius: 12,
-    marginHorizontal: 5,
-    width: 220,
-    shadowColor: "#4f46e5",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 2,
-    borderWidth: 1,
-    borderColor: "#eef2ff",
-  },
-  recCardHeader: {
-    marginBottom: 8,
-  },
-  matchBadge: {
-    backgroundColor: "#e0e7ff",
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-    alignSelf: "flex-start",
-  },
-  matchBadgeText: {
-    fontSize: 10,
-    fontWeight: "800",
-    color: "#4f46e5",
-  },
-  recCardTitle: {
-    fontWeight: "700",
-    fontSize: 15,
-    color: "#1e293b",
-    marginBottom: 2,
-  },
-  recCardSubtitle: {
-    fontSize: 12,
-    color: "#64748b",
-    marginBottom: 8,
-  },
-  recCardFooter: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginTop: "auto",
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: "#f1f5f9",
-  },
-  recCardMeta: {
-    fontSize: 10,
-    color: "#64748b",
-    marginLeft: 4,
-    fontWeight: "500",
-  },
-});
+    // Modal Styles
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: "rgba(0,0,0,0.5)",
+      justifyContent: "center",
+      padding: 20,
+    },
+    modalContent: {
+      backgroundColor: colors.card,
+      borderRadius: 12,
+      padding: 20,
+      maxHeight: 400,
+    },
+    modalTitle: {
+      fontSize: 18,
+      fontWeight: "bold",
+      marginBottom: 15,
+      textAlign: "center",
+      color: colors.text,
+    },
+    modalItem: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      paddingVertical: 12,
+      borderBottomWidth: 1,
+      borderColor: colors.border,
+    },
+    modalItemText: {
+      fontSize: 16,
+      color: colors.text,
+    },
+    modalItemTextSelected: {
+      color: colors.primary,
+      fontWeight: "bold",
+    },
+    customMarker: {
+      backgroundColor: colors.primary,
+      padding: 8,
+      borderRadius: 20,
+      borderWidth: 2,
+      borderColor: colors.card,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.3,
+      shadowRadius: 3,
+      elevation: 4,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    recsWrapper: {
+      paddingVertical: 15,
+      backgroundColor: isDark ? "#1e1e2d" : "#f8faff",
+      borderBottomWidth: 1,
+      borderColor: colors.border,
+    },
+    recsSectionHeader: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      paddingHorizontal: 20,
+      marginBottom: 12,
+    },
+    recsSectionTitle: {
+      fontWeight: "800",
+      fontSize: 14,
+      textTransform: "uppercase",
+      letterSpacing: 0.5,
+      color: colors.primary,
+    },
+    recsSeeMore: {
+      fontSize: 12,
+      fontWeight: "600",
+      color: colors.primary,
+    },
+    recsListContent: {
+      paddingHorizontal: 15,
+    },
+    recCard: {
+      backgroundColor: colors.card,
+      padding: 12,
+      borderRadius: 12,
+      marginHorizontal: 5,
+      width: 220,
+      shadowColor: colors.shadow,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.1,
+      shadowRadius: 8,
+      elevation: 2,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    recCardHeader: {
+      marginBottom: 8,
+    },
+    matchBadge: {
+      backgroundColor: isDark ? "#2d1a4d" : "#e0e7ff",
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+      borderRadius: 6,
+      alignSelf: "flex-start",
+    },
+    matchBadgeText: {
+      fontSize: 10,
+      fontWeight: "800",
+      color: colors.primary,
+    },
+    recCardTitle: {
+      fontWeight: "700",
+      fontSize: 15,
+      color: colors.text,
+      marginBottom: 2,
+    },
+    recCardSubtitle: {
+      fontSize: 12,
+      color: isDark ? "#A0A0A0" : "#64748b",
+      marginBottom: 8,
+    },
+    recCardFooter: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginTop: "auto",
+      paddingTop: 8,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+    },
+    recCardMeta: {
+      fontSize: 10,
+      color: isDark ? "#A0A0A0" : "#64748b",
+      marginLeft: 4,
+      fontWeight: "500",
+    },
+  });
+}
