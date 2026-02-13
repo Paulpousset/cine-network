@@ -82,7 +82,7 @@ workflows:
     publishing:
       app_store_connect:
         auth: integration
-        submit: true
+        submit_to_testflight: true
       email:
         recipients:
           - paulpousset@gmail.com
