@@ -1,7 +1,7 @@
 workflows:
-  android-development:
-    name: Android Development Build
-    max_build_duration: 30
+  android-production:
+    name: Android Production Build
+    max_build_duration: 60
     instance_type: mac_mini_m2
     environment:
       node: 20
@@ -25,48 +25,61 @@ workflows:
       - name: Install dependencies
         script: |
           npm install
-      - name: Expo Prebuild (if needed)
-        script: |
-          npx expo prebuild --platform android
-      - name: Build Android App
-        script: |
-          cd android
-          ./gradlew assembleDebug
-    artifacts:
-      - android/app/build/outputs/apk/**/*.apk
-    publishing:
-      email:
-        recipients:
-          - paulpousset@gmail.com
-  
-  android-production:
-    name: Android Production Build
-    max_build_duration: 60
-    instance_type: mac_mini_m2
-    environment:
-      node: 20
-      java: 17
-      groups:
-        - eas_credentials
-    scripts:
-      - name: Recreate config files
-        script: |
-          if [ -z "$GOOGLE_SERVICES_ANDROID" ]; then
-            echo "ERREUR : La variable GOOGLE_SERVICES_ANDROID est vide dans Codemagic !"
-            exit 1
-          fi
-          node -e "const fs = require('fs'); if (process.env.GOOGLE_SERVICES_IOS) { fs.writeFileSync('./GoogleService-Info.plist', Buffer.from(process.env.GOOGLE_SERVICES_IOS, 'base64')); console.log('GoogleService-Info.plist created'); } if (process.env.GOOGLE_SERVICES_ANDROID) { fs.writeFileSync('./google-services.json', Buffer.from(process.env.GOOGLE_SERVICES_ANDROID, 'base64')); console.log('google-services.json created'); }"
-          ls -l google-services.json || echo "Le fichier n'a pas été créé !"
-      - name: Install dependencies
-        script: |
-          npm install
       - name: Expo Prebuild
         script: |
           npx expo prebuild --platform android
       - name: Build Android Release
         script: |
           cd android
-          ./gradlew assembleRelease
+          ./gradlew bundleRelease
     artifacts:
-      - android/app/build/outputs/apk/**/*.apk
       - android/app/build/outputs/bundle/**/*.aab
+    publishing:
+      email:
+        recipients:
+          - paulpousset@gmail.com
+
+  ios-production:
+    name: iOS Production Build (TestFlight)
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    environment:
+      node: 20
+      groups:
+        - eas_credentials
+      vars:
+        XCODE_WORKSPACE: "ios/Tita.xcworkspace"
+        XCODE_SCHEME: "Tita"
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: 'master'
+    scripts:
+      - name: Recreate config files
+        script: |
+          node -e "const fs = require('fs'); if (process.env.GOOGLE_SERVICES_IOS) { fs.writeFileSync('./GoogleService-Info.plist', Buffer.from(process.env.GOOGLE_SERVICES_IOS, 'base64')); console.log('GoogleService-Info.plist created'); } if (process.env.GOOGLE_SERVICES_ANDROID) { fs.writeFileSync('./google-services.json', Buffer.from(process.env.GOOGLE_SERVICES_ANDROID, 'base64')); console.log('google-services.json created'); }"
+      - name: Install dependencies
+        script: |
+          npm install
+      - name: Install CocoaPods
+        script: |
+          cd ios && pod install
+      - name: Expo Prebuild
+        script: |
+          npx expo prebuild --platform ios
+      - name: Set up code signing
+        script: |
+          keychain initialize
+          xcode-project use-profiles
+      - name: Build iOS IPA
+        script: |
+          xcode-project build-ipa --workspace "$XCODE_WORKSPACE" --scheme "$XCODE_SCHEME"
+    artifacts:
+      - build/ios/ipa/*.ipa
+    publishing:
+      app_store_connect:
+        auth: integration
+      email:
+        recipients:
+          - paulpousset@gmail.com
