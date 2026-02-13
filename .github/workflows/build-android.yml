@@ -1,7 +1,7 @@
 name: Build Android (Local on GitHub)
 on:
-  push:
-    branches: [master]
+  # push:
+  #   branches: [master]
 
   workflow_dispatch:
 
