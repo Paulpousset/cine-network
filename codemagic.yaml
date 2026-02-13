@@ -43,6 +43,8 @@ workflows:
     name: iOS Production Build (TestFlight)
     max_build_duration: 60
     instance_type: mac_mini_m2
+    integrations:
+      app_store_connect: "CodeMagic" # Remplace par le nom exact de ton intégration dans Codemagic
     environment:
       node: 20
       groups:
@@ -80,6 +82,7 @@ workflows:
     publishing:
       app_store_connect:
         auth: integration
+        submit: true
       email:
         recipients:
           - paulpousset@gmail.com
