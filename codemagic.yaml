@@ -77,8 +77,8 @@ workflows:
       - name: Set up code signing
         script: |
           keychain initialize
-          app-store-connect fetch-signing-files "com.titasorganization.tita" --type IOS_APP_STORE
-          cd ios && xcode-project use-profiles
+          app-store-connect fetch-signing-files "com.titasorganization.tita" --type IOS_APP_STORE --create
+          xcode-project use-profiles
       - name: Build iOS IPA
         script: |
           xcode-project build-ipa --workspace "$XCODE_WORKSPACE" --scheme "$XCODE_SCHEME"
