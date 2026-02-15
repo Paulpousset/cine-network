@@ -15,6 +15,7 @@
     },
     "ios": {
       "supportsTablet": true,
+      "usesAppleSignIn": true,
       "bundleIdentifier": "com.titasorganization.tita",
       "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {

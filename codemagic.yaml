@@ -73,14 +73,14 @@ workflows:
           npm install
       - name: Expo Prebuild
         script: |
-          npx expo prebuild --platform ios
+          npx expo prebuild --platform ios --clean
       - name: Set up code signing
         script: |
           keychain initialize
           cd ios && xcode-project use-profiles
       - name: Build iOS IPA
         script: |
-          xcode-project build-ipa --workspace "$XCODE_WORKSPACE" --scheme "$XCODE_SCHEME"
+          xcode-project build-ipa --workspace "$XCODE_WORKSPACE" --scheme "$XCODE_SCHEME" --bundle-id "com.titasorganization.tita"
     artifacts:
       - build/ios/ipa/*.ipa
     publishing:
