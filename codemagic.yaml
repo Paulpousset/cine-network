@@ -2,7 +2,7 @@ workflows:
   android-production:
     name: Android Production Build
     max_build_duration: 60
-    instance_type: mac_studio_m4_max
+    instance_type: mac_mini_m4
     cache:
       cache_paths:
         - $CM_BUILD_DIR/node_modules
@@ -77,8 +77,8 @@ workflows:
       - name: Set up code signing
         script: |
           keychain initialize
-          app-store-connect fetch-signing-files "com.titasorganization.tita" --type IOS_APP_STORE --install
-          xcode-project use-profiles
+          app-store-connect fetch-signing-files "com.titasorganization.tita" --type IOS_APP_STORE
+          cd ios && xcode-project use-profiles
       - name: Build iOS IPA
         script: |
           xcode-project build-ipa --workspace "$XCODE_WORKSPACE" --scheme "$XCODE_SCHEME"
