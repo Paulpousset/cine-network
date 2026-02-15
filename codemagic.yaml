@@ -59,6 +59,7 @@ workflows:
       vars:
         XCODE_WORKSPACE: "ios/Tita.xcworkspace"
         XCODE_SCHEME: "Tita"
+        BUNDLE_ID: "com.titasorganization.tita"
     triggering:
       events:
         - push
@@ -77,13 +78,30 @@ workflows:
       - name: Set up code signing
         script: |
           keychain initialize
-          # Fetch and install the signing files. Added --create to ensure capabilities are updated if possible.
-          app-store-connect fetch-signing-files "com.titasorganization.tita" --type IOS_APP_STORE --install --create
+          # Fetch and install the signing files
+          app-store-connect fetch-signing-files "$BUNDLE_ID" --type IOS_APP_STORE --install --create
+          # Debug: List downloaded profiles
+          ls ~/Library/MobileDevice/Provisioning\ Profiles
+          # Update entitlements safely
+          ENTITLEMENTS_FILE="ios/Tita/Tita.entitlements"
+          if [ -f "$ENTITLEMENTS_FILE" ]; then
+            /usr/libexec/PlistBuddy -c "Add :aps-environment string production" "$ENTITLEMENTS_FILE" || /usr/libexec/PlistBuddy -c "Set :aps-environment production" "$ENTITLEMENTS_FILE"
+            /usr/libexec/PlistBuddy -c "Add :com.apple.developer.applesignin array" "$ENTITLEMENTS_FILE" || true
+            /usr/libexec/PlistBuddy -c "Add :com.apple.developer.applesignin:0 string Default" "$ENTITLEMENTS_FILE" || true
+            echo "Entitlements updated in $ENTITLEMENTS_FILE"
+            cat "$ENTITLEMENTS_FILE"
+          fi
           # Match the profiles to the project
-          xcode-project use-profiles --project ios/Tita.xcodeproj
+          # Explicitly set the project file and turn off automatic signing
+          xcode-project use-profiles --project ios/Tita.xcodeproj --bundle-identifier "$BUNDLE_ID"
       - name: Build iOS IPA
         script: |
-          xcode-project build-ipa --workspace "$XCODE_WORKSPACE" --scheme "$XCODE_SCHEME"
+          # Use xcode-project build-ipa with explicit parameters
+          xcode-project build-ipa \
+            --workspace "$XCODE_WORKSPACE" \
+            --scheme "$XCODE_SCHEME" \
+            --bundle-identifier "$BUNDLE_ID" \
+            --archive-flags "CODE_SIGN_STYLE=Manual"
     artifacts:
       - build/ios/ipa/*.ipa
     publishing:
