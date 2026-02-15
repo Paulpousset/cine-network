@@ -64,7 +64,7 @@ workflows:
       events:
         - push
       branch_patterns:
-        - pattern: 'master'
+        - pattern: 'ignore-master' # Désactivé au profit de GitHub Actions
     scripts:
       - name: Recreate config files
         script: |
