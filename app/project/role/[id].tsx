@@ -7,15 +7,15 @@ import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-  Alert,
-  Image,
-  Modal,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    Alert,
+    Image,
+    Modal,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { supabase } from "../../../lib/supabase";
 
@@ -317,14 +317,12 @@ export default function RoleDetails() {
         <View style={styles.content}>
           {/* ROLE HEADER */}
           <View style={styles.roleHeader}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.roleTitle}>{role.title}</Text>
-              {isInvitation && (
-                <Text style={{ color: colors.tint, fontWeight: "600" }}>
-                  Invitation en attente
-                </Text>
-              )}
-            </View>
+            <Text style={styles.roleTitle}>{role.title}</Text>
+            {isInvitation && (
+              <Text style={{ color: colors.tint, fontWeight: "600", textAlign: "center", marginTop: -10 }}>
+                Invitation en attente
+              </Text>
+            )}
             <View style={styles.badge}>
               <Text style={styles.badgeText}>
                 {role.category.toUpperCase()}
@@ -340,6 +338,7 @@ export default function RoleDetails() {
                   backgroundColor: isDark ? "#3e3a1e" : "#FFF9C4",
                   borderColor: isDark ? "#856404" : "#FBC02D",
                   marginBottom: 20,
+                  alignItems: "center",
                 },
               ]}
             >
@@ -351,44 +350,21 @@ export default function RoleDetails() {
                   size={24}
                   color={isDark ? "#FBC02D" : "#856404"}
                 />
-                <Text style={{ fontWeight: "600", color: colors.text }}>
+                <Text style={{ fontWeight: "600", color: colors.text, textAlign: "center" }}>
                   On vous propose ce rôle !
                 </Text>
               </View>
-              <Text style={{ marginTop: 5, color: colors.text, opacity: 0.8 }}>
+              <Text style={{ marginTop: 5, color: colors.text, opacity: 0.8, textAlign: "center" }}>
                 Vous pouvez accepter ou décliner cette proposition ci-dessous.
               </Text>
             </View>
           )}
 
-          {/* PROJECT INFO CARD */}
-          <View style={[GlobalStyles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <Text style={[GlobalStyles.title2, { color: colors.text }]}>Le Projet</Text>
-            <Text style={styles.projectTitle}>{project.title}</Text>
-            <Text style={styles.projectMeta}>
-              {project.type?.replace("_", " ")} • {project.ville || "Lieu N/C"}
-            </Text>
-            {project.description && (
-              <Text style={styles.descriptionText}>{project.description}</Text>
-            )}
-            <View style={styles.dateRow}>
-              <Ionicons name="calendar-outline" size={16} color={colors.text} style={{ opacity: 0.6 }} />
-              <Text style={styles.dateText}>
-                {project.start_date || "Dates à définir"}
-                {project.end_date ? ` - ${project.end_date}` : ""}
-              </Text>
-            </View>
-          </View>
-
           {/* ROLE DETAILS */}
           <View style={styles.detailsContainer}>
-            <Text style={[GlobalStyles.title2, { marginTop: 20, color: colors.text }]}>
+            <Text style={[GlobalStyles.title2, { marginTop: 20, color: colors.text, textAlign: "center" }]}>
               Détails du poste
             </Text>
-
-            {role.description && (
-              <Text style={styles.descriptionText}>{role.description}</Text>
-            )}
 
             <View style={styles.tagsContainer}>
               <View style={styles.tag}>
@@ -470,9 +446,23 @@ export default function RoleDetails() {
               )}
             </View>
 
-            <Text style={styles.descriptionText}>
+            <Text style={[styles.descriptionText, { marginTop: 25, fontSize: 18, fontStyle: 'italic' }]}>
               {formatDescription(role.description)}
             </Text>
+
+            <TouchableOpacity 
+              style={[styles.projectLinkButton, { borderColor: colors.primary }]}
+              onPress={() => router.push(`/project/${role.tournage_id}`)}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <Ionicons name="film-outline" size={24} color={colors.primary} />
+                <View>
+                  <Text style={styles.projectLinkSub}>En savoir plus sur le projet</Text>
+                  <Text style={[styles.projectLinkTitle, { color: colors.text }]}>{project.title}</Text>
+                </View>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={colors.primary} />
+            </TouchableOpacity>
           </View>
         </View>
       </ScrollView>
@@ -638,7 +628,7 @@ function createStyles(colors: { text: string; background: string; backgroundSeco
       position: "absolute",
       top: 50,
       left: 20,
-      backgroundColor: "white",
+      backgroundColor: colors.card,
       padding: 8,
       borderRadius: 20,
       shadowColor: "#000",
@@ -655,73 +645,106 @@ function createStyles(colors: { text: string; background: string; backgroundSeco
     },
 
     roleHeader: {
-      flexDirection: "row",
-      justifyContent: "space-between",
+      flexDirection: "column",
+      justifyContent: "center",
       alignItems: "center",
-      marginBottom: 20,
+      marginBottom: 30,
+      gap: 12,
     },
     roleTitle: {
-      fontSize: 24,
+      fontSize: 28,
       fontWeight: "bold",
-      flex: 1,
-      marginRight: 10,
       color: colors.text,
+      textAlign: "center",
     },
     badge: {
       backgroundColor: colors.background,
-      paddingHorizontal: 10,
-      paddingVertical: 5,
-      borderRadius: 8,
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 12,
       borderWidth: 1,
       borderColor: colors.primary,
     },
-    badgeText: { color: colors.primary, fontWeight: "bold", fontSize: 12 },
+    badgeText: { color: colors.primary, fontWeight: "bold", fontSize: 13, letterSpacing: 1 },
 
-    projectTitle: { fontSize: 16, fontWeight: "600", color: colors.text },
-    projectMeta: { fontSize: 14, color: isDark ? "#999" : "#666", marginBottom: 8 },
-    dateRow: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: 8 },
-    dateText: { fontSize: 12, color: isDark ? "#999" : "#666" },
+    projectTitle: { fontSize: 18, fontWeight: "700", color: colors.text, textAlign: "center" },
+    projectMeta: { fontSize: 14, color: isDark ? "#999" : "#666", marginBottom: 8, textAlign: "center" },
+    dateRow: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: 8, justifyContent: "center" },
+    dateText: { fontSize: 14, color: isDark ? "#999" : "#666" },
 
-    detailsContainer: {},
+    detailsContainer: {
+      alignItems: "center",
+    },
     descriptionText: {
       fontSize: 16,
       lineHeight: 24,
       color: colors.text,
       marginBottom: 15,
-      textAlign: "justify",
+      textAlign: "center",
       paddingVertical: 10,
     },
 
     tagsContainer: {
       flexDirection: "row",
       flexWrap: "wrap",
-      gap: 10,
-      marginTop: 10,
+      gap: 12,
+      marginTop: 20,
+      justifyContent: "center",
+      width: "100%",
     },
     tag: {
       backgroundColor: colors.background,
-      padding: 10,
-      borderRadius: 8,
-      minWidth: "45%",
+      padding: 15,
+      borderRadius: 12,
+      width: "48%",
       borderWidth: 1,
       borderColor: colors.border,
+      alignItems: "center",
+      justifyContent: "center",
+      minHeight: 80,
     },
     tagLabel: {
-      fontSize: 10,
-      color: isDark ? "#666" : "#999",
+      fontSize: 11,
+      color: isDark ? "#888" : "#999",
       textTransform: "uppercase",
-      marginBottom: 2,
+      marginBottom: 4,
+      fontWeight: "600",
+      textAlign: "center",
     },
-    tagValue: { fontSize: 14, fontWeight: "600", color: colors.text },
+    tagValue: { fontSize: 15, fontWeight: "700", color: colors.text, textAlign: "center" },
     tagWide: {
-      paddingHorizontal: 12,
-      paddingVertical: 12,
-      borderRadius: 8,
+      paddingHorizontal: 15,
+      paddingVertical: 15,
+      borderRadius: 12,
       backgroundColor: colors.background,
       width: "100%",
       marginBottom: 8,
       borderWidth: 1,
       borderColor: colors.border,
+      alignItems: "center",
+    },
+
+    projectLinkButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      padding: 16,
+      borderRadius: 16,
+      borderWidth: 1,
+      marginTop: 20,
+      width: "100%",
+      backgroundColor: colors.background,
+    },
+    projectLinkSub: {
+      fontSize: 12,
+      color: "#999",
+      textTransform: "uppercase",
+      letterSpacing: 0.5,
+    },
+    projectLinkTitle: {
+      fontSize: 16,
+      fontWeight: "700",
+      marginTop: 2,
     },
 
     footer: {

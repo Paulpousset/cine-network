@@ -14,6 +14,45 @@ export type Database = {
   }
   public: {
     Tables: {
+      agent_mandates: {
+        Row: {
+          agent_id: string
+          created_at: string
+          id: string
+          status: string
+          talent_id: string
+        }
+        Insert: {
+          agent_id: string
+          created_at?: string
+          id?: string
+          status?: string
+          talent_id: string
+        }
+        Update: {
+          agent_id?: string
+          created_at?: string
+          id?: string
+          status?: string
+          talent_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_mandates_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_mandates_talent_id_fkey"
+            columns: ["talent_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       applications: {
         Row: {
           candidate_id: string | null
@@ -176,6 +215,137 @@ export type Database = {
           },
         ]
       }
+      filming_locations: {
+        Row: {
+          address: string | null
+          category: string | null
+          city: string
+          contact_info: string | null
+          created_at: string | null
+          description: string | null
+          id: string
+          images: string[] | null
+          latitude: number | null
+          longitude: number | null
+          owner_id: string
+          price_per_day: number | null
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          address?: string | null
+          category?: string | null
+          city: string
+          contact_info?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          images?: string[] | null
+          latitude?: number | null
+          longitude?: number | null
+          owner_id: string
+          price_per_day?: number | null
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          address?: string | null
+          category?: string | null
+          city?: string
+          contact_info?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          images?: string[] | null
+          latitude?: number | null
+          longitude?: number | null
+          owner_id?: string
+          price_per_day?: number | null
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "filming_locations_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      post_comments: {
+        Row: {
+          content: string
+          created_at: string | null
+          id: string
+          post_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          content: string
+          created_at?: string | null
+          id?: string
+          post_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          content?: string
+          created_at?: string | null
+          id?: string
+          post_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "post_comments_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "post_comments_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      post_likes: {
+        Row: {
+          created_at: string | null
+          post_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          post_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          post_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "post_likes_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "post_likes_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       posts: {
         Row: {
           content: string | null
@@ -231,6 +401,7 @@ export type Database = {
           email: string | null
           email_public: string | null
           equipment: string | null
+          expo_push_token: string | null
           eye_color: string | null
           full_name: string | null
           gender: string | null
@@ -260,6 +431,7 @@ export type Database = {
           email?: string | null
           email_public?: string | null
           equipment?: string | null
+          expo_push_token?: string | null
           eye_color?: string | null
           full_name?: string | null
           gender?: string | null
@@ -289,6 +461,7 @@ export type Database = {
           email?: string | null
           email_public?: string | null
           equipment?: string | null
+          expo_push_token?: string | null
           eye_color?: string | null
           full_name?: string | null
           gender?: string | null
@@ -1089,6 +1262,42 @@ export type Database = {
           {
             foreignKeyName: "tournages_owner_id_fkey"
             columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_blocks: {
+        Row: {
+          blocked_id: string
+          blocker_id: string
+          created_at: string
+          id: string
+        }
+        Insert: {
+          blocked_id: string
+          blocker_id: string
+          created_at?: string
+          id?: string
+        }
+        Update: {
+          blocked_id?: string
+          blocker_id?: string
+          created_at?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_blocks_blocked_id_fkey"
+            columns: ["blocked_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_blocks_blocker_id_fkey"
+            columns: ["blocker_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]

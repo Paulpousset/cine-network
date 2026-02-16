@@ -1,3 +1,4 @@
+import { useTheme } from "@/providers/ThemeProvider";
 import * as Haptics from "expo-haptics";
 import React, { useRef, useState } from "react";
 import { Animated, StyleSheet, Text, View } from "react-native";
@@ -16,8 +17,11 @@ export default function PopcornLikeButton({
   onLike,
   size = 24,
 }: PopcornLikeButtonProps) {
+  const { colors, isDark } = useTheme();
   const [isLiked, setIsLiked] = useState(liked);
   const [likesCount, setLikesCount] = useState(initialLikes);
+
+  const styles = getStyles(colors, isDark, size);
 
   // Sync with prop changes
   React.useEffect(() => {
@@ -108,7 +112,6 @@ export default function PopcornLikeButton({
           <Text
             style={[
               styles.countText,
-              { fontSize: size * 0.6 },
               isLiked && styles.textLiked,
             ]}
           >
@@ -126,7 +129,7 @@ export default function PopcornLikeButton({
             transform: [
               { translateY: popTranslateY },
               { scale: popScale },
-              { translateX: -10 },
+              { translateX: -15 },
             ],
           },
         ]}
@@ -142,19 +145,19 @@ export default function PopcornLikeButton({
             transform: [
               { translateY: popTranslateY },
               { scale: popScale },
-              { translateX: 10 },
-              { rotate: "45deg" },
+              { translateX: 15 },
+              { rotate: "25deg" },
             ],
           },
         ]}
       >
-        <Text style={{ fontSize: size * 0.6 }}>🍿</Text>
+        <Text style={{ fontSize: size * 0.7 }}>🍿</Text>
       </Animated.View>
     </Hoverable>
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any, isDark: boolean, size: number) => StyleSheet.create({
   container: {
     alignItems: "center",
     justifyContent: "center",
@@ -163,24 +166,33 @@ const styles = StyleSheet.create({
   button: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#F3F4F6",
-    paddingVertical: 8,
+    backgroundColor: isDark ? colors.backgroundSecondary : "#F3F4F6",
+    paddingVertical: 6,
     paddingHorizontal: 12,
     borderRadius: 20,
-    gap: 6,
+    gap: 8,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
+    borderColor: isDark ? "rgba(255,255,255,0.1)" : "#E5E7EB",
   },
   buttonLiked: {
-    backgroundColor: "#FEF3C7", // Yellowish for popcorn
-    borderColor: "#FCD34D",
+    backgroundColor: isDark ? "rgba(255, 191, 0, 0.15)" : "#FEF3C7",
+    borderColor: isDark ? "#FFBF00" : "#FCD34D",
+    // Glow effect in dark mode
+    ...(isDark && {
+      shadowColor: "#FFBF00",
+      shadowOffset: { width: 0, height: 0 },
+      shadowOpacity: 0.5,
+      shadowRadius: 10,
+      elevation: 5,
+    }),
   },
   countText: {
-    fontWeight: "600",
-    color: "#6B7280",
+    fontWeight: "700",
+    color: isDark ? "#9CA3AF" : "#6B7280",
+    fontSize: size * 0.6,
   },
   textLiked: {
-    color: "#D97706",
+    color: isDark ? "#FFBF00" : "#D97706",
   },
   particle: {
     position: "absolute",

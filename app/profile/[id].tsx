@@ -4,19 +4,23 @@ import { appEvents, EVENTS } from "@/lib/events";
 import { useTheme } from "@/providers/ThemeProvider";
 import { useUser } from "@/providers/UserProvider";
 import { Ionicons } from "@expo/vector-icons";
+import * as ImagePicker from "expo-image-picker";
 import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   Alert,
   AppState,
   Image,
+  KeyboardAvoidingView,
   Linking,
+  Modal,
   Platform,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
-  View,
+  View
 } from "react-native";
 import { supabase } from "../../lib/supabase";
 
@@ -43,6 +47,16 @@ export default function ProfileDetail() {
   const [mandateStatus, setMandateStatus] = useState<string | null>(null);
   const [isBlocked, setIsBlocked] = useState(false);
   const isFetchingRef = React.useRef(false);
+
+  // Experience Editing State
+  const [editingExp, setEditingExp] = useState<any>(null);
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [savingExp, setSavingExp] = useState(false);
+  const [uploadingExp, setUploadingExp] = useState(false);
+
+  // Experience Viewing State
+  const [viewingExp, setViewingExp] = useState<any>(null);
+  const [viewModalVisible, setViewModalVisible] = useState(false);
 
   const fetchProfile = useCallback(async () => {
     if (isFetchingRef.current) return;
@@ -159,15 +173,30 @@ export default function ProfileDetail() {
         }
       }
 
+      // Fetch experience notes for this profile
+      const { data: experienceNotes } = await supabase
+        .from("profile_experience_notes")
+        .select("project_id, note, image_url, custom_title")
+        .eq("profile_id", profileId);
+        
+      const notesMap = (experienceNotes || []).reduce((acc: any, curr: any) => {
+        acc[curr.project_id] = {
+            note: curr.note,
+            image_url: curr.image_url,
+            custom_title: curr.custom_title
+        };
+        return acc;
+      }, {});
+
       // Fetch public tournages
       let query = supabase
         .from("tournages")
-        .select("id, title, type, created_at, is_public")
+        .select("id, title, type, created_at, is_public, description, status, image_url")
         .eq("owner_id", profileId)
         .order("created_at", { ascending: false });
 
       if (!isOwner) {
-        query = query.eq("is_public", true);
+        query = query.or("is_public.eq.true,status.eq.completed");
       }
 
       const { data: tours, error: errTours } = await query;
@@ -178,7 +207,13 @@ export default function ProfileDetail() {
             (t) => !hiddenIds.includes(t.id),
           );
         }
-        setTournages(filteredTours);
+        setTournages(filteredTours.map((t: any) => ({
+            ...t,
+            projectId: t.id,
+            personalNote: notesMap[t.id]?.note || "",
+            personalImage: notesMap[t.id]?.image_url || null,
+            personalTitle: notesMap[t.id]?.custom_title || null
+        })));
       }
 
       // Fetch public participations
@@ -188,19 +223,22 @@ export default function ProfileDetail() {
           `
             id,
             title,
+            description,
             tournages!inner (
                 id,
                 title,
                 type,
                 created_at,
-                is_public
+                is_public,
+                status,
+                image_url
             )
         `,
         )
         .eq("assigned_profile_id", profileId);
 
       if (!isOwner) {
-        pQuery = pQuery.eq("tournages.is_public", true);
+        pQuery = pQuery.or("is_public.eq.true,status.eq.completed", { foreignTable: 'tournages' });
       }
 
       const { data: parts, error: partError } = await pQuery;
@@ -208,12 +246,22 @@ export default function ProfileDetail() {
       if (!partError && parts) {
         let filteredParts = parts || [];
         if (!isOwner) {
-          filteredParts = filteredParts.filter((p) => {
+          filteredParts = filteredParts.filter((p: any) => {
             const t = Array.isArray(p.tournages) ? p.tournages[0] : p.tournages;
             return t && !hiddenIds.includes(t.id);
           });
         }
-        setParticipations(filteredParts);
+        setParticipations(filteredParts.map((p: any) => {
+            const t = Array.isArray(p.tournages) ? p.tournages[0] : p.tournages;
+            return {
+                ...p,
+                projectId: t?.id,
+                personalNote: notesMap[t?.id]?.note || "",
+                personalImage: notesMap[t?.id]?.image_url || null,
+                personalTitle: notesMap[t?.id]?.custom_title || null,
+                image_url: t?.image_url
+            };
+        }));
       }
     } catch (e) {
       console.warn("[Profile] Error:", e);
@@ -484,6 +532,98 @@ export default function ProfileDetail() {
     );
   }
 
+  const handleEditExp = (exp: any) => {
+    if (!isOwnProfile) return;
+    setEditingExp({
+      ...exp,
+      projectId: exp.id || exp.projectId,
+      title: exp.custom_title || exp.personalTitle || "",
+      note: exp.personalNote || "",
+      imageUrl: exp.personalImage || null,
+      projectImage: exp.image_url || null, // fallback
+    });
+    setEditModalVisible(true);
+  };
+
+  const handleUploadExpImage = async () => {
+    try {
+        const result = await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ["images"],
+          allowsEditing: true,
+          aspect: [16, 9],
+          quality: 0.8,
+        });
+  
+        if (result.canceled || !result.assets) return;
+        setUploadingExp(true);
+  
+        const image = result.assets[0];
+        const fileExt = image.uri.split(".").pop();
+        const fileName = `experience/${user?.id}/${editingExp.projectId}_${Date.now()}.${fileExt}`;
+  
+        const arrayBuffer = await fetch(image.uri).then((res) => res.arrayBuffer());
+        const { error: uploadError } = await supabase.storage
+          .from("user_content")
+          .upload(fileName, arrayBuffer, {
+            contentType: image.mimeType || "image/jpeg",
+            upsert: true,
+          });
+  
+        if (uploadError) throw uploadError;
+  
+        const { data: { publicUrl } } = supabase.storage.from("user_content").getPublicUrl(fileName);
+        
+        setEditingExp((prev: any) => ({ ...prev, imageUrl: publicUrl }));
+      } catch (e) {
+        Alert.alert("Erreur", "Impossible d'uploader l'image d'expérience");
+      } finally {
+        setUploadingExp(false);
+      }
+  };
+
+  const handleSaveExpChanges = async () => {
+    if (!editingExp) return;
+    try {
+        setSavingExp(true);
+        const { error } = await supabase
+            .from("profile_experience_notes")
+            .upsert({ 
+                profile_id: user?.id, 
+                project_id: editingExp.projectId,
+                note: editingExp.note,
+                custom_title: editingExp.title,
+                image_url: editingExp.imageUrl,
+                updated_at: new Date().toISOString()
+            }, { onConflict: 'profile_id,project_id' });
+
+        if (error) throw error;
+        
+        // Refresh profile data locally
+        setTournages(prev => prev.map(t => (t.id === editingExp.projectId) ? { 
+            ...t, 
+            personalNote: editingExp.note, 
+            personalTitle: editingExp.title, 
+            personalImage: editingExp.imageUrl 
+        } : t));
+        
+        setParticipations(prev => prev.map(p => {
+            const tid = Array.isArray(p.tournages) ? p.tournages[0]?.id : p.tournages?.id;
+            return (tid === editingExp.projectId) ? { 
+                ...p, 
+                personalNote: editingExp.note, 
+                personalTitle: editingExp.title, 
+                personalImage: editingExp.imageUrl 
+            } : p;
+        }));
+
+        setEditModalVisible(false);
+    } catch (e) {
+        Alert.alert("Erreur", "Impossible d'enregistrer les modifications.");
+    } finally {
+        setSavingExp(false);
+    }
+  };
+
   if (loading)
     return (
       <ClapLoading
@@ -566,16 +706,18 @@ export default function ProfileDetail() {
           )}
 
           {isOwnProfile && (
-            <TouchableOpacity
-              onPress={() => router.push("/account")}
-              style={styles.settingsHeaderButton}
-            >
-              <Ionicons
-                name="settings-outline"
-                size={24}
-                color={colors.text}
-              />
-            </TouchableOpacity>
+            <View style={{ position: 'absolute', top: 55, right: 20, flexDirection: 'row', gap: 10, zIndex: 10 }}>
+              <TouchableOpacity
+                onPress={() => router.push("/settings")}
+                style={styles.headerButton}
+              >
+                <Ionicons
+                  name="settings-outline"
+                  size={24}
+                  color={colors.text}
+                />
+              </TouchableOpacity>
+            </View>
           )}
 
           {profile?.avatar_url ? (
@@ -591,26 +733,43 @@ export default function ProfileDetail() {
           <Text style={[GlobalStyles.title1, { color: colors.text }]}>
             {profile?.full_name || profile?.username || "Profil"}
           </Text>
-          <Text style={styles.role}>
-            {(profile?.role || "").toString().replace("_", " ")}
-          </Text>
+          
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 8, marginTop: 12, paddingHorizontal: 20 }}>
+            {/* Badges Titres Principaux */}
+            {(profile?.job_title ? profile.job_title.split(',') : [profile?.role || ""]).map((jt: string, idx: number) => !!jt.trim() && (
+                <View key={`main-${idx}`} style={styles.roleBadge}>
+                  <Text style={styles.roleBadgeText}>
+                      {jt.trim().replace("_", " ").toUpperCase()}
+                  </Text>
+                </View>
+            ))}
 
-          <View style={{ flexDirection: "row", gap: 10, marginTop: 5 }}>
-            {profile?.ville && (
+            {/* Badges Titres Secondaires */}
+            {(profile?.secondary_job_title ? profile.secondary_job_title.split(',') : (profile?.secondary_role ? [profile.secondary_role] : [])).map((jt: string, idx: number) => !!jt.trim() && (
+                <View key={`sec-${idx}`} style={[styles.roleBadge, { backgroundColor: colors.backgroundSecondary, borderWidth: 1, borderColor: colors.border }]}>
+                    <Text style={[styles.roleBadgeText, { color: colors.textSecondary, fontSize: 11 }]}>
+                        {jt.trim().replace("_", " ").toUpperCase()}
+                    </Text>
+                </View>
+            ))}
+          </View>
+
+          <View style={{ flexDirection: "row", gap: 15, marginTop: 12 }}>
+            {!!profile?.ville && (
               <View style={styles.iconRow}>
-                <Ionicons name="location-outline" size={16} color={colors.text + "80"} />
-                <Text style={{ color: colors.text + "80" }}>{profile.ville}</Text>
+                <Ionicons name="location" size={14} color={colors.primary} />
+                <Text style={{ color: colors.textSecondary, fontSize: 13 }}>{profile.ville}</Text>
               </View>
             )}
-            {(contactVisible || isOwnProfile) && profile?.email_public && (
+            {(contactVisible || isOwnProfile) && !!profile?.email_public && (
               <View style={styles.iconRow}>
-                <Ionicons name="mail-outline" size={16} color={colors.text + "80"} />
-                <Text style={{ color: colors.text + "80" }}>{profile.email_public}</Text>
+                <Ionicons name="mail" size={14} color={colors.primary} />
+                <Text style={{ color: colors.textSecondary, fontSize: 13 }}>{profile.email_public}</Text>
               </View>
             )}
           </View>
 
-          {profile?.bio && (
+          {!!profile?.bio && (
             <View style={styles.bioContainer}>
               <Text style={styles.bio}>{profile.bio}</Text>
             </View>
@@ -697,7 +856,7 @@ export default function ProfileDetail() {
               </TouchableOpacity>
             )}
 
-            {(contactVisible || isOwnProfile) && profile?.website && (
+            {(contactVisible || isOwnProfile) && !!profile?.website && (
               <TouchableOpacity
                 style={[styles.actionButton, { backgroundColor: "#333" }]}
                 onPress={() => openLink(profile.website)}
@@ -707,7 +866,7 @@ export default function ProfileDetail() {
               </TouchableOpacity>
             )}
 
-            {profile?.cv_url && (
+            {!!profile?.cv_url && (
               <TouchableOpacity
                 style={[styles.actionButton, { backgroundColor: "#333" }]}
                 onPress={() => openLink(profile.cv_url)}
@@ -762,24 +921,199 @@ export default function ProfileDetail() {
           </View>
         </View>
 
+        {/* PROJETS (MISE EN AVANT) */}
+        <View style={[styles.section, { marginTop: 10 }]}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 }}>
+            <Text style={[GlobalStyles.title2, { color: colors.text, marginBottom: 0 }]}>Expérience (Projets)</Text>
+            {(tournages.length + participations.length) > 0 && (
+                <View style={[styles.miniTag, { backgroundColor: colors.primary + '10', borderColor: 'transparent' }]}>
+                    <Text style={[styles.miniTagText, { color: colors.primary }]}>{tournages.length + participations.length}</Text>
+                </View>
+            )}
+          </View>
+          
+          {tournages.length === 0 && participations.length === 0 ? (
+            <Text style={styles.emptyText}>Aucun projet visible.</Text>
+          ) : (
+            <ScrollView 
+                horizontal 
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ gap: 15, paddingRight: 20 }}
+            >
+              {tournages.map((t) => (
+                <TouchableOpacity
+                  key={t.id}
+                  style={styles.experienceCardLarge}
+                  onPress={() => {
+                    if (isOwnProfile) {
+                        handleEditExp(t);
+                    } else {
+                        setViewingExp({
+                            ...t,
+                            projectTitle: t.title,
+                            projectType: t.type,
+                            roleTitle: 'CRÉATEUR'
+                        });
+                        setViewModalVisible(true);
+                    }
+                  }}
+                >
+                  {(t.image_url) ? (
+                    <Image source={{ uri: t.image_url }} style={styles.experienceImage} />
+                  ) : (
+                    <View style={[styles.experienceImage, { backgroundColor: colors.primary + '20', justifyContent: 'center', alignItems: 'center' }]}>
+                        <Ionicons name="film-outline" size={40} color={colors.primary + '40'} />
+                    </View>
+                  )}
+                  {isOwnProfile && (
+                    <View style={styles.editExpBadge}>
+                        <Ionicons name="pencil" size={14} color="white" />
+                    </View>
+                  )}
+                  <View style={styles.experienceOverlay}>
+                    <View style={styles.statusBadge}>
+                        <Text style={styles.statusText}>{t.status === 'completed' ? '🏁 Terminé' : '🎥 En cours'}</Text>
+                    </View>
+                    <View>
+                        <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap', marginBottom: 6 }}>
+                            <View style={{ backgroundColor: colors.primary, alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 }}>
+                                <Text style={{ color: 'white', fontSize: 11, fontWeight: '900', textTransform: 'uppercase' }}>Créateur</Text>
+                            </View>
+                            {t.personalTitle && (
+                                <View style={{ backgroundColor: 'rgba(255,255,255,0.2)', alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 }}>
+                                    <Text style={{ color: 'white', fontSize: 11, fontWeight: '700' }}>{t.personalTitle}</Text>
+                                </View>
+                            )}
+                        </View>
+                        <Text style={styles.experienceTitle} numberOfLines={2}>{t.title}</Text>
+                        <Text style={styles.experienceSubtitle}>
+                            {t.type?.replace("_", " ")}
+                        </Text>
+                    </View>
+
+                    {(t.personalNote || t.personalTitle || t.personalImage) && (
+                        <TouchableOpacity 
+                            style={{ marginTop: 15, backgroundColor: 'rgba(255,255,255,0.2)', paddingVertical: 10, borderRadius: 12, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 6, borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)' }}
+                            onPress={(e) => {
+                                e.stopPropagation();
+                                setViewingExp({
+                                    ...t,
+                                    projectTitle: t.title,
+                                    projectType: t.type,
+                                    roleTitle: 'CRÉATEUR'
+                                });
+                                setViewModalVisible(true);
+                            }}
+                        >
+                            <Ionicons name="information-circle-outline" size={18} color="white" />
+                            <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 14 }}>Voir détails</Text>
+                        </TouchableOpacity>
+                    )}
+                  </View>
+                </TouchableOpacity>
+              ))}
+              {participations.map((p) => {
+                const t = Array.isArray(p.tournages)
+                  ? p.tournages[0]
+                  : p.tournages;
+                if (!t) return null;
+                return (
+                  <TouchableOpacity 
+                    key={p.id} 
+                    style={styles.experienceCardLarge}
+                    onPress={() => {
+                        if (isOwnProfile) {
+                            handleEditExp(p);
+                        } else {
+                            setViewingExp({ 
+                                ...p, 
+                                projectTitle: t.title, 
+                                projectType: t.type,
+                                roleTitle: p.title,
+                                id: t.id
+                            });
+                            setViewModalVisible(true);
+                        }
+                    }}
+                  >
+                    { (t.image_url) ? (
+                        <Image source={{ uri: t.image_url }} style={styles.experienceImage} />
+                    ) : (
+                        <View style={[styles.experienceImage, { backgroundColor: colors.backgroundSecondary, justifyContent: 'center', alignItems: 'center' }]}>
+                            <Ionicons name="person-outline" size={40} color={colors.textSecondary + '40'} />
+                        </View>
+                    )}
+                    {isOwnProfile && (
+                        <View style={styles.editExpBadge}>
+                            <Ionicons name="pencil" size={14} color="white" />
+                        </View>
+                    )}
+                    <View style={styles.experienceOverlay}>
+                        <View style={styles.statusBadge}>
+                            <Text style={styles.statusText}>{t.status === 'completed' ? '🏁 Terminé' : '🎥 En cours'}</Text>
+                        </View>
+                        <View>
+                            <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap', marginBottom: 6 }}>
+                                <View style={{ backgroundColor: colors.primary, alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 }}>
+                                    <Text style={{ color: 'white', fontSize: 11, fontWeight: '900', textTransform: 'uppercase' }}>{p.title}</Text>
+                                </View>
+                                {p.personalTitle && (
+                                    <View style={{ backgroundColor: 'rgba(255,255,255,0.2)', alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 }}>
+                                        <Text style={{ color: 'white', fontSize: 11, fontWeight: '700' }}>{p.personalTitle}</Text>
+                                    </View>
+                                )}
+                            </View>
+                            <Text style={styles.experienceTitle} numberOfLines={2}>{t.title}</Text>
+                            <Text style={styles.experienceSubtitle}>
+                                {t.type?.replace("_", " ")}
+                            </Text>
+                        </View>
+
+                        {(p.personalNote || p.personalTitle || p.personalImage) && (
+                            <TouchableOpacity 
+                                style={{ marginTop: 15, backgroundColor: 'rgba(255,255,255,0.2)', paddingVertical: 10, borderRadius: 12, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 6, borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)' }}
+                                onPress={(e) => {
+                                    e.stopPropagation();
+                                    setViewingExp({ 
+                                        ...p, 
+                                        projectTitle: t.title, 
+                                        projectType: t.type,
+                                        roleTitle: p.title,
+                                        id: t.id
+                                    });
+                                    setViewModalVisible(true);
+                                }}
+                            >
+                                <Ionicons name="information-circle-outline" size={18} color="white" />
+                                <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 14 }}>Voir détails</Text>
+                            </TouchableOpacity>
+                        )}
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          )}
+        </View>
+
         {/* PHYSIQUE section (conditional) */}
         {(profile?.height || profile?.hair_color || profile?.eye_color) && (
           <View style={styles.section}>
             <Text style={[GlobalStyles.title2, { color: colors.text }]}>Caractéristiques</Text>
             <View style={styles.attributesGrid}>
-              {profile.height && (
+              {!!profile.height && (
                 <View style={styles.attributeItem}>
                   <Text style={styles.attrLabel}>Taille</Text>
                   <Text style={styles.attrValue}>{profile.height} cm</Text>
                 </View>
               )}
-              {profile.hair_color && (
+              {!!profile.hair_color && (
                 <View style={styles.attributeItem}>
                   <Text style={styles.attrLabel}>Cheveux</Text>
                   <Text style={styles.attrValue}>{profile.hair_color}</Text>
                 </View>
               )}
-              {profile.eye_color && (
+              {!!profile.eye_color && (
                 <View style={styles.attributeItem}>
                   <Text style={styles.attrLabel}>Yeux</Text>
                   <Text style={styles.attrValue}>{profile.eye_color}</Text>
@@ -792,22 +1126,30 @@ export default function ProfileDetail() {
         {/* TECH section */}
         {(profile?.equipment || profile?.software) && (
           <View style={styles.section}>
-            <Text style={[GlobalStyles.title2, { color: colors.text }]}>Matériel & Outils</Text>
-            <View style={[GlobalStyles.card, { backgroundColor: colors.background, borderColor: colors.border }]}>
-              {profile.equipment && (
-                <View style={{ marginBottom: 12 }}>
-                  <Text style={styles.attrLabel}>Matériel</Text>
-                  <Text style={[styles.attrValue, { fontWeight: "400" }]}>
-                    {profile.equipment}
-                  </Text>
+            <Text style={[GlobalStyles.title2, { color: colors.text, marginBottom: 15 }]}>Matériel & Outils</Text>
+            <View style={[GlobalStyles.card, { backgroundColor: colors.background, borderColor: colors.border, padding: 12 }]}>
+              {!!profile.equipment && (
+                <View style={{ marginBottom: 15 }}>
+                  <Text style={[styles.attrLabel, { marginBottom: 8 }]}>Matériel</Text>
+                  <View style={styles.tagCloud}>
+                    {profile.equipment.split(',').map((item: string, index: number) => (
+                      <View key={index} style={styles.miniTag}>
+                        <Text style={styles.miniTagText}>{item.trim()}</Text>
+                      </View>
+                    ))}
+                  </View>
                 </View>
               )}
-              {profile.software && (
+              {!!profile.software && (
                 <View>
-                  <Text style={styles.attrLabel}>Logiciels</Text>
-                  <Text style={[styles.attrValue, { fontWeight: "400" }]}>
-                    {profile.software}
-                  </Text>
+                  <Text style={[styles.attrLabel, { marginBottom: 8 }]}>Logiciels</Text>
+                  <View style={styles.tagCloud}>
+                    {profile.software.split(',').map((item: string, index: number) => (
+                      <View key={index} style={[styles.miniTag, { backgroundColor: colors.primary + '08', borderColor: colors.primary + '20' }]}>
+                        <Text style={[styles.miniTagText, { color: colors.primary }]}>{item.trim()}</Text>
+                      </View>
+                    ))}
+                  </View>
                 </View>
               )}
             </View>
@@ -815,7 +1157,7 @@ export default function ProfileDetail() {
         )}
 
         {/* HMC section */}
-        {profile?.specialties && (
+        {!!profile?.specialties && (
           <View style={styles.section}>
             <Text style={[GlobalStyles.title2, { color: colors.text }]}>Spécialités</Text>
             <View style={[GlobalStyles.card, { backgroundColor: colors.background, borderColor: colors.border }]}>
@@ -841,7 +1183,7 @@ export default function ProfileDetail() {
         )}
 
         {/* SHOWREEL */}
-        {profile?.showreel_url && (
+        {!!profile?.showreel_url && (
           <View style={styles.section}>
             <Text style={[GlobalStyles.title2, { color: colors.text }]}>Bande Démo</Text>
             <TouchableOpacity
@@ -872,54 +1214,177 @@ export default function ProfileDetail() {
           </View>
         )}
 
-        {/* PROJETS */}
-        <View style={styles.section}>
-          <Text style={[GlobalStyles.title2, { color: colors.text }]}>Expérience (Projets)</Text>
-          {tournages.length === 0 && participations.length === 0 ? (
-            <Text style={styles.emptyText}>Aucun projet visible.</Text>
-          ) : (
-            <>
-              {tournages.map((t) => (
-                <TouchableOpacity
-                  key={t.id}
-                  style={styles.projectCard}
-                  onPress={() =>
-                    router.push({
-                      pathname: "/project/[id]",
-                      params: { id: t.id },
-                    })
-                  }
-                >
-                  <View>
-                    <Text style={styles.projectTitle}>{t.title}</Text>
-                    <Text style={styles.projectMeta}>
-                      Créateur • {t.type?.replace("_", " ")}
-                    </Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={20} color={colors.text + "40"} />
-                </TouchableOpacity>
-              ))}
-              {participations.map((p) => {
-                const t = Array.isArray(p.tournages)
-                  ? p.tournages[0]
-                  : p.tournages;
-                if (!t) return null;
-                return (
-                  <View key={p.id} style={styles.participationCard}>
-                    <Text style={styles.projectTitle}>{t.title}</Text>
-                    <Text style={styles.participationRole}>{p.title}</Text>
-                    <Text style={styles.projectMeta}>
-                      {t.type?.replace("_", " ")}
-                    </Text>
-                  </View>
-                );
-              })}
-            </>
-          )}
-        </View>
-
         <View style={{ height: 50 }} />
       </ScrollView>
+
+      {/* Experience Edit Modal */}
+      <Modal
+        visible={editModalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setEditModalVisible(false)}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: 'flex-end' }}
+        >
+          <View style={{ backgroundColor: colors.background, borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 25, maxHeight: '90%' }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                <Text style={[GlobalStyles.title2, { color: colors.text, marginBottom: 0 }]}>Modifier l'expérience</Text>
+                <TouchableOpacity onPress={() => setEditModalVisible(false)}>
+                    <Ionicons name="close-circle" size={28} color={colors.text + "40"} />
+                </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false}>
+                <View style={{ marginBottom: 20 }}>
+                    <Text style={[styles.attrLabel, { marginBottom: 8 }]}>Image de couverture</Text>
+                    <TouchableOpacity 
+                        onPress={handleUploadExpImage}
+                        style={{ height: 180, borderRadius: 15, backgroundColor: colors.backgroundSecondary, justifyContent: 'center', alignItems: 'center', overflow: 'hidden', borderStyle: 'dashed', borderWidth: 2, borderColor: colors.border }}
+                    >
+                        {(editingExp?.imageUrl || editingExp?.projectImage) ? (
+                            <Image source={{ uri: editingExp.imageUrl || editingExp.projectImage }} style={{ width: '100%', height: '100%' }} />
+                        ) : (
+                            <View style={{ alignItems: 'center' }}>
+                                <Ionicons name="camera-outline" size={40} color={colors.textSecondary} />
+                                <Text style={{ color: colors.textSecondary, marginTop: 10 }}>Ajouter une photo</Text>
+                            </View>
+                        )}
+                        {uploadingExp && (
+                            <View style={{ ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.3)', justifyContent: 'center', alignItems: 'center' }}>
+                                <ClapLoading size={30} color="white" />
+                            </View>
+                        )}
+                    </TouchableOpacity>
+                </View>
+
+                <View style={{ marginBottom: 20 }}>
+                    <Text style={[styles.attrLabel, { marginBottom: 8 }]}>Titre personnalisé</Text>
+                    <TextInput
+                        style={[styles.experienceInput, { color: colors.text }]}
+                        value={editingExp?.title}
+                        onChangeText={(val: string) => setEditingExp((prev: any) => ({ ...prev, title: val }))}
+                        placeholder="ex: Mon premier grand tournage..."
+                        placeholderTextColor={colors.textSecondary}
+                    />
+                </View>
+
+                <View style={{ marginBottom: 25 }}>
+                    <Text style={[styles.attrLabel, { marginBottom: 8 }]}>Votre expérience / Note</Text>
+                    <TextInput
+                        style={[styles.experienceInput, { height: 120, textAlignVertical: 'top', color: colors.text }]}
+                        value={editingExp?.note}
+                        onChangeText={(val: string) => setEditingExp((prev: any) => ({ ...prev, note: val }))}
+                        placeholder="Racontez votre expérience sur ce projet..."
+                        placeholderTextColor={colors.textSecondary}
+                        multiline
+                    />
+                </View>
+
+                <TouchableOpacity 
+                    style={[styles.actionButton, { backgroundColor: colors.primary, paddingVertical: 15, borderRadius: 15, marginBottom: 10 }]}
+                    onPress={handleSaveExpChanges}
+                    disabled={savingExp}
+                >
+                    {savingExp ? (
+                        <ClapLoading size={24} color="white" />
+                    ) : (
+                        <Text style={[styles.actionButtonText, { fontSize: 16 }]}>Enregistrer les modifications</Text>
+                    )}
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                    onPress={() => {
+                        setEditModalVisible(false);
+                        router.push({
+                            pathname: "/project/[id]",
+                            params: { id: editingExp.projectId },
+                        });
+                    }}
+                    style={{ padding: 15, alignItems: 'center' }}
+                >
+                    <Text style={{ color: colors.textSecondary, fontWeight: '600' }}>Voir la fiche complète du projet</Text>
+                </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* Experience Viewing Modal */}
+      <Modal
+        visible={viewModalVisible}
+        animationType="fade"
+        transparent={true}
+        onRequestClose={() => setViewModalVisible(false)}
+      >
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'center', padding: 20 }}>
+            <View style={{ backgroundColor: colors.background, borderRadius: 25, overflow: 'hidden' }}>
+                <View style={{ height: 200, backgroundColor: colors.backgroundSecondary }}>
+                    {(viewingExp?.personalImage || viewingExp?.image_url) ? (
+                        <Image source={{ uri: viewingExp.personalImage || viewingExp.image_url }} style={{ width: '100%', height: '100%' }} />
+                    ) : (
+                        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+                            <Ionicons name="film-outline" size={50} color={colors.textSecondary + '40'} />
+                        </View>
+                    )}
+                    <TouchableOpacity 
+                        onPress={() => setViewModalVisible(false)}
+                        style={{ position: 'absolute', top: 15, right: 15, backgroundColor: 'rgba(0,0,0,0.5)', padding: 8, borderRadius: 20 }}
+                    >
+                        <Ionicons name="close" size={20} color="white" />
+                    </TouchableOpacity>
+                </View>
+
+                <View style={{ padding: 20 }}>
+                    <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
+                        <View style={{ backgroundColor: colors.primary + '15', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6 }}>
+                            <Text style={{ color: colors.primary, fontSize: 11, fontWeight: '800', textTransform: 'uppercase' }}>
+                                {viewingExp?.roleTitle}
+                            </Text>
+                        </View>
+                        {viewingExp?.personalTitle && (
+                             <View style={{ backgroundColor: colors.text + '05', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6 }}>
+                                <Text style={{ color: colors.text, fontSize: 11, fontWeight: '700' }}>{viewingExp.personalTitle}</Text>
+                             </View>
+                        )}
+                    </View>
+
+                    <Text style={[GlobalStyles.title2, { color: colors.text, marginBottom: 5 }]}>
+                        {viewingExp?.projectTitle}
+                    </Text>
+                    <Text style={{ color: colors.textSecondary, marginBottom: 20, textTransform: 'capitalize' }}>
+                        {viewingExp?.projectType?.replace('_', ' ')}
+                    </Text>
+
+                    {viewingExp?.personalNote ? (
+                        <View style={{ backgroundColor: colors.backgroundSecondary, padding: 15, borderRadius: 15, marginBottom: 20 }}>
+                                <Ionicons name="chatbubble-ellipses" size={20} color={colors.primary} style={{ marginBottom: 10 }} />
+                                <Text style={{ color: colors.text, fontSize: 15, lineHeight: 22, fontStyle: 'italic' }}>
+                                    "{viewingExp.personalNote}"
+                                </Text>
+                        </View>
+                    ) : (
+                        <View style={{ height: 20 }} />
+                    )}
+
+                    <TouchableOpacity 
+                        onPress={() => {
+                            setViewModalVisible(false);
+                            router.push({
+                                pathname: "/project/[id]",
+                                params: { id: viewingExp.id || viewingExp.projectId },
+                            });
+                        }}
+                        style={[styles.actionButton, { justifyContent: 'center', paddingVertical: 14 }]}
+                    >
+                        <Text style={styles.actionButtonText}>Voir la fiche du projet</Text>
+                        <Ionicons name="arrow-forward" size={18} color="white" />
+                    </TouchableOpacity>
+                </View>
+            </View>
+        </View>
+      </Modal>
     </>
   );
 }
@@ -931,76 +1396,105 @@ const createStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   },
   headerSection: {
     alignItems: "center",
-    padding: 20,
-    paddingTop: 60,
+    padding: 24,
+    paddingTop: 70,
     backgroundColor: colors.background,
-    borderBottomRightRadius: 30,
-    borderBottomLeftRadius: 30,
-    shadowColor: colors.shadow,
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    elevation: 5,
-    marginBottom: 20,
+    borderBottomRightRadius: 40,
+    borderBottomLeftRadius: 40,
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowRadius: 15,
+    elevation: 8,
+    marginBottom: 25,
   },
   backButton: {
     position: "absolute",
-    top: 50,
+    top: 55,
     left: 20,
     zIndex: 10,
-    padding: 10,
+    padding: 8,
+    backgroundColor: colors.background + '80',
+    borderRadius: 20,
   } as any,
   reportHeaderButton: {
     position: "absolute",
     top: 55,
     right: 20,
     zIndex: 10,
-    padding: 10,
+    padding: 8,
+    backgroundColor: colors.background + '80',
+    borderRadius: 20,
   } as any,
-  settingsHeaderButton: {
-    position: "absolute",
-    top: 55,
-    right: 20,
-    zIndex: 10,
-    padding: 10,
+  headerButton: {
+    padding: 8,
+    backgroundColor: colors.background + '80',
+    borderRadius: 20,
   } as any,
   avatar: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    marginBottom: 15,
-    borderWidth: 4,
+    width: 130,
+    height: 130,
+    borderRadius: 65,
+    marginBottom: 18,
+    borderWidth: 5,
     borderColor: colors.background,
-    shadowColor: colors.shadow,
-    shadowOpacity: 0.1,
-    shadowRadius: 5,
+    shadowColor: "#000",
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
   },
   avatarPlaceholder: {
     backgroundColor: colors.backgroundSecondary,
     justifyContent: "center",
     alignItems: "center",
   },
-  role: {
-    fontSize: 14,
+  roleBadge: {
+    backgroundColor: colors.primary + '15',
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: colors.primary + '30',
+  },
+  roleBadgeText: {
+    fontSize: 12,
     color: colors.primary,
-    fontWeight: "600",
+    fontWeight: "800",
     textTransform: "uppercase",
-    letterSpacing: 1,
-    marginBottom: 5,
+    letterSpacing: 1.2,
   },
   iconRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
+    gap: 6,
   },
   bioContainer: {
-    marginTop: 15,
-    paddingHorizontal: 20,
+    marginTop: 20,
+    paddingHorizontal: 10,
   },
   bio: {
     textAlign: "center",
-    color: colors.text + "CC",
-    fontStyle: "italic",
-    lineHeight: 20,
+    color: colors.text,
+    fontSize: 14,
+    lineHeight: 22,
+    opacity: 0.9,
+    fontStyle: 'italic',
+  },
+  tagCloud: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  miniTag: {
+    backgroundColor: colors.backgroundSecondary,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  miniTagText: {
+    fontSize: 12,
+    color: colors.text,
+    fontWeight: '500',
   },
   actionButton: {
     flexDirection: "row",
@@ -1061,6 +1555,64 @@ const createStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     marginRight: 10,
     backgroundColor: colors.backgroundSecondary,
   },
+  experienceCardLarge: {
+    width: 280,
+    height: 380,
+    backgroundColor: colors.background,
+    borderRadius: 20,
+    overflow: 'hidden',
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 5,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  experienceImage: {
+    width: '100%',
+    height: '100%',
+    position: 'absolute',
+  },
+  experienceOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: '100%',
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    padding: 20,
+    justifyContent: 'flex-end',
+  },
+  experienceTitle: {
+    color: 'white',
+    fontSize: 22,
+    fontWeight: '800',
+    textShadowColor: 'rgba(0,0,0,0.5)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+  },
+  experienceSubtitle: {
+    color: 'rgba(255,255,255,0.8)',
+    fontSize: 14,
+    fontWeight: '600',
+    marginTop: 4,
+  },
+  statusBadge: {
+    position: 'absolute',
+    top: 20,
+    left: 20,
+    backgroundColor: colors.primary,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 10,
+    zIndex: 2,
+  },
+  statusText: {
+    color: 'white',
+    fontSize: 10,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+  },
   videoCard: {
     height: 150,
     backgroundColor: "#000",
@@ -1114,6 +1666,28 @@ const createStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     color: colors.primary,
     fontWeight: "600",
     fontSize: 14,
+  },
+  experienceInput: {
+    backgroundColor: colors.backgroundSecondary,
+    borderRadius: 12,
+    padding: 15,
+    fontSize: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  editExpBadge: {
+    position: 'absolute',
+    top: 20,
+    right: 20,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
   },
 });
 

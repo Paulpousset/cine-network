@@ -19,14 +19,14 @@ const Colors = {
     shadow: '#000000',
   },
   dark: {
-    text: '#F9FAFB',
+    text: '#FFFFFF',
     background: '#111827', // Gris très foncé (pas noir pur)
     backgroundSecondary: '#1F2937',
     tint: tintColorDark,
     tabIconDefault: '#6B7280',
     tabIconSelected: tintColorDark,
-    border: '#374151',
-    textSecondary: '#9CA3AF',
+    border: '#787c82',
+    textSecondary: '#fcfdff',
     primary: '#A29BFE',
     secondary: '#81ECEC',
     danger: '#FF8787',

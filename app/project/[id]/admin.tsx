@@ -127,8 +127,8 @@ export default function AdminScreen() {
 
         {!loading && !project && (
           <View style={{ padding: 40, alignItems: "center" }}>
-            <Ionicons name="cloud-offline-outline" size={48} color="#ccc" />
-            <Text style={{ color: "#666", marginTop: 10, textAlign: "center" }}>
+            <Ionicons name="cloud-offline-outline" size={48} color={isDark ? colors.textSecondary : "#ccc"} />
+            <Text style={{ color: colors.textSecondary, marginTop: 10, textAlign: "center" }}>
               Données du projet indisponibles.{"\n"}
               ID: {String(projectId)}
             </Text>
@@ -152,23 +152,23 @@ export default function AdminScreen() {
           <View
             style={{
               padding: 20,
-              backgroundColor: "white",
+              backgroundColor: colors.card,
               marginBottom: 10,
               borderBottomWidth: 1,
-              borderBottomColor: "#eee",
+              borderBottomColor: colors.border,
             }}
           >
             <Text
               style={{
                 fontSize: 22,
                 fontWeight: "bold",
-                color: "#1a1a1a",
+                color: colors.text,
                 marginBottom: 4,
               }}
             >
               {project.title}
             </Text>
-            <Text style={{ fontSize: 14, color: "#666", marginBottom: 15 }}>
+            <Text style={{ fontSize: 14, color: colors.textSecondary, marginBottom: 15 }}>
               {project.type
                 ? project.type.charAt(0).toUpperCase() +
                   project.type.slice(1).replace("_", " ")
@@ -187,10 +187,10 @@ export default function AdminScreen() {
                 <Ionicons
                   name="calendar-outline"
                   size={14}
-                  color="#888"
+                  color={isDark ? "#aaa" : "#888"}
                   style={{ marginRight: 5 }}
                 />
-                <Text style={{ fontSize: 13, color: "#888" }}>
+                <Text style={{ fontSize: 13, color: isDark ? "#aaa" : "#888" }}>
                   {new Date(project.start_date).toLocaleDateString()}
                   {project.end_date &&
                     ` - ${new Date(project.end_date).toLocaleDateString()}`}
@@ -201,7 +201,7 @@ export default function AdminScreen() {
             <View
               style={{
                 height: 1,
-                backgroundColor: "#f5f5f5",
+                backgroundColor: colors.border,
                 marginVertical: 10,
               }}
             />
@@ -209,10 +209,11 @@ export default function AdminScreen() {
             <Text
               style={{
                 fontSize: 12,
-                color: "#666",
+                color: isDark ? colors.text + "80" : "#666",
                 textTransform: "uppercase",
                 marginBottom: 8,
                 letterSpacing: 0.5,
+                fontWeight: "600",
               }}
             >
               Propriétaire
@@ -228,12 +229,12 @@ export default function AdminScreen() {
                 </Text>
               </View>
               <View>
-                <Text style={{ fontWeight: "bold", fontSize: 15 }}>
+                <Text style={{ fontWeight: "bold", fontSize: 15, color: colors.text }}>
                   {project.owner?.full_name ||
                     project.owner?.username ||
                     "Propriétaire"}
                 </Text>
-                <Text style={{ fontSize: 12, color: "#666" }}>
+                <Text style={{ fontSize: 12, color: isDark ? colors.text + "60" : "#666" }}>
                   Créateur du projet
                 </Text>
               </View>
@@ -247,14 +248,14 @@ export default function AdminScreen() {
             style={styles.quickAction}
             onPress={() => router.push(`/project/${projectId}/settings`)}
           >
-            <Ionicons name="settings-outline" size={24} color="#333" />
+            <Ionicons name="settings-outline" size={24} color={colors.textSecondary} />
             <Text style={styles.quickActionText}>Paramètres</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.quickAction}
             onPress={() => router.push(`/project/${projectId}/manage_team`)}
           >
-            <Ionicons name="people-outline" size={24} color="#333" />
+            <Ionicons name="people-outline" size={24} color={colors.textSecondary} />
             <Text style={styles.quickActionText}>Droit d'accès</Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -286,8 +287,8 @@ export default function AdminScreen() {
             marginTop: 10,
           }}
         >
-          <Text style={GlobalStyles.title2}>Membres de l'équipe</Text>
-          <Text style={{ color: "#666" }}>{members.length} personne(s)</Text>
+          <Text style={[GlobalStyles.title2, { color: colors.text }]}>Membres de l'équipe</Text>
+          <Text style={{ color: colors.textSecondary }}>{members.length} personne(s)</Text>
         </View>
 
         <View style={{ padding: 15 }}>
@@ -299,7 +300,7 @@ export default function AdminScreen() {
             </Text>
           ) : (
             members.map((item) => (
-              <View key={item.id} style={GlobalStyles.card}>
+              <View key={item.id} style={[GlobalStyles.card, { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1 }]}>
                 <View
                   style={{
                     flexDirection: "row",
@@ -308,7 +309,7 @@ export default function AdminScreen() {
                   }}
                 >
                   <View style={{ flex: 1 }}>
-                    <Text style={{ fontWeight: "bold", fontSize: 16 }}>
+                    <Text style={{ fontWeight: "bold", fontSize: 16, color: colors.text }}>
                       {item.assigned_profile?.full_name ||
                         item.assigned_profile?.username}
                     </Text>
@@ -317,7 +318,7 @@ export default function AdminScreen() {
                     >
                       {item.title}
                     </Text>
-                    <Text style={{ color: "#666", fontSize: 12 }}>
+                    <Text style={{ color: isDark ? colors.text + "60" : "#666", fontSize: 12 }}>
                       {item.category}
                     </Text>
                   </View>
@@ -329,7 +330,7 @@ export default function AdminScreen() {
                       })
                     }
                   >
-                    <Ionicons name="chevron-forward" size={20} color="#ccc" />
+                    <Ionicons name="chevron-forward" size={20} color={isDark ? colors.text + "40" : "#ccc"} />
                   </TouchableOpacity>
                 </View>
 
@@ -340,7 +341,7 @@ export default function AdminScreen() {
                     gap: 10,
                     marginTop: 15,
                     borderTopWidth: 1,
-                    borderColor: "#eee",
+                    borderColor: colors.border,
                     paddingTop: 10,
                   }}
                 >
@@ -358,7 +359,7 @@ export default function AdminScreen() {
                     <Ionicons
                       name="document-text-outline"
                       size={18}
-                      color="#333"
+                      color={isDark ? colors.text + "80" : "#333"}
                     />
                     <Text style={styles.actionText}>Droit à l'image</Text>
                   </TouchableOpacity>
@@ -374,7 +375,7 @@ export default function AdminScreen() {
                     }
                     style={styles.actionButton}
                   >
-                    <Ionicons name="briefcase-outline" size={18} color="#333" />
+                    <Ionicons name="briefcase-outline" size={18} color={isDark ? colors.text + "80" : "#333"} />
                     <Text style={styles.actionText}>Contrat Bénévolat</Text>
                   </TouchableOpacity>
                 </View>
@@ -450,7 +451,7 @@ function createStyles(colors: any, isDark: boolean) {
   },
   emptyText: {
     textAlign: "center",
-    color: "#999",
+    color: colors.textSecondary,
     marginTop: 20,
   },
   });

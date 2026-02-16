@@ -8,9 +8,8 @@ import ChatIconWithBadge from "@/components/ChatIconWithBadge";
 import ClapLoading from "@/components/ClapLoading";
 import CustomTabBar from "@/components/CustomTabBar"; // Imported
 import NotificationIconWithBadge from "@/components/NotificationIconWithBadge";
-import { useTheme } from "@/providers/ThemeProvider";
-import Colors from "@/constants/Colors";
 import { appEvents, EVENTS } from "@/lib/events";
+import { useTheme } from "@/providers/ThemeProvider";
 import { useUser } from "@/providers/UserProvider";
 import { useEffect } from "react";
 import { Platform } from "react-native";
@@ -86,12 +85,13 @@ export default function TabLayout() {
   }
 
   const isAgent = userRole?.trim().toLowerCase() === "agent";
+  const myProfilePath = "/account";
 
   return (
     <Tabs
       tabBar={renderTabBar}
       screenOptions={{
-        tabBarActiveTintColor: colors.tint,
+        tabBarActiveTintColor: colors.primary,
         headerShown: Platform.OS !== "web",
         headerStyle: {
           backgroundColor: colors.background,
@@ -115,7 +115,7 @@ export default function TabLayout() {
             Platform.OS === "web"
               ? undefined
               : () => (
-                  <Link href="/account" asChild>
+                  <Link href={myProfilePath as any} asChild>
                     <Pressable>
                       {({ pressed }) => <ProfileIcon pressed={pressed} />}
                     </Pressable>
@@ -145,7 +145,7 @@ export default function TabLayout() {
             Platform.OS === "web"
               ? undefined
               : () => (
-                  <Link href="/account" asChild>
+                  <Link href={myProfilePath as any} asChild>
                     <Pressable>
                       {({ pressed }) => <ProfileIcon pressed={pressed} />}
                     </Pressable>
@@ -174,7 +174,36 @@ export default function TabLayout() {
             Platform.OS === "web"
               ? undefined
               : () => (
-                  <Link href="/account" asChild>
+                  <Link href={myProfilePath as any} asChild>
+                    <Pressable>
+                      {({ pressed }) => <ProfileIcon pressed={pressed} />}
+                    </Pressable>
+                  </Link>
+                ),
+          headerRight:
+            Platform.OS === "web"
+              ? undefined
+              : () => (
+                  <View style={{ flexDirection: "row", alignItems: "center" }}>
+                    <NotificationIconWithBadge />
+                    <ChatIconWithBadge />
+                  </View>
+                ),
+        }}
+      />
+
+      <Tabs.Screen
+        name="discover"
+        options={{
+          title: "Découvrir",
+          tabBarIcon: ({ color }) => (
+            <TabBarIcon name="search" color={color} />
+          ),
+          headerLeft:
+            Platform.OS === "web"
+              ? undefined
+              : () => (
+                  <Link href={myProfilePath as any} asChild>
                     <Pressable>
                       {({ pressed }) => <ProfileIcon pressed={pressed} />}
                     </Pressable>
@@ -201,7 +230,7 @@ export default function TabLayout() {
             Platform.OS === "web"
               ? undefined
               : () => (
-                  <Link href="/account" asChild>
+                  <Link href={myProfilePath as any} asChild>
                     <Pressable>
                       {({ pressed }) => <ProfileIcon pressed={pressed} />}
                     </Pressable>
@@ -230,28 +259,12 @@ export default function TabLayout() {
             Platform.OS === "web"
               ? undefined
               : () => (
-                  <Link href="/account" asChild>
+                  <Link href={myProfilePath as any} asChild>
                     <Pressable>
                       {({ pressed }) => <ProfileIcon pressed={pressed} />}
                     </Pressable>
                   </Link>
                 ),
-          headerRight:
-            Platform.OS === "web"
-              ? undefined
-              : () => (
-                  <View style={{ flexDirection: "row", alignItems: "center" }}>
-                    <NotificationIconWithBadge />
-                    <ChatIconWithBadge />
-                  </View>
-                ),
-        }}
-      />
-      <Tabs.Screen
-        name="hall-of-fame"
-        options={{
-          title: "Hall of Fame",
-          tabBarIcon: ({ color }) => <TabBarIcon name="trophy" color={color} />,
           headerRight:
             Platform.OS === "web"
               ? undefined

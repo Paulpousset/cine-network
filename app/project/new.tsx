@@ -9,15 +9,15 @@ import DateTimePicker from "@react-native-community/datetimepicker";
 import { Stack, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { supabase } from "../../lib/supabase";
@@ -133,7 +133,10 @@ export default function CreateTournage() {
 
       await supabase
         .from("profiles")
-        .update({ subscription_tier: "studio" })
+        .update({ 
+          subscription_tier: "studio",
+          updated_at: new Date().toISOString()
+        })
         .eq("id", session.user.id);
 
       setCanCreate(true);
@@ -321,46 +324,88 @@ export default function CreateTournage() {
             >
               <Ionicons name="arrow-back" size={24} color={colors.text} />
             </TouchableOpacity>
-            <Text style={[GlobalStyles.title1, { marginBottom: 0 }]}>
+            <Text style={[styles.headerTitle, { marginVertical: 0 }]}>
               Créer un projet
             </Text>
           </View>
 
-          <View style={GlobalStyles.card}>
-            <Text style={styles.label}>Titre</Text>
+          {/* SECTION 1: INFORMATIONS GÉNÉRALES */}
+          <View style={styles.formSection}>
+            <View style={styles.formSectionHeader}>
+              <Ionicons name="information-circle-outline" size={18} color={colors.primary} />
+              <Text style={styles.formSectionTitle}>Le Projet</Text>
+            </View>
+
+            <Text style={styles.fieldLabel}>Titre du projet</Text>
             <TextInput
               placeholder="Ex: Le Dernier Métro"
-              style={GlobalStyles.input}
+              style={styles.formInput}
               value={title}
               onChangeText={setTitle}
-              placeholderTextColor="#999"
+              placeholderTextColor={colors.text + "60"}
             />
 
-            <Text style={styles.label}>Pitch / Description</Text>
+            <Text style={[styles.fieldLabel, { marginTop: 15 }]}>Pitch / Description</Text>
             <TextInput
               placeholder="Décrivez brièvement votre projet"
-              style={[GlobalStyles.input, styles.textArea]}
+              style={[styles.formInput, styles.textArea]}
               value={desc}
               onChangeText={setDesc}
               multiline
-              placeholderTextColor="#999"
+              placeholderTextColor={colors.text + "60"}
             />
 
-            <Text style={styles.label}>Pays</Text>
-            <CountryPicker
-              onSelect={setCountry}
-              currentValue={country}
-              placeholder="Choisir un pays"
-            />
+            <Text style={[styles.fieldLabel, { marginTop: 15 }]}>Type de projet</Text>
+            <View style={[styles.typeContainer, { marginTop: 0 }]}>
+              {PROJECT_TYPES.map((t) => (
+                <TouchableOpacity
+                  key={t.value}
+                  style={[
+                    styles.typeButton,
+                    type === t.value && styles.typeButtonSelected,
+                  ]}
+                  onPress={() => setType(t.value)}
+                >
+                  <Text
+                    style={{
+                      color: type === t.value ? "white" : colors.primary,
+                      fontWeight: "600",
+                    }}
+                  >
+                    {t.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
 
-            <Text style={styles.label}>Ville</Text>
-            <CityPicker
-              onSelect={setCity}
-              currentValue={city}
-              placeholder="Rechercher une ville"
-            />
+          {/* SECTION 2: LOCALISATION */}
+          <View style={styles.formSection}>
+            <View style={styles.formSectionHeader}>
+              <Ionicons name="location-outline" size={18} color={colors.primary} />
+              <Text style={styles.formSectionTitle}>Localisation</Text>
+            </View>
 
-            <Text style={styles.label}>Adresse précise (Optionnel)</Text>
+            <View style={{ flexDirection: "row", gap: 10 }}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.fieldLabel}>Pays</Text>
+                <CountryPicker
+                  onSelect={setCountry}
+                  currentValue={country}
+                  placeholder="Choisir un pays"
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.fieldLabel}>Ville</Text>
+                <CityPicker
+                  onSelect={setCity}
+                  currentValue={city}
+                  placeholder="Rechercher une ville"
+                />
+              </View>
+            </View>
+
+            <Text style={[styles.fieldLabel, { marginTop: 15 }]}>Adresse précise (Optionnel)</Text>
             <AddressAutocomplete
               city={city}
               currentValue={address}
@@ -374,27 +419,34 @@ export default function CreateTournage() {
               placeholder="Ex: 10 Rue de la Paix"
             />
             <Text style={styles.helperText}>
-              Permet d'afficher le lieu exact sur la carte. Si vide, la ville
-              sera utilisée.
+              Permet d'afficher le lieu exact sur la carte.
             </Text>
+          </View>
 
-            <View style={{ flexDirection: "row", marginTop: 15, gap: 10 }}>
+          {/* SECTION 3: DATES */}
+          <View style={styles.formSection}>
+            <View style={styles.formSectionHeader}>
+              <Ionicons name="calendar-outline" size={18} color={colors.primary} />
+              <Text style={styles.formSectionTitle}>Calendrier</Text>
+            </View>
+
+            <View style={{ flexDirection: "row", gap: 10 }}>
               <View style={{ flex: 1 }}>
-                <Text style={styles.label}>Date de début</Text>
+                <Text style={styles.fieldLabel}>Date de début</Text>
                 {Platform.OS === "web" ? (
                   <WebDatePicker value={startDate} onChange={setStartDate} />
                 ) : (
                   <>
                     <TouchableOpacity
-                      style={GlobalStyles.input}
+                      style={styles.formInput}
                       onPress={() => setShowStartPicker(true)}
                     >
                       <Text
                         style={{
-                          color: startDate ? colors.text : "#999",
+                          color: startDate ? colors.text : colors.text + "60",
                         }}
                       >
-                        {startDate || "Choisir une date"}
+                        {startDate || "Début"}
                       </Text>
                     </TouchableOpacity>
                     {showStartPicker && (
@@ -418,12 +470,12 @@ export default function CreateTournage() {
                         style={{
                           marginTop: 5,
                           padding: 8,
-                          backgroundColor: "#eee",
+                          backgroundColor: colors.backgroundSecondary,
                           borderRadius: 5,
                           alignItems: "center",
                         }}
                       >
-                        <Text style={{ fontSize: 12, color: "#666" }}>OK</Text>
+                        <Text style={{ fontSize: 12, color: colors.textSecondary }}>OK</Text>
                       </TouchableOpacity>
                     )}
                   </>
@@ -431,19 +483,19 @@ export default function CreateTournage() {
               </View>
 
               <View style={{ flex: 1 }}>
-                <Text style={styles.label}>Date de fin</Text>
+                <Text style={styles.fieldLabel}>Date de fin</Text>
                 {Platform.OS === "web" ? (
                   <WebDatePicker value={endDate} onChange={setEndDate} />
                 ) : (
                   <>
                     <TouchableOpacity
-                      style={GlobalStyles.input}
+                      style={styles.formInput}
                       onPress={() => setShowEndPicker(true)}
                     >
                       <Text
-                        style={{ color: endDate ? colors.text : "#999" }}
+                        style={{ color: endDate ? colors.text : colors.text + "60" }}
                       >
-                        {endDate || "Choisir une date"}
+                        {endDate || "Fin"}
                       </Text>
                     </TouchableOpacity>
                     {showEndPicker && (
@@ -467,52 +519,34 @@ export default function CreateTournage() {
                         style={{
                           marginTop: 5,
                           padding: 8,
-                          backgroundColor: "#eee",
+                          backgroundColor: colors.backgroundSecondary,
                           borderRadius: 5,
                           alignItems: "center",
                         }}
                       >
-                        <Text style={{ fontSize: 12, color: "#666" }}>OK</Text>
+                        <Text style={{ fontSize: 12, color: colors.textSecondary }}>OK</Text>
                       </TouchableOpacity>
                     )}
                   </>
                 )}
               </View>
             </View>
-
-            <Text style={styles.label}>Type</Text>
-            <View style={styles.typeContainer}>
-              {PROJECT_TYPES.map((t) => (
-                <TouchableOpacity
-                  key={t.value}
-                  style={[
-                    styles.typeButton,
-                    type === t.value && styles.typeButtonSelected,
-                  ]}
-                  onPress={() => setType(t.value)}
-                >
-                  <Text
-                    style={{
-                      color: type === t.value ? "white" : colors.primary,
-                      fontWeight: "600",
-                    }}
-                  >
-                    {t.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
           </View>
 
-          {/* Rôles à rechercher */}
-          <View style={[GlobalStyles.card, { marginTop: 16 }]}>
-            <Text style={GlobalStyles.title2}>Rôles recherchés</Text>
+          {/* SECTION 4: RÔLES À RECHERCHER */}
+          <View style={styles.formSection}>
+            <View style={styles.formSectionHeader}>
+              <Ionicons name="people-outline" size={18} color={colors.primary} />
+              <Text style={styles.formSectionTitle}>Casting & Recrutement</Text>
+            </View>
+
+            <Text style={[styles.fieldLabel, { marginBottom: 12 }]}>Sélectionnez les postes à pourvoir</Text>
             {Object.keys(JOB_TITLES).map((cat) => (
-              <View key={cat} style={{ marginTop: 10 }}>
-                <Text style={styles.catTitle}>
-                  {cat.charAt(0).toUpperCase() + cat.slice(1).replace("_", " ")}
+              <View key={cat} style={{ marginBottom: 15 }}>
+                <Text style={[styles.catTitle, { fontSize: 13, textTransform: 'capitalize' }]}>
+                  {cat.replace("_", " ")}
                 </Text>
-                <View style={styles.rowWrap}>
+                <View style={[styles.rowWrap, { marginBottom: 5 }]}>
                   {(JOB_TITLES as any)[cat].map((job: string) => {
                     const k = `${cat}|${job}`;
                     const qty = selected[k]?.quantity || 0;
@@ -523,20 +557,22 @@ export default function CreateTournage() {
                         style={[
                           styles.jobAddChip,
                           active && styles.jobAddChipSelected,
+                          { borderRadius: 8, borderStyle: active ? 'solid' : 'dashed' }
                         ]}
                         onPress={() => addRole(cat as Category, job)}
                       >
                         <Text
                           style={{
                             color: active ? "#fff" : colors.primary,
-                            marginLeft: 6,
+                            marginLeft: 4,
+                            fontSize: 13,
                             fontWeight: active ? "bold" : "normal",
                           }}
                         >
                           + {job}
                         </Text>
                         {active ? (
-                          <View style={styles.countBadge}>
+                          <View style={[styles.countBadge, { backgroundColor: 'rgba(255,255,255,0.3)' }]}>
                             <Text style={styles.countBadgeText}>{qty}</Text>
                           </View>
                         ) : null}
@@ -548,50 +584,47 @@ export default function CreateTournage() {
             ))}
 
             {/* Résumé de la sélection */}
-            <View
-              style={{
-                marginTop: 16,
-                paddingTop: 16,
-                borderTopWidth: 1,
-                borderColor: colors.border,
-              }}
-            >
-              <Text style={styles.label}>Sélection</Text>
-              {Object.keys(selected).length === 0 ? (
-                <Text style={{ color: "#888", fontStyle: "italic" }}>
-                  Aucun rôle sélectionné.
-                </Text>
-              ) : (
+            {Object.keys(selected).length > 0 && (
+              <View
+                style={{
+                  marginTop: 10,
+                  paddingTop: 16,
+                  borderTopWidth: 1,
+                  borderColor: colors.border,
+                }}
+              >
+                <Text style={styles.fieldLabel}>Votre sélection</Text>
                 <View style={{ gap: 8 }}>
                   {Object.entries(selected).map(([k, r]) => (
-                    <View key={k} style={styles.selectionRow}>
-                      <Text style={{ flex: 1, color: colors.text }}>
+                    <View key={k} style={[styles.selectionRow, { backgroundColor: colors.background, paddingVertical: 8, paddingHorizontal: 12 }]}>
+                      <Text style={{ flex: 1, color: colors.text, fontSize: 13 }}>
                         <Text style={{ fontWeight: "bold" }}>{r.title}</Text> •{" "}
-                        {r.category}
+                        {r.category.replace("_", " ")}
                       </Text>
                       <View style={styles.qtyControls}>
                         <TouchableOpacity
                           onPress={() => decRole(k)}
-                          style={styles.qtyBtn}
+                          style={[styles.qtyBtn, { width: 24, height: 24 }]}
                         >
-                          <Text style={{ color: isDark ? colors.text : "#333", fontWeight: "bold" }}>
+                          <Text style={{ color: colors.text, fontWeight: "bold" }}>
                             −
                           </Text>
                         </TouchableOpacity>
                         <Text
                           style={{
-                            minWidth: 18,
+                            minWidth: 16,
                             textAlign: "center",
                             color: colors.text,
+                            fontWeight: '600'
                           }}
                         >
                           {r.quantity}
                         </Text>
                         <TouchableOpacity
                           onPress={() => incRole(k)}
-                          style={styles.qtyBtn}
+                          style={[styles.qtyBtn, { width: 24, height: 24 }]}
                         >
-                          <Text style={{ color: isDark ? colors.text : "#333", fontWeight: "bold" }}>
+                          <Text style={{ color: colors.text, fontWeight: "bold" }}>
                             +
                           </Text>
                         </TouchableOpacity>
@@ -599,17 +632,17 @@ export default function CreateTournage() {
                     </View>
                   ))}
                 </View>
-              )}
-            </View>
+              </View>
+            )}
           </View>
 
           <View style={styles.actions}>
             <TouchableOpacity
-              style={GlobalStyles.secondaryButton}
+              style={[GlobalStyles.secondaryButton, { borderColor: colors.border }]}
               onPress={() => router.back()}
               disabled={creating}
             >
-              <Text style={GlobalStyles.secondaryButtonText}>Annuler</Text>
+              <Text style={[GlobalStyles.secondaryButtonText, { color: colors.text }]}>Annuler</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={GlobalStyles.primaryButton}
@@ -663,7 +696,7 @@ function createStyles(colors: any, isDark: boolean) {
   },
   helperText: {
     fontSize: 12,
-    color: isDark ? "#A0A0A0" : "#666",
+    color: colors.text + "80",
     fontStyle: "italic",
     marginBottom: 10,
     marginTop: -4,
@@ -718,7 +751,7 @@ function createStyles(colors: any, isDark: boolean) {
     minWidth: 18,
     height: 18,
     borderRadius: 9,
-    backgroundColor: "rgba(0,0,0,0.15)",
+    backgroundColor: isDark ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.15)",
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 4,
@@ -757,6 +790,44 @@ function createStyles(colors: any, isDark: boolean) {
     justifyContent: "space-between",
     marginTop: 20,
     gap: 12,
+  },
+  // Form Structure (Sync with Role Creation Style)
+  formSection: {
+    backgroundColor: colors.card,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)",
+  },
+  formSectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 16,
+    gap: 8,
+  },
+  formSectionTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: colors.primary,
+    textTransform: "uppercase",
+    letterSpacing: 1,
+  },
+  fieldLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: colors.text,
+    marginBottom: 8,
+    textAlign: "left",
+  },
+  formInput: {
+    backgroundColor: colors.backgroundSecondary,
+    borderRadius: 10,
+    padding: 12,
+    fontSize: 15,
+    color: colors.text,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   });
 }

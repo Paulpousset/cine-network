@@ -539,7 +539,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   supportButton: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#fff",
+    backgroundColor: isDark ? colors.background : "#fff",
     paddingHorizontal: 32,
     paddingVertical: 16,
     borderRadius: 16,

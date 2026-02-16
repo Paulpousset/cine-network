@@ -4,16 +4,16 @@ import * as ImagePicker from "expo-image-picker";
 import { Stack, router } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-    Alert,
-    Image,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 import ClapLoading from "@/components/ClapLoading";
@@ -358,7 +358,7 @@ function createStyles(colors: any, isDark: boolean) {
     },
     label: {
       fontSize: 14,
-      color: isDark ? "#A0A0A0" : "#666",
+      color: colors.text + "80",
       marginBottom: 5,
       fontWeight: "600",
     },
@@ -388,7 +388,7 @@ function createStyles(colors: any, isDark: boolean) {
     },
     visibilityText: {
       fontWeight: "600",
-      color: isDark ? "#A0A0A0" : "#666",
+      color: colors.text + "80",
     },
   });
 }

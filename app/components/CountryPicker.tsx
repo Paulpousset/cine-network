@@ -1,12 +1,13 @@
 import ClapLoading from "@/components/ClapLoading";
+import { useTheme } from "@/providers/ThemeProvider";
 import React, { useState } from "react";
 import {
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 type CountryPickerProps = {
@@ -20,6 +21,7 @@ export default function CountryPicker({
   currentValue,
   placeholder,
 }: CountryPickerProps) {
+  const { colors, isDark } = useTheme();
   const [query, setQuery] = useState(currentValue || "");
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -71,25 +73,50 @@ export default function CountryPicker({
     <View style={styles.container}>
       <View style={styles.inputContainer}>
         <TextInput
-          style={styles.input}
+          style={[
+            styles.input,
+            {
+              backgroundColor: colors.backgroundSecondary,
+              color: colors.text,
+              borderColor: colors.border,
+            },
+          ]}
           placeholder={placeholder || "Choisir un pays"}
+          placeholderTextColor={colors.textSecondary + "80"}
           value={query}
           onChangeText={searchCountries}
         />
         {loading && (
-          <ClapLoading size={20} color="#841584" style={styles.loader} />
+          <ClapLoading
+            size={20}
+            color={isDark ? colors.primary : "#841584"}
+            style={styles.loader}
+          />
         )}
       </View>
       {showList && suggestions.length > 0 && (
-        <View style={styles.suggestionsBox}>
+        <View
+          style={[
+            styles.suggestionsBox,
+            {
+              backgroundColor: colors.card,
+              borderColor: colors.border,
+            },
+          ]}
+        >
           <ScrollView keyboardShouldPersistTaps="handled">
             {suggestions.map((item, idx) => (
               <TouchableOpacity
                 key={`${item.name}-${idx}`}
-                style={styles.item}
+                style={[
+                  styles.item,
+                  { borderBottomColor: isDark ? colors.border : "#f0f0f0" },
+                ]}
                 onPress={() => handleSelect(item)}
               >
-                <Text style={styles.itemText}>{item.name}</Text>
+                <Text style={[styles.itemText, { color: colors.text }]}>
+                  {item.name}
+                </Text>
               </TouchableOpacity>
             ))}
           </ScrollView>
@@ -110,10 +137,8 @@ const styles = StyleSheet.create({
   },
   input: {
     borderWidth: 1,
-    borderColor: "#ddd",
     borderRadius: 8,
     padding: 12,
-    backgroundColor: "white",
     fontSize: 16,
   },
   loader: {
@@ -125,9 +150,7 @@ const styles = StyleSheet.create({
     top: 50,
     left: 0,
     right: 0,
-    backgroundColor: "white",
     borderWidth: 1,
-    borderColor: "#eee",
     borderRadius: 8,
     maxHeight: 200,
     shadowColor: "#000",
@@ -139,9 +162,6 @@ const styles = StyleSheet.create({
   item: {
     padding: 12,
     borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
   },
-  itemText: {
-    color: "#333",
-  },
+  itemText: {},
 });

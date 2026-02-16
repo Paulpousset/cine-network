@@ -3,6 +3,7 @@ import React from "react";
 import {
     Platform,
     ScrollView,
+    StyleProp,
     StyleSheet,
     useWindowDimensions,
     View,
@@ -11,8 +12,8 @@ import {
 
 interface ScreenContainerProps {
   children: React.ReactNode;
-  style?: ViewStyle;
-  contentContainerStyle?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
+  contentContainerStyle?: StyleProp<ViewStyle>;
   scrollable?: boolean;
 }
 
@@ -31,29 +32,31 @@ export default function ScreenContainer({
   const styles = createStyles(colors, isDark);
   const { width } = useWindowDimensions();
   const isWeb = Platform.OS === "web";
-  const isLargeScreen = width > 1024; // Augmenté pour correspondre à une vue desktop
+  const isLargeScreen = width >= 1024; // Augmenté pour correspondre à une vue desktop
 
   const Wrapper = scrollable ? ScrollView : View;
+
+  // Flatten styles for web to avoid "Failed to set an indexed property [0] on 'CSSStyleDeclaration'"
+  const flattenedStyle = StyleSheet.flatten([styles.wrapper, style]);
 
   return (
     <View style={styles.outerContainer}>
       <Wrapper
-        style={{
-          ...styles.wrapper,
-          ...(Array.isArray(style) ? Object.assign({}, ...style) : style),
-        }}
-        contentContainerStyle={{
-          ...(isLargeScreen ? styles.webContentContainer : {}),
-          ...(Array.isArray(contentContainerStyle)
-            ? Object.assign({}, ...contentContainerStyle)
-            : contentContainerStyle),
-        }}
+        style={flattenedStyle}
+        {...(scrollable
+          ? {
+              contentContainerStyle: StyleSheet.flatten([
+                isLargeScreen ? styles.webContentContainer : {},
+                contentContainerStyle || {},
+              ]),
+            }
+          : {})}
       >
         <View
-          style={{
-            ...styles.innerContainer,
-            ...(isLargeScreen ? styles.innerContainerWeb : {}),
-          }}
+          style={StyleSheet.flatten([
+            styles.innerContainer,
+            isLargeScreen ? styles.innerContainerWeb : {},
+          ])}
         >
           {children}
         </View>
@@ -87,11 +90,6 @@ function createStyles(colors: any, isDark: boolean) {
       maxWidth: 700, // Réduit la largeur maximale pour que ça ne prenne pas tout l'écran
       alignSelf: "center", // S'assure que le contenu est bien centré
       minHeight: "100%",
-      shadowColor: colors.shadow,
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 10,
-      elevation: 5,
       borderRadius: 8,
       overflow: "hidden",
       borderWidth: isDark ? 1 : 0,

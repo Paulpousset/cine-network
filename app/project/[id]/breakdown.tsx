@@ -362,7 +362,7 @@ export default function BreakdownScreen() {
                 style={{
                   fontWeight: "bold",
                   fontSize: 16,
-                  color: "#000",
+                  color: colors.text,
                   marginLeft: 8,
                 }}
               >
@@ -380,7 +380,7 @@ export default function BreakdownScreen() {
         <View style={{ alignItems: "flex-end" }}>
           <Text style={styles.scenePages}>{item.script_pages} p</Text>
           {item.estimated_duration && (
-            <Text style={{ fontSize: 10, color: "#666", marginTop: 2 }}>
+            <Text style={{ fontSize: 10, color: colors.text + "80", marginTop: 2 }}>
               {item.estimated_duration} min
             </Text>
           )}

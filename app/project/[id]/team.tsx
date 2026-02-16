@@ -8,6 +8,7 @@ import React, { useEffect, useState } from "react";
 import {
   Image,
   Platform,
+  ScrollView,
   SectionList,
   StyleSheet,
   Text,
@@ -27,6 +28,20 @@ export default function ProjectTeam() {
   const isWebLarge = Platform.OS === "web" && width >= 768;
   const [loading, setLoading] = useState(false);
   const [sections, setSections] = useState<any[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+
+  const categoryLabels: Record<string, string> = {
+    acteur: "Acteurs",
+    realisation: "Réalisation",
+    image: "Image",
+    son: "Son",
+    production: "Production",
+    deco: "Décors & Costumes",
+    technique: "Technique",
+    postprod: "Post-Production",
+    HMC: "HMC",
+    regie: "Régie",
+  };
 
   useEffect(() => {
     fetchTeam();
@@ -149,25 +164,96 @@ export default function ProjectTeam() {
           style={{ marginTop: 50 }}
         />
       ) : (
-        <SectionList
-          sections={sections}
-          keyExtractor={(item) => item.id}
-          renderItem={renderItem}
-          renderSectionHeader={({ section: { title } }) => (
-            <Text style={styles.sectionHeader}>{title.toUpperCase()}</Text>
+        <>
+          {sections.length > 0 && (
+            <View style={{ backgroundColor: colors.card, borderBottomWidth: 1, borderBottomColor: colors.border, position: "relative" }}>
+              <ScrollView 
+                horizontal 
+                showsHorizontalScrollIndicator={false} 
+                contentContainerStyle={{ padding: 15, paddingRight: 50, gap: 10 }}
+              >
+                <TouchableOpacity
+                  onPress={() => setSelectedCategory(null)}
+                  style={{
+                    paddingHorizontal: 16,
+                    paddingVertical: 8,
+                    borderRadius: 20,
+                    backgroundColor: selectedCategory === null ? colors.primary : colors.backgroundSecondary,
+                    borderWidth: 1,
+                    borderColor: selectedCategory === null ? colors.primary : colors.border,
+                  }}
+                >
+                  <Text style={{ 
+                    color: selectedCategory === null ? "white" : colors.text, 
+                    fontWeight: "bold",
+                    fontSize: 12 
+                  }}>TOUT</Text>
+                </TouchableOpacity>
+                {sections.map((section) => (
+                  <TouchableOpacity
+                    key={section.title}
+                    onPress={() => setSelectedCategory(section.title)}
+                    style={{
+                      paddingHorizontal: 16,
+                      paddingVertical: 8,
+                      borderRadius: 20,
+                      backgroundColor: selectedCategory === section.title ? colors.primary : colors.backgroundSecondary,
+                      borderWidth: 1,
+                      borderColor: selectedCategory === section.title ? colors.primary : colors.border,
+                    }}
+                  >
+                    <Text style={{ 
+                      color: selectedCategory === section.title ? "white" : colors.text, 
+                      fontWeight: "bold",
+                      fontSize: 12,
+                      textTransform: "uppercase"
+                    }}>
+                      {categoryLabels[section.title] || section.title}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+
+              {/* Scroll Indicator Arrow */}
+              <View 
+                style={{
+                  position: "absolute",
+                  right: 8,
+                  top: 0,
+                  bottom: 0,
+                  justifyContent: "center",
+                  alignItems: "center",
+                }}
+                pointerEvents="none"
+              >
+                <Ionicons name="chevron-forward" size={14} color={colors.primary} style={{ opacity: 0.8 }} />
+              </View>
+            </View>
           )}
-          contentContainerStyle={{
-            padding: 20,
-            maxWidth: isWebLarge ? 800 : undefined,
-            alignSelf: isWebLarge ? "center" : "stretch",
-            width: "100%",
-          }}
-          ListEmptyComponent={
-            <Text style={{ textAlign: "center", color: colors.text, opacity: 0.6, marginTop: 50 }}>
-              Aucun membre assigné pour le moment.
-            </Text>
-          }
-        />
+
+          <SectionList
+            sections={selectedCategory 
+              ? sections.filter(s => s.title === selectedCategory)
+              : sections
+            }
+            keyExtractor={(item) => item.id}
+            renderItem={renderItem}
+            renderSectionHeader={({ section: { title } }) => (
+              <Text style={styles.sectionHeader}>{(categoryLabels[title] || title).toUpperCase()}</Text>
+            )}
+            contentContainerStyle={{
+              padding: 20,
+              maxWidth: isWebLarge ? 800 : undefined,
+              alignSelf: isWebLarge ? "center" : "stretch",
+              width: "100%",
+            }}
+            ListEmptyComponent={
+              <Text style={{ textAlign: "center", color: colors.text, opacity: 0.6, marginTop: 50 }}>
+                Aucun membre assigné pour le moment.
+              </Text>
+            }
+          />
+        </>
       )}
     </View>
   );

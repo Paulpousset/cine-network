@@ -1,5 +1,6 @@
 import ClapLoading from "@/components/ClapLoading";
 import HallOfFameCard from "@/components/HallOfFameCard";
+import ProjectTeamManager from "@/components/ProjectTeamManager";
 import { HallOfFameProject, useHallOfFame } from "@/hooks/useHallOfFame";
 import { useThemedStyles } from "@/hooks/useThemedStyles";
 import { supabase } from "@/lib/supabase";
@@ -10,25 +11,28 @@ import * as ImagePicker from "expo-image-picker";
 import { Stack, useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
-  Alert,
-  FlatList,
-  Image,
-  Linking,
-  Modal,
-  Platform,
-  RefreshControl,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  useWindowDimensions,
-  View,
+    Alert,
+    FlatList,
+    Image,
+    Linking,
+    Modal,
+    Platform,
+    RefreshControl,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    useWindowDimensions,
+    View,
 } from "react-native";
 
 export default function HallOfFameScreen({
   forceOnlyMine = false,
+  hideHeader = false,
 }: {
   forceOnlyMine?: boolean;
+  hideHeader?: boolean;
 }) {
   const { colors, isDark } = useTheme();
   const themedGlobalStyles = useThemedStyles();
@@ -54,18 +58,44 @@ export default function HallOfFameScreen({
   const [editTitle, setEditTitle] = useState("");
   const [editDesc, setEditDesc] = useState("");
   const [editUrl, setEditUrl] = useState("");
+  const [editImageUrl, setEditImageUrl] = useState("");
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
 
+  // Quick Add Modal
+  const [addModalVisible, setAddModalVisible] = useState(false);
+  const [addTitle, setAddTitle] = useState("");
+  const [addDesc, setAddDesc] = useState("");
+  const [addUrl, setAddUrl] = useState("");
+  const [addType, setAddType] = useState("court_metrage");
+  const [addImageUrl, setAddImageUrl] = useState("");
+
   // Team Modal
   const [teamModalVisible, setTeamModalVisible] = useState(false);
+  const [manageTeamVisible, setManageTeamVisible] = useState(false);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [teamData, setTeamData] = useState<any[]>([]);
+  const [selectedTeamCategory, setSelectedTeamCategory] = useState<string | null>(null);
   const [selectedProjectTitle, setSelectedProjectTitle] = useState("");
   const [loadingTeam, setLoadingTeam] = useState(false);
+
+  const categoryLabels: Record<string, string> = {
+    acteur: "Acteurs",
+    realisation: "Réalisation",
+    image: "Image",
+    son: "Son",
+    production: "Production",
+    deco: "Décors & Costumes",
+    technique: "Technique",
+    postprod: "Post-Production",
+    HMC: "HMC",
+    regie: "Régie",
+  };
 
   async function fetchTeam(projectId: string, projectTitle: string) {
     try {
       setSelectedProjectTitle(projectTitle);
+      setSelectedTeamCategory(null);
       setTeamModalVisible(true);
       setLoadingTeam(true);
 
@@ -125,10 +155,11 @@ export default function HallOfFameScreen({
     setEditTitle(item.title);
     setEditDesc(item.description || "");
     setEditUrl(item.final_result_url || "");
+    setEditImageUrl(item.image_url || "");
     setEditModalVisible(true);
   }
 
-  async function pickVideoForEdit() {
+  async function pickVideo(isEdit: boolean) {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ["videos"],
@@ -138,21 +169,21 @@ export default function HallOfFameScreen({
 
       if (!result.canceled) {
         const asset = result.assets[0];
+        const limit = 5242880; // 5 MB
 
-        if (asset.fileSize && asset.fileSize > 31457280) {
-          Alert.alert("Trop volumineux", "La vidéo doit faire moins de 30 Mo.");
+        if (asset.fileSize && asset.fileSize > limit) {
+          Alert.alert("Trop volumineux", "La vidéo doit faire moins de 5 Mo.");
           return;
         }
 
-        uploadVideoForEdit(asset.uri);
+        uploadVideo(asset.uri, isEdit);
       }
     } catch (e) {
       Alert.alert("Erreur", "Impossible d’ouvrir la galerie.");
     }
   }
 
-  async function uploadVideoForEdit(uri: string) {
-    if (!editingProject) return;
+  async function uploadVideo(uri: string, isEdit: boolean) {
     try {
       setUploading(true);
       const response = await fetch(uri);
@@ -160,7 +191,8 @@ export default function HallOfFameScreen({
 
       const fileExt = uri.split(".").pop() || "mp4";
       const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
-      const filePath = `${editingProject.id}/${fileName}`;
+      const folder = isEdit && editingProject ? editingProject.id : "hall-of-fame-quick";
+      const filePath = `${folder}/${fileName}`;
 
       const { error } = await supabase.storage
         .from("videos")
@@ -168,10 +200,14 @@ export default function HallOfFameScreen({
       if (error) throw error;
 
       const { data } = supabase.storage.from("videos").getPublicUrl(filePath);
-      setEditUrl(data.publicUrl);
+      if (isEdit) {
+        setEditUrl(data.publicUrl);
+      } else {
+        setAddUrl(data.publicUrl);
+      }
       Alert.alert(
         "Succès",
-        "Vidéo téléchargée ! N’oubliez pas de sauvegarder.",
+        "Vidéo téléchargée ! N’oubliez pas de sauvegarder / publier.",
       );
     } catch (e: any) {
       console.error(e);
@@ -179,6 +215,110 @@ export default function HallOfFameScreen({
     } finally {
       setUploading(false);
     }
+  }
+
+  async function pickImage(isEdit: boolean) {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ["images"],
+        allowsEditing: true,
+        aspect: [16, 9],
+        quality: 0.8,
+      });
+
+      if (!result.canceled) {
+        const asset = result.assets[0];
+        uploadImage(asset.uri, isEdit);
+      }
+    } catch (e) {
+      Alert.alert("Erreur", "Impossible d’ouvrir la galerie.");
+    }
+  }
+
+  async function uploadImage(uri: string, isEdit: boolean) {
+    try {
+      setUploading(true);
+      const response = await fetch(uri);
+      const blob = await response.blob();
+
+      const fileExt = uri.split(".").pop() || "jpg";
+      const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+      const filePath = `posters/${fileName}`;
+
+      const { error } = await supabase.storage
+        .from("images")
+        .upload(filePath, blob);
+      if (error) throw error;
+
+      const { data } = supabase.storage.from("images").getPublicUrl(filePath);
+      if (isEdit) {
+        setEditImageUrl(data.publicUrl);
+      } else {
+        setAddImageUrl(data.publicUrl);
+      }
+    } catch (e: any) {
+      console.error(e);
+      Alert.alert("Erreur", "Échec de l'upload de l'affiche.");
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function saveNewProject() {
+    if (!addTitle.trim()) {
+      Alert.alert("Erreur", "Le titre est obligatoire.");
+      return;
+    }
+    try {
+      setSaving(true);
+      const { data, error } = await supabase
+        .from("tournages")
+        .insert({
+          owner_id: currentUserId,
+          title: addTitle.trim(),
+          description: addDesc.trim(),
+          final_result_url: addUrl.trim(),
+          image_url: addImageUrl,
+          type: addType,
+          status: "completed",
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setAddModalVisible(false);
+      resetAddForm();
+      fetchHallOfFame();
+      
+      Alert.alert(
+        "Succès", 
+        "Projet ajouté ! Souhaitez-vous ajouter les membres de l'équipe ?",
+        [
+          { text: "Plus tard", style: "cancel" },
+          { 
+            text: "Gérer l'équipe", 
+            onPress: () => {
+              setSelectedProjectId(data.id);
+              setSelectedProjectTitle(data.title);
+              setManageTeamVisible(true);
+            } 
+          }
+        ]
+      );
+    } catch (e: any) {
+      Alert.alert("Erreur", e.message || "Impossible de créer le projet.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function resetAddForm() {
+    setAddTitle("");
+    setAddDesc("");
+    setAddUrl("");
+    setAddImageUrl("");
+    setAddType("court_metrage");
   }
 
   async function saveEdit() {
@@ -191,6 +331,7 @@ export default function HallOfFameScreen({
           title: editTitle,
           description: editDesc,
           final_result_url: editUrl,
+          image_url: editImageUrl,
         })
         .eq("id", editingProject.id);
 
@@ -215,6 +356,11 @@ export default function HallOfFameScreen({
       router={router}
       onToggleLike={(liked: boolean) => toggleLike(item, liked)}
       onViewTeam={() => fetchTeam(item.id, item.title)}
+      onManageTeam={() => {
+        setSelectedProjectId(item.id);
+        setSelectedProjectTitle(item.title);
+        setManageTeamVisible(true);
+      }}
     />
   );
 
@@ -224,30 +370,51 @@ export default function HallOfFameScreen({
 
   return (
     <View style={styles.container}>
-      <Stack.Screen
-        options={{
-          title: forceOnlyMine ? "Mes Réalisations" : "Hall of Fame",
-          headerShown: Platform.OS !== "web" && !forceOnlyMine,
-          headerRight: () =>
-            !forceOnlyMine ? (
-              <TouchableOpacity
-                onPress={() => router.push("/my-awards")}
-                style={{
-                  marginRight: 10,
-                  backgroundColor: "#f0f0f0",
-                  padding: 8,
-                  borderRadius: 20,
-                }}
-              >
-                <MaterialCommunityIcons
-                  name="trophy-award"
-                  size={22}
-                  color="#DAA520"
-                />
-              </TouchableOpacity>
-            ) : null,
-        }}
-      />
+      {!hideHeader && (
+        <Stack.Screen
+          options={{
+            title: forceOnlyMine ? "Mes Réalisations" : "Hall of Fame",
+            headerShown: Platform.OS !== "web" && !forceOnlyMine,
+            headerRight: () => (
+              <View style={{ flexDirection: "row", gap: 10 }}>
+                {!forceOnlyMine && (
+                  <TouchableOpacity
+                    onPress={() => router.push("/my-awards")}
+                    style={{
+                      backgroundColor: "#f0f0f0",
+                      padding: 8,
+                      borderRadius: 20,
+                    }}
+                  >
+                    <MaterialCommunityIcons
+                      name="trophy-award"
+                      size={22}
+                      color="#DAA520"
+                    />
+                  </TouchableOpacity>
+                )}
+                {currentUserId && (
+                  <TouchableOpacity
+                    onPress={() => setAddModalVisible(true)}
+                    style={{
+                      backgroundColor: colors.primary,
+                      padding: 8,
+                      borderRadius: 20,
+                      marginRight: 10,
+                    }}
+                  >
+                    <Ionicons
+                      name="add"
+                      size={22}
+                      color="white"
+                    />
+                  </TouchableOpacity>
+                )}
+              </View>
+            ),
+          }}
+        />
+      )}
 
       {/* HEADER MOBILE NATIVE (Spécifique Mes Réalisations sur App) */}
       {Platform.OS !== "web" && forceOnlyMine ? (
@@ -293,29 +460,57 @@ export default function HallOfFameScreen({
               )}
             </View>
           </View>
-          {!forceOnlyMine ? (
-            <TouchableOpacity
-              onPress={() => router.push("/my-awards")}
-              style={[
-                styles.webFilterButton,
-                !isWebLarge && { paddingHorizontal: 10 },
-              ]}
-            >
-              <MaterialCommunityIcons
-                name="trophy-award"
-                size={isWebLarge ? 22 : 18}
-                color="#DAA520"
-              />
-              <Text
+          <View style={{ flexDirection: "row", gap: 10 }}>
+            {!forceOnlyMine && (
+              <TouchableOpacity
+                onPress={() => router.push("/my-awards")}
                 style={[
-                  styles.webFilterButtonText,
-                  !isWebLarge && { fontSize: 12 },
+                  styles.webFilterButton,
+                  !isWebLarge && { paddingHorizontal: 10 },
                 ]}
               >
-                {isWebLarge ? "Mes Réalisations" : "Distinctions"}
-              </Text>
-            </TouchableOpacity>
-          ) : null}
+                <MaterialCommunityIcons
+                  name="trophy-award"
+                  size={isWebLarge ? 22 : 18}
+                  color="#DAA520"
+                />
+                <Text
+                  style={[
+                    styles.webFilterButtonText,
+                    !isWebLarge && { fontSize: 12 },
+                  ]}
+                >
+                  {isWebLarge ? "Mes Réalisations" : "Distinctions"}
+                </Text>
+              </TouchableOpacity>
+            )}
+
+            {currentUserId && (
+              <TouchableOpacity
+                onPress={() => setAddModalVisible(true)}
+                style={[
+                  styles.webFilterButton,
+                  { backgroundColor: colors.primary },
+                  !isWebLarge && { paddingHorizontal: 10 },
+                ]}
+              >
+                <Ionicons
+                  name="add"
+                  size={isWebLarge ? 22 : 18}
+                  color="white"
+                />
+                <Text
+                  style={[
+                    styles.webFilterButtonText,
+                    { color: "white" },
+                    !isWebLarge && { fontSize: 12 },
+                  ]}
+                >
+                  {isWebLarge ? "Ajouter un projet" : "Ajouter"}
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
       ) : null}
 
@@ -393,7 +588,7 @@ export default function HallOfFameScreen({
                 styles.uploadButton,
                 { marginBottom: 10, borderColor: colors.primary },
               ]}
-              onPress={pickVideoForEdit}
+              onPress={() => pickVideo(true)}
               disabled={uploading}
             >
               {uploading ? (
@@ -408,14 +603,14 @@ export default function HallOfFameScreen({
                   }}
                 >
                   <Ionicons
-                    name="cloud-upload-outline"
+                    name="videocam-outline"
                     size={20}
                     color={colors.primary}
                   />
                   <Text
                     style={{ color: colors.primary, fontWeight: "600" }}
                   >
-                    Uploader une vidéo
+                    Uploader une vidéo (max 5 Mo)
                   </Text>
                 </View>
               )}
@@ -425,9 +620,41 @@ export default function HallOfFameScreen({
               style={styles.urlInput}
               value={editUrl}
               onChangeText={setEditUrl}
-              placeholder="https://..."
+              placeholder="Lien vidéo (YouTube, Vimeo...)"
               autoCapitalize="none"
             />
+
+            <Text style={styles.label}>Affiche / Image de présentation</Text>
+            <TouchableOpacity
+              style={[
+                styles.uploadButton,
+                { marginBottom: 10, borderColor: colors.primary },
+              ]}
+              onPress={() => pickImage(true)}
+              disabled={uploading}
+            >
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 8,
+                }}
+              >
+                <Ionicons
+                  name="image-outline"
+                  size={20}
+                  color={colors.primary}
+                />
+                <Text style={{ color: colors.primary, fontWeight: "600" }}>
+                  {editImageUrl ? "Changer l'affiche" : "Uploader une affiche"}
+                </Text>
+              </View>
+            </TouchableOpacity>
+
+            {editImageUrl ? (
+              <Image source={{ uri: editImageUrl }} style={{ width: '100%', height: 100, borderRadius: 8, marginBottom: 10 }} resizeMode="cover" />
+            ) : null}
 
             <View style={{ flexDirection: "row", gap: 10, marginTop: 15 }}>
               <TouchableOpacity
@@ -448,6 +675,167 @@ export default function HallOfFameScreen({
                 )}
               </TouchableOpacity>
             </View>
+
+            <TouchableOpacity 
+              style={[styles.teamButton, { marginTop: 15, justifyContent: 'center', paddingVertical: 12 }]}
+              onPress={() => {
+                if (editingProject) {
+                  setEditModalVisible(false);
+                  setSelectedProjectId(editingProject.id);
+                  setSelectedProjectTitle(editingProject.title);
+                  setManageTeamVisible(true);
+                }
+              }}
+            >
+              <Ionicons name="people-outline" size={20} color={colors.primary} />
+              <Text style={styles.teamButtonText}>Gérer l'équipe du projet</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* QUICK ADD MODAL */}
+      <Modal
+        visible={addModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setAddModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <ScrollView contentContainerStyle={{ justifyContent: 'center', paddingVertical: 50 }}>
+            <View style={styles.modalContent}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                <Text style={[styles.modalTitle, { marginBottom: 0 }]}>Ajouter au Hall of Fame</Text>
+                <TouchableOpacity onPress={() => setAddModalVisible(false)}>
+                  <Ionicons name="close" size={24} color={colors.text} />
+                </TouchableOpacity>
+              </View>
+
+              <Text style={styles.label}>Titre du film</Text>
+              <TextInput
+                style={styles.textInput}
+                value={addTitle}
+                onChangeText={setAddTitle}
+                placeholder="Ex: Mon Chef-d'œuvre"
+              />
+
+              <Text style={styles.label}>Type de projet</Text>
+              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 10 }}>
+                {[
+                  { value: "court_metrage", label: "Court" },
+                  { value: "long_metrage", label: "Long" },
+                  { value: "serie", label: "Série" },
+                  { value: "clip", label: "Clip" },
+                  { value: "publicite", label: "Pub" },
+                  { value: "documentaire", label: "Docu" },
+                ].map((t) => (
+                  <TouchableOpacity
+                    key={t.value}
+                    style={[
+                      { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20, borderWidth: 1, borderColor: colors.border },
+                      addType === t.value && { backgroundColor: colors.primary, borderColor: colors.primary }
+                    ]}
+                    onPress={() => setAddType(t.value)}
+                  >
+                    <Text style={[{ fontSize: 12, color: colors.text }, addType === t.value && { color: 'white' }]}>{t.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <Text style={styles.label}>Description (optionnel)</Text>
+              <TextInput
+                style={[styles.textInput, { height: 80 }]}
+                multiline
+                value={addDesc}
+                onChangeText={setAddDesc}
+                placeholder="Racontez-nous l'histoire du film..."
+              />
+
+              <Text style={styles.label}>Lien Vidéo ou Upload (max 5 Mo)</Text>
+              <TouchableOpacity
+                style={[styles.uploadButton, { marginBottom: 10, borderColor: colors.primary }]}
+                onPress={() => pickVideo(false)}
+                disabled={uploading}
+              >
+                {uploading ? (
+                  <Text style={{ color: "#666" }}>Upload en cours...</Text>
+                ) : (
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                    <Ionicons name="videocam-outline" size={20} color={colors.primary} />
+                    <Text style={{ color: colors.primary, fontWeight: "600" }}>
+                      {addUrl ? "Vidéo ajoutée" : "Uploader une vidéo"}
+                    </Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+
+              <TextInput
+                style={styles.urlInput}
+                value={addUrl}
+                onChangeText={setAddUrl}
+                placeholder="Ou collez un lien (YouTube, Vimeo...)"
+                autoCapitalize="none"
+              />
+
+              <Text style={styles.label}>Affiche du film</Text>
+              <TouchableOpacity
+                style={[styles.uploadButton, { marginBottom: 10, borderColor: colors.primary }]}
+                onPress={() => pickImage(false)}
+                disabled={uploading}
+              >
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                  <Ionicons name="image-outline" size={20} color={colors.primary} />
+                  <Text style={{ color: colors.primary, fontWeight: "600" }}>
+                    {addImageUrl ? "Affiche ajoutée" : "Uploader l'affiche"}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+              
+              {addImageUrl ? (
+                <Image source={{ uri: addImageUrl }} style={{ width: '100%', height: 120, borderRadius: 8, marginBottom: 15 }} resizeMode="cover" />
+              ) : null}
+
+              <TouchableOpacity
+                style={[styles.saveButton, { marginTop: 10 }]}
+                onPress={saveNewProject}
+                disabled={saving || uploading}
+              >
+                {saving ? (
+                  <ClapLoading color="white" />
+                ) : (
+                  <Text style={{ color: "white", fontWeight: "700", fontSize: 16 }}>Publier dans le Hall of Fame</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
+        </View>
+      </Modal>
+
+      {/* MANAGE TEAM MODAL */}
+      <Modal
+        visible={manageTeamVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setManageTeamVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { height: '85%', padding: 0 }]}>
+            <View style={styles.teamModalHeader}>
+              <Text style={styles.teamModalTitle} numberOfLines={1}>
+                Équipe : {selectedProjectTitle}
+              </Text>
+              <TouchableOpacity onPress={() => setManageTeamVisible(false)}>
+                <Ionicons name="close" size={24} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+            
+            {selectedProjectId && (
+              <ProjectTeamManager 
+                projectId={selectedProjectId} 
+                projectTitle={selectedProjectTitle}
+                onClose={() => setManageTeamVisible(false)}
+              />
+            )}
           </View>
         </View>
       </Modal>
@@ -475,61 +863,111 @@ export default function HallOfFameScreen({
                 <ClapLoading />
               </View>
             ) : (
-              <FlatList
-                data={teamData}
-                keyExtractor={(item) => item.title}
-                contentContainerStyle={{ padding: 20 }}
-                renderItem={({ item }) => (
-                  <View style={{ marginBottom: 20 }}>
-                    <View style={styles.categoryHeader}>
-                      <View style={styles.categoryLine} />
-                      <Text style={styles.categoryTitle}>
-                        {item.title.toUpperCase()}
-                      </Text>
-                      <View style={styles.categoryLine} />
-                    </View>
-                    {item.data.map((role: any) => (
+              <>
+                {teamData.length > 0 && (
+                  <View style={{ paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+                    <ScrollView 
+                      horizontal 
+                      showsHorizontalScrollIndicator={false}
+                      contentContainerStyle={{ paddingHorizontal: 20, gap: 10 }}
+                    >
                       <TouchableOpacity
-                        key={role.id}
-                        style={styles.teamMemberRow}
-                        onPress={() => {
-                          setTeamModalVisible(false);
-                          router.push({
-                            pathname: "/profile/[id]",
-                            params: { id: role.assigned_profile.id },
-                          });
-                        }}
+                        style={[
+                          styles.categoryChip,
+                          selectedTeamCategory === null && styles.categoryChipActive
+                        ]}
+                        onPress={() => setSelectedTeamCategory(null)}
                       >
-                        <Image
-                          source={{
-                            uri:
-                              role.assigned_profile.avatar_url ||
-                              "https://randomuser.me/api/portraits/lego/1.jpg",
-                          }}
-                          style={styles.smallAvatar}
-                        />
-                        <View>
-                          <Text style={styles.memberName}>
-                            {role.assigned_profile.full_name}
-                          </Text>
-                          <Text style={styles.memberRole}>{role.title}</Text>
-                        </View>
-                        <Ionicons
-                          name="chevron-forward"
-                          size={16}
-                          color="#ccc"
-                          style={{ marginLeft: "auto" }}
-                        />
+                        <Text style={[
+                          styles.categoryChipText,
+                          selectedTeamCategory === null && styles.categoryChipTextActive
+                        ]}>TOUT</Text>
                       </TouchableOpacity>
-                    ))}
+                      {teamData.map((section) => (
+                        <TouchableOpacity
+                          key={section.title}
+                          style={[
+                            styles.categoryChip,
+                            selectedTeamCategory === section.title && styles.categoryChipActive
+                          ]}
+                          onPress={() => setSelectedTeamCategory(section.title)}
+                        >
+                          <Text style={[
+                            styles.categoryChipText,
+                            selectedTeamCategory === section.title && styles.categoryChipTextActive
+                          ]}>
+                            {(categoryLabels[section.title] || section.title).toUpperCase()}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
                   </View>
                 )}
-                ListEmptyComponent={
-                  <Text style={styles.emptyTeamText}>
-                    Aucun participant n'est encore listé pour ce projet.
-                  </Text>
-                }
-              />
+
+                <FlatList
+                  data={selectedTeamCategory 
+                    ? teamData.filter(s => s.title === selectedTeamCategory)
+                    : teamData
+                  }
+                  keyExtractor={(item) => item.title}
+                  contentContainerStyle={{ padding: 20 }}
+                  renderItem={({ item }) => (
+                    <View style={{ marginBottom: 20 }}>
+                      <View style={styles.categoryHeader}>
+                        <View style={styles.categoryLine} />
+                        <Text style={styles.categoryTitle}>
+                          {(categoryLabels[item.title] || item.title).toUpperCase()}
+                        </Text>
+                        <View style={styles.categoryLine} />
+                      </View>
+                      <View style={Platform.OS === 'web' ? { flexDirection: 'row', flexWrap: 'wrap', gap: 15 } : {}}>
+                        {item.data.map((role: any) => (
+                          <TouchableOpacity
+                            key={role.id}
+                            style={[
+                              styles.teamMemberRow,
+                              Platform.OS === 'web' && { width: '48%', minWidth: 250, borderBottomWidth: 0, backgroundColor: colors.backgroundSecondary, borderRadius: 12, padding: 12 }
+                            ]}
+                            onPress={() => {
+                              setTeamModalVisible(false);
+                              router.push({
+                                pathname: "/profile/[id]",
+                                params: { id: role.assigned_profile.id },
+                              });
+                            }}
+                          >
+                            <Image
+                              source={{
+                                uri:
+                                  role.assigned_profile.avatar_url ||
+                                  "https://randomuser.me/api/portraits/lego/1.jpg",
+                              }}
+                              style={styles.smallAvatar}
+                            />
+                            <View>
+                              <Text style={styles.memberName}>
+                                {role.assigned_profile.full_name}
+                              </Text>
+                              <Text style={styles.memberRole}>{role.title}</Text>
+                            </View>
+                            <Ionicons
+                              name="chevron-forward"
+                              size={16}
+                              color="#ccc"
+                              style={{ marginLeft: "auto" }}
+                            />
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    </View>
+                  )}
+                  ListEmptyComponent={
+                    <Text style={styles.emptyTeamText}>
+                      Aucun participant n'est encore listé pour ce projet.
+                    </Text>
+                  }
+                />
+              </>
             )}
           </View>
         </View>
@@ -551,14 +989,14 @@ const getStyles = (colors: any, isDark: boolean) =>
     paddingHorizontal: 15,
     paddingTop: Platform.OS === "ios" ? 50 : 20,
     paddingBottom: 15,
-    backgroundColor: "white",
+    backgroundColor: colors.card,
     borderBottomWidth: 1,
-    borderBottomColor: "#eee",
+    borderBottomColor: colors.border,
   },
   mobileBackButton: {
     padding: 8,
     borderRadius: 20,
-    backgroundColor: "#f5f5f5",
+    backgroundColor: colors.backgroundSecondary,
   },
   mobileHeaderTitle: {
     fontSize: 18,
@@ -571,10 +1009,10 @@ const getStyles = (colors: any, isDark: boolean) =>
     alignItems: "center",
     paddingHorizontal: 40,
     paddingVertical: 20,
-    backgroundColor: "white",
+    backgroundColor: colors.background,
     borderBottomWidth: 1,
-    borderBottomColor: "#E2E8F0",
-    shadowColor: "#000",
+    borderBottomColor: colors.border,
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.02,
     shadowRadius: 10,
@@ -589,22 +1027,22 @@ const getStyles = (colors: any, isDark: boolean) =>
   webHeaderTitle: {
     fontSize: 24,
     fontWeight: "800",
-    color: "#0F172A",
+    color: colors.text,
   },
   webHeaderSubtitle: {
     fontSize: 14,
-    color: "#64748B",
+    color: isDark ? "#94A3B8" : "#64748B",
     marginTop: 2,
   },
   webBackButton: {
     padding: 8,
-    backgroundColor: "#F1F5F9",
+    backgroundColor: colors.backgroundSecondary,
     borderRadius: 12,
   },
   webFilterButton: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#DAA52015",
+    backgroundColor: isDark ? "#DAA52030" : "#DAA52015",
     paddingVertical: 10,
     paddingHorizontal: 18,
     borderRadius: 12,
@@ -613,7 +1051,7 @@ const getStyles = (colors: any, isDark: boolean) =>
   webFilterButtonText: {
     fontSize: 14,
     fontWeight: "700",
-    color: "#B8860B",
+    color: isDark ? "#FFD700" : "#B8860B",
   },
   emptyContainer: {
     alignItems: "center",
@@ -627,7 +1065,7 @@ const getStyles = (colors: any, isDark: boolean) =>
     marginBottom: 10,
   },
   emptySubtext: {
-    color: "#666",
+    color: isDark ? "#9CA3AF" : "#666",
     textAlign: "center",
   },
   // Modal
@@ -638,9 +1076,11 @@ const getStyles = (colors: any, isDark: boolean) =>
     padding: 20,
   },
   modalContent: {
-    backgroundColor: "white",
+    backgroundColor: colors.card,
     borderRadius: 16,
     padding: 20,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   modalTitle: {
     fontSize: 20,
@@ -652,11 +1092,11 @@ const getStyles = (colors: any, isDark: boolean) =>
     fontWeight: "600",
     marginBottom: 5,
     marginTop: 10,
-    color: "#444",
+    color: isDark ? "#CCC" : "#444",
   },
   textInput: {
     borderWidth: 1,
-    borderColor: "#ddd",
+    borderColor: colors.border,
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 10,
@@ -666,6 +1106,7 @@ const getStyles = (colors: any, isDark: boolean) =>
   },
   uploadButton: {
     borderWidth: 1,
+    borderColor: colors.border,
     borderStyle: "dashed",
     borderRadius: 8,
     paddingVertical: 12,
@@ -674,7 +1115,7 @@ const getStyles = (colors: any, isDark: boolean) =>
   },
   urlInput: {
     borderWidth: 1,
-    borderColor: "#ddd",
+    borderColor: colors.border,
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 10,
@@ -686,7 +1127,7 @@ const getStyles = (colors: any, isDark: boolean) =>
   teamModalHeader: {
     padding: 20,
     borderBottomWidth: 1,
-    borderBottomColor: "#eee",
+    borderBottomColor: colors.border,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
@@ -707,7 +1148,7 @@ const getStyles = (colors: any, isDark: boolean) =>
   categoryLine: {
     flex: 1,
     height: 1,
-    backgroundColor: "#eee",
+    backgroundColor: colors.border,
   },
   categoryTitle: {
     fontSize: 12,
@@ -715,19 +1156,39 @@ const getStyles = (colors: any, isDark: boolean) =>
     color: colors.primary,
     letterSpacing: 1,
   },
+  categoryChip: {
+    paddingHorizontal: 15,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: colors.backgroundSecondary,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  categoryChipActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  categoryChipText: {
+    fontSize: 11,
+    fontWeight: "bold",
+    color: colors.text,
+  },
+  categoryChipTextActive: {
+    color: "white",
+  },
   teamMemberRow: {
     flexDirection: "row",
     alignItems: "center",
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: "#f9f9f9",
+    borderBottomColor: colors.border,
   },
   smallAvatar: {
     width: 40,
     height: 40,
     borderRadius: 20,
     marginRight: 12,
-    backgroundColor: "#eee",
+    backgroundColor: colors.backgroundSecondary,
   },
   memberName: {
     fontSize: 16,
@@ -736,17 +1197,17 @@ const getStyles = (colors: any, isDark: boolean) =>
   },
   memberRole: {
     fontSize: 13,
-    color: "#666",
+    color: colors.textSecondary,
   },
   emptyTeamText: {
     textAlign: "center",
-    color: "#999",
+    color: colors.textSecondary,
     marginTop: 20,
     fontStyle: "italic",
   },
   cancelButton: {
     borderWidth: 1,
-    borderColor: "#ddd",
+    borderColor: colors.border,
     borderRadius: 8,
     paddingVertical: 12,
     paddingHorizontal: 16,
@@ -761,5 +1222,17 @@ const getStyles = (colors: any, isDark: boolean) =>
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: colors.primary,
+  },
+  teamButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: colors.primary,
+    borderRadius: 8,
+    gap: 8,
+  },
+  teamButtonText: {
+    color: colors.primary,
+    fontWeight: "600",
   },
 });

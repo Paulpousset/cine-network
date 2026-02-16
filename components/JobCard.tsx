@@ -21,8 +21,8 @@ export const JobCard = React.memo(({ item }: JobCardProps) => {
         { backgroundColor: colors.card, borderColor: colors.border },
         isBoosted && {
           borderColor: "#FFD700",
-          borderWidth: 1,
-          backgroundColor: isDark ? "#2C2600" : "#FFFBE6",
+          borderWidth: 1.5,
+          backgroundColor: isDark ? "rgba(255, 215, 0, 0.05)" : "#FFFBE6",
         },
       ]}
       onPress={() => router.push(`/project/role/${item.id}`)}
@@ -43,7 +43,7 @@ export const JobCard = React.memo(({ item }: JobCardProps) => {
                 }}
               >
                 <Text
-                  style={{ fontSize: 8, fontWeight: "bold", color: "white" }}
+                  style={{ fontSize: 8, fontWeight: "bold", color: "#000" }}
                 >
                   SPONSORISÉ
                 </Text>
@@ -56,14 +56,21 @@ export const JobCard = React.memo(({ item }: JobCardProps) => {
             {item.tournages?.ville ? `• ${item.tournages.ville}` : ""}
           </Text>
         </View>
-        <View style={styles.badge}>
-          <Text style={styles.badgeText}>{item.category.toUpperCase()}</Text>
+        <View style={{ alignItems: "flex-end", gap: 6 }}>
+          {!!item.matchScore && (
+            <View style={styles.matchBadge}>
+              <Text style={styles.matchBadgeText}>{item.matchScore}% Match</Text>
+            </View>
+          )}
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>{item.category.toUpperCase()}</Text>
+          </View>
         </View>
       </View>
 
       <View style={styles.divider} />
 
-      <Text style={[GlobalStyles.title2, { color: colors.primary }]}>
+      <Text style={[GlobalStyles.title2, { color: colors.text }]}>
         {item.title}
       </Text>
 
@@ -149,7 +156,7 @@ function createStyles(colors: any, isDark: boolean) {
       alignItems: "flex-start",
     },
     projectTitle: { fontSize: 16, fontWeight: "bold", color: colors.text },
-    projectSubtitle: { fontSize: 12, color: colors.text + "80", marginTop: 2 },
+    projectSubtitle: { fontSize: 12, color: isDark ? "#bbb" : colors.text + "80", marginTop: 2 },
     badge: {
       backgroundColor: colors.primary + "20",
       paddingHorizontal: 8,
@@ -157,6 +164,17 @@ function createStyles(colors: any, isDark: boolean) {
       borderRadius: 6,
     },
     badgeText: { fontSize: 10, color: colors.primary, fontWeight: "bold" },
+    matchBadge: {
+      backgroundColor: isDark ? "#2d1a4d" : "#e0e7ff",
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+      borderRadius: 6,
+    },
+    matchBadgeText: {
+      fontSize: 10,
+      fontWeight: "800",
+      color: colors.primary,
+    },
     divider: { height: 1, backgroundColor: colors.border, marginVertical: 12 },
     ctaText: {
       fontWeight: "bold",

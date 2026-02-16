@@ -2,15 +2,15 @@ import { useTheme } from "@/providers/ThemeProvider";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useEffect, useState } from "react";
 import {
-  FlatList,
-  Modal,
-  Platform,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  TouchableWithoutFeedback,
-  View,
+    FlatList,
+    Modal,
+    Platform,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    TouchableWithoutFeedback,
+    View,
 } from "react-native";
 
 interface AddressAutocompleteProps {
@@ -55,7 +55,7 @@ export default function AddressAutocomplete({
     setLoading(true);
     try {
       const response = await fetch(
-        `https://api-adresse.data.gouv.fr/search/?q=${encodeURIComponent(text)}&limit=5`,
+        `https://photon.komoot.io/api/?q=${encodeURIComponent(text)}&limit=5`,
       );
       const data = await response.json();
       if (data && data.features) {
@@ -71,8 +71,17 @@ export default function AddressAutocomplete({
   function handleSelect(item: any) {
     const coords = item.geometry.coordinates; // [lon, lat]
 
-    // Use the full label (e.g., "8 Boulevard du Port 80000 Amiens")
-    const label = item.properties.label;
+    // Construct a readable label from Photon properties
+    const props = item.properties;
+    const parts = [
+      props.housenumber,
+      props.street,
+      props.postcode,
+      props.city || props.name,
+      props.country
+    ].filter(Boolean);
+    
+    const label = parts.join(', ');
 
     onSelect(label, { lon: coords[0], lat: coords[1] });
     setQuery(label);
@@ -119,6 +128,9 @@ export default function AddressAutocomplete({
               {loading && (
                 <Text style={{ fontSize: 10, color: colors.text + "80" }}>...</Text>
               )}
+              <TouchableOpacity onPress={() => setModalVisible(false)}>
+                <Ionicons name="close" size={24} color={colors.text + "80"} />
+              </TouchableOpacity>
             </View>
 
             <FlatList
@@ -127,24 +139,33 @@ export default function AddressAutocomplete({
                 item.properties.id || Math.random().toString()
               }
               keyboardShouldPersistTaps="handled"
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={styles.suggestionItem}
-                  onPress={() => handleSelect(item)}
-                >
-                  <Ionicons
-                    name="location"
-                    size={20}
-                    color={colors.primary}
-                  />
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.cityName}>{item.properties.label}</Text>
-                    <Text style={styles.cityContext}>
-                      {item.properties.context}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-              )}
+              renderItem={({ item }) => {
+                const props = item.properties;
+                const mainLabel = [props.housenumber, props.street].filter(Boolean).join(' ') || props.name || props.city;
+                const subLabel = [props.postcode, props.city, props.state, props.country]
+                  .filter(Boolean)
+                  .filter((val, index, self) => self.indexOf(val) === index && val !== mainLabel)
+                  .join(', ');
+
+                return (
+                  <TouchableOpacity
+                    style={styles.suggestionItem}
+                    onPress={() => handleSelect(item)}
+                  >
+                    <Ionicons
+                      name="location"
+                      size={20}
+                      color={colors.primary}
+                    />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.cityName}>{mainLabel}</Text>
+                      <Text style={styles.cityContext}>
+                        {subLabel}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              }}
               ListEmptyComponent={
                 query.length > 2 && !loading ? (
                   <Text style={styles.emptyText}>Aucune adresse trouvée.</Text>
@@ -160,7 +181,7 @@ export default function AddressAutocomplete({
 
 const createStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   inputTrigger: {
-    backgroundColor: colors.background,
+    backgroundColor: colors.backgroundSecondary,
     borderRadius: 8,
     padding: 12,
     borderWidth: 1,

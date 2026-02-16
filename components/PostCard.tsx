@@ -8,14 +8,14 @@ import { Ionicons } from "@expo/vector-icons";
 import { Href, router } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-  Alert,
-  Image,
-  Linking,
-  Platform,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    Alert,
+    Image,
+    Linking,
+    Platform,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { PostCommentsModal } from "./PostCommentsModal";
 import { PostShareModal } from "./PostShareModal";
@@ -39,6 +39,7 @@ export interface FeedPost {
     ville?: string;
     start_date?: string;
     end_date?: string;
+    team?: any[];
   };
   likes_count: number;
   comments_count: number;
@@ -104,7 +105,7 @@ const PostCard = ({ item, onImagePress }: PostCardProps) => {
             }
 
             return (
-              <Text key={`${index}-${line}`} style={GlobalStyles.body}>
+              <Text key={`${index}-${line}`} style={[GlobalStyles.body, { color: colors.text }]}>
                 <Text style={styles.kvKey}>{key}:</Text>
                 {value ? ` ${value}` : ""}
               </Text>
@@ -112,7 +113,7 @@ const PostCard = ({ item, onImagePress }: PostCardProps) => {
           }
 
           return (
-            <Text key={`${index}-${line}`} style={GlobalStyles.body}>
+            <Text key={`${index}-${line}`} style={[GlobalStyles.body, { color: colors.text }]}>
               {line}
             </Text>
           );
@@ -221,9 +222,9 @@ const PostCard = ({ item, onImagePress }: PostCardProps) => {
       </View>
 
       <View style={styles.postContentContainer}>
-        {item.content && renderContent(item.content)}
+        {!!item.content && renderContent(item.content)}
 
-        {item.image_url && (
+        {!!item.image_url && (
           <AutoHeightImage
             uri={item.image_url}
             onPress={() => onImagePress(item.image_url!)}
@@ -259,7 +260,7 @@ const PostCard = ({ item, onImagePress }: PostCardProps) => {
               <Text style={styles.projectCardType}>
                 {item.project.type?.replace("_", " ").toUpperCase() || "PROJET"}
               </Text>
-              {item.project.start_date && (
+              {!!item.project.start_date && (
                 <Text style={styles.projectCardDate}>
                   •{" "}
                   {new Date(item.project.start_date).toLocaleDateString(
@@ -279,7 +280,7 @@ const PostCard = ({ item, onImagePress }: PostCardProps) => {
                 marginTop: 4,
               }}
             >
-              <Ionicons name="location-outline" size={12} color="#666" />
+              <Ionicons name="location-outline" size={12} color={isDark ? "#ccc" : "#666"} />
               <Text style={styles.projectCardMeta}>
                 {item.project.ville || "Lieu non défini"}
               </Text>
@@ -289,7 +290,7 @@ const PostCard = ({ item, onImagePress }: PostCardProps) => {
           <Ionicons
             name="chevron-forward"
             size={20}
-            color={colors.border}
+            color={isDark ? "#ccc" : colors.border}
             style={{ marginRight: 5 }}
           />
         </TouchableOpacity>
@@ -309,7 +310,7 @@ const PostCard = ({ item, onImagePress }: PostCardProps) => {
               style={styles.actionButton}
               onPress={() => setIsCommentsVisible(true)}
             >
-              <Ionicons name="chatbubble-outline" size={20} color="#666" />
+              <Ionicons name="chatbubble-outline" size={20} color={isDark ? "#ccc" : "#666"} />
               <Text style={styles.actionText}>{item.comments_count}</Text>
             </TouchableOpacity>
           </View>
@@ -318,7 +319,7 @@ const PostCard = ({ item, onImagePress }: PostCardProps) => {
             style={styles.actionButton}
             onPress={() => setIsShareVisible(true)}
           >
-            <Ionicons name="paper-plane-outline" size={20} color="#666" />
+            <Ionicons name="paper-plane-outline" size={20} color={isDark ? "#ccc" : "#666"} />
             <Text style={styles.actionText}>Partager</Text>
           </TouchableOpacity>
         </View>
@@ -377,7 +378,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     color: colors.text,
   },
   date: {
-    color: isDark ? "#999" : "#888",
+    color: isDark ? "#bbb" : "#888",
     fontSize: 12,
     marginTop: 1,
   },
@@ -490,12 +491,12 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   },
   projectCardMeta: {
     fontSize: 12,
-    color: isDark ? "#aaa" : "#666",
+    color: isDark ? "#ccc" : "#666",
     marginLeft: 4,
   },
   projectCardDate: {
     fontSize: 10,
-    color: isDark ? "#888" : "#999",
+    color: isDark ? "#aaa" : "#999",
   },
   footer: {
     borderTopWidth: 1,
@@ -521,7 +522,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   },
   actionText: {
     fontSize: 13,
-    color: isDark ? "#aaa" : "#666",
+    color: isDark ? "#ccc" : "#666",
     fontWeight: "500",
   },
 });

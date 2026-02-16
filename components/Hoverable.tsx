@@ -4,6 +4,7 @@ import {
     Pressable,
     PressableProps,
     StyleProp,
+    StyleSheet,
     ViewStyle,
 } from "react-native";
 
@@ -63,11 +64,11 @@ export function Hoverable({
             : style;
         const webStyle =
           Platform.OS === "web" && props.onPress ? { cursor: "pointer" } : {};
-        return [
+        return StyleSheet.flatten([
           webStyle,
           userStyle,
           isHovered && hoverStyle,
-        ] as StyleProp<ViewStyle>;
+        ]) as StyleProp<ViewStyle>;
       }}
     >
       {(state) => {

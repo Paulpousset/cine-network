@@ -27,10 +27,12 @@ function CustomProjectTabBar({
   navigation,
   isVisitor,
   isOwner,
+  isMember,
   allowedTools,
 }: BottomTabBarProps & {
   isVisitor: boolean;
   isOwner: boolean;
+  isMember: boolean;
   allowedTools: string[];
 }) {
   const { colors, isDark } = useTheme();
@@ -62,12 +64,14 @@ function CustomProjectTabBar({
         // Add Admin only if owner
         if (isOwner) {
           visibleRoutes.push("admin");
+        } else if (isMember) {
+          visibleRoutes.push("settings");
         }
 
         if (!visibleRoutes.includes(route.name)) return null;
 
         const isFocused = state.index === index;
-        const color = isFocused ? colors.tint : colors.secondary;
+        const color = isFocused ? colors.primary : colors.tabIconDefault;
 
         const onPress = () => {
           const event = navigation.emit({
@@ -216,12 +220,13 @@ export default function ProjectIdLayout() {
             {...props}
             isVisitor={isVisitor}
             isOwner={isOwner}
+            isMember={isMember}
             allowedTools={allowedTools}
           />
         )}
         screenOptions={{
           headerShown: false,
-          tabBarActiveTintColor: colors.tint,
+          tabBarActiveTintColor: colors.primary,
           tabBarInactiveTintColor: colors.secondary,
         }}
       >
@@ -311,7 +316,14 @@ export default function ProjectIdLayout() {
         <Tabs.Screen
           name="settings"
           options={{
-            href: null,
+            title: "Réglages",
+            tabBarIcon: ({ color, focused }) => (
+              <Ionicons
+                name={focused ? "settings" : "settings-outline"}
+                size={24}
+                color={color}
+              />
+            ),
           }}
         />
         <Tabs.Screen

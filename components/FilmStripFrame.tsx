@@ -10,7 +10,7 @@ export const FilmStripFrame = () => {
   const numHoles = Math.ceil(windowWidth / (holeWidth + holeSpacing)) + 1;
 
   return (
-    <View style={StyleSheet.absoluteFill} pointerEvents="none">
+    <View style={[StyleSheet.absoluteFill, { pointerEvents: "none" }]} >
       {/* Top Film Strip */}
       <View style={[styles.strip, styles.topStrip]}>
         <View style={styles.edgeMarkings}>

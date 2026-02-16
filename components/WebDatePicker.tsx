@@ -1,3 +1,4 @@
+import { useTheme } from "@/providers/ThemeProvider";
 import React from "react";
 
 interface WebDatePickerProps {
@@ -13,18 +14,20 @@ const WebDatePicker: React.FC<WebDatePickerProps> = ({
   type = "date",
   style,
 }) => {
+  const { colors } = useTheme();
+
   return (
     <input
       type={type}
       value={value}
       onChange={(e) => onChange(e.target.value)}
       style={{
-        backgroundColor: "#F9FAFB",
+        backgroundColor: colors.backgroundSecondary,
         borderRadius: "12px",
         padding: "12px 16px",
         fontSize: "16px",
-        color: "#1F2937",
-        border: "1px solid transparent",
+        color: colors.text,
+        border: `1px solid ${colors.border}`,
         width: "100%",
         boxSizing: "border-box",
         fontFamily: "inherit",

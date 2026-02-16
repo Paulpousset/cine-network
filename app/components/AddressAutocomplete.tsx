@@ -3,12 +3,12 @@ import { GlobalStyles } from "@/constants/Styles";
 import { useTheme } from "@/providers/ThemeProvider";
 import React, { useEffect, useState } from "react";
 import {
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 
 type AddressAutocompleteProps = {
@@ -58,9 +58,7 @@ export default function AddressAutocomplete({
       const searchTerm = city ? `${text} ${city}` : text;
 
       const response = await fetch(
-        `https://api-adresse.data.gouv.fr/search/?q=${encodeURIComponent(
-          searchTerm,
-        )}&limit=5`,
+        `https://photon.komoot.io/api/?q=${encodeURIComponent(searchTerm)}&limit=5`,
       );
       const data = await response.json();
 
@@ -76,25 +74,38 @@ export default function AddressAutocomplete({
   }
 
   function handleSelect(item: any) {
-    const streetPart = item.properties.name || item.properties.label;
-    const itemCity = item.properties.city;
-    const itemZipcode = item.properties.postcode;
+    const props = item.properties;
+    const streetPart = [props.housenumber, props.street].filter(Boolean).join(' ') || props.name || props.city;
+    const itemCity = props.city;
+    const itemZipcode = props.postcode;
+    const country = props.country;
 
-    setQuery(streetPart);
+    const displayLabel = streetPart + (country ? `, ${country}` : '');
+
+    setQuery(displayLabel);
     setShowList(false);
     setSuggestions([]);
 
     const [lon, lat] = item.geometry.coordinates;
-    onSelect(streetPart, lat, lon, itemCity, itemZipcode);
+    onSelect(displayLabel, lat, lon, itemCity, itemZipcode);
   }
 
   return (
     <View style={styles.container}>
       <View style={styles.inputContainer}>
         <TextInput
-          style={GlobalStyles.input}
+          style={[
+            GlobalStyles.input,
+            {
+              backgroundColor: colors.backgroundSecondary,
+              color: colors.text,
+              borderColor: colors.border,
+              borderWidth: 1,
+              width: "100%",
+            }
+          ]}
           placeholder={placeholder || "Adresse précise..."}
-          placeholderTextColor={colors.tabIconDefault}
+          placeholderTextColor={colors.textSecondary + "80"}
           value={query}
           onChangeText={searchAddress}
         />
@@ -113,15 +124,25 @@ export default function AddressAutocomplete({
             keyboardShouldPersistTaps="always"
             nestedScrollEnabled={true}
           >
-            {suggestions.map((item, index) => (
-              <TouchableOpacity
-                key={item.properties.id || index}
-                style={styles.item}
-                onPress={() => handleSelect(item)}
-              >
-                <Text style={styles.itemText}>{item.properties.label}</Text>
-              </TouchableOpacity>
-            ))}
+            {suggestions.map((item, index) => {
+              const props = item.properties;
+              const mainLabel = [props.housenumber, props.street].filter(Boolean).join(' ') || props.name || props.city;
+              const subLabel = [props.postcode, props.city, props.state, props.country]
+                .filter(Boolean)
+                .filter((val, index, self) => self.indexOf(val) === index && val !== mainLabel)
+                .join(', ');
+
+              return (
+                <TouchableOpacity
+                  key={item.properties.id || index}
+                  style={styles.item}
+                  onPress={() => handleSelect(item)}
+                >
+                  <Text style={styles.itemText}>{mainLabel}</Text>
+                  {subLabel ? <Text style={{ fontSize: 12, color: colors.textSecondary }}>{subLabel}</Text> : null}
+                </TouchableOpacity>
+              );
+            })}
           </ScrollView>
         </View>
       )}

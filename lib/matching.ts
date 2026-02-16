@@ -10,17 +10,38 @@ export function calculateMatchScore(
   project: any,
 ): number {
   let score = 0;
-  let maxScore = 120; // Increased max score for new criteria
+  let maxScore = 150; // Increased max score for new criteria
 
-  // 1. Category Match (Crucial)
-  if (
-    user.role &&
-    role.category &&
-    user.role.toLowerCase() === role.category.toLowerCase()
-  ) {
+  // Helper pour normaliser les titres (enlève ponctuation et minuscules)
+  const normalize = (s: string) =>
+    s
+      .toLowerCase()
+      .replace(/[.,/#!$%^&*;:{}=\-_`~()]/g, "")
+      .trim();
+
+  // 1. Category Match (Primary or Secondary Role)
+  const userRoles = [user.role, user.secondary_role]
+    .filter(Boolean)
+    .map((r) => r.toLowerCase());
+
+  const roleCategory = role.category?.toLowerCase();
+
+  if (roleCategory && userRoles.includes(roleCategory)) {
     score += 40;
-  } else {
-    // Penalty or just 0
+  }
+
+  // 1b. Specific Job Title Match (High Priority)
+  const userJobTitles = [
+    ...(user.job_title ? user.job_title.split(",") : []),
+    ...(user.secondary_job_title ? user.secondary_job_title.split(",") : []),
+  ]
+    .map(normalize)
+    .filter(Boolean);
+
+  const roleTitleNormalized = role.title ? normalize(role.title) : "";
+
+  if (roleTitleNormalized && userJobTitles.includes(roleTitleNormalized)) {
+    score += 40; // Strong bonus for exact job title match
   }
 
   // 2. Location Match
@@ -43,13 +64,17 @@ export function calculateMatchScore(
   const userLevel = levels.indexOf(user.experience_level || "debutant");
   const roleLevel = levels.indexOf(role.experience_level || "debutant");
 
-  if (userLevel >= roleLevel) {
+  if (
+    !role.experience_level ||
+    role.experience_level === "indifferent" ||
+    userLevel >= roleLevel
+  ) {
     score += 10;
   }
 
   // 4. Skills/Tags Match
   if (user.skills && Array.isArray(user.skills) && user.skills.length > 0) {
-    const roleTitle = role.title.toLowerCase();
+    const roleTitle = (role.title || "").toLowerCase();
     const hasSkill = user.skills.some((s: string) =>
       roleTitle.includes(s.toLowerCase()),
     );
@@ -70,7 +95,7 @@ export function calculateMatchScore(
     }
     score += 20; // Bonus for matching specific gender requirement
   } else {
-    score += 10; // Indifferent gender is good for everyone
+    score += 20; // Indifferent gender is perfect match for everyone
   }
 
   // 6. Age Match (Critical Filter)
@@ -84,7 +109,7 @@ export function calculateMatchScore(
       return 0; // Hard filter: Wrong age
     }
   } else {
-    score += 10; // No age restriction is safe
+    score += 20; // No age restriction is perfect match
   }
 
   // Normalize to 100

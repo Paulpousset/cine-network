@@ -44,12 +44,38 @@ function ProjectShowcase({
   const router = useRouter();
   const { colors, isDark } = useTheme();
   const themedGlobalStyles = useThemedStyles();
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
   // Filter only published roles that are not assigned
   // We align with the logic that if it's not draft and not assigned, it's open.
   const openRoles = roles.filter(
     (r) => r.status !== "draft" && !r.assigned_profile_id,
   );
+
+  const teamVisible = roles.filter(
+    (r) => r.assigned_profile_id && r.show_in_team !== false,
+  );
+
+  // Group team by category
+  const teamByGroup = teamVisible.reduce((acc: any, member: any) => {
+    const group = member.category || "Autre";
+    if (!acc[group]) acc[group] = [];
+    acc[group].push(member);
+    return acc;
+  }, {});
+
+  const categoryLabels: Record<string, string> = {
+    acteur: "Acteurs",
+    realisation: "Réalisation",
+    image: "Image",
+    son: "Son",
+    production: "Production",
+    deco: "Décors & Costumes",
+    technique: "Technique",
+    postprod: "Post-Production",
+    HMC: "HMC",
+    regie: "Régie",
+  };
 
   return (
     <ScrollView style={{ flex: 1, backgroundColor: colors.background }}>
@@ -160,6 +186,142 @@ function ProjectShowcase({
           {project.description ||
             "Aucune description disponible pour ce projet."}
         </Text>
+
+        {/* Team Members grouped by category */}
+        {Object.keys(teamByGroup).length > 0 && (
+          <View style={{ marginBottom: 30 }}>
+            <Text style={{ fontSize: 18, fontWeight: "bold", color: colors.text, marginBottom: 15 }}>
+              Équipe du film
+            </Text>
+
+            {/* Category Selector */}
+            <View style={{ position: "relative" }}>
+              <ScrollView 
+                horizontal 
+                showsHorizontalScrollIndicator={false} 
+                contentContainerStyle={{ gap: 10, paddingBottom: 20, paddingRight: 40 }}
+              >
+                <TouchableOpacity
+                  onPress={() => setSelectedCategory(null)}
+                  style={{
+                    paddingHorizontal: 16,
+                    paddingVertical: 8,
+                    borderRadius: 20,
+                    backgroundColor: selectedCategory === null ? colors.primary : colors.backgroundSecondary,
+                    borderWidth: 1,
+                    borderColor: selectedCategory === null ? colors.primary : colors.border,
+                  }}
+                >
+                  <Text style={{ 
+                    color: selectedCategory === null ? "white" : colors.text, 
+                    fontWeight: "bold",
+                    fontSize: 12 
+                  }}>TOUT</Text>
+                </TouchableOpacity>
+                {Object.keys(teamByGroup).sort().map((cat) => (
+                  <TouchableOpacity
+                    key={cat}
+                    onPress={() => setSelectedCategory(cat)}
+                    style={{
+                      paddingHorizontal: 16,
+                      paddingVertical: 8,
+                      borderRadius: 20,
+                      backgroundColor: selectedCategory === cat ? colors.primary : colors.backgroundSecondary,
+                      borderWidth: 1,
+                      borderColor: selectedCategory === cat ? colors.primary : colors.border,
+                    }}
+                  >
+                    <Text style={{ 
+                      color: selectedCategory === cat ? "white" : colors.text, 
+                      fontWeight: "bold",
+                      fontSize: 12,
+                      textTransform: "uppercase"
+                    }}>
+                      {categoryLabels[cat] || cat}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+              
+              {/* Scroll Indicator Arrow */}
+              <View 
+                style={{
+                  position: "absolute",
+                  right: 5,
+                  top: 8,
+                  bottom: 28,
+                  justifyContent: "center",
+                  alignItems: "center",
+                }}
+                pointerEvents="none"
+              >
+                <Ionicons name="chevron-forward" size={14} color={colors.primary} style={{ opacity: 0.8 }} />
+              </View>
+            </View>
+            
+            {(selectedCategory ? [[selectedCategory, teamByGroup[selectedCategory]]] as [string, any][] : Object.entries(teamByGroup).sort()).map(([category, members]) => (
+              <View key={category} style={{ marginBottom: 20 }}>
+                <Text style={{ 
+                  fontSize: 12, 
+                  fontWeight: "700", 
+                  color: colors.primary, 
+                  textTransform: "uppercase", 
+                  letterSpacing: 1,
+                  marginBottom: 10,
+                  opacity: 0.8
+                }}>
+                  {categoryLabels[category] || category.charAt(0).toUpperCase() + category.slice(1)}
+                </Text>
+                
+                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 15 }}>
+                  {members.map((member: any) => (
+                    <TouchableOpacity
+                      key={member.id}
+                      onPress={() => router.push(`/profile/${member.assigned_profile_id}`)}
+                      style={{ alignItems: "center", width: 75 }}
+                    >
+                      <View
+                        style={{
+                          width: 54,
+                          height: 54,
+                          borderRadius: 27,
+                          backgroundColor: colors.backgroundSecondary,
+                          justifyContent: "center",
+                          alignItems: "center",
+                          marginBottom: 5,
+                          borderWidth: 1,
+                          borderColor: colors.border,
+                          overflow: "hidden"
+                        }}
+                      >
+                        {member.assigned_profile?.avatar_url ? (
+                          <Image
+                            source={{ uri: member.assigned_profile.avatar_url }}
+                            style={{ width: "100%", height: "100%", resizeMode: "cover" }}
+                          />
+                        ) : (
+                          <Ionicons name="person" size={24} color={colors.textSecondary} />
+                        )}
+                      </View>
+                      <Text
+                        style={{ fontSize: 11, color: colors.text, textAlign: "center", fontWeight: "600" }}
+                        numberOfLines={1}
+                      >
+                        {member.assigned_profile?.full_name || member.assigned_profile?.username || "Inconnu"}
+                      </Text>
+                      <Text
+                        style={{ fontSize: 9, color: colors.textSecondary, textAlign: "center" }}
+                        numberOfLines={1}
+                      >
+                        {member.title}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            ))}
+          </View>
+        )}
 
         {/* Open Roles */}
         <Text style={{ fontSize: 18, fontWeight: "bold", color: colors.text, marginBottom: 10 }}>Casting ({openRoles.length})</Text>
@@ -602,7 +764,7 @@ export default function ProjectDetails() {
     // We assume fetchProjectDetails handles loading
     const { data: rolesData, error: errRoles } = await supabase
       .from("project_roles")
-      .select("*")
+      .select("*, show_in_team")
       .eq("tournage_id", projectId)
       .order("created_at", { ascending: true });
 
@@ -617,7 +779,7 @@ export default function ProjectDetails() {
     if (userIds.length > 0) {
       const { data: profiles } = await supabase
         .from("profiles")
-        .select("id, full_name, username")
+        .select("id, full_name, username, avatar_url")
         .in("id", userIds);
 
       const profileMap = new Map();
@@ -1649,18 +1811,22 @@ export default function ProjectDetails() {
                 style={
                   {
                     backgroundColor: colors.primary,
-                    paddingHorizontal: 12,
-                    paddingVertical: 6,
-                    borderRadius: 20,
+                    paddingHorizontal: 16,
+                    paddingVertical: 8,
+                    borderRadius: 25,
                     cursor: "pointer",
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 6,
                   } as any
                 }
-                hoverStyle={{ opacity: 0.8 }}
+                hoverStyle={{ opacity: 0.9, transform: [{ scale: 1.05 }] }}
               >
+                <Ionicons name="add-circle-outline" size={18} color="white" />
                 <Text
-                  style={{ color: "white", fontWeight: "bold", fontSize: 12 }}
+                  style={{ color: "white", fontWeight: "bold", fontSize: 13 }}
                 >
-                  + Ajouter
+                  Ajouter un poste
                 </Text>
               </Hoverable>
             ) : null}
@@ -1679,13 +1845,14 @@ export default function ProjectDetails() {
             ) : (
               groupedRolesSections.map((section: any, sectionIndex) => (
                 <View key={section.title + sectionIndex}>
-                  <View style={{ paddingVertical: 10, paddingHorizontal: 5 }}>
+                  <View style={{ paddingVertical: 12, paddingHorizontal: 5 }}>
                     <Text
                       style={{
-                        fontSize: 14,
-                        fontWeight: "bold",
-                        color: colors.text + "99",
+                        fontSize: 12,
+                        fontWeight: "800",
+                        color: colors.text + "70",
                         textTransform: "uppercase",
+                        letterSpacing: 1.2,
                       }}
                     >
                       {section.title}
@@ -1695,8 +1862,8 @@ export default function ProjectDetails() {
                   <View
                     style={
                       isLargeScreen
-                        ? { flexDirection: "row", flexWrap: "wrap", gap: 30 }
-                        : { gap: 10 }
+                        ? { flexDirection: "row", flexWrap: "wrap", gap: 20 }
+                        : { gap: 12 }
                     }
                   >
                     {section.data.map((item: any) => {
@@ -1721,16 +1888,16 @@ export default function ProjectDetails() {
                           style={[
                             styles.roleCard,
                             isLargeScreen &&
-                              ({ width: cardWidth, flex: undefined } as any), // Override flex if grid
-                            { marginBottom: isLargeScreen ? 0 : 10 }, // Margin handled by gap if supported, else fallback
+                              ({ width: cardWidth, flex: undefined } as any),
+                            { marginBottom: isLargeScreen ? 12 : 12 }, 
                             isOwner && ({ cursor: "pointer" } as any),
                           ]}
                           hoverStyle={
                             isOwner
                               ? {
-                                  transform: [{ scale: 1.01 }],
-                                  shadowOpacity: 0.1,
-                                  borderColor: colors.primary,
+                                  transform: [{ translateY: -2 }],
+                                  shadowOpacity: 0.15,
+                                  borderColor: colors.primary + "80",
                                 }
                               : {}
                           }
@@ -1741,47 +1908,97 @@ export default function ProjectDetails() {
                               style={{
                                 flexDirection: "row",
                                 alignItems: "center",
-                                gap: 8,
+                                gap: 10,
                                 flexWrap: "wrap",
-                                marginBottom: 8,
+                                marginBottom: 10,
                               }}
                             >
-                              <Text
-                                style={[
-                                  styles.roleCategoryTag,
-                                  {
-                                    color: color,
-                                    backgroundColor: color + "20",
-                                  },
-                                ]}
+                              <View
+                                style={{
+                                  flexDirection: "row",
+                                  alignItems: "center",
+                                  gap: 6,
+                                }}
                               >
-                                {item.category.toUpperCase()} •{" "}
-                                {item.items[0]?.is_paid
-                                  ? "Rémunéré"
-                                  : "Bénévole"}
-                              </Text>
-                              <Text style={styles.roleTitle}>{item.title}</Text>
-                              {isOwner && hasDrafts && (
-                                <Text
+                                <View
                                   style={{
-                                    fontSize: 10,
-                                    color: "#FF9800",
-                                    fontWeight: "bold",
+                                    width: 8,
+                                    height: 8,
+                                    borderRadius: 4,
+                                    backgroundColor: color,
+                                  }}
+                                />
+                                <Text
+                                  style={[
+                                    styles.roleCategoryTag,
+                                    {
+                                      color: color,
+                                      backgroundColor: color + "15",
+                                      marginRight: 0,
+                                    },
+                                  ]}
+                                >
+                                  {item.category.toUpperCase()}
+                                </Text>
+                              </View>
+
+                              {item.items[0]?.is_paid && (
+                                <View
+                                  style={{
+                                    backgroundColor: "#4CAF5015",
+                                    paddingHorizontal: 8,
+                                    paddingVertical: 4,
+                                    borderRadius: 6,
                                   }}
                                 >
-                                  ⚠ Contient des brouillons
-                                </Text>
+                                  <Text
+                                    style={{
+                                      fontSize: 9,
+                                      fontWeight: "800",
+                                      color: "#4CAF50",
+                                    }}
+                                  >
+                                    PRO
+                                  </Text>
+                                </View>
+                              )}
+
+                              {isOwner && hasDrafts && (
+                                <View
+                                  style={{
+                                    backgroundColor: "#FF980015",
+                                    paddingHorizontal: 8,
+                                    paddingVertical: 4,
+                                    borderRadius: 6,
+                                  }}
+                                >
+                                  <Text
+                                    style={{
+                                      fontSize: 9,
+                                      fontWeight: "800",
+                                      color: "#FF9800",
+                                    }}
+                                  >
+                                    BROUILLON
+                                  </Text>
+                                </View>
                               )}
                             </View>
 
+                            <Text style={[styles.roleTitle, { marginBottom: 4 }]}>
+                              {item.title}
+                            </Text>
+
                             {item.description ? (
                               <Text
-                                style={[styles.descText, { marginBottom: 10 }]}
+                                style={[styles.descText, { marginBottom: 12 }]}
                                 numberOfLines={2}
                               >
                                 {item.description}
                               </Text>
-                            ) : null}
+                            ) : (
+                              <View style={{ height: 8 }} />
+                            )}
 
                             {/* LIST ALL SLOTS (PARTICIPANTS OR VACAT) */}
                             <View style={{ gap: 8 }}>
@@ -1793,9 +2010,16 @@ export default function ProjectDetails() {
                                     style={{
                                       flexDirection: "row",
                                       alignItems: "center",
-                                      backgroundColor: "#f9f9f9",
+                                      backgroundColor: isDark
+                                        ? colors.backgroundSecondary
+                                        : "#f9f9f9",
                                       padding: 8,
-                                      borderRadius: 8,
+                                      borderRadius: 10,
+                                      borderWidth: assignee ? 0 : 1,
+                                      borderColor: isDark
+                                        ? colors.border
+                                        : "#eee",
+                                      borderStyle: assignee ? "solid" : "dashed",
                                     }}
                                   >
                                     {assignee ? (
@@ -1813,12 +2037,14 @@ export default function ProjectDetails() {
                                           }}
                                         >
                                           {assignee.avatar_url ? (
-                                            <View
+                                            <Image
+                                              source={{
+                                                uri: assignee.avatar_url,
+                                              }}
                                               style={{
                                                 width: 24,
                                                 height: 24,
                                                 borderRadius: 12,
-                                                backgroundColor: "#ddd",
                                               }}
                                             />
                                           ) : (
@@ -1838,7 +2064,8 @@ export default function ProjectDetails() {
                                         <Text
                                           style={{
                                             fontWeight: "600",
-                                            color: "#333",
+                                            color: colors.text,
+                                            fontSize: 13,
                                           }}
                                         >
                                           {assignee.full_name ||
@@ -1855,7 +2082,9 @@ export default function ProjectDetails() {
                                             borderRadius: 12,
                                             borderStyle: "dashed",
                                             borderWidth: 1,
-                                            borderColor: "#ccc",
+                                            borderColor: isDark
+                                              ? colors.text + "40"
+                                              : "#ccc",
                                             justifyContent: "center",
                                             alignItems: "center",
                                             marginRight: 8,
@@ -1864,13 +2093,20 @@ export default function ProjectDetails() {
                                           <Ionicons
                                             name="person-outline"
                                             size={14}
-                                            color="#999"
+                                            color={
+                                              isDark
+                                                ? colors.text + "60"
+                                                : "#999"
+                                            }
                                           />
                                         </View>
                                         <Text
                                           style={{
                                             fontStyle: "italic",
-                                            color: "#888",
+                                            color: isDark
+                                              ? colors.text + "60"
+                                              : "#888",
+                                            fontSize: 13,
                                           }}
                                         >
                                           {role.status === "draft"
@@ -1887,13 +2123,20 @@ export default function ProjectDetails() {
                           {isOwner && (
                             <View
                               style={{
+                                width: 32,
+                                height: 32,
+                                borderRadius: 16,
+                                backgroundColor: isDark
+                                  ? colors.backgroundSecondary
+                                  : "#f5f5f5",
                                 justifyContent: "center",
-                                paddingLeft: 10,
+                                alignItems: "center",
+                                marginLeft: 10,
                               }}
                             >
                               <Ionicons
-                                name="create-outline"
-                                size={24}
+                                name="pencil"
+                                size={16}
                                 color={colors.primary}
                               />
                             </View>
@@ -1961,514 +2204,286 @@ export default function ProjectDetails() {
             >
               {editingRole && !isSearchingProfileInForm && (
                 <>
-                  <View
-                    style={{
-                      flexDirection: "row",
-                      justifyContent: "center",
-                      alignItems: "center",
-                      gap: 8,
-                      marginBottom: 8,
-                    }}
-                  >
-                    <Text style={[styles.label, { marginBottom: 0 }]}>
-                      Catégorie
-                    </Text>
-                    {formErrors.category && (
-                      <Text
-                        style={{
-                          color: "red",
-                          fontSize: 11,
-                          fontWeight: "600",
-                        }}
-                      >
-                        - {formErrors.category}
-                      </Text>
-                    )}
-                  </View>
-                  <View style={[styles.rowWrap, { marginBottom: 20 }]}>
-                    {ROLE_CATEGORIES.map((cat) => (
-                      <Hoverable
-                        key={cat}
-                        onPress={() =>
-                          setEditingRole({ ...editingRole, category: cat })
-                        }
-                        hoverStyle={{ transform: [{ scale: 1.05 }] }}
-                        style={[
-                          styles.catButton,
-                          {
-                            borderColor: getCategoryColor(cat, colors),
-                            backgroundColor:
-                              editingRole.category === cat
-                                ? getCategoryColor(cat, colors)
-                                : "transparent",
-                            cursor: "pointer",
-                          } as any,
-                        ]}
-                      >
-                        <Text
-                          style={{
-                            fontWeight: "600",
-                            color:
-                              editingRole.category === cat
-                                ? "white"
-                                : getCategoryColor(cat, colors),
-                          }}
-                        >
-                          {cat.charAt(0).toUpperCase() +
-                            cat.slice(1).replace("_", " ")}
-                        </Text>
-                      </Hoverable>
-                    ))}
-                  </View>
+                  {/* SECTION 1: LE POSTE */}
+                  <View style={styles.formSection}>
+                    <View style={styles.formSectionHeader}>
+                      <Ionicons name="briefcase-outline" size={18} color={colors.primary} />
+                      <Text style={styles.formSectionTitle}>Informations du poste</Text>
+                    </View>
 
-                  <View
-                    style={{
-                      flexDirection: "row",
-                      justifyContent: "center",
-                      alignItems: "center",
-                      gap: 8,
-                      marginBottom: 8,
-                    }}
-                  >
-                    <Text style={[styles.label, { marginBottom: 0 }]}>
-                      Intitulé du poste
-                    </Text>
-                    {formErrors.title && (
-                      <Text
-                        style={{
-                          color: "red",
-                          fontSize: 11,
-                          fontWeight: "600",
-                        }}
-                      >
-                        - {formErrors.title}
-                      </Text>
-                    )}
-                  </View>
-                  <View style={[styles.rowWrap, { marginBottom: 15 }]}>
-                    {(JOB_TITLES[editingRole.category] || [])
-                      .slice(0, 8)
-                      .map((job) => (
+                    <Text style={styles.fieldLabel}>Catégorie {formErrors.category && <Text style={{ color: "red", fontSize: 11 }}>- {formErrors.category}</Text>}</Text>
+                    <View style={[styles.rowWrap, { justifyContent: "flex-start", marginBottom: 20 }]}>
+                      {ROLE_CATEGORIES.map((cat) => (
                         <Hoverable
-                          key={job}
-                          onPress={() =>
-                            setEditingRole({ ...editingRole, title: job })
-                          }
-                          hoverStyle={{
-                            transform: [{ scale: 1.05 }],
-                            opacity: 0.9,
-                          }}
+                          key={cat}
+                          onPress={() => setEditingRole({ ...editingRole, category: cat })}
                           style={[
-                            styles.jobChip,
-                            editingRole.title === job && styles.jobChipSelected,
-                            { cursor: "pointer" } as any,
+                            styles.catButton,
+                            {
+                              borderColor: getCategoryColor(cat, colors),
+                              backgroundColor: editingRole.category === cat ? getCategoryColor(cat, colors) : "transparent",
+                            } as any,
                           ]}
                         >
-                          <Text
-                            style={{
-                              color:
-                                editingRole.title === job
-                                  ? "white"
-                                  : colors.text,
-                            }}
-                          >
-                            {job}
+                          <Text style={{ fontWeight: "600", color: editingRole.category === cat ? "white" : getCategoryColor(cat, colors) }}>
+                            {cat.charAt(0).toUpperCase() + cat.slice(1).replace("_", " ")}
                           </Text>
                         </Hoverable>
                       ))}
-                  </View>
-                  <TextInput
-                    placeholder="Ou un autre titre..."
-                    style={[
-                      styles.input,
-                      { textAlign: "left", paddingLeft: 15 },
-                    ]}
-                    placeholderTextColor={colors.text + "80"}
-                    value={editingRole.title}
-                    onChangeText={(t) =>
-                      setEditingRole({ ...editingRole, title: t })
-                    }
-                  />
+                    </View>
 
-                  <View
-                    style={{ flexDirection: "row", gap: 10, marginBottom: 15 }}
-                  >
-                    {!editingRole.id && (
+                    <Text style={styles.fieldLabel}>Intitulé du poste {formErrors.title && <Text style={{ color: "red", fontSize: 11 }}>- {formErrors.title}</Text>}</Text>
+                    <View style={[styles.rowWrap, { justifyContent: "flex-start", marginBottom: 10 }]}>
+                      {(JOB_TITLES[editingRole.category] || []).slice(0, 8).map((job) => (
+                        <Hoverable
+                          key={job}
+                          onPress={() => setEditingRole({ ...editingRole, title: job })}
+                          style={[styles.jobChip, editingRole.title === job && styles.jobChipSelected]}
+                        >
+                          <Text style={{ color: editingRole.title === job ? "white" : colors.text, fontSize: 13 }}>{job}</Text>
+                        </Hoverable>
+                      ))}
+                    </View>
+                    <TextInput
+                      placeholder="Ou tapez un intitulé personnalisé..."
+                      style={styles.formInput}
+                      placeholderTextColor={colors.text + "60"}
+                      value={editingRole.title}
+                      onChangeText={(t) => setEditingRole({ ...editingRole, title: t })}
+                    />
+
+                    <View style={[styles.formRow, { marginTop: 15 }]}>
+                      {!editingRole.id && (
+                        <View style={{ width: 100 }}>
+                          <Text style={styles.fieldLabel}>Quantité</Text>
+                          <TextInput
+                            keyboardType="numeric"
+                            style={styles.formInput}
+                            value={editingRole.quantity}
+                            onChangeText={(t) => setEditingRole({ ...editingRole, quantity: t })}
+                          />
+                        </View>
+                      )}
                       <View style={{ flex: 1 }}>
-                        <Text style={styles.label}>Quantité</Text>
+                        <Text style={styles.fieldLabel}>Description</Text>
+                        <TextInput
+                          placeholder="Précisions sur les missions..."
+                          style={styles.formInput}
+                          placeholderTextColor={colors.text + "60"}
+                          value={editingRole.description}
+                          onChangeText={(t) => setEditingRole({ ...editingRole, description: t })}
+                        />
+                      </View>
+                    </View>
+                  </View>
+
+                  {/* SECTION 2: PROFIL RECHERCHÉ */}
+                  <View style={styles.formSection}>
+                    <View style={styles.formSectionHeader}>
+                      <Ionicons name="person-outline" size={18} color={colors.primary} />
+                      <Text style={styles.formSectionTitle}>Profil recherché</Text>
+                    </View>
+
+                    <Text style={styles.fieldLabel}>Expérience</Text>
+                    <View style={[styles.rowWrap, { justifyContent: "flex-start", marginBottom: 15 }]}>
+                      {["debutant", "intermediaire", "confirme"].map((lvl) => (
+                        <Hoverable
+                          key={lvl}
+                          onPress={() => toggleMultiValue("experience", lvl)}
+                          style={[
+                            styles.catButton,
+                            toArray(editingRole.experience).includes(lvl) && { backgroundColor: colors.primary, borderColor: colors.primary },
+                          ]}
+                        >
+                          <Text style={{ color: toArray(editingRole.experience).includes(lvl) ? "white" : colors.text }}>
+                            {lvl === "debutant" ? "Débutant" : lvl === "intermediaire" ? "Intermédiaire" : "Confirmé"}
+                          </Text>
+                        </Hoverable>
+                      ))}
+                    </View>
+
+                    <View style={styles.formRow}>
+                      <View style={styles.inputGroup}>
+                        <Text style={styles.fieldLabel}>Sexe</Text>
+                        <View style={[styles.rowWrap, { justifyContent: "flex-start" }]}>
+                          {["homme", "femme", "autre"].map((g) => (
+                            <Hoverable
+                              key={g}
+                              onPress={() => toggleMultiValue("gender", g)}
+                              style={[
+                                styles.catButton,
+                                toArray(editingRole.gender).includes(g) && { backgroundColor: colors.primary, borderColor: colors.primary },
+                              ]}
+                            >
+                              <Text style={{ color: toArray(editingRole.gender).includes(g) ? "white" : colors.text }}>
+                                {g.charAt(0).toUpperCase() + g.slice(1)}
+                              </Text>
+                            </Hoverable>
+                          ))}
+                        </View>
+                      </View>
+                    </View>
+
+                    <View style={styles.formRow}>
+                      <View style={styles.inputGroup}>
+                        <Text style={styles.fieldLabel}>Âge minimum</Text>
                         <TextInput
                           keyboardType="numeric"
-                          style={styles.input}
-                          value={editingRole.quantity}
-                          onChangeText={(t) =>
-                            setEditingRole({ ...editingRole, quantity: t })
-                          }
+                          placeholder="Ex: 18"
+                          style={styles.formInput}
+                          placeholderTextColor={colors.text + "60"}
+                          value={editingRole.ageMin}
+                          onChangeText={(t) => setEditingRole({ ...editingRole, ageMin: t })}
+                        />
+                      </View>
+                      <View style={styles.inputGroup}>
+                        <Text style={styles.fieldLabel}>Âge maximum</Text>
+                        <TextInput
+                          keyboardType="numeric"
+                          placeholder="Ex: 99"
+                          style={styles.formInput}
+                          placeholderTextColor={colors.text + "60"}
+                          value={editingRole.ageMax}
+                          onChangeText={(t) => setEditingRole({ ...editingRole, ageMax: t })}
+                        />
+                      </View>
+                    </View>
+
+                    {/* Champs spécifiques (Taille, Cheveux, etc. pour Acteurs) */}
+                    <View style={{ marginTop: 10 }}>
+                      <RoleFormFields
+                        category={editingRole.category}
+                        data={editingRole}
+                        onChange={setEditingRole}
+                      />
+                    </View>
+                  </View>
+
+                  {/* SECTION 3: CONDITIONS */}
+                  <View style={styles.formSection}>
+                    <View style={styles.formSectionHeader}>
+                      <Ionicons name="card-outline" size={18} color={colors.primary} />
+                      <Text style={styles.formSectionTitle}>Conditions & Rémunération</Text>
+                    </View>
+
+                    <Text style={styles.fieldLabel}>Type de contrat</Text>
+                    <View style={[styles.rowWrap, { justifyContent: "flex-start", marginBottom: 15 }]}>
+                      <Hoverable
+                        onPress={() => setEditingRole({ ...editingRole, isPaid: true })}
+                        style={[styles.catButton, editingRole.isPaid && { backgroundColor: colors.primary, borderColor: colors.primary }]}
+                      >
+                        <Text style={{ color: editingRole.isPaid ? "white" : colors.text }}>Rémunéré</Text>
+                      </Hoverable>
+                      <Hoverable
+                        onPress={() => setEditingRole({ ...editingRole, isPaid: false })}
+                        style={[styles.catButton, !editingRole.isPaid && { backgroundColor: colors.primary, borderColor: colors.primary }]}
+                      >
+                        <Text style={{ color: !editingRole.isPaid ? "white" : colors.text }}>Bénévole</Text>
+                      </Hoverable>
+                    </View>
+
+                    {editingRole.isPaid && (
+                      <View style={{ marginTop: 5 }}>
+                        <Text style={styles.fieldLabel}>Détails de la rémunération {formErrors.remunerationAmount && <Text style={{ color: "red", fontSize: 11 }}>- {formErrors.remunerationAmount}</Text>}</Text>
+                        <TextInput
+                          placeholder="Ex: 150€ / jour, Cachet global, selon profil..."
+                          style={styles.formInput}
+                          placeholderTextColor={colors.text + "60"}
+                          value={editingRole.remunerationAmount}
+                          onChangeText={(t) => setEditingRole({ ...editingRole, remunerationAmount: t })}
                         />
                       </View>
                     )}
-                    <View style={{ flex: 2 }}>
-                      <Text style={styles.label}>Description</Text>
-                      <TextInput
-                        placeholder="Précisions (optionnel)"
-                        style={[
-                          styles.input,
-                          { textAlign: "left", paddingLeft: 15 },
-                        ]}
-                        placeholderTextColor={colors.text + "80"}
-                        value={editingRole.description}
-                        onChangeText={(t) =>
-                          setEditingRole({ ...editingRole, description: t })
-                        }
-                      />
+                  </View>
+
+                  {/* SECTION 4: DIFFUSION */}
+                  <View style={styles.formSection}>
+                    <View style={styles.formSectionHeader}>
+                      <Ionicons name="megaphone-outline" size={18} color={colors.primary} />
+                      <Text style={styles.formSectionTitle}>Visibilité</Text>
                     </View>
-                  </View>
 
-                  {/* Experience */}
-                  <Text style={styles.label}>Expérience recherchée</Text>
-                  <View style={[styles.rowWrap, { marginBottom: 15 }]}>
-                    {["debutant", "intermediaire", "confirme"].map((lvl) => (
-                      <Hoverable
-                        key={lvl}
-                        onPress={() => toggleMultiValue("experience", lvl)}
-                        hoverStyle={{ transform: [{ scale: 1.05 }] }}
-                        style={[
-                          styles.catButton,
-                          toArray(editingRole.experience).includes(lvl) && {
-                            backgroundColor: colors.primary,
-                            borderColor: colors.primary,
-                          },
-                          { cursor: "pointer" } as any,
-                        ]}
-                      >
-                        <Text
-                          style={{
-                            color: toArray(editingRole.experience).includes(lvl)
-                              ? "white"
-                              : colors.text,
-                          }}
-                        >
-                          {lvl.charAt(0).toUpperCase() + lvl.slice(1)}
+                    <Text style={styles.fieldLabel}>Statut de l'annonce</Text>
+                    {editingRole.assignee && editingRole.status === "assigned" ? (
+                      <View style={{ backgroundColor: colors.backgroundSecondary, padding: 12, borderRadius: 10 }}>
+                        <Text style={{ color: colors.text + "80", fontStyle: "italic", textAlign: "center", fontSize: 13 }}>
+                          Ce rôle est déjà confirmé (assigné).
                         </Text>
-                      </Hoverable>
-                    ))}
-                  </View>
-
-                  {/* Gender */}
-                  <Text style={styles.label}>Sexe (optionnel)</Text>
-                  <View style={[styles.rowWrap, { marginBottom: 15 }]}>
-                    {["homme", "femme", "autre"].map((g) => (
-                      <Hoverable
-                        key={g}
-                        onPress={() => toggleMultiValue("gender", g)}
-                        hoverStyle={{ transform: [{ scale: 1.05 }] }}
-                        style={[
-                          styles.catButton,
-                          toArray(editingRole.gender).includes(g) && {
-                            backgroundColor: colors.primary,
-                            borderColor: colors.primary,
-                          },
-                          { cursor: "pointer" } as any,
-                        ]}
-                      >
-                        <Text
-                          style={{
-                            color: toArray(editingRole.gender).includes(g)
-                              ? "white"
-                              : colors.text,
-                          }}
-                        >
-                          {g.charAt(0).toUpperCase() + g.slice(1)}
-                        </Text>
-                      </Hoverable>
-                    ))}
-                  </View>
-
-                  {/* Age range */}
-                  <View
-                    style={{ flexDirection: "row", gap: 10, paddingBottom: 10 }}
-                  >
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.label}>Âge min.</Text>
-                      <TextInput
-                        keyboardType="numeric"
-                        style={styles.input}
-                        value={editingRole.ageMin}
-                        onChangeText={(t) =>
-                          setEditingRole({ ...editingRole, ageMin: t })
-                        }
-                      />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.label}>Âge max.</Text>
-                      <TextInput
-                        keyboardType="numeric"
-                        style={styles.input}
-                        value={editingRole.ageMax}
-                        onChangeText={(t) =>
-                          setEditingRole({ ...editingRole, ageMax: t })
-                        }
-                      />
-                    </View>
-                  </View>
-
-                  {/* Specific Fields by Category */}
-                  <RoleFormFields
-                    category={editingRole.category}
-                    data={editingRole}
-                    onChange={setEditingRole} // RoleFormFields expects full object update or I should adapt key/value
-                  />
-
-                  <Text style={styles.label}>Rémunération</Text>
-                  <View style={[styles.rowWrap, { marginBottom: 15 }]}>
-                    <Hoverable
-                      onPress={() =>
-                        setEditingRole({ ...editingRole, isPaid: true })
-                      }
-                      hoverStyle={{ transform: [{ scale: 1.05 }] }}
-                      style={[
-                        styles.catButton,
-                        editingRole.isPaid && {
-                          backgroundColor: colors.primary,
-                          borderColor: colors.primary,
-                        },
-                        { cursor: "pointer" } as any,
-                      ]}
-                    >
-                      <Text
-                        style={{
-                          color: editingRole.isPaid ? "white" : colors.text,
-                        }}
-                      >
-                        Rémunéré
-                      </Text>
-                    </Hoverable>
-                    <Hoverable
-                      onPress={() =>
-                        setEditingRole({ ...editingRole, isPaid: false })
-                      }
-                      hoverStyle={{ transform: [{ scale: 1.05 }] }}
-                      style={[
-                        styles.catButton,
-                        !editingRole.isPaid && {
-                          backgroundColor: colors.primary,
-                          borderColor: colors.primary,
-                        },
-                        { cursor: "pointer" } as any,
-                      ]}
-                    >
-                      <Text
-                        style={{
-                          color: !editingRole.isPaid ? "white" : colors.text,
-                        }}
-                      >
-                        Bénévole
-                      </Text>
-                    </Hoverable>
-                  </View>
-
-                  {editingRole.isPaid && (
-                    <View style={{ marginTop: 10 }}>
-                      <View
-                        style={{
-                          flexDirection: "row",
-                          justifyContent: "center",
-                          alignItems: "center",
-                          gap: 8,
-                          marginBottom: 8,
-                        }}
-                      >
-                        <Text style={[styles.label, { marginBottom: 0 }]}>
-                          Montant de la rémunération
-                        </Text>
-                        {formErrors.remunerationAmount && (
-                          <Text
-                            style={{
-                              color: "red",
-                              fontSize: 11,
-                              fontWeight: "600",
-                            }}
-                          >
-                            - {formErrors.remunerationAmount}
-                          </Text>
-                        )}
                       </View>
-                      <TextInput
-                        placeholder="Ex: 150€ / jour ou Cachet global"
-                        style={styles.input}
-                        value={editingRole.remunerationAmount}
-                        onChangeText={(t) =>
-                          setEditingRole({
-                            ...editingRole,
-                            remunerationAmount: t,
-                          })
-                        }
-                      />
-                    </View>
-                  )}
-
-                  {/* STATUS POURVU - REMOVED
-                  <Text style={styles.label}>
-                    {editingRole.assignee
-                      ? "Statut de l'assignation"
-                      : "Poste déjà pourvu ?"}
-                  </Text>
-                  <View style={[styles.rowWrap, { marginBottom: 15 }]}>
-                       ... (Automated status logic is safer)
-                  </View>
-                  */}
-
-                  {/* STATUS TOGGLE */}
-                  <Text style={styles.label}>Statut de l'annonce</Text>
-                  {editingRole.assignee && editingRole.status === "assigned" ? (
-                    <Text
-                      style={{
-                        color: "#666",
-                        fontStyle: "italic",
-                        marginBottom: 10,
-                        textAlign: "center",
-                      }}
-                    >
-                      Ce rôle est déjà confirmé (assigné).
-                    </Text>
-                  ) : (
-                    <View style={[styles.rowWrap, { marginBottom: 15 }]}>
-                      {["draft", "published"].map((st) => (
-                        <Hoverable
-                          key={st}
-                          onPress={() =>
-                            setEditingRole({
-                              ...editingRole,
-                              status: st as any,
-                              ...(st === "draft" ? { createPost: false } : {}),
-                            })
-                          }
-                          hoverStyle={{ transform: [{ scale: 1.05 }] }}
-                          style={[
-                            styles.catButton,
-                            editingRole.status === st && {
-                              backgroundColor:
-                                st === "draft" ? "#FF9800" : colors.primary,
-                              borderColor: "transparent",
-                            },
-                            { cursor: "pointer" } as any,
-                          ]}
-                        >
-                          <Text
-                            style={{
-                              color:
-                                editingRole.status === st ? "white" : colors.text,
-                            }}
+                    ) : (
+                      <View style={[styles.rowWrap, { justifyContent: "flex-start", marginBottom: 15 }]}>
+                        {["draft", "published"].map((st) => (
+                          <Hoverable
+                            key={st}
+                            onPress={() => setEditingRole({ ...editingRole, status: st as any, ...(st === "draft" ? { createPost: false } : {}) })}
+                            style={[
+                              styles.catButton,
+                              editingRole.status === st && { backgroundColor: st === "draft" ? "#FF9800" : colors.primary, borderColor: "transparent" },
+                            ]}
                           >
-                            {st === "draft" ? "Brouillon" : "Ouvert au casting"}
-                          </Text>
-                        </Hoverable>
-                      ))}
-                    </View>
-                  )}
+                            <Text style={{ color: editingRole.status === st ? "white" : colors.text }}>
+                              {st === "draft" ? "Brouillon (Interne)" : "Publié (Ouvert au casting)"}
+                            </Text>
+                          </Hoverable>
+                        ))}
+                      </View>
+                    )}
 
-                  <Text style={styles.label}>Diffusion</Text>
-                  <View style={[styles.rowWrap, { marginBottom: 15 }]}>
-                    <Hoverable
-                      onPress={() =>
-                        setEditingRole({ ...editingRole, createPost: false })
-                      }
-                      disabled={editingRole.status !== "published"}
-                      style={[
-                        styles.catButton,
-                        !editingRole.createPost && {
-                          backgroundColor: colors.primary,
-                          borderColor: colors.primary,
-                        },
-                        editingRole.status !== "published" && { opacity: 0.5 },
-                        {
-                          cursor:
-                            editingRole.status !== "published"
-                              ? "default"
-                              : ("pointer" as any),
-                        },
-                      ]}
-                    >
-                      <Text
-                        style={{
-                          color: !editingRole.createPost ? "white" : colors.text,
-                        }}
-                      >
-                        Jobs uniquement
-                      </Text>
-                    </Hoverable>
-                    <Hoverable
-                      onPress={() =>
-                        setEditingRole({ ...editingRole, createPost: true })
-                      }
-                      disabled={editingRole.status !== "published"}
-                      style={[
-                        styles.catButton,
-                        editingRole.createPost && {
-                          backgroundColor: colors.primary,
-                          borderColor: colors.primary,
-                        },
-                        editingRole.status !== "published" && { opacity: 0.5 },
-                        {
-                          cursor:
-                            editingRole.status !== "published"
-                              ? "default"
-                              : ("pointer" as any),
-                        },
-                      ]}
-                    >
-                      <Text
-                        style={{
-                          color: editingRole.createPost ? "white" : "#333",
-                        }}
-                      >
-                        Jobs + Feed
-                      </Text>
-                    </Hoverable>
-                  </View>
-
-                  {/* ASSIGNMENT */}
-                  <Text style={styles.label}>
-                    Assigner quelqu'un (optionnel)
-                  </Text>
-                  {editingRole.assignee ? (
-                    <View style={styles.assignedCard}>
-                      <Text style={{ fontWeight: "600", flex: 1 }}>
-                        {editingRole.assignee.label}
-                      </Text>
+                    <Text style={[styles.fieldLabel, { marginTop: 10 }]}>Diffusion</Text>
+                    <View style={[styles.rowWrap, { justifyContent: "flex-start", marginBottom: 15 }]}>
                       <Hoverable
-                        onPress={() =>
-                          setEditingRole({ ...editingRole, assignee: null })
-                        }
-                        style={{ cursor: "pointer" } as any}
+                        onPress={() => setEditingRole({ ...editingRole, createPost: false })}
+                        disabled={editingRole.status !== "published"}
+                        style={[
+                          styles.catButton,
+                          !editingRole.createPost && { backgroundColor: colors.primary, borderColor: colors.primary },
+                          editingRole.status !== "published" && { opacity: 0.5 },
+                        ]}
                       >
-                        <Ionicons name="close-circle" size={20} color={colors.text + "80"} />
+                        <Text style={{ color: !editingRole.createPost ? "white" : colors.text }}>Jobs uniquement</Text>
+                      </Hoverable>
+                      <Hoverable
+                        onPress={() => setEditingRole({ ...editingRole, createPost: true })}
+                        disabled={editingRole.status !== "published"}
+                        style={[
+                          styles.catButton,
+                          editingRole.createPost && { backgroundColor: colors.primary, borderColor: colors.primary },
+                          editingRole.status !== "published" && { opacity: 0.5 },
+                        ]}
+                      >
+                        <Text style={{ color: editingRole.createPost ? "white" : colors.text }}>Jobs + Feed</Text>
                       </Hoverable>
                     </View>
-                  ) : (
-                    <Hoverable
-                      onPress={() => {
-                        setIsSearchingProfileInForm(true);
-                        searchProfilesForForm("");
-                      }}
-                      hoverStyle={{ opacity: 0.7 }}
-                      style={
-                        {
-                          padding: 10,
+
+                    <Text style={[styles.fieldLabel, { marginTop: 10 }]}>Assigner quelqu'un (optionnel)</Text>
+                    {editingRole.assignee ? (
+                      <View style={[styles.assignedCard, { backgroundColor: colors.backgroundSecondary, borderStyle: 'solid', borderWidth: 1, borderColor: colors.primary + '40' }]}>
+                        <Ionicons name="person-circle-outline" size={24} color={colors.primary} />
+                        <Text style={{ fontWeight: "600", flex: 1, color: colors.text, marginLeft: 8 }}>{editingRole.assignee.label}</Text>
+                        <Hoverable onPress={() => setEditingRole({ ...editingRole, assignee: null })}>
+                          <Ionicons name="close-circle" size={20} color={colors.text + "60"} />
+                        </Hoverable>
+                      </View>
+                    ) : (
+                      <Hoverable
+                        onPress={() => {
+                          setIsSearchingProfileInForm(true);
+                          searchProfilesForForm("");
+                        }}
+                        style={{
+                          padding: 12,
                           borderWidth: 1,
                           borderColor: colors.primary,
                           borderStyle: "dashed",
-                          borderRadius: 8,
+                          borderRadius: 10,
                           alignItems: "center",
-                          cursor: "pointer",
-                        } as any
-                      }
-                    >
-                      <Text style={{ color: colors.primary, fontWeight: "600" }}>
-                        + Choisir un profil
-                      </Text>
-                    </Hoverable>
-                  )}
-
+                          backgroundColor: colors.primary + "08",
+                        }}
+                      >
+                        <Text style={{ color: colors.primary, fontWeight: "600" }}>+ Choisir un profil</Text>
+                      </Hoverable>
+                    )}
+                  </View>
                   <Hoverable
                     style={
                       {
@@ -2856,7 +2871,7 @@ export default function ProjectDetails() {
                                   setManageRole(roleItem); // Switch to single
                                 }}
                               >
-                                <Text style={{ color: "#666", fontSize: 12 }}>
+                                <Text style={{ color: colors.text + "80", fontSize: 12 }}>
                                   🔍 Taper pour chercher...
                                 </Text>
                               </TouchableOpacity>
@@ -3138,29 +3153,30 @@ const createStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   roleCard: {
     flexDirection: "row",
     backgroundColor: colors.card,
-    padding: 15,
-    borderRadius: 10,
+    padding: 18,
+    borderRadius: 16,
     marginBottom: 10,
     alignItems: "center",
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: isDark ? 0.3 : 0.1,
-    shadowRadius: 5,
-    elevation: 3,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: isDark ? 0.4 : 0.08,
+    shadowRadius: 10,
+    elevation: 4,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: isDark ? colors.border : "#f0f0f0",
   },
   roleCategoryTag: {
-    fontSize: 10,
-    paddingHorizontal: 6,
-    paddingVertical: 3,
-    borderRadius: 4,
-    fontWeight: "bold",
+    fontSize: 9,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    fontWeight: "800",
     overflow: "hidden",
     marginRight: 5,
+    letterSpacing: 0.5,
   },
-  roleTitle: { fontWeight: "600", fontSize: 16, color: colors.text },
-  descText: { fontSize: 12, color: isDark ? "#888" : "#999", marginTop: 2, fontStyle: "italic" },
+  roleTitle: { fontWeight: "700", fontSize: 17, color: colors.text },
+  descText: { fontSize: 13, color: isDark ? "#aaa" : "#666", marginTop: 4, lineHeight: 18 },
 
   assignedCard: {
     flexDirection: "row",
@@ -3208,7 +3224,7 @@ const createStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     marginBottom: 8,
     fontWeight: "600",
     fontSize: 13,
-    color: isDark ? "#aaa" : "#666",
+    color: colors.text,
     textAlign: "center",
   },
 
@@ -3242,6 +3258,53 @@ const createStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     borderColor: colors.border,
   },
   jobChipSelected: { backgroundColor: colors.primary },
+
+  // Form Structure
+  formSection: {
+    backgroundColor: colors.card,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)",
+  },
+  formSectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 16,
+    gap: 8,
+  },
+  formSectionTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: colors.primary,
+    textTransform: "uppercase",
+    letterSpacing: 1,
+  },
+  formRow: {
+    flexDirection: "row",
+    gap: 12,
+    marginBottom: 12,
+  },
+  inputGroup: {
+    flex: 1,
+  },
+  fieldLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: colors.text,
+    marginBottom: 8,
+    textAlign: "left",
+  },
+  formInput: {
+    backgroundColor: colors.backgroundSecondary,
+    borderRadius: 10,
+    padding: 12,
+    fontSize: 15,
+    color: colors.text,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
 });
 
 function setResults(arg0: never[]) {

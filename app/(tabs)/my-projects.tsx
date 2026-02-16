@@ -6,16 +6,16 @@ import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useState } from "react";
 import {
-    Alert,
-    Image,
-    Platform,
-    ScrollView,
-    SectionList,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    useWindowDimensions,
-    View,
+  Alert,
+  Image,
+  Platform,
+  ScrollView,
+  SectionList,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  useWindowDimensions,
+  View,
 } from "react-native";
 import { supabase } from "../../lib/supabase";
 
@@ -72,7 +72,15 @@ export default function MyProjects() {
       // 1. Fetch Owned Projects (Excluding completed ones)
       const { data: ownedData, error: ownedError } = await supabase
         .from("tournages")
-        .select("*")
+        .select(`
+            *,
+            team:project_roles(
+                id,
+                title,
+                show_in_team,
+                assigned_profile:profiles(id, avatar_url, full_name)
+            )
+        `)
         .eq("owner_id", session.user.id)
         .neq("status", "completed")
         .order("created_at", { ascending: false });
@@ -80,7 +88,14 @@ export default function MyProjects() {
       if (ownedError) throw ownedError;
 
       // Check notifications for owned
-      let ownedProjects = ownedData || [];
+      let ownedProjects = (ownedData || []).map(p => ({
+        ...p,
+        team_visible: p.team?.filter((r: any) => r.show_in_team && r.assigned_profile).map((r: any) => ({
+          ...r.assigned_profile,
+          role_title: r.title
+        })) || []
+      }));
+
       if (ownedProjects.length > 0) {
         const tournageIds = ownedProjects.map((p) => p.id);
         const { data: pendingApps } = await supabase
@@ -105,29 +120,40 @@ export default function MyProjects() {
       }
 
       // 2. Fetch Participating Projects (Excluding completed ones)
-      // user is participating if they are 'assigned_profile_id' in a role AND status is 'assigned' (confirmed)
       const { data: participations, error: partError } = await supabase
         .from("project_roles")
         .select(
           `
           tournage_id,
-          tournages (*)
+          tournages (
+            *,
+            team:project_roles(
+                id,
+                title,
+                show_in_team,
+                assigned_profile:profiles(id, avatar_url, full_name)
+            )
+          )
         `,
         )
         .eq("assigned_profile_id", session.user.id)
-        // remove those that your are also owner of, to avoid duplicates in the list
         .neq("tournages.owner_id", session.user.id)
         .neq("tournages.status", "completed")
-
         .eq("status", "assigned");
 
       if (partError) throw partError;
 
-      // Extract unique tournages from participations, avoiding duplicates if multiple roles
       const participatingMap = new Map();
       participations?.forEach((p: any) => {
         if (p.tournages && p.tournages.status !== "completed") {
-          participatingMap.set(p.tournages.id, p.tournages);
+          const proj = {
+            ...p.tournages,
+            team_visible: p.tournages.team?.filter((r: any) => r.show_in_team && r.assigned_profile).map((r: any) => ({
+              ...r.assigned_profile,
+              role_title: r.title
+            })) || []
+          };
+          participatingMap.set(proj.id, proj);
         }
       });
       const participatingProjects = Array.from(participatingMap.values());
@@ -168,7 +194,7 @@ export default function MyProjects() {
             <Ionicons
               name="film-outline"
               size={isWebLarge ? 32 : 24}
-              color="#999"
+              color={isDark ? "#FFFFFF80" : "#999"}
             />
           </View>
         )}
@@ -199,7 +225,7 @@ export default function MyProjects() {
 
             {item.city && (
               <View style={styles.cardLocation}>
-                <Ionicons name="location-outline" size={14} color="#666" />
+                <Ionicons name="location-outline" size={14} color={isDark ? "#FFFFFF" : "#666"} />
                 <Text style={styles.cardLocationText}>{item.city}</Text>
               </View>
             )}
@@ -211,7 +237,7 @@ export default function MyProjects() {
                 {
                   marginTop: item.city ? 4 : 8,
                   fontSize: 13,
-                  color: "#4A5568",
+                  color: isDark ? "#FFFFFF" : "#4A5568",
                 },
               ]}
             >
@@ -425,7 +451,7 @@ function createStyles(colors: any, isDark: boolean) { return StyleSheet.create({
     paddingVertical: 20,
     backgroundColor: colors.card,
     borderBottomWidth: 1,
-    borderBottomColor: "#E2E8F0",
+    borderBottomColor: isDark ? colors.border : "#E2E8F0",
     shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.02,
@@ -493,7 +519,7 @@ function createStyles(colors: any, isDark: boolean) { return StyleSheet.create({
   },
   webStatLabel: {
     fontSize: 13,
-    color: "#64748B",
+    color: isDark ? "#FFFFFF" : "#64748B",
     fontWeight: "500",
   },
   sectionHeader: {
@@ -501,7 +527,7 @@ function createStyles(colors: any, isDark: boolean) { return StyleSheet.create({
     fontWeight: "bold",
     marginTop: 20,
     marginBottom: 10,
-    color: colors.text,
+    color: isDark ? "#FFFFFF" : colors.text,
     backgroundColor: "transparent",
   },
   webSectionHeaderContainer: {
@@ -511,7 +537,7 @@ function createStyles(colors: any, isDark: boolean) { return StyleSheet.create({
   },
   webSectionHeader: {
     fontSize: 22,
-    color: colors.text,
+    color: isDark ? "#FFFFFF" : colors.text,
     backgroundColor: "transparent",
     marginTop: 0,
     marginBottom: 5,
@@ -575,7 +601,7 @@ function createStyles(colors: any, isDark: boolean) { return StyleSheet.create({
   projectTitle: {
     fontSize: 18,
     fontWeight: "700",
-    color: colors.text,
+    color: isDark ? "#FFFFFF" : colors.text,
     flexShrink: 1,
     marginRight: 10,
   },
@@ -605,7 +631,7 @@ function createStyles(colors: any, isDark: boolean) { return StyleSheet.create({
   },
   cardLocationText: {
     fontSize: 13,
-    color: "#64748B",
+    color: isDark ? "#FFFFFF" : "#64748B",
   },
   paidBadge: {
     fontSize: 10,
@@ -634,7 +660,7 @@ function createStyles(colors: any, isDark: boolean) { return StyleSheet.create({
   },
   cardActionText: {
     fontSize: 12,
-    color: "#475569",
+    color: isDark ? "#FFFFFF" : "#475569",
     fontWeight: "600",
   },
   projectImage: {
@@ -656,7 +682,7 @@ function createStyles(colors: any, isDark: boolean) { return StyleSheet.create({
   emptyText: {
     textAlign: "center",
     marginTop: 50,
-    color: "#999",
+    color: isDark ? "#FFFFFF" : "#999",
     fontSize: 16,
   },
   fab: {

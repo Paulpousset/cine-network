@@ -204,7 +204,7 @@ function ChatView({
 
   return (
     <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: "#f8f9fa" }}
+      style={{ flex: 1, backgroundColor: colors.background }}
       behavior={Platform.OS === "ios" ? "padding" : "padding"}
       keyboardVerticalOffset={Platform.OS === "ios" ? 100 : 90}
     >

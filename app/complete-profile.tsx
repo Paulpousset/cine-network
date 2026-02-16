@@ -1,8 +1,8 @@
 import ClapLoading from "@/components/ClapLoading";
-import Colors from "@/constants/Colors";
 import { appEvents, EVENTS } from "@/lib/events";
 import { supabase } from "@/lib/supabase";
 import { useTheme } from "@/providers/ThemeProvider";
+import { JOB_TITLES } from "@/utils/roles";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
@@ -36,6 +36,9 @@ export default function CompleteProfileScreen() {
   const styles = getStyles(colors, isDark);
   const [username, setUsername] = useState("");
   const [role, setRole] = useState("");
+  const [jobTitle, setJobTitle] = useState("");
+  const [secondaryRole, setSecondaryRole] = useState("");
+  const [secondaryJobTitle, setSecondaryJobTitle] = useState("");
   const [loading, setLoading] = useState(false);
   const [checkingUsername, setCheckingUsername] = useState(false);
   const router = useRouter();
@@ -81,6 +84,9 @@ export default function CompleteProfileScreen() {
         .update({
           username: username.trim(),
           role: role,
+          job_title: jobTitle,
+          secondary_role: secondaryRole,
+          secondary_job_title: secondaryJobTitle,
           updated_at: new Date().toISOString(),
         })
         .eq("id", user.id);
@@ -142,7 +148,10 @@ export default function CompleteProfileScreen() {
                       styles.roleButton,
                       role === r.value && styles.roleButtonActive,
                     ]}
-                    onPress={() => setRole(r.value)}
+                    onPress={() => {
+                      setRole(r.value);
+                      setJobTitle("");
+                    }}
                   >
                     <Text
                       style={[
@@ -156,6 +165,93 @@ export default function CompleteProfileScreen() {
                 ))}
               </View>
             </View>
+
+            {role && (JOB_TITLES as any)[role] && (
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Précisez votre poste</Text>
+                <View style={styles.rolesGrid}>
+                  {(JOB_TITLES as any)[role].map((title: string) => (
+                    <TouchableOpacity
+                      key={title}
+                      style={[
+                        styles.roleButton,
+                        jobTitle === title && styles.roleButtonActive,
+                      ]}
+                      onPress={() => setJobTitle(title)}
+                    >
+                      <Text
+                        style={[
+                          styles.roleText,
+                          jobTitle === title && styles.roleTextActive,
+                        ]}
+                      >
+                        {title}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            )}
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Avez-vous un rôle secondaire ? (Optionnel)</Text>
+              <View style={styles.rolesGrid}>
+                {ROLES.map((r) => (
+                  <TouchableOpacity
+                    key={r.value}
+                    style={[
+                      styles.roleButton,
+                      secondaryRole === r.value && styles.roleButtonActive,
+                    ]}
+                    onPress={() => {
+                      if (secondaryRole === r.value) {
+                        setSecondaryRole("");
+                        setSecondaryJobTitle("");
+                      } else {
+                        setSecondaryRole(r.value);
+                        setSecondaryJobTitle("");
+                      }
+                    }}
+                  >
+                    <Text
+                      style={[
+                        styles.roleText,
+                        secondaryRole === r.value && styles.roleTextActive,
+                      ]}
+                    >
+                      {r.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            {secondaryRole && (JOB_TITLES as any)[secondaryRole] && (
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Poste secondaire</Text>
+                <View style={styles.rolesGrid}>
+                  {(JOB_TITLES as any)[secondaryRole].map((title: string) => (
+                    <TouchableOpacity
+                      key={title}
+                      style={[
+                        styles.roleButton,
+                        secondaryJobTitle === title && styles.roleButtonActive,
+                      ]}
+                      onPress={() => setSecondaryJobTitle(title)}
+                    >
+                      <Text
+                        style={[
+                          styles.roleText,
+                          secondaryJobTitle === title && styles.roleTextActive,
+                        ]}
+                      >
+                        {title}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            )}
 
             <TouchableOpacity
               style={[
@@ -209,7 +305,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   },
   subtitle: {
     fontSize: 16,
-    color: isDark ? "#aaa" : "#666",
+    color: colors.text + "80",
     marginBottom: 30,
     textAlign: "center",
     lineHeight: 22,
@@ -252,7 +348,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   },
   roleText: {
     fontSize: 14,
-    color: isDark ? "#aaa" : "#666",
+    color: colors.text,
   },
   roleTextActive: {
     color: "#fff",
@@ -276,7 +372,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     fontWeight: "bold",
   },
   disabledButton: {
-    backgroundColor: "#ccc",
+    backgroundColor: isDark ? colors.border : "#ccc",
     shadowOpacity: 0,
     elevation: 0,
   },

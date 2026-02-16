@@ -729,7 +729,7 @@ export default function AuthScreen() {
                 style={{ marginTop: 24, alignItems: "center", opacity: 0.7 }}
               >
                 <Text
-                  style={{ fontSize: 14, color: "#64748b", fontWeight: "500" }}
+                  style={{ fontSize: 14, color: colors.text + "80", fontWeight: "500" }}
                 >
                   Besoin d'aide ?{" "}
                   <Text style={{ color: colors.primary, fontWeight: "600" }}>
@@ -743,7 +743,7 @@ export default function AuthScreen() {
                 style={{ marginTop: 16, alignItems: "center", opacity: 0.7 }}
               >
                 <Text
-                  style={{ fontSize: 13, color: "#64748b", fontWeight: "500" }}
+                  style={{ fontSize: 13, color: colors.text + "80", fontWeight: "500" }}
                 >
                   En continuant, vous acceptez notre{" "}
                   <Text style={{ color: colors.primary, fontWeight: "600" }}>
@@ -757,7 +757,7 @@ export default function AuthScreen() {
                 style={{ marginTop: 8, alignItems: "center", opacity: 0.7 }}
               >
                 <Text
-                  style={{ fontSize: 12, color: "#64748b", fontWeight: "400" }}
+                  style={{ fontSize: 12, color: colors.text + "80", fontWeight: "400" }}
                 >
                   Lire notre{" "}
                   <Text style={{ color: colors.primary, fontWeight: "500" }}>
@@ -825,7 +825,7 @@ const createStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.2,
     shadowRadius: 10,
-    backgroundColor: "white",
+    backgroundColor: colors.card,
     elevation: 5,
   },
   logoImage: {

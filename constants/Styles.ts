@@ -16,59 +16,58 @@ const shadowStyle = Platform.select({
 export const GlobalStyles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.light.background,
+    backgroundColor: "transparent", // Let components handle background
   },
   // Boutons
   primaryButton: {
     backgroundColor: Colors.light.primary,
     paddingVertical: 14,
     paddingHorizontal: 24,
-    borderRadius: 12, // Arrondi intermédiaire (Mix Creative/Minimal)
+    borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
     ...shadowStyle,
   },
   secondaryButton: {
-    backgroundColor: "transparent",
+    backgroundColor: 'transparent',
     paddingVertical: 14,
     paddingHorizontal: 24,
     borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Colors.light.border,
     alignItems: "center",
     justifyContent: "center",
+    borderWidth: 1,
+    borderColor: Colors.light.border,
   },
   buttonText: {
-    color: "#FFFFFF",
-    fontWeight: "600",
+    color: '#FFFFFF',
     fontSize: 16,
+    fontWeight: '600',
   },
   secondaryButtonText: {
     color: Colors.light.text,
-    fontWeight: "600",
     fontSize: 16,
+    fontWeight: '600',
   },
-
   // Cards
   card: {
-    backgroundColor: Colors.light.card,
+    backgroundColor: "transparent", // Let components handle themed background
     borderRadius: 16,
-    padding: Platform.OS === "web" ? 16 : 20, // Un peu moins de padding sur web
+    padding: Platform.OS === "web" ? 16 : 20, 
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: Colors.light.border,
+    borderColor: "transparent", // Let components handle themed border
     ...Platform.select({
       ios: {
         shadowColor: Colors.light.shadow,
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05, // Ombre très légère (Minimal)
+        shadowOpacity: 0.05,
         shadowRadius: 8,
       },
       android: {
         elevation: 2,
       },
       web: {
-        maxWidth: 600, // Limite la largeur des cartes sur le web
+        maxWidth: 600,
         alignSelf: "center",
         width: "100%",
         boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
@@ -78,14 +77,13 @@ export const GlobalStyles = StyleSheet.create({
 
   // Inputs
   input: {
-    backgroundColor: Colors.light.backgroundSecondary,
+    backgroundColor: "transparent", // Let components handle themed background
     borderRadius: 12,
     paddingVertical: 12,
     paddingHorizontal: 16,
     fontSize: 16,
-    color: Colors.light.text,
     borderWidth: 1,
-    borderColor: "transparent", // Bordure transparente par défaut
+    borderColor: "transparent",
   },
   inputActive: {
     borderColor: Colors.light.primary,
@@ -96,27 +94,23 @@ export const GlobalStyles = StyleSheet.create({
   title1: {
     fontSize: 28,
     fontWeight: "700",
-    color: Colors.light.text,
     marginBottom: 8,
     letterSpacing: -0.5, // Côté moderne/minimal
   },
   title2: {
     fontSize: 22,
     fontWeight: "600",
-    color: Colors.light.text,
     marginBottom: 6,
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: "700",
-    color: Colors.light.text,
     marginTop: 20,
     marginBottom: 10,
     letterSpacing: 0.2,
   },
   body: {
     fontSize: 16,
-    color: "#4B5563", // Gris moyen
     lineHeight: 24,
   },
   caption: {
@@ -127,13 +121,11 @@ export const GlobalStyles = StyleSheet.create({
   modalTitle: {
     fontSize: 20,
     fontWeight: "700",
-    color: Colors.light.text,
     marginBottom: 20,
   },
   label: {
     fontSize: 14,
     fontWeight: "600",
-    color: Colors.light.text,
     marginBottom: 8,
   },
 });

@@ -77,6 +77,13 @@ function RootLayoutContent({
           screenOptions={{
             // On web, we often want to hide the nested stack headers to let the browser or a custom web nav manage it
             headerShown: Platform.OS !== "web",
+            headerStyle: {
+              backgroundColor: colors.background,
+            },
+            headerTitleStyle: {
+              color: colors.text,
+            },
+            headerTintColor: colors.tint,
           }}
         >
           <Stack.Screen name="index" options={{ headerShown: false }} />
@@ -89,6 +96,10 @@ function RootLayoutContent({
             name="charte-confidentialite"
             options={{ headerShown: true, title: "Confidentialité" }}
           />
+          <Stack.Screen
+             name="settings"
+             options={{ headerShown: true, title: "Réglages" }}
+          />
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen
             name="direct-messages"
@@ -100,6 +111,7 @@ function RootLayoutContent({
             }}
           />
           <Stack.Screen name="project" options={{ headerShown: false }} />
+          <Stack.Screen name="locations" options={{ headerShown: false }} />
           <Stack.Screen name="network" options={{ headerShown: false }} />
           <Stack.Screen name="profile/[id]" options={{ headerShown: false }} />
           <Stack.Screen name="hall-of-fame" options={{ headerShown: false }} />

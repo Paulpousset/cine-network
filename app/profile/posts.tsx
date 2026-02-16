@@ -6,15 +6,15 @@ import { useFocusEffect } from "@react-navigation/native";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
-  Alert,
-  AppState,
-  FlatList,
-  Image,
-  Platform,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    Alert,
+    AppState,
+    FlatList,
+    Image,
+    Platform,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
 
 interface Post {
@@ -155,9 +155,9 @@ export default function UserPostsScreen() {
         )}
       </View>
 
-      {item.content && <Text style={styles.bodyText}>{item.content}</Text>}
+      {!!item.content && <Text style={styles.bodyText}>{item.content}</Text>}
 
-      {item.image_url && (
+      {!!item.image_url && (
         <Image
           source={{ uri: item.image_url }}
           style={styles.postImage}

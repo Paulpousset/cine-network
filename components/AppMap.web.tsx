@@ -113,7 +113,16 @@ const AppMap = ({ style, initialRegion, children }: any) => {
     );
   }
 
-  const { MapContainer, TileLayer } = require("react-leaflet");
+  const { MapContainer, TileLayer, useMap } = require("react-leaflet");
+
+  // Component to update map view when initialRegion changes
+  const ChangeView = ({ center, zoom }: { center: [number, number], zoom: number }) => {
+    const map = useMap();
+    useEffect(() => {
+      map.setView(center, zoom);
+    }, [center, zoom]);
+    return null;
+  };
 
   // Leaflet expects center as [lat, lon]
   const center: [number, number] = initialRegion
@@ -131,13 +140,9 @@ const AppMap = ({ style, initialRegion, children }: any) => {
       )
     : 5;
 
-  const flattenedStyle = Array.isArray(style)
-    ? Object.assign({}, ...style)
-    : style;
-
   return (
     <View
-      style={[{ flex: 1, minHeight: 400, overflow: "hidden" }, flattenedStyle]}
+      style={[{ flex: 1, minHeight: 400, overflow: "hidden" }, style]}
     >
       <MapContainer
         center={center}
@@ -148,6 +153,7 @@ const AppMap = ({ style, initialRegion, children }: any) => {
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
+        <ChangeView center={center} zoom={zoom} />
         {children}
       </MapContainer>
     </View>

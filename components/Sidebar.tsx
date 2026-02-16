@@ -41,6 +41,7 @@ const NAVIGATION_ITEMS = [
   { name: "Casting & Jobs", icon: "briefcase", href: "/jobs" },
 
   { name: "Réseau", icon: "user", href: "/talents" },
+  { name: "Lieux", icon: "map-marker", href: "/locations", isIonicons: false },
   { name: "Notifications", icon: "bell", href: "/notifications" },
   { name: "Hall of Fame", icon: "trophy", href: "/hall-of-fame" }, // New Item
   { name: "Messages", icon: "comments", href: "/direct-messages", id: "chats" },
@@ -363,11 +364,11 @@ export default function Sidebar() {
     { name: "Équipe", icon: "users", href: `/project/${projectId}/team` },
   ];
 
-  if (isOwner) {
+  if (isMember) {
     PROJECT_ITEMS.push({
-      name: "Admin",
+      name: isOwner ? "Admin" : "Paramètres",
       icon: "gear",
-      href: `/project/${projectId}/admin`,
+      href: isOwner ? `/project/${projectId}/admin` : `/project/${projectId}/settings`,
     });
   }
 
@@ -527,18 +528,17 @@ export default function Sidebar() {
           paddingVertical: 12,
           paddingHorizontal: 15,
           borderRadius: 8,
-          gap: 12,
           backgroundColor: isActive
             ? colors.tint + "10"
             : "transparent",
         }}
       >
-        <View style={{ position: "relative" }}>
+        <View style={{ position: "relative", marginRight: 12 }}>
           <SafeIcon
             isIonicons={(item as any).isIonicons}
             name={item.icon as any}
             size={20}
-            color={isActive ? colors.tint : colors.text + "80"}
+            color={isActive ? colors.tint : (isDark ? "#FFFFFF" : colors.text + "80")}
           />
             {/* Badge Chat */}
             {isChats && !expanded && totalUnread > 0 && (
@@ -576,6 +576,7 @@ export default function Sidebar() {
           {!effectiveCollapsed && (
             <>
               <Text
+                numberOfLines={1}
                 style={{
                   fontSize: 16,
                   fontWeight: isActive ? "600" : "500",
@@ -625,7 +626,7 @@ export default function Sidebar() {
                     isIonicons={false}
                     name={expanded ? "chevron-down" : "chevron-right"}
                     size={12}
-                    color={colors.text + "80"}
+                    color={isDark ? "#FFFFFF" : colors.text + "80"}
                   />
                 </Hoverable>
               )}
@@ -676,13 +677,13 @@ export default function Sidebar() {
                       isIonicons={false}
                       name="film"
                       size={isStudio ? 14 : 12}
-                      color={isSelected ? colors.primary : colors.text + "99"}
+                      color={isSelected ? colors.primary : (isDark ? "#FFFFFF" : colors.text + "99")}
                     />
                     <Text
                       numberOfLines={1}
                       style={{
                         fontSize: isStudio ? 14 : 12,
-                        color: isSelected ? colors.primary : colors.text + "CC",
+                        color: isSelected ? colors.primary : (isDark ? "#FFFFFF" : colors.text + "CC"),
                         fontWeight: isSelected ? "700" : "500",
                         flex: 1,
                       }}
@@ -776,7 +777,7 @@ export default function Sidebar() {
                       numberOfLines={1}
                       style={{
                         fontSize: 12,
-                        color: isSelected ? colors.primary : colors.text + "CC",
+                        color: isSelected ? colors.primary : (isDark ? "#FFFFFF" : colors.text + "CC"),
                         fontWeight:
                           isSelected || displayUnreadCount > 0 ? "700" : "500",
                         flex: 1,
@@ -946,7 +947,10 @@ export default function Sidebar() {
           >
             <SafeIcon isIonicons={false} name="plus-circle" size={18} color="white" />
             {!effectiveCollapsed && (
-              <Text style={{ color: "white", fontWeight: "700", fontSize: 16 }}>
+              <Text 
+                numberOfLines={1}
+                style={{ color: "white", fontWeight: "700", fontSize: 16 }}
+              >
                 Nouveau Projet
               </Text>
             )}
@@ -970,7 +974,10 @@ export default function Sidebar() {
           >
             <SafeIcon isIonicons={false} name="arrow-left" size={16} color={colors.text + "CC"} />
             {!effectiveCollapsed && (
-              <Text style={{ color: colors.text + "CC", fontWeight: "600" }}>
+              <Text 
+                numberOfLines={1}
+                style={{ color: colors.text + "CC", fontWeight: "600" }}
+              >
                 Tous mes projets
               </Text>
             )}
@@ -1007,10 +1014,11 @@ export default function Sidebar() {
                     {!effectiveCollapsed && (
                       <>
                         <Text
+                          numberOfLines={1}
                           style={{
                             fontSize: 12,
                             fontWeight: "800",
-                            color: colors.text + "80",
+                            color: isDark ? "#FFFFFF" : colors.text + "80",
                             flex: 1,
                             letterSpacing: 1,
                           }}
@@ -1054,7 +1062,7 @@ export default function Sidebar() {
               style={{
                 fontSize: 12,
                 fontWeight: "700",
-                color: colors.text + "80",
+                color: isDark ? "#FFFFFF" : colors.text + "80",
                 marginLeft: 15,
                 marginBottom: 8,
               }}
@@ -1127,7 +1135,7 @@ export default function Sidebar() {
                       alignItems: "center",
                     }}
                   >
-                    <Text style={{ fontSize: 12, color: colors.text + "80" }}>
+                    <Text style={{ fontSize: 12, color: isDark ? "#FFFFFF" : colors.text + "80" }}>
                       {talent.full_name?.charAt(0)}
                     </Text>
                   </View>
@@ -1141,7 +1149,7 @@ export default function Sidebar() {
                     color:
                       impersonatedUser?.id === talent.id
                         ? colors.primary
-                        : colors.text + "CC",
+                        : (isDark ? "#FFFFFF" : colors.text + "CC"),
                     flex: 1,
                   }}
                 >
@@ -1159,6 +1167,52 @@ export default function Sidebar() {
             ))}
           </View>
         )}
+
+        {/* Réglages */}
+        <Hoverable
+          onPress={() => router.push("/settings")}
+          hoverStyle={{
+            backgroundColor: pathname.startsWith("/settings")
+              ? colors.primary + "20"
+              : colors.backgroundSecondary,
+          }}
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "flex-start",
+            paddingVertical: 12,
+            paddingHorizontal: 15,
+            borderRadius: 8,
+            gap: 12,
+            backgroundColor: pathname.startsWith("/settings")
+              ? colors.primary + "10"
+              : "transparent",
+            marginTop: 10,
+          }}
+        >
+          <SafeIcon
+            isIonicons={true}
+            name="settings-outline"
+            size={20}
+            color={
+              pathname.startsWith("/settings") ? colors.primary : (isDark ? "#FFFFFF" : colors.text + "CC")
+            }
+          />
+          {!effectiveCollapsed && (
+            <Text
+              numberOfLines={1}
+              style={{
+                fontSize: 16,
+                fontWeight: pathname.startsWith("/settings") ? "600" : "500",
+                color: pathname.startsWith("/settings")
+                  ? colors.primary
+                  : (isDark ? "#FFFFFF" : colors.text + "CC"),
+              }}
+            >
+              Réglages
+            </Text>
+          )}
+        </Hoverable>
 
         {/* Mon Compte fixé en bas */}
         <Hoverable
@@ -1204,18 +1258,19 @@ export default function Sidebar() {
               name="user-circle"
               size={20}
               color={
-                pathname.startsWith("/account") ? colors.primary : colors.text + "CC"
+                pathname.startsWith("/account") ? colors.primary : (isDark ? "#FFFFFF" : colors.text + "CC")
               }
             />
           )}
           {!effectiveCollapsed && (
             <Text
+              numberOfLines={1}
               style={{
                 fontSize: 16,
                 fontWeight: pathname.startsWith("/account") ? "600" : "500",
                 color: pathname.startsWith("/account")
                   ? colors.primary
-                  : colors.text + "CC",
+                  : (isDark ? "#FFFFFF" : colors.text + "CC"),
               }}
             >
               Mon Compte
@@ -1245,10 +1300,11 @@ export default function Sidebar() {
         >
           {!effectiveCollapsed && (
             <Text
+              numberOfLines={1}
               style={{
                 fontSize: 13,
                 fontWeight: "700",
-                color: mode === "studio" ? colors.primary : colors.text + "CC",
+                color: mode === "studio" ? colors.primary : (isDark ? "#FFFFFF" : colors.text + "CC"),
               }}
             >
               MODE STUDIO
@@ -1293,7 +1349,8 @@ function createStyles(colors: any, isDark: boolean) {
       height: 140,
       marginBottom: 20,
       paddingHorizontal: 0,
-      justifyContent: "center",
+      justifyContent: "flex-start",
+      paddingTop: 30,
     },
     logo: {
       fontSize: 20,
@@ -1318,7 +1375,7 @@ function createStyles(colors: any, isDark: boolean) {
     menuText: {
       fontSize: 16,
       fontWeight: "500",
-      color: colors.text + "CC",
+      color: isDark ? "#FFFFFF" : colors.text + "CC",
     },
     menuTextActive: {
       color: colors.primary,
@@ -1330,7 +1387,7 @@ function createStyles(colors: any, isDark: boolean) {
     },
     footerText: {
       fontSize: 12,
-      color: colors.text + "80",
+      color: isDark ? "#FFFFFF" : colors.text + "80",
     },
   });
 }

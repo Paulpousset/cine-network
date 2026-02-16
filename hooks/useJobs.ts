@@ -29,6 +29,7 @@ export function useJobs() {
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [selectedCity, setSelectedCity] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [hideMyParticipations, setHideMyParticipations] = useState(false);
 
   const fetchRecommendations = useCallback(async () => {
     try {
@@ -36,27 +37,68 @@ export function useJobs() {
 
       const { data: roles } = await supabase
         .from("project_roles")
-        .select(`*, tournages (*)`)
+        .select(`*, tournages!inner (*)`)
         .eq("status", "published")
         .is("assigned_profile_id", null)
+        .neq("tournages.status", "completed")
         .limit(50);
 
       if (!roles) return;
 
-      const recs = getRecommendedRoles(userProfile, roles);
+      let visible = roles;
+
+      if (hideMyParticipations && effectiveUserId) {
+        const { data: participations } = await supabase
+          .from("project_roles")
+          .select("id, tournage_id")
+          .eq("assigned_profile_id", effectiveUserId);
+
+        const { data: myOwnedProjects } = await supabase
+          .from("tournages")
+          .select("id")
+          .eq("owner_id", effectiveUserId);
+
+        const { data: characterRoles } = await supabase
+          .from("project_characters")
+          .select("project_id")
+          .eq("assigned_actor_id", effectiveUserId);
+
+        const { data: myApplications } = await supabase
+          .from("applications" as any)
+          .select("role_id")
+          .eq("candidate_id", effectiveUserId);
+
+        const involvedProjectIds = new Set([
+          ...(participations?.map((p) => p.tournage_id) || []),
+          ...(myOwnedProjects?.map((p) => p.id) || []),
+          ...(characterRoles?.map((p) => p.project_id) || []),
+        ]);
+        const appliedRoleIds = new Set(
+          myApplications?.map((a: any) => a.role_id) || [],
+        );
+
+        visible = visible.filter(
+          (role) =>
+            !involvedProjectIds.has(role.tournage_id) &&
+            !appliedRoleIds.has(role.id),
+        );
+      }
+
+      const recs = getRecommendedRoles(userProfile, visible);
       setRecommendations(recs.slice(0, 3));
     } catch (e) {
       console.log("Error fetching recommendations", e);
     }
-  }, [effectiveUserId, userProfile]);
+  }, [effectiveUserId, userProfile, hideMyParticipations]);
 
   const fetchCities = useCallback(async () => {
     try {
       // On récupère les villes uniquement pour les rôles publiés
       const { data, error } = await supabase
         .from("project_roles")
-        .select("tournages!inner(ville)")
-        .eq("status", "published");
+        .select("tournages!inner(ville, status)")
+        .eq("status", "published")
+        .neq("tournages.status", "completed");
 
       if (error) throw error;
 
@@ -84,14 +126,15 @@ export function useJobs() {
       }
       console.log("[useJobs] Start fetching roles");
 
-      const userId = user?.id;
+      const userId = effectiveUserId;
 
       let query = supabase
         .from("project_roles")
         .select(
-          `*, tournages!inner ( id, title, type, pays, ville, latitude, longitude, owner_id )`,
+          `*, tournages!inner ( id, title, type, pays, ville, latitude, longitude, owner_id, status )`,
         )
         .eq("status", "published") // Only show published roles
+        .neq("tournages.status", "completed")
         .order("is_boosted", { ascending: false })
         .order("created_at", { ascending: false });
 
@@ -125,9 +168,52 @@ export function useJobs() {
       const { data, error } = await query;
       if (error) throw error;
 
-      const visible = ((data as any[]) || []).filter(
+      let visible = ((data as any[]) || []).filter(
         (r) => r.status === "published" && r.tournages,
       );
+
+      // Filtering out participations if requested
+      if (hideMyParticipations && userId) {
+        // We need to know where the user is already involved
+        // 1. Applications active
+        // 2. Roles assigned
+        // 3. Project owner
+        const { data: participations } = await supabase
+          .from("project_roles")
+          .select("id, tournage_id")
+          .eq("assigned_profile_id", userId);
+
+        const { data: myOwnedProjects } = await supabase
+          .from("tournages")
+          .select("id")
+          .eq("owner_id", userId);
+
+        const { data: characterRoles } = await supabase
+          .from("project_characters")
+          .select("project_id")
+          .eq("assigned_actor_id", userId);
+
+        const { data: myApplications } = await supabase
+          .from("applications" as any)
+          .select("role_id")
+          .eq("candidate_id", userId);
+
+        const involvedProjectIds = new Set([
+          ...(participations?.map((p) => p.tournage_id) || []),
+          ...(myOwnedProjects?.map((p) => p.id) || []),
+          ...(characterRoles?.map((p) => p.project_id) || []),
+        ]);
+        const appliedRoleIds = new Set(
+          myApplications?.map((a: any) => a.role_id) || [],
+        );
+
+        visible = visible.filter(
+          (role) =>
+            !involvedProjectIds.has(role.tournage_id) &&
+            !appliedRoleIds.has(role.id),
+        );
+      }
+
       setAllRoles(visible);
     } catch (error) {
       console.error("Error fetching roles:", error);
@@ -136,7 +222,7 @@ export function useJobs() {
       setLoading(false);
       console.log("[useJobs] Fetching roles finished");
     }
-  }, [user?.id, selectedCategory, selectedCity]);
+  }, [effectiveUserId, selectedCategory, selectedCity, hideMyParticipations]);
 
   useEffect(() => {
     fetchRoles();
@@ -219,6 +305,8 @@ export function useJobs() {
     setSelectedCity,
     searchQuery,
     setSearchQuery,
+    hideMyParticipations,
+    setHideMyParticipations,
     refreshRoles: fetchRoles,
   };
 }

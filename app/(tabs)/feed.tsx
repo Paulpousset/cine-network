@@ -7,14 +7,14 @@ import { FlashList } from "@shopify/flash-list";
 import { router, Stack } from "expo-router";
 import React, { useState } from "react";
 import {
-  Image,
-  Modal,
-  Platform,
-  RefreshControl,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    Image,
+    Modal,
+    Platform,
+    RefreshControl,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
 
 export default function FeedScreen() {
@@ -284,7 +284,7 @@ function createStyles(colors: any, isDark: boolean) {
     filterText: {
       fontSize: 14,
       fontWeight: "600",
-      color: isDark ? "#A0A0A0" : "#666",
+      color: isDark ? "#D1D5DB" : "#666",
     },
     filterTextActive: {
       color: colors.primary,

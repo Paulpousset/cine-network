@@ -1,13 +1,12 @@
 import CityAutocomplete from "@/components/CityAutocomplete";
 import ClapLoading from "@/components/ClapLoading";
 import PaymentModal from "@/components/PaymentModal";
-import Colors from "@/constants/Colors";
 import { GlobalStyles } from "@/constants/Styles";
 import { useUserMode } from "@/hooks/useUserMode";
 import { appEvents, EVENTS } from "@/lib/events";
 import { supabase } from "@/lib/supabase";
-import { ACCENT_COLORS, AccentColor, useTheme } from "@/providers/ThemeProvider";
-import { useTutorial } from "@/providers/TutorialProvider";
+import { useTheme } from "@/providers/ThemeProvider";
+import { JOB_TITLES } from "@/utils/roles";
 import { Ionicons } from "@expo/vector-icons";
 import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from "expo-image-picker";
@@ -16,7 +15,7 @@ import React, { useEffect, useState } from "react";
 import {
   Alert,
   Image,
-  Linking,
+  Modal,
   Platform,
   ScrollView,
   StyleSheet,
@@ -24,7 +23,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  View,
+  View
 } from "react-native";
 
 // --- CONSTANTS ---
@@ -65,6 +64,9 @@ export default function Account() {
   const [city, setCity] = useState("");
   const [website, setWebsite] = useState("");
   const [role, setRole] = useState("");
+  const [jobTitle, setJobTitle] = useState("");
+  const [secondaryRole, setSecondaryRole] = useState("");
+  const [secondaryJobTitle, setSecondaryJobTitle] = useState("");
   const [avatar_url, setAvatarUrl] = useState("");
   const [subscriptionTier, setSubscriptionTier] = useState("free");
   const [bio, setBio] = useState("");
@@ -88,9 +90,14 @@ export default function Account() {
   const [myProjects, setMyProjects] = useState<any[]>([]);
   const [myParticipations, setMyParticipations] = useState<any[]>([]);
   const [paymentModalVisible, setPaymentModalVisible] = useState(false);
-  const { startTutorial, isLoading: isTutorialLoading } = useTutorial();
+  const [fullTextModal, setFullTextModal] = useState<{
+    visible: boolean;
+    title: string;
+    text: string;
+    onSave: (text: string) => void;
+  }>({ visible: false, title: "", text: "", onSave: () => {} });
 
-  const { themeMode, setThemeMode, accentColor, setAccentColor, colors, isDark } = useTheme();
+  const { colors, isDark } = useTheme();
 
   const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.backgroundSecondary },
@@ -136,7 +143,7 @@ export default function Account() {
       letterSpacing: 1,
       opacity: 0.8,
     },
-    label: { fontSize: 13, color: isDark ? "#9CA3AF" : "#666", marginBottom: 6, fontWeight: "500" },
+    label: { fontSize: 13, color: colors.textSecondary, marginBottom: 6, fontWeight: "500" },
     textArea: { height: 100, textAlignVertical: "top" },
     addButton: {
       flexDirection: "row",
@@ -144,9 +151,7 @@ export default function Account() {
       gap: 8,
       padding: 12,
       borderRadius: 10,
-      borderWidth: 1,
-      borderStyle: "dashed",
-      borderColor: colors.border,
+      backgroundColor: colors.primary,
       marginTop: 5,
     },
     skillBadge: {
@@ -185,7 +190,7 @@ export default function Account() {
     radioText: {
       fontSize: 14,
       fontWeight: "600",
-      color: isDark ? "#9CA3AF" : "#666",
+      color: colors.textSecondary,
     },
     radioTextActive: { color: colors.primary, fontWeight: "700" },
     input: {
@@ -235,7 +240,7 @@ export default function Account() {
     },
     tagText: {
       fontSize: 13,
-      color: isDark ? "#9CA3AF" : "#666",
+      color: colors.textSecondary,
       fontWeight: "500",
     },
     tagTextSelected: {
@@ -264,6 +269,10 @@ export default function Account() {
       borderRadius: 8,
       backgroundColor: colors.background,
       borderWidth: 1,
+      borderColor: colors.border,
+    },
+    card: {
+      backgroundColor: colors.background,
       borderColor: colors.border,
     },
   });
@@ -295,6 +304,9 @@ export default function Account() {
         setCity(data.ville || "");
         setWebsite(data.website || "");
         setRole(data.role || "");
+        setJobTitle(data.job_title || "");
+        setSecondaryRole(data.secondary_role || "");
+        setSecondaryJobTitle(data.secondary_job_title || "");
         setAvatarUrl(data.avatar_url);
         setSubscriptionTier(data.subscription_tier || "free");
 
@@ -331,12 +343,36 @@ export default function Account() {
       // Fetch user's projects for visibility management
       const { data: projects } = await supabase
         .from("tournages")
-        .select("id, title, type, created_at")
+        .select("id, title, type, created_at, status, image_url")
         .eq("owner_id", session?.user?.id || effectiveUserId)
         .order("created_at", { ascending: false });
 
       if (projects) {
         setMyProjects(projects);
+      }
+
+      // Fetch personal experience notes
+      const { data: experienceNotes } = await supabase
+        .from("profile_experience_notes")
+        .select("project_id, note, image_url, custom_title")
+        .eq("profile_id", effectiveUserId);
+
+      const notesMap = (experienceNotes || []).reduce((acc: any, curr: any) => {
+        acc[curr.project_id] = {
+            note: curr.note,
+            image_url: curr.image_url,
+            custom_title: curr.custom_title
+        };
+        return acc;
+      }, {});
+
+      if (projects) {
+        setMyProjects(projects.map((p: any) => ({
+          ...p,
+          personalNote: notesMap[p.id]?.note || "",
+          personalImage: notesMap[p.id]?.image_url || null,
+          personalTitle: notesMap[p.id]?.custom_title || null
+        })));
       }
 
       // Fetch participations
@@ -352,7 +388,9 @@ export default function Account() {
             title,
             type,
             created_at,
-            is_public
+            is_public,
+            status,
+            image_url
           )
         `,
         )
@@ -364,11 +402,16 @@ export default function Account() {
           .map((p: any) => ({
             id: p.id,
             roleTitle: p.title,
+            personalNote: notesMap[p.tournages?.id]?.note || "",
+            personalImage: notesMap[p.tournages?.id]?.image_url || null,
+            personalTitle: notesMap[p.tournages?.id]?.custom_title || null,
             projectId: p.tournages?.id,
             projectTime: p.tournages?.created_at,
             projectTitle: p.tournages?.title,
             projectType: p.tournages?.type,
             projectPublic: p.tournages?.is_public,
+            projectStatus: p.tournages?.status,
+            projectImage: p.tournages?.image_url
           }))
           .filter((p: any) => p.projectTitle);
         setMyParticipations(formattedParts);
@@ -510,13 +553,81 @@ export default function Account() {
     }
   }
 
+  async function updateExperienceField(projectId: string, field: 'note' | 'image_url' | 'custom_title', value: string | null) {
+    try {
+      const keyMap = {
+        note: 'personalNote',
+        image_url: 'personalImage',
+        custom_title: 'personalTitle'
+      };
+      
+      const stateKey = keyMap[field];
+      
+      setMyProjects(prev => prev.map(p => p.id === projectId ? { ...p, [stateKey]: value } : p));
+      setMyParticipations(prev => prev.map(p => p.projectId === projectId ? { ...p, [stateKey]: value } : p));
+      
+      if (!effectiveUserId) return;
+      
+      const { error } = await supabase
+        .from("profile_experience_notes")
+        .upsert({ 
+          profile_id: effectiveUserId, 
+          project_id: projectId,
+          [field]: value,
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'profile_id,project_id' });
+      if (error) throw error;
+    } catch (e) {
+      console.error("Error updating experience field:", e);
+    }
+  }
+
+  async function uploadExperienceImage(projectId: string) {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ["images"],
+        allowsEditing: true,
+        aspect: [16, 9],
+        quality: 0.8,
+      });
+
+      if (result.canceled || !result.assets) return;
+      setUploading(true);
+
+      const image = result.assets[0];
+      const fileExt = image.uri.split(".").pop();
+      const fileName = `experience/${effectiveUserId}/${projectId}_${Date.now()}.${fileExt}`;
+
+      const arrayBuffer = await fetch(image.uri).then((res) => res.arrayBuffer());
+      const { error: uploadError } = await supabase.storage
+        .from("user_content")
+        .upload(fileName, arrayBuffer, {
+          contentType: image.mimeType || "image/jpeg",
+          upsert: true,
+        });
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage.from("user_content").getPublicUrl(fileName);
+      
+      await updateExperienceField(projectId, 'image_url', publicUrl);
+    } catch (e) {
+      Alert.alert("Erreur", "Impossible d'uploader l'image d'expérience");
+    } finally {
+      setUploading(false);
+    }
+  }
+
   async function handleUpgradeSuccess() {
     try {
       if (!effectiveUserId) return;
 
       const { error } = await supabase
         .from("profiles")
-        .update({ subscription_tier: "studio" })
+        .update({ 
+          subscription_tier: "studio",
+          updated_at: new Date().toISOString()
+        })
         .eq("id", effectiveUserId);
 
       if (error) throw error;
@@ -526,199 +637,6 @@ export default function Account() {
       Alert.alert("Erreur", "Impossible de mettre à jour votre abonnement.");
     }
   }
-
-  const handleDeleteAccount = async () => {
-    console.log("handleDeleteAccount called");
-
-    const confirmDelete = async () => {
-      console.log("Delete confirmed, starting process...");
-      setLoading(true);
-      try {
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
-        if (session?.user) {
-          const userId = session.user.id;
-          console.log("Deleting data for user:", userId);
-
-          // 0. Delete public profile settings
-          console.log("0. Deleting settings...");
-          const { error: settingsError } = await supabase
-            .from("public_profile_settings")
-            .delete()
-            .eq("id", userId);
-          // Ignore error if not found or already deleted?
-          // But strict error handling is better to catch constraints.
-          if (settingsError && settingsError.code !== "PGRST116") {
-            // Ignore if not found? No, delete doesn't error if not found.
-            if (settingsError) throw settingsError;
-          }
-
-          // 1. Delete connections (requester or receiver)
-          console.log("1. Deleting connections...");
-          const { error: connectionsError } = await supabase
-            .from("connections")
-            .delete()
-            .or(`requester_id.eq.${userId},receiver_id.eq.${userId}`);
-          if (connectionsError) throw connectionsError;
-
-          // 2. Delete applications made by user
-          console.log("2. Deleting applications...");
-          const { error: applicationsError } = await supabase
-            .from("applications")
-            .delete()
-            .eq("candidate_id", userId);
-          if (applicationsError) throw applicationsError;
-
-          // 3. Delete posts
-          console.log("3. Deleting posts...");
-          const { error: postsError } = await supabase
-            .from("posts")
-            .delete()
-            .eq("user_id", userId);
-          if (postsError) throw postsError;
-
-          // 4. Delete project likes
-          console.log("4. Deleting likes...");
-          const { error: likesError } = await supabase
-            .from("project_likes")
-            .delete()
-            .eq("user_id", userId);
-          if (likesError) throw likesError;
-
-          // 5. Delete direct messages (sender or receiver)
-          console.log("5. Deleting DMs...");
-          const { error: dmError } = await supabase
-            .from("direct_messages")
-            .delete()
-            .or(`sender_id.eq.${userId},receiver_id.eq.${userId}`);
-          if (dmError) throw dmError;
-
-          // 6. Delete project messages
-          console.log("6. Deleting project messages...");
-          const { error: pmError } = await supabase
-            .from("project_messages")
-            .delete()
-            .eq("sender_id", userId);
-          if (pmError) throw pmError;
-
-          // 7. Delete project files
-          console.log("7. Deleting project files...");
-          const { error: filesError } = await supabase
-            .from("project_files")
-            .delete()
-            .eq("uploader_id", userId);
-          if (filesError) throw filesError;
-
-          // 7.5 Unassign from Project Roles & Inventory
-          console.log("7.5 Unassigning roles & inventory...");
-          const { error: rolesError } = await supabase
-            .from("project_roles")
-            .update({ assigned_profile_id: null })
-            .eq("assigned_profile_id", userId);
-          if (rolesError) throw rolesError;
-
-          const { error: inventoryError } = await supabase
-            .from("project_inventory")
-            .update({ assigned_to: null })
-            .eq("assigned_to", userId);
-          if (inventoryError) throw inventoryError;
-
-          // 8. Delete projects owned by user
-          console.log("8. Deleting owned projects...");
-          const { error: projectsError } = await supabase
-            .from("tournages")
-            .delete()
-            .eq("owner_id", userId);
-          if (projectsError) throw projectsError;
-
-          // 9. Finally delete profile
-          console.log("9. Deleting profile...");
-          const { error } = await supabase
-            .from("profiles")
-            .delete()
-            .eq("id", userId);
-
-          if (error) {
-            console.log("Delete profile error handled:", error);
-            throw error;
-          }
-
-          // 10. Delete Auth User (requires delete_user RPC function)
-          console.log("10. Deleting auth user...");
-          const { error: rpcError } = await supabase.rpc("delete_user");
-
-          if (rpcError) {
-            console.log(
-              "RPC delete_user failed (function might be missing), but profile is gone.",
-            );
-            // We don't throw here to avoid preventing the success UI
-            // if the user hasn't set up the RPC yet, at least their data is gone.
-            console.log("RPC error handled:", rpcError);
-          }
-
-          console.log("Delete success. Signing out.");
-
-          const successTitle = "Compte supprimé";
-          const successMsg =
-            "Votre compte et vos données ont été supprimés avec succès.";
-
-          if (Platform.OS === "web") {
-            window.alert(`${successTitle}\n\n${successMsg}`);
-          } else {
-            // On mobile, alert might be interrupted by navigation/signout,
-            // but usually ok.
-            Alert.alert(successTitle, successMsg);
-          }
-
-          await supabase.auth.signOut();
-          router.replace("/");
-        }
-      } catch (error: any) {
-        console.log("Delete account error handled:", error);
-
-        const errTitle = "Erreur";
-        const errMsg =
-          "Impossible de supprimer le compte: " +
-          (error.message || JSON.stringify(error));
-
-        if (Platform.OS === "web") {
-          window.alert(`${errTitle}\n\n${errMsg}`);
-        } else {
-          Alert.alert(errTitle, errMsg);
-        }
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (Platform.OS === "web") {
-      if (
-        window.confirm(
-          "Êtes-vous sûr de vouloir supprimer votre compte ? Cette action est irréversible.",
-        )
-      ) {
-        confirmDelete();
-      }
-    } else {
-      Alert.alert(
-        "Supprimer mon compte",
-        "Êtes-vous sûr de vouloir supprimer votre compte ? Cette action est irréversible et supprimera toutes vos données. (Note: Cette action ne supprime que votre profil public, pour une suppression complète des données d'authentification, contactez le support)",
-        [
-          {
-            text: "Annuler",
-            style: "cancel",
-            onPress: () => console.log("Delete canceled"),
-          },
-          {
-            text: "Supprimer",
-            style: "destructive",
-            onPress: confirmDelete,
-          },
-        ],
-      );
-    }
-  };
 
   // --- SAVE ---
 
@@ -747,6 +665,9 @@ export default function Account() {
         ville: city,
         website,
         role,
+        job_title: jobTitle,
+        secondary_role: secondaryRole,
+        secondary_job_title: secondaryJobTitle,
         bio,
         email_public,
         phone,
@@ -825,27 +746,34 @@ export default function Account() {
         <TouchableOpacity onPress={() => router.back()} style={{ padding: 5 }}>
           <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={[GlobalStyles.title2, { marginBottom: 0 }]}>
-          {/* put the full name here  */}
-
+        <Text style={[GlobalStyles.title2, { marginBottom: 0, color: colors.text }]}>
           {profile.full_name || "Mon Profil"}
         </Text>
-        <TouchableOpacity
-          onPress={saveProfile}
-          disabled={loading || uploading}
-          style={{ padding: 5 }}
-        >
-          {loading || uploading ? (
-            <ClapLoading size={24} color={colors.primary} />
-          ) : (
-            <Text style={{ color: colors.primary, fontWeight: "bold" }}>
-              Enregistrer
-            </Text>
-          )}
-        </TouchableOpacity>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 15 }}>
+          <TouchableOpacity
+            onPress={() => router.push("/settings")}
+            style={{ padding: 5 }}
+          >
+            <Ionicons name="settings-outline" size={24} color={colors.text} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={saveProfile}
+            disabled={loading || uploading}
+            style={{ padding: 5 }}
+          >
+            {loading || uploading ? (
+              <ClapLoading size={24} color={colors.primary} />
+            ) : (
+              <Text style={{ color: colors.primary, fontWeight: "bold" }}>
+                Enregistrer
+              </Text>
+            )}
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
+
         {/* AVATAR */}
         <View style={{ alignItems: "center", marginBottom: 20 }}>
           <TouchableOpacity onPress={() => uploadImage(true)}>
@@ -853,39 +781,65 @@ export default function Account() {
               <Image source={{ uri: avatar_url }} style={styles.avatar} />
             ) : (
               <View style={[styles.avatar, styles.avatarPlaceholder]}>
-                <Ionicons name="camera" size={30} color="#999" />
+                <Ionicons name="camera" size={30} color={colors.textSecondary} />
               </View>
             )}
             <View style={styles.editBadge}>
               <Ionicons name="pencil" size={12} color="white" />
             </View>
           </TouchableOpacity>
-          <Text style={{ marginTop: 10, color: "#666" }}>
+          <Text style={{ marginTop: 10, color: colors.textSecondary }}>
             Photo de profil principale
           </Text>
+
+          <TouchableOpacity
+            onPress={() => router.push(`/profile/${effectiveUserId}`)}
+            style={{
+              marginTop: 15,
+              backgroundColor: colors.primary + "20",
+              paddingHorizontal: 20,
+              paddingVertical: 10,
+              borderRadius: 20,
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 8,
+            }}
+          >
+            <Ionicons
+              name="person-circle-outline"
+              size={20}
+              color={colors.primary}
+            />
+            <Text style={{ color: colors.primary, fontWeight: "600" }}>
+              Voir ma carte de profil
+            </Text>
+          </TouchableOpacity>
         </View>
 
         {/* ABONNEMENT */}
         <View
           style={[
             GlobalStyles.card,
+            styles.card,
             { alignItems: "center", paddingVertical: 25 },
           ]}
         >
-          <Text style={GlobalStyles.title2}>Mon Abonnement</Text>
+          <Text style={[GlobalStyles.title2, { color: colors.text }]}>Mon Abonnement</Text>
           <View
             style={{
               backgroundColor:
-                subscriptionTier === "studio" ? colors.primary : "#eee",
+                subscriptionTier === "studio" ? colors.primary : colors.backgroundSecondary,
               paddingHorizontal: 15,
               paddingVertical: 8,
               borderRadius: 20,
               marginVertical: 10,
+              borderWidth: subscriptionTier === "studio" ? 0 : 1,
+              borderColor: colors.border,
             }}
           >
             <Text
               style={{
-                color: subscriptionTier === "studio" ? "white" : "#666",
+                color: subscriptionTier === "studio" ? "white" : colors.textSecondary,
                 fontWeight: "bold",
                 textTransform: "uppercase",
               }}
@@ -924,83 +878,26 @@ export default function Account() {
                   width: 44,
                   height: 44,
                   borderRadius: 22,
-                  backgroundColor: colors.backgroundSecondary,
                   justifyContent: "center",
                   alignItems: "center",
                 }}
               >
-                <Ionicons name="information-circle-outline" size={24} color="#666" />
+                <Ionicons name="information-circle-outline" size={24} color={colors.text + "80"} />
               </TouchableOpacity>
             </View>
           )}
         </View>
 
-        {/* THEME SETTINGS */}
-        <View style={GlobalStyles.card}>
-          <Text style={[GlobalStyles.title2, { marginBottom: 15 }]}>Personnalisation</Text>
-          
-          <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text, marginBottom: 10 }}>Mode d'affichage</Text>
-          <View style={{ flexDirection: 'row', gap: 10, marginBottom: 20 }}>
-            {(['light', 'dark', 'system'] as const).map((m) => (
-              <TouchableOpacity
-                key={m}
-                onPress={() => setThemeMode(m)}
-                style={{
-                  flex: 1,
-                  paddingVertical: 10,
-                  borderRadius: 10,
-                  borderWidth: 1,
-                  borderColor: themeMode === m ? colors.primary : colors.border,
-                  backgroundColor: themeMode === m ? colors.primary + '10' : 'transparent',
-                  alignItems: 'center',
-                }}
-              >
-                <Text style={{ 
-                  color: themeMode === m ? colors.primary : '#666',
-                  fontWeight: themeMode === m ? '700' : '500',
-                  textTransform: 'capitalize'
-                }}>
-                  {m === 'light' ? 'Clair' : m === 'dark' ? 'Sombre' : 'Système'}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text, marginBottom: 10 }}>Couleur d'accentuation</Text>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
-            {(Object.keys(ACCENT_COLORS) as AccentColor[]).map((color) => (
-              <TouchableOpacity
-                key={color}
-                onPress={() => setAccentColor(color)}
-                style={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: 20,
-                  backgroundColor: ACCENT_COLORS[color].light,
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  borderWidth: 3,
-                  borderColor: accentColor === color ? colors.text : 'transparent'
-                }}
-              >
-                {accentColor === color && (
-                  <Ionicons name="checkmark" size={24} color="white" />
-                )}
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
         {/* 1. INFOS GENERALES */}
         <SectionTitle title="Informations Générales" />
-        <View style={GlobalStyles.card}>
+        <View style={[GlobalStyles.card, styles.card]}>
           <Text style={styles.label}>Nom complet</Text>
           <TextInput
-            style={GlobalStyles.input}
+            style={styles.input}
             value={full_name}
             onChangeText={setFullName}
             placeholder="Prénom Nom"
-            placeholderTextColor="#999"
+            placeholderTextColor={isDark ? "#6B7280" : "#999"}
           />
           {errors.full_name && (
             <Text style={styles.errorText}>{errors.full_name}</Text>
@@ -1008,12 +905,12 @@ export default function Account() {
 
           <Text style={styles.label}>Nom d'utilisateur (Pseudo)</Text>
           <TextInput
-            style={GlobalStyles.input}
+            style={styles.input}
             value={username}
             onChangeText={setUsername}
             placeholder="pseudo"
             autoCapitalize="none"
-            placeholderTextColor="#999"
+            placeholderTextColor={isDark ? "#6B7280" : "#999"}
           />
           {errors.username && (
             <Text style={styles.errorText}>{errors.username}</Text>
@@ -1028,7 +925,10 @@ export default function Account() {
             {ROLES.map((r) => (
               <TouchableOpacity
                 key={r.value}
-                onPress={() => setRole(r.value)}
+                onPress={() => {
+                  setRole(r.value);
+                  setJobTitle(""); // Reset job title when category changes
+                }}
                 style={[
                   styles.tag,
                   role === r.value && styles.tagSelected,
@@ -1047,6 +947,180 @@ export default function Account() {
             ))}
           </ScrollView>
           {errors.role && <Text style={styles.errorText}>{errors.role}</Text>}
+
+          {role && (JOB_TITLES as any)[role] && (
+            <>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                <Text style={[styles.label, { marginBottom: 0 }]}>Intitulé de poste (Principal)</Text>
+                <Text style={{ fontSize: 10, color: colors.primary, fontWeight: '600' }}>
+                    SÉPARER PAR DES VIRGULES
+                </Text>
+              </View>
+
+              {/* Affichage des éléments sélectionnés sous forme de tags */}
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
+                {jobTitle.split(',').map((t, i) => t.trim() ? (
+                    <TouchableOpacity 
+                        key={i} 
+                        onPress={() => {
+                            const tags = jobTitle.split(',').map(s => s.trim()).filter(s => s !== t.trim());
+                            setJobTitle(tags.join(', '));
+                        }}
+                        style={[styles.tag, { backgroundColor: colors.primary + '10', borderColor: colors.primary + '30', flexDirection: 'row', alignItems: 'center', gap: 6 }]}
+                    >
+                        <Text style={[styles.tagText, { color: colors.primary }]}>{t.trim()}</Text>
+                        <Ionicons name="close-circle" size={14} color={colors.primary} />
+                    </TouchableOpacity>
+                ) : null)}
+              </View>
+
+              
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={{ marginBottom: 15, marginTop: -5 }}
+              >
+                {(JOB_TITLES as any)[role].map((title: string) => (
+                  <TouchableOpacity
+                    key={title}
+                    onPress={() => {
+                        const currentTags = jobTitle.split(',').map(t => t.trim()).filter(t => t !== "");
+                        if (!currentTags.includes(title)) {
+                            setJobTitle([...currentTags, title].join(', '));
+                        }
+                    }}
+                    style={[
+                      styles.tag,
+                      jobTitle.includes(title) && styles.tagSelected,
+                      { marginRight: 8, paddingVertical: 4 },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.tagText,
+                        jobTitle.includes(title) && styles.tagTextSelected,
+                        { fontSize: 11 }
+                      ]}
+                    >
+                      {title}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </>
+          )}
+
+          <Text style={styles.label}>Rôle Secondaire (Optionnel)</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={{ marginBottom: 15 }}
+          >
+            <TouchableOpacity
+              onPress={() => {
+                setSecondaryRole("");
+                setSecondaryJobTitle("");
+              }}
+              style={[
+                styles.tag,
+                secondaryRole === "" && styles.tagSelected,
+                { marginRight: 8 },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.tagText,
+                  secondaryRole === "" && styles.tagTextSelected,
+                ]}
+              >
+                Aucun
+              </Text>
+            </TouchableOpacity>
+            {ROLES.map((r) => (
+              <TouchableOpacity
+                key={r.value}
+                onPress={() => {
+                  setSecondaryRole(r.value);
+                }}
+                style={[
+                  styles.tag,
+                  secondaryRole === r.value && styles.tagSelected,
+                  { marginRight: 8 },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.tagText,
+                    secondaryRole === r.value && styles.tagTextSelected,
+                  ]}
+                >
+                  {r.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+
+          {secondaryRole && (JOB_TITLES as any)[secondaryRole] && (
+            <>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                <Text style={[styles.label, { marginBottom: 0 }]}>Intitulé de poste (Secondaire)</Text>
+                <Text style={{ fontSize: 10, color: colors.primary, fontWeight: '600' }}>
+                    SÉPARER PAR DES VIRGULES
+                </Text>
+              </View>
+
+              {/* Affichage des éléments sélectionnés sous forme de tags pour le rôle secondaire */}
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
+                {secondaryJobTitle.split(',').map((t, i) => t.trim() ? (
+                    <TouchableOpacity 
+                        key={i} 
+                        onPress={() => {
+                            const tags = secondaryJobTitle.split(',').map(s => s.trim()).filter(s => s !== t.trim());
+                            setSecondaryJobTitle(tags.join(', '));
+                        }}
+                        style={[styles.tag, { backgroundColor: colors.textSecondary + '10', borderColor: colors.textSecondary + '30', flexDirection: 'row', alignItems: 'center', gap: 6 }]}
+                    >
+                        <Text style={[styles.tagText, { color: colors.textSecondary }]}>{t.trim()}</Text>
+                        <Ionicons name="close-circle" size={14} color={colors.textSecondary} />
+                    </TouchableOpacity>
+                ) : null)}
+              </View>
+
+              
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={{ marginBottom: 15, marginTop: -5 }}
+              >
+                {(JOB_TITLES as any)[secondaryRole].map((title: string) => (
+                  <TouchableOpacity
+                    key={title}
+                    onPress={() => {
+                        const currentTags = secondaryJobTitle.split(',').map(t => t.trim()).filter(t => t !== "");
+                        if (!currentTags.includes(title)) {
+                            setSecondaryJobTitle([...currentTags, title].join(', '));
+                        }
+                    }}
+                    style={[
+                      styles.tag,
+                      secondaryJobTitle.includes(title) && styles.tagSelected,
+                      { marginRight: 8, paddingVertical: 4 },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.tagText,
+                        secondaryJobTitle.includes(title) && styles.tagTextSelected,
+                        { fontSize: 11 }
+                      ]}
+                    >
+                      {title}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </>
+          )}
 
           <Text style={styles.label}>Ville de résidence</Text>
           <CityAutocomplete
@@ -1086,126 +1160,72 @@ export default function Account() {
             <View style={{ width: 80 }}>
               <Text style={styles.label}>Âge</Text>
               <TextInput
-                style={GlobalStyles.input}
+                style={styles.input}
                 value={age}
                 onChangeText={setAge}
                 placeholder="25"
                 keyboardType="numeric"
-                placeholderTextColor="#999"
+                placeholderTextColor={isDark ? "#6B7280" : "#999"}
               />
             </View>
           </View>
 
-          <Text style={styles.label}>Bio / Présentation</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Text style={styles.label}>Bio / Présentation</Text>
+            <TouchableOpacity 
+              onPress={() => setFullTextModal({ 
+                visible: true, 
+                title: "Bio / Présentation", 
+                text: bio, 
+                onSave: setBio 
+              })}
+              style={{ paddingBottom: 6 }}
+            >
+              <Ionicons name="expand-outline" size={18} color={colors.primary} />
+            </TouchableOpacity>
+          </View>
           <TextInput
-            style={[GlobalStyles.input, styles.textArea]}
+            style={[styles.input, styles.textArea]}
             value={bio}
             onChangeText={setBio}
             placeholder="Décrivez votre parcours en quelques lignes..."
             multiline
-            placeholderTextColor="#999"
+            placeholderTextColor={isDark ? "#6B7280" : "#999"}
           />
-        </View>
-
-        {/* REGLAGES & ASSISTANCE */}
-        <SectionTitle title="Réglages & Assistance" />
-        <View style={GlobalStyles.card}>
-          <TouchableOpacity
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              paddingVertical: 12,
-              borderBottomWidth: 1,
-              borderBottomColor: "#eee",
-            }}
-            onPress={() =>
-              router.push({
-                pathname: "/profile/[id]",
-                params: { id: effectiveUserId },
-              })
-            }
-          >
-            <Ionicons
-              name="card-outline"
-              size={24}
-              color={colors.primary}
-            />
-            <Text style={{ marginLeft: 15, fontSize: 16, flex: 1 }}>
-              Ma carte de profil
-            </Text>
-            <Ionicons name="chevron-forward" size={20} color="#ccc" />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              paddingVertical: 12,
-            }}
-            onPress={() => {
-              Alert.alert(
-                "Signaler un problème",
-                "Souhaitez-vous contacter le support pour signaler un bug ou une suggestion ?",
-                [
-                  { text: "Annuler", style: "cancel" },
-                  {
-                    text: "Contacter",
-                    onPress: () => {
-                      const subject = `Support Tita : ${full_name} (${effectiveUserId})`;
-                      const body = `Bonjour l'équipe Tita,\n\nJe souhaite vous signaler le problème suivant :\n\n- Ma version : ${Platform.OS}\n- Mon ID : ${effectiveUserId}\n\nDescription :\n`;
-                      Linking.openURL(
-                        `mailto:support@titapp.fr?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`,
-                      );
-                    },
-                  },
-                ],
-              );
-            }}
-          >
-            <Ionicons
-              name="bug-outline"
-              size={24}
-              color={colors.danger}
-            />
-            <Text style={{ marginLeft: 15, fontSize: 16, flex: 1 }}>
-              Signaler un problème
-            </Text>
-            <Ionicons name="chevron-forward" size={20} color="#ccc" />
-          </TouchableOpacity>
         </View>
 
         {/* 2. CONTACT PUBLIC */}
         <SectionTitle title="Contact & Pro" />
-        <View style={GlobalStyles.card}>
+        <View style={[GlobalStyles.card, styles.card]}>
           <Text style={styles.label}>Site web / Portfolio URL</Text>
           <TextInput
-            style={GlobalStyles.input}
+            style={styles.input}
             value={website}
             onChangeText={setWebsite}
             placeholder="https://..."
             autoCapitalize="none"
-            placeholderTextColor="#999"
+            placeholderTextColor={isDark ? "#6B7280" : "#999"}
           />
 
           <Text style={styles.label}>Email Pro (Public)</Text>
           <TextInput
-            style={GlobalStyles.input}
+            style={styles.input}
             value={email_public}
             onChangeText={setEmailPublic}
             placeholder="contact@exemple.com"
             keyboardType="email-address"
             autoCapitalize="none"
-            placeholderTextColor="#999"
+            placeholderTextColor={isDark ? "#6B7280" : "#999"}
           />
 
           <Text style={styles.label}>Téléphone (Optionnel)</Text>
           <TextInput
-            style={GlobalStyles.input}
+            style={styles.input}
             value={phone}
             onChangeText={setPhone}
             placeholder="+33 6..."
             keyboardType="phone-pad"
-            placeholderTextColor="#999"
+            placeholderTextColor={isDark ? "#6B7280" : "#999"}
           />
 
           <View
@@ -1216,7 +1236,7 @@ export default function Account() {
               marginTop: 10,
               paddingTop: 10,
               borderTopWidth: 1,
-              borderColor: "#eee",
+              borderColor: colors.border,
             }}
           >
             <Text style={{ fontSize: 14, color: colors.text, flex: 1 }}>
@@ -1226,7 +1246,7 @@ export default function Account() {
               value={isContactVisible}
               onValueChange={toggleContactVisibility}
               trackColor={{ false: "#767577", true: colors.primary }}
-              thumbColor={isContactVisible ? colors.primary : "#f4f3f4"}
+              thumbColor={isContactVisible ? colors.primary : (isDark ? "#374151" : "#f4f3f4")}
             />
           </View>
         </View>
@@ -1237,17 +1257,17 @@ export default function Account() {
         {role === "acteur" && (
           <>
             <SectionTitle title="Apparence & Caractéristiques" />
-            <View style={GlobalStyles.card}>
+            <View style={[GlobalStyles.card, styles.card]}>
               <View style={{ flexDirection: "row", gap: 10 }}>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.label}>Taille (cm)</Text>
                   <TextInput
-                    style={GlobalStyles.input}
+                    style={styles.input}
                     value={height}
                     onChangeText={setHeight}
                     placeholder="175"
                     keyboardType="numeric"
-                    placeholderTextColor="#999"
+                    placeholderTextColor={isDark ? "#6B7280" : "#999"}
                   />
                 </View>
                 <View style={{ flex: 1 }}>
@@ -1316,24 +1336,35 @@ export default function Account() {
         ].includes(role) && (
           <>
             <SectionTitle title="Matériel & Outils" />
-            <View style={GlobalStyles.card}>
-              <Text style={styles.label}>
-                Matériel (Caméra, Son, Lumière...)
-              </Text>
+            <View style={[GlobalStyles.card, styles.card]}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                <Text style={[styles.label, { marginBottom: 0 }]}>
+                    Matériel (Caméra, Son, Lumière...)
+                </Text>
+                <Text style={{ fontSize: 10, color: colors.primary, fontWeight: '600' }}>
+                    SÉPARER PAR DES VIRGULES
+                </Text>
+              </View>
               <TextInput
-                style={GlobalStyles.input}
+                style={styles.input}
                 value={equipment}
                 onChangeText={setEquipment}
                 placeholder="Ex: Sony A7S III, Micro Zoom H6..."
-                placeholderTextColor="#999"
+                placeholderTextColor={isDark ? "#6B7280" : "#999"}
               />
-              <Text style={styles.label}>Logiciels & Outils</Text>
+              
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                <Text style={[styles.label, { marginBottom: 0 }]}>Logiciels & Outils</Text>
+                <Text style={{ fontSize: 10, color: colors.primary, fontWeight: '600' }}>
+                    SÉPARER PAR DES VIRGULES
+                </Text>
+              </View>
               <TextInput
-                style={GlobalStyles.input}
+                style={styles.input}
                 value={software}
                 onChangeText={setSoftware}
                 placeholder="Premiere Pro, DaVinci, Final Draft..."
-                placeholderTextColor="#999"
+                placeholderTextColor={isDark ? "#6B7280" : "#999"}
               />
             </View>
           </>
@@ -1343,14 +1374,14 @@ export default function Account() {
         {role === "hmc" && (
           <>
             <SectionTitle title="Spécialités HMC" />
-            <View style={GlobalStyles.card}>
+            <View style={[GlobalStyles.card, styles.card]}>
               <Text style={styles.label}>Spécialités</Text>
               <TextInput
-                style={GlobalStyles.input}
+                style={styles.input}
                 value={specialties}
                 onChangeText={setSpecialties}
                 placeholder="Maquillage SFX, Coiffure époque..."
-                placeholderTextColor="#999"
+                placeholderTextColor={isDark ? "#6B7280" : "#999"}
               />
             </View>
           </>
@@ -1358,14 +1389,14 @@ export default function Account() {
 
         {/* 4. SKILLS */}
         <SectionTitle title="Compétences & Tags" />
-        <View style={GlobalStyles.card}>
+        <View style={[GlobalStyles.card, styles.card]}>
           <View style={{ flexDirection: "row", gap: 5 }}>
             <TextInput
-              style={[GlobalStyles.input, { flex: 1, marginBottom: 0 }]}
+              style={[styles.input, { flex: 1, marginBottom: 0 }]}
               value={skillsInput}
               onChangeText={setSkillsInput}
               placeholder="Ajouter (ex: Piano, Permis B, Montage...)"
-              placeholderTextColor="#999"
+              placeholderTextColor={isDark ? "#6B7280" : "#999"}
               onSubmitEditing={() => {
                 if (skillsInput.trim()) {
                   setSkills([...skills, skillsInput.trim()]);
@@ -1388,13 +1419,13 @@ export default function Account() {
           <View style={[styles.tagsContainer, { marginTop: 10 }]}>
             {skills.map((s, i) => (
               <View key={i} style={styles.skillTag}>
-                <Text style={{ color: "#333", marginRight: 5 }}>{s}</Text>
+                <Text style={{ color: colors.text, marginRight: 5 }}>{s}</Text>
                 <TouchableOpacity
                   onPress={() =>
                     setSkills(skills.filter((_, idx) => idx !== i))
                   }
                 >
-                  <Ionicons name="close-circle" size={16} color="#666" />
+                  <Ionicons name="close-circle" size={16} color={colors.textSecondary} />
                 </TouchableOpacity>
               </View>
             ))}
@@ -1403,7 +1434,7 @@ export default function Account() {
 
         {/* 5. DOCUMENTS & MEDIAS */}
         <SectionTitle title="Documents & Médias" />
-        <View style={GlobalStyles.card}>
+        <View style={[GlobalStyles.card, styles.card]}>
           {/* CV */}
           <Text style={styles.label}>CV (PDF)</Text>
           <View
@@ -1438,10 +1469,10 @@ export default function Account() {
               onPress={uploadCV}
               style={[
                 styles.fileButton,
-                { backgroundColor: "#f0f0f0", marginLeft: cv_url ? 10 : 0 },
+                { backgroundColor: colors.backgroundSecondary, marginLeft: cv_url ? 10 : 0 },
               ]}
             >
-              <Text>
+              <Text style={{ color: colors.text }}>
                 {uploading
                   ? "..."
                   : cv_url
@@ -1468,7 +1499,7 @@ export default function Account() {
                     position: "absolute",
                     top: -5,
                     right: -5,
-                    backgroundColor: "white",
+                    backgroundColor: colors.card,
                     borderRadius: 10,
                   }}
                 >
@@ -1486,13 +1517,15 @@ export default function Account() {
                 style={{
                   width: 80,
                   height: 80,
-                  backgroundColor: "#f0f0f0",
+                  backgroundColor: colors.backgroundSecondary,
                   borderRadius: 8,
                   justifyContent: "center",
                   alignItems: "center",
+                  borderWidth: 1,
+                  borderColor: colors.border,
                 }}
               >
-                <Ionicons name="add" size={30} color="#ccc" />
+                <Ionicons name="add" size={30} color={colors.textSecondary} />
               </TouchableOpacity>
             )}
           </ScrollView>
@@ -1502,30 +1535,30 @@ export default function Account() {
             Bande Démo (Lien YouTube/Vimeo)
           </Text>
           <TextInput
-            style={GlobalStyles.input}
+            style={styles.input}
             value={showreel_url}
             onChangeText={setShowreelUrl}
             placeholder="https://youtube.com/..."
             autoCapitalize="none"
-            placeholderTextColor="#999"
+            placeholderTextColor={isDark ? "#6B7280" : "#999"}
           />
         </View>
 
         {/* 6. VISIBILITÉ PROJETS */}
-        <SectionTitle title="Confidentialité Projets" />
-        <View style={GlobalStyles.card}>
-          <Text style={{ fontSize: 13, color: "#666", marginBottom: 15 }}>
+        <SectionTitle title="Mes Projets" />
+        <View style={[GlobalStyles.card, styles.card]}>
+          <Text style={{ fontSize: 13, color: colors.textSecondary, marginBottom: 15 }}>
             Cochez les projets que vous souhaitez rendre visibles sur votre
             profil public.
           </Text>
 
           {/* CREATOR PROJECTS */}
-          <Text style={{ fontWeight: "bold", marginBottom: 10 }}>
+          <Text style={{ fontWeight: "bold", marginBottom: 10, color: colors.text }}>
             Projets créés ({myProjects.length})
           </Text>
           {myProjects.length === 0 ? (
             <Text
-              style={{ fontStyle: "italic", color: "#999", marginBottom: 15 }}
+              style={{ fontStyle: "italic", color: colors.textSecondary, marginBottom: 15 }}
             >
               Aucun projet créé.
             </Text>
@@ -1533,79 +1566,199 @@ export default function Account() {
             myProjects.map((p) => {
               const isVisible = !hiddenProjectIds.includes(p.id);
               return (
-                <View
-                  key={p.id}
-                  style={{
-                    flexDirection: "row",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    marginBottom: 10,
-                    paddingBottom: 10,
-                    borderBottomWidth: 1,
-                    borderColor: "#f0f0f0",
-                  }}
-                >
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ fontWeight: "600" }}>{p.title}</Text>
-                    <Text style={{ fontSize: 11, color: "#999" }}>
-                      {p.type} • {new Date(p.created_at).toLocaleDateString()}
-                    </Text>
-                  </View>
-                  <Switch
-                    value={isVisible}
-                    onValueChange={(val) => toggleProjectVisibility(p.id, val)}
-                    trackColor={{
-                      false: "#767577",
-                      true: colors.primary,
+                <View key={p.id} style={{ marginBottom: 20, paddingBottom: 15, borderBottomWidth: 1, borderColor: colors.border }}>
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      marginBottom: 10,
                     }}
-                    thumbColor={isVisible ? colors.primary : "#f4f3f4"}
-                  />
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontWeight: "600", color: colors.text }}>{p.title}</Text>
+                      <Text style={{ fontSize: 11, color: colors.textSecondary }}>
+                        {p.type} • {new Date(p.created_at).toLocaleDateString()}
+                      </Text>
+                      <TouchableOpacity 
+                        onPress={() => {
+                          if (p.status === "completed") {
+                            router.push("/hall-of-fame");
+                          } else {
+                            router.push(`/project/${p.id}`);
+                          }
+                        }}
+                        style={{ flexDirection: "row", alignItems: "center", gap: 5, marginTop: 5 }}
+                      >
+                        <Ionicons name={p.status === "completed" ? "trophy-outline" : "film-outline"} size={14} color={colors.primary} />
+                        <Text style={{ fontSize: 12, color: colors.primary, fontWeight: "600" }}>
+                          {p.status === "completed" ? "Voir au Hall of Fame" : "Accéder au projet"}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                    <Switch
+                      value={isVisible}
+                      onValueChange={(val) => toggleProjectVisibility(p.id, val)}
+                      trackColor={{
+                        false: "#767577",
+                        true: colors.primary,
+                      }}
+                      thumbColor={isVisible ? colors.primary : (isDark ? "#374151" : "#f4f3f4")}
+                    />
+                  </View>
+
+                  <View style={{ flexDirection: 'row', gap: 10, marginBottom: 10 }}>
+                    <TouchableOpacity 
+                        onPress={() => uploadExperienceImage(p.id)}
+                        style={{ width: 80, height: 60, borderRadius: 8, backgroundColor: colors.backgroundSecondary, justifyContent: 'center', alignItems: 'center', borderStyle: 'dashed', borderWidth: 1, borderColor: colors.border }}
+                    >
+                        {(p.personalImage || p.image_url) ? (
+                            <Image source={{ uri: p.personalImage || p.image_url }} style={{ width: '100%', height: '100%', borderRadius: 8 }} />
+                        ) : (
+                            <Ionicons name="camera" size={20} color={colors.textSecondary} />
+                        )}
+                        <View style={{ position: 'absolute', bottom: -5, right: -5, backgroundColor: colors.primary, borderRadius: 10, padding: 2 }}>
+                            <Ionicons name="pencil" size={10} color="white" />
+                        </View>
+                    </TouchableOpacity>
+                    <View style={{ flex: 1 }}>
+                        <TextInput
+                            style={[styles.input, { fontSize: 13, paddingVertical: 8, marginBottom: 0 }]}
+                            placeholder="Titre personnalisé (ex: Ma réalisation préférée)"
+                            placeholderTextColor={isDark ? "#6B7280" : "#999"}
+                            value={p.personalTitle}
+                            onChangeText={(val) => updateExperienceField(p.id, 'custom_title', val)}
+                        />
+                    </View>
+                  </View>
+
+                  <View style={{ position: 'relative' }}>
+                    <TextInput
+                        style={[styles.input, { fontSize: 13, paddingVertical: 8, height: 60, marginBottom: 0, paddingRight: 40 }]}
+                        placeholder="Ajouter une description pour ce tournage (visible sur votre profil)..."
+                        placeholderTextColor={isDark ? "#6B7280" : "#999"}
+                        value={p.personalNote}
+                        onChangeText={(val) => updateExperienceField(p.id, 'note', val)}
+                        multiline
+                    />
+                    <TouchableOpacity 
+                        onPress={() => setFullTextModal({ 
+                            visible: true, 
+                            title: p.title, 
+                            text: p.personalNote, 
+                            onSave: (val) => updateExperienceField(p.id, 'note', val) 
+                        })}
+                        style={{ position: 'absolute', right: 12, top: 12 }}
+                    >
+                        <Ionicons name="expand-outline" size={18} color={colors.primary} />
+                    </TouchableOpacity>
+                  </View>
                 </View>
               );
             })
           )}
 
           {/* PARTICIPATIONS */}
-          <Text style={{ fontWeight: "bold", marginBottom: 10, marginTop: 10 }}>
+          <Text style={{ fontWeight: "bold", marginBottom: 10, marginTop: 10, color: colors.text }}>
             Participations ({myParticipations.length})
           </Text>
           {myParticipations.length === 0 ? (
-            <Text style={{ fontStyle: "italic", color: "#999" }}>
+            <Text style={{ fontStyle: "italic", color: colors.textSecondary }}>
               Aucune participation.
             </Text>
           ) : (
             myParticipations.map((p, idx) => {
               const isVisible = !hiddenProjectIds.includes(p.projectId);
               return (
-                <View
-                  key={idx}
-                  style={{
-                    flexDirection: "row",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    marginBottom: 10,
-                    paddingBottom: 10,
-                    borderBottomWidth: 1,
-                    borderColor: "#f0f0f0",
-                  }}
-                >
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ fontWeight: "600" }}>{p.projectTitle}</Text>
-                    <Text style={{ fontSize: 12, color: colors.primary }}>
-                      Rôle : {p.roleTitle}
-                    </Text>
-                  </View>
-                  <Switch
-                    value={isVisible}
-                    onValueChange={(val) =>
-                      toggleProjectVisibility(p.projectId, val)
-                    }
-                    trackColor={{
-                      false: "#767577",
-                      true: colors.primary,
+                <View key={idx} style={{ marginBottom: 20, paddingBottom: 15, borderBottomWidth: 1, borderColor: colors.border }}>
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      marginBottom: 10,
                     }}
-                    thumbColor={isVisible ? colors.primary : "#f4f3f4"}
-                  />
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontWeight: "600", color: colors.text }}>{p.projectTitle}</Text>
+                      <Text style={{ fontSize: 12, color: colors.primary }}>
+                        Rôle : {p.roleTitle}
+                      </Text>
+                      <TouchableOpacity 
+                        onPress={() => {
+                          if (p.projectStatus === "completed") {
+                            router.push("/hall-of-fame");
+                          } else {
+                            router.push(`/project/${p.projectId}`);
+                          }
+                        }}
+                        style={{ flexDirection: "row", alignItems: "center", gap: 5, marginTop: 5 }}
+                      >
+                        <Ionicons name={p.projectStatus === "completed" ? "trophy-outline" : "film-outline"} size={14} color={colors.primary} />
+                        <Text style={{ fontSize: 12, color: colors.primary, fontWeight: "600" }}>
+                          {p.projectStatus === "completed" ? "Voir au Hall of Fame" : "Voir le projet"}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                    <Switch
+                      value={isVisible}
+                      onValueChange={(val) =>
+                        toggleProjectVisibility(p.projectId, val)
+                      }
+                      trackColor={{
+                        false: "#767577",
+                        true: colors.primary,
+                      }}
+                      thumbColor={isVisible ? colors.primary : (isDark ? "#374151" : "#f4f3f4")}
+                    />
+                  </View>
+
+                  <View style={{ flexDirection: 'row', gap: 10, marginBottom: 10 }}>
+                    <TouchableOpacity 
+                        onPress={() => uploadExperienceImage(p.projectId)}
+                        style={{ width: 80, height: 60, borderRadius: 8, backgroundColor: colors.backgroundSecondary, justifyContent: 'center', alignItems: 'center', borderStyle: 'dashed', borderWidth: 1, borderColor: colors.border }}
+                    >
+                        {(p.personalImage || p.projectImage) ? (
+                            <Image source={{ uri: p.personalImage || p.projectImage }} style={{ width: '100%', height: '100%', borderRadius: 8 }} />
+                        ) : (
+                            <Ionicons name="camera" size={20} color={colors.textSecondary} />
+                        )}
+                        <View style={{ position: 'absolute', bottom: -5, right: -5, backgroundColor: colors.primary, borderRadius: 10, padding: 2 }}>
+                            <Ionicons name="pencil" size={10} color="white" />
+                        </View>
+                    </TouchableOpacity>
+                    <View style={{ flex: 1 }}>
+                        <TextInput
+                            style={[styles.input, { fontSize: 13, paddingVertical: 8, marginBottom: 0 }]}
+                            placeholder="Titre personnalisé (ex: Mon rôle préféré)"
+                            placeholderTextColor={isDark ? "#6B7280" : "#999"}
+                            value={p.personalTitle}
+                            onChangeText={(val) => updateExperienceField(p.projectId, 'custom_title', val)}
+                        />
+                    </View>
+                  </View>
+
+                  <View style={{ position: 'relative' }}>
+                    <TextInput
+                        style={[styles.input, { fontSize: 13, paddingVertical: 8, height: 60, marginBottom: 0, paddingRight: 40 }]}
+                        placeholder="Racontez votre expérience sur ce projet..."
+                        placeholderTextColor={isDark ? "#6B7280" : "#999"}
+                        value={p.personalNote}
+                        onChangeText={(val) => updateExperienceField(p.projectId, 'note', val)}
+                        multiline
+                    />
+                    <TouchableOpacity 
+                        onPress={() => setFullTextModal({ 
+                            visible: true, 
+                            title: p.projectTitle, 
+                            text: p.personalNote, 
+                            onSave: (val) => updateExperienceField(p.projectId, 'note', val) 
+                        })}
+                        style={{ position: 'absolute', right: 12, top: 12 }}
+                    >
+                        <Ionicons name="expand-outline" size={18} color={colors.primary} />
+                    </TouchableOpacity>
+                  </View>
                 </View>
               );
             })
@@ -1613,24 +1766,6 @@ export default function Account() {
         </View>
 
         <View style={{ height: 50 }} />
-
-        <TouchableOpacity
-          onPress={() => {
-            startTutorial();
-          }}
-          disabled={isTutorialLoading}
-          style={{
-            backgroundColor: isTutorialLoading ? "#ccc" : colors.primary,
-            padding: 15,
-            borderRadius: 12,
-            alignItems: "center",
-            marginBottom: 15,
-          }}
-        >
-          <Text style={{ color: "white", fontWeight: "bold" }}>
-            {isTutorialLoading ? "Préparation..." : "Revoir le tutoriel 👋"}
-          </Text>
-        </TouchableOpacity>
 
         <TouchableOpacity
           onPress={async () => {
@@ -1649,23 +1784,6 @@ export default function Account() {
           </Text>
         </TouchableOpacity>
 
-        {!isImpersonating && (
-          <TouchableOpacity
-            onPress={handleDeleteAccount}
-            style={{
-              marginTop: 15,
-              padding: 15,
-              borderRadius: 12,
-              alignItems: "center",
-              borderWidth: 1,
-              borderColor: colors.danger,
-            }}
-          >
-            <Text style={{ color: colors.danger, fontWeight: "bold" }}>
-              Supprimer mon compte
-            </Text>
-          </TouchableOpacity>
-        )}
         <View style={{ height: 50 }} />
       </ScrollView>
 
@@ -1676,6 +1794,39 @@ export default function Account() {
         onClose={() => setPaymentModalVisible(false)}
         onSuccess={handleUpgradeSuccess}
       />
+
+      <Modal visible={fullTextModal.visible} animationType="slide">
+        <View style={{ flex: 1, backgroundColor: colors.background }}>
+          <View style={[styles.header, { paddingTop: Platform.OS === 'ios' ? 60 : 20, borderBottomWidth: 1, borderBottomColor: colors.border }]}>
+            <TouchableOpacity onPress={() => setFullTextModal({ ...fullTextModal, visible: false })}>
+              <Ionicons name="close" size={28} color={colors.text} />
+            </TouchableOpacity>
+            <Text style={{ fontSize: 18, fontWeight: '700', color: colors.text }}>{fullTextModal.title}</Text>
+            <TouchableOpacity onPress={() => {
+              fullTextModal.onSave(fullTextModal.text);
+              setFullTextModal({ ...fullTextModal, visible: false });
+            }}>
+              <Text style={{ color: colors.primary, fontWeight: 'bold', fontSize: 16 }}>Terminer</Text>
+            </TouchableOpacity>
+          </View>
+          <TextInput
+            style={{ 
+              flex: 1, 
+              padding: 20, 
+              fontSize: 16, 
+              color: colors.text, 
+              textAlignVertical: 'top',
+              backgroundColor: colors.background
+            }}
+            multiline
+            value={fullTextModal.text}
+            onChangeText={(text) => setFullTextModal({ ...fullTextModal, text })}
+            autoFocus
+            placeholder="Écrivez ici..."
+            placeholderTextColor={isDark ? "#6B7280" : "#999"}
+          />
+        </View>
+      </Modal>
     </View>
   );
 }

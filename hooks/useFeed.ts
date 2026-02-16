@@ -93,7 +93,20 @@ export const useFeed = () => {
           created_at,
           user_id,
           visibility,
-          project:tournages(id, title, image_url, type, ville, start_date, end_date), 
+          project:tournages(
+            id, 
+            title, 
+            image_url, 
+            type, 
+            ville, 
+            start_date, 
+            end_date,
+            team:project_roles(
+              title,
+              show_in_team,
+              assigned_profile:profiles(id, avatar_url, full_name)
+            )
+          ), 
           user:profiles!user_id(full_name, avatar_url)
         `;
 

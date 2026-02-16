@@ -8,17 +8,17 @@ import { FlashList } from "@shopify/flash-list";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
-    FlatList,
-    Modal,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    TouchableWithoutFeedback,
-    useWindowDimensions,
-    View,
+  Modal,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
+  useWindowDimensions,
+  View
 } from "react-native";
 
 import { useTheme } from "@/providers/ThemeProvider";
@@ -45,15 +45,17 @@ export default function Discover() {
     setSelectedCity,
     searchQuery,
     setSearchQuery,
+    hideMyParticipations,
+    setHideMyParticipations,
   } = useJobs();
-
-  // Recommendations
-  const [isRecsCollapsed, setIsRecsCollapsed] = useState(false); // State to toggle recommendations visibility
 
   // View Content Type: 'roles' (Jobs) or 'projects' (Tournages)
   const [contentType, setContentType] = useState<"roles" | "projects">("roles");
   // View Mode: 'list' or 'map'
   const [viewMode, setViewMode] = useState<"list" | "map">("list");
+
+  // Show all or only recommendations
+  const [showAll, setShowAll] = useState(false);
 
   // Modals
   const [categoryModalVisible, setCategoryModalVisible] = useState(false);
@@ -81,141 +83,140 @@ export default function Discover() {
       )}
 
       <View style={styles.header}>
-        {/* Barre de recherche */}
-        <View style={styles.searchContainer}>
-          <Ionicons
-            name="search"
-            size={20}
-            color="#999"
-            style={styles.searchIcon}
-          />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Rechercher un poste, un projet..."
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            placeholderTextColor="#999"
-            returnKeyType="search"
-            autoCorrect={false}
-          />
-          {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchQuery("")}>
-              <Ionicons name="close-circle" size={18} color="#999" />
-            </TouchableOpacity>
-          )}
+        {/* Row 1: Rechercher & Bouton Mode (Carte/Liste) */}
+        <View style={styles.searchRow}>
+          <View style={styles.searchContainer}>
+            <Ionicons
+              name="search"
+              size={18}
+              color="#999"
+              style={styles.searchIcon}
+            />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Poste, projet..."
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholderTextColor="#999"
+              returnKeyType="search"
+              autoCorrect={false}
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchQuery("")}>
+                <Ionicons name="close-circle" size={18} color="#999" />
+              </TouchableOpacity>
+            )}
+          </View>
+
+          <TouchableOpacity
+            style={styles.viewModeButton}
+            onPress={() => setViewMode(viewMode === "list" ? "map" : "list")}
+          >
+            <Ionicons
+              name={viewMode === "list" ? "map" : "list"}
+              size={22}
+              color={colors.primary}
+            />
+          </TouchableOpacity>
         </View>
 
-        {/* TABS: ROLES vs PROJETS */}
-        <View
-          style={{
-            flexDirection: "row",
-            backgroundColor: colors.backgroundSecondary,
-            borderRadius: 8,
-            padding: 4,
-            marginBottom: 15,
-          }}
-        >
+        {/* Row 2: Tabs Offres/Tournages */}
+        <View style={styles.segmentedControl}>
           <TouchableOpacity
-            onPress={() => setContentType("roles")}
-            style={{
-              flex: 1,
-              paddingVertical: 8,
-              borderRadius: 6,
-              backgroundColor:
-                contentType === "roles" ? "white" : "transparent",
-              ...(contentType === "roles"
-                ? {
-                    shadowColor: "#000",
-                    shadowOffset: { width: 0, height: 2 },
-                    shadowOpacity: 0.1,
-                    shadowRadius: 3,
-                    elevation: 2,
-                  }
-                : {}),
-              alignItems: "center",
+            onPress={() => {
+              setContentType("roles");
+              setShowAll(false);
             }}
+            style={[
+              styles.segmentedButton,
+              contentType === "roles" && styles.segmentedButtonActive,
+            ]}
           >
             <Text
-              style={{
-                fontWeight: "600",
-                color: contentType === "roles" ? colors.text : "#999",
-              }}
+              style={[
+                styles.segmentedText,
+                contentType === "roles" && styles.segmentedTextActive,
+              ]}
             >
               Offres
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            onPress={() => setContentType("projects")}
-            style={{
-              flex: 1,
-              paddingVertical: 8,
-              borderRadius: 6,
-              backgroundColor:
-                contentType === "projects" ? "white" : "transparent",
-              ...(contentType === "projects"
-                ? {
-                    shadowColor: "#000",
-                    shadowOffset: { width: 0, height: 2 },
-                    shadowOpacity: 0.1,
-                    shadowRadius: 3,
-                    elevation: 2,
-                  }
-                : {}),
-              alignItems: "center",
+            onPress={() => {
+              setContentType("projects");
+              setShowAll(false);
             }}
+            style={[
+              styles.segmentedButton,
+              contentType === "projects" && styles.segmentedButtonActive,
+            ]}
           >
             <Text
-              style={{
-                fontWeight: "600",
-                color: contentType === "projects" ? colors.text : "#999",
-              }}
+              style={[
+                styles.segmentedText,
+                contentType === "projects" && styles.segmentedTextActive,
+              ]}
             >
               Tournages
             </Text>
           </TouchableOpacity>
         </View>
 
-        <View
-          style={{
-            flexDirection: "row",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginBottom: 10,
-          }}
-        >
-          <TouchableOpacity
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              backgroundColor: colors.primary,
-              paddingVertical: 6,
-              paddingHorizontal: 12,
-              borderRadius: 20,
+        {/* Filtrer les participations */}
+        <View style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'flex-end',
+          marginBottom: 12,
+          gap: 10,
+          paddingRight: 4
+        }}>
+          <Text style={{
+            fontSize: 13,
+            fontWeight: "500",
+            color: isDark ? "#A0A0A0" : "#666",
+          }}>
+            Cacher mes participations
+          </Text>
+          <Switch
+            value={hideMyParticipations}
+            onValueChange={setHideMyParticipations}
+            trackColor={{ false: "#767577", true: colors.primary }}
+            thumbColor={hideMyParticipations ? "#fff" : (isDark ? "#374151" : "#f4f3f4")}
+            ios_backgroundColor="#3e3e3e"
+            style={{ 
+              transform: Platform.OS === 'ios' ? [{ scaleX: 0.8 }, { scaleY: 0.8 }] : [],
             }}
-            onPress={() => setViewMode(viewMode === "list" ? "map" : "list")}
-          >
-            <Ionicons
-              name={viewMode === "list" ? "map" : "list"}
-              size={18}
-              color="#fff"
-              style={{ marginRight: 6 }}
-            />
-            <Text
-              style={{
-                color: "#fff",
-                fontWeight: "600",
-                textAlign: "center",
-              }}
-            >
-              {viewMode === "list" ? "Carte" : "Liste"}
-            </Text>
-          </TouchableOpacity>
+          />
         </View>
 
-        {/* FILTRES BOUTONS */}
+        {/* Row 3: Filtres */}
         <View style={styles.filtersRow}>
+          {(showAll || searchQuery !== "") && contentType === "roles" && recommendations.length > 0 && (
+            <TouchableOpacity
+              style={[
+                styles.filterButton,
+                {
+                  backgroundColor: colors.primary + "15",
+                  borderColor: colors.primary + "30",
+                  flex: Platform.OS === "web" ? 1 : 0,
+                  paddingHorizontal: 16,
+                },
+              ]}
+              onPress={() => {
+                setShowAll(false);
+                setSearchQuery("");
+              }}
+            >
+              <Ionicons name="sparkles" size={16} color={colors.primary} />
+              <Text style={[styles.filterValue, { color: colors.primary, fontSize: 13 }]}>
+                {Platform.OS === "web" ? "Revenir aux recommandations" : "Recos"}
+              </Text>
+            </TouchableOpacity>
+          )}
+
           {renderFilterButton(
-            "Catégorie",
+            "Cat.",
             selectedCategory === "all"
               ? "Toutes"
               : selectedCategory.charAt(0).toUpperCase() +
@@ -230,113 +231,6 @@ export default function Discover() {
           )}
         </View>
       </View>
-
-      {/* RECOMMENDATIONS SECTION */}
-      {contentType === "roles" && recommendations.length > 0 && (
-        <View style={styles.recsWrapper}>
-          <TouchableOpacity
-            style={[styles.recsSectionHeader, { paddingVertical: 5 }]}
-            onPress={() => setIsRecsCollapsed(!isRecsCollapsed)}
-            activeOpacity={0.7}
-          >
-            <View
-              style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
-            >
-              <Text style={styles.recsSectionTitle}>
-                ✨ Recommandé pour vous
-              </Text>
-              <View
-                style={{
-                  backgroundColor: colors.primary + "20",
-                  paddingHorizontal: 6,
-                  paddingVertical: 2,
-                  borderRadius: 10,
-                }}
-              >
-                <Text
-                  style={{
-                    fontSize: 10,
-                    fontWeight: "bold",
-                    color: colors.primary,
-                  }}
-                >
-                  {recommendations.length}
-                </Text>
-              </View>
-            </View>
-
-            <View style={{ flexDirection: "row", alignItems: "center" }}>
-              <Text
-                style={{
-                  fontSize: 12,
-                  color: colors.primary,
-                  marginRight: 4,
-                }}
-              >
-                {isRecsCollapsed ? "Afficher" : "Réduire"}
-              </Text>
-              <Ionicons
-                name={isRecsCollapsed ? "chevron-down" : "chevron-up"}
-                size={20}
-                color={colors.primary}
-              />
-            </View>
-          </TouchableOpacity>
-
-          {!isRecsCollapsed && (
-            <FlatList
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              data={recommendations}
-              keyExtractor={(item) => item.id}
-              contentContainerStyle={styles.recsListContent}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  onPress={() => router.push(`/project/role/${item.id}`)}
-                  style={styles.recCard}
-                  activeOpacity={0.9}
-                >
-                  <View style={styles.recCardHeader}>
-                    <View style={styles.matchBadge}>
-                      <Text style={styles.matchBadgeText}>
-                        {(item as any).matchScore || 100}% Match
-                      </Text>
-                    </View>
-                  </View>
-
-                  <Text style={styles.recCardTitle} numberOfLines={1}>
-                    {item.title}
-                  </Text>
-
-                  <Text style={styles.recCardSubtitle} numberOfLines={1}>
-                    {item.tournages?.title}
-                  </Text>
-
-                  <View style={styles.recCardFooter}>
-                    <View
-                      style={{ flexDirection: "row", alignItems: "center" }}
-                    >
-                      <Ionicons
-                        name="location-outline"
-                        size={10}
-                        color="#666"
-                      />
-                      <Text style={styles.recCardMeta}>
-                        {item.tournages?.ville || "N/C"}
-                      </Text>
-                    </View>
-                    <Ionicons
-                      name="chevron-forward"
-                      size={14}
-                      color={colors.primary}
-                    />
-                  </View>
-                </TouchableOpacity>
-              )}
-            />
-          )}
-        </View>
-      )}
 
       {loading ? (
         <ClapLoading
@@ -431,6 +325,30 @@ export default function Discover() {
             )}
           </AppMap>
         </View>
+      ) : contentType === "roles" && !showAll && searchQuery === "" && recommendations.length > 0 ? (
+        <ScrollView 
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.recsOnlyContainer}>
+            <Text style={styles.recsMainTitle}>Recommandé pour vous</Text>
+            <Text style={styles.recsSubtitle}>Ces postes correspondent à votre profil et vos préférences.</Text>
+            
+            <View style={{ gap: 12 }}>
+              {recommendations.map((item: any) => (
+                <JobCard key={item.id} item={item} />
+              ))}
+            </View>
+
+            <TouchableOpacity 
+              style={styles.exploreAllButton}
+              onPress={() => setShowAll(true)}
+            >
+              <Text style={styles.exploreAllButtonText}>Explorer tous les postes</Text>
+              <Ionicons name="arrow-forward" size={18} color="#fff" />
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
       ) : (
         <FlashList
           data={(contentType === "roles" ? roles : projects) as any}
@@ -562,20 +480,36 @@ function createStyles(colors: any, isDark: boolean) {
     },
     header: {
       backgroundColor: colors.background,
-      paddingTop: 24,
-      paddingBottom: 15,
-      paddingHorizontal: 20,
+      paddingTop: Platform.OS === "ios" ? 10 : 20,
+      paddingBottom: 12,
+      paddingHorizontal: 16,
       borderBottomWidth: 1,
       borderColor: colors.border,
     },
+    searchRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+      marginBottom: 12,
+    },
     searchContainer: {
+      flex: 1,
       flexDirection: "row",
       alignItems: "center",
       backgroundColor: colors.backgroundSecondary,
-      borderRadius: 10,
+      borderRadius: 12,
       paddingHorizontal: 12,
-      marginBottom: 15,
       height: 44,
+    },
+    viewModeButton: {
+      backgroundColor: colors.backgroundSecondary,
+      width: 44,
+      height: 44,
+      borderRadius: 12,
+      justifyContent: "center",
+      alignItems: "center",
+      borderWidth: 1,
+      borderColor: colors.border,
     },
     searchIcon: {
       marginRight: 8,
@@ -583,17 +517,42 @@ function createStyles(colors: any, isDark: boolean) {
     searchInput: {
       flex: 1,
       height: "100%",
-      fontSize: 16,
+      fontSize: 15,
       color: colors.text,
     },
     headerTitle: {
-      fontSize: 28,
+      fontSize: 24,
       fontWeight: "bold",
-      marginBottom: 15,
+      marginBottom: 12,
+    },
+    segmentedControl: {
+      flexDirection: "row",
+      backgroundColor: colors.backgroundSecondary,
+      borderRadius: 12,
+      padding: 3,
+      marginBottom: 12,
+    },
+    segmentedButton: {
+      flex: 1,
+      paddingVertical: 8,
+      borderRadius: 10,
+      alignItems: "center",
+    },
+    segmentedButtonActive: {
+      backgroundColor: isDark ? colors.primary + "25" : colors.primary + "15",
+      shadowColor: "transparent",
+    },
+    segmentedText: {
+      fontSize: 14,
+      fontWeight: "600",
+      color: isDark ? "#A0A0A0" : "#999",
+    },
+    segmentedTextActive: {
+      color: colors.primary,
     },
     filtersRow: {
       flexDirection: "row",
-      gap: 10,
+      gap: 8,
       justifyContent: "space-between",
       alignItems: "center",
     },
@@ -601,21 +560,24 @@ function createStyles(colors: any, isDark: boolean) {
       flexDirection: "row",
       alignItems: "center",
       backgroundColor: colors.backgroundSecondary,
-      paddingVertical: 8,
-      paddingHorizontal: 12,
-      borderRadius: 8,
+      paddingVertical: Platform.OS === "web" ? 0 : 6,
+      paddingHorizontal: 10,
+      height: Platform.OS === "web" ? 44 : "auto",
+      borderRadius: 10,
       borderWidth: 1,
       borderColor: colors.border,
-      gap: 6,
+      gap: 5,
+      flex: 1,
+      justifyContent: "center",
     },
     filterLabel: {
       fontSize: 12,
-      color: isDark ? "#A0A0A0" : "#666",
+      color: isDark ? "#D1D5DB" : "#666",
     },
     filterValue: {
       fontWeight: "600",
       color: colors.text,
-      maxWidth: 100,
+      maxWidth: Platform.OS === "web" ? 200 : 100,
     },
 
     listContent: { padding: 15, paddingBottom: 100 },
@@ -645,7 +607,7 @@ function createStyles(colors: any, isDark: boolean) {
       color: colors.primary,
       marginBottom: 4,
     },
-    roleQty: { fontSize: 13, color: isDark ? "#A0A0A0" : "#666", marginBottom: 8 },
+    roleQty: { fontSize: 13, color: isDark ? "#D1D5DB" : "#666", marginBottom: 8 },
     roleDesc: {
       fontSize: 13,
       color: isDark ? "#D1D5DB" : "#444",
@@ -710,88 +672,42 @@ function createStyles(colors: any, isDark: boolean) {
       alignItems: "center",
       justifyContent: "center",
     },
-    recsWrapper: {
-      paddingVertical: 15,
-      backgroundColor: isDark ? "#1e1e2d" : "#f8faff",
-      borderBottomWidth: 1,
-      borderColor: colors.border,
+    recsOnlyContainer: {
+      paddingVertical: 10,
     },
-    recsSectionHeader: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      alignItems: "center",
-      paddingHorizontal: 20,
-      marginBottom: 12,
-    },
-    recsSectionTitle: {
+    recsMainTitle: {
+      fontSize: 22,
       fontWeight: "800",
-      fontSize: 14,
-      textTransform: "uppercase",
-      letterSpacing: 0.5,
-      color: colors.primary,
-    },
-    recsSeeMore: {
-      fontSize: 12,
-      fontWeight: "600",
-      color: colors.primary,
-    },
-    recsListContent: {
-      paddingHorizontal: 15,
-    },
-    recCard: {
-      backgroundColor: colors.card,
-      padding: 12,
-      borderRadius: 12,
-      marginHorizontal: 5,
-      width: 220,
-      shadowColor: colors.shadow,
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.1,
-      shadowRadius: 8,
-      elevation: 2,
-      borderWidth: 1,
-      borderColor: colors.border,
-    },
-    recCardHeader: {
-      marginBottom: 8,
-    },
-    matchBadge: {
-      backgroundColor: isDark ? "#2d1a4d" : "#e0e7ff",
-      paddingHorizontal: 6,
-      paddingVertical: 2,
-      borderRadius: 6,
-      alignSelf: "flex-start",
-    },
-    matchBadgeText: {
-      fontSize: 10,
-      fontWeight: "800",
-      color: colors.primary,
-    },
-    recCardTitle: {
-      fontWeight: "700",
-      fontSize: 15,
       color: colors.text,
-      marginBottom: 2,
+      marginBottom: 6,
     },
-    recCardSubtitle: {
-      fontSize: 12,
+    recsSubtitle: {
+      fontSize: 14,
       color: isDark ? "#A0A0A0" : "#64748b",
-      marginBottom: 8,
+      marginBottom: 20,
+      lineHeight: 20,
     },
-    recCardFooter: {
+    exploreAllButton: {
+      backgroundColor: colors.primary,
       flexDirection: "row",
-      justifyContent: "space-between",
       alignItems: "center",
-      marginTop: "auto",
-      paddingTop: 8,
-      borderTopWidth: 1,
-      borderTopColor: colors.border,
+      justifyContent: "center",
+      paddingVertical: 10,
+      paddingHorizontal: 24,
+      borderRadius: 10,
+      marginTop: 20,
+      gap: 10,
+      alignSelf: "center",
+      shadowColor: colors.primary,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.2,
+      shadowRadius: 4,
+      elevation: 2,
     },
-    recCardMeta: {
-      fontSize: 10,
-      color: isDark ? "#A0A0A0" : "#64748b",
-      marginLeft: 4,
-      fontWeight: "500",
+    exploreAllButtonText: {
+      color: "#fff",
+      fontSize: 15,
+      fontWeight: "600",
     },
   });
 }

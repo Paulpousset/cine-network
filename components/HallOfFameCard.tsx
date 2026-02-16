@@ -14,6 +14,7 @@ interface HallOfFameCardProps {
   router: any;
   onToggleLike: (liked: boolean) => void;
   onViewTeam: () => void;
+  onManageTeam?: () => void;
 }
 
 export default function HallOfFameCard({
@@ -24,6 +25,7 @@ export default function HallOfFameCard({
   router,
   onToggleLike,
   onViewTeam,
+  onManageTeam,
 }: HallOfFameCardProps) {
   const { colors, isDark } = useTheme();
   const styles = createStyles(colors, isDark);
@@ -115,7 +117,7 @@ export default function HallOfFameCard({
             </View>
           )}
 
-          {item.final_result_url && (
+          {!!item.final_result_url && (
             <View style={styles.playOverlay}>
               <Ionicons
                 name="play"
@@ -152,9 +154,20 @@ export default function HallOfFameCard({
               />
               <Text style={styles.teamButtonText}>Équipe</Text>
             </TouchableOpacity>
+
+            {currentUserId === item.owner_id && onManageTeam && (
+              <TouchableOpacity style={[styles.teamButton, { backgroundColor: isDark ? "#1b3320" : "#E8F5E9" }]} onPress={onManageTeam}>
+                <Ionicons
+                  name="settings-outline"
+                  size={16}
+                  color={isDark ? "#81c784" : "#2E7D32"}
+                />
+                <Text style={[styles.teamButtonText, { color: isDark ? "#81c784" : "#2E7D32" }]}>Gérer</Text>
+              </TouchableOpacity>
+            )}
           </View>
 
-          {item.final_result_url && !isDirectVideo && (
+          {!!item.final_result_url && !isDirectVideo && (
             <TouchableOpacity
               style={styles.watchButton}
               onPress={() => onOpenLink(item.final_result_url!)}
