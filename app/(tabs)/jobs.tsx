@@ -88,7 +88,7 @@ export default function Discover() {
 
   useEffect(() => {
     loadSavedJobs();
-  }, []);
+  }, [effectiveUserId]);
 
   useEffect(() => {
     if (effectiveUserId) {
@@ -144,10 +144,52 @@ export default function Discover() {
   };
 
   const loadSavedJobs = async () => {
+    if (!effectiveUserId) {
+      try {
+        const saved = await AsyncStorage.getItem("saved_jobs");
+        if (saved) {
+          setSavedJobIds(JSON.parse(saved));
+        }
+      } catch (e) {
+        console.error("Error loading saved jobs from device", e);
+      }
+      return;
+    }
+
     try {
-      const saved = await AsyncStorage.getItem("saved_jobs");
-      if (saved) {
-        setSavedJobIds(JSON.parse(saved));
+      // 1. Fetch from database
+      const { data, error } = await supabase
+        .from("saved_roles")
+        .select("role_id")
+        .eq("user_id", effectiveUserId);
+      
+      if (!error && data) {
+        const dbSavedIds = data.map((d: any) => d.role_id);
+        
+        // 2. Check for local storage to migrate (one-time)
+        const localSaved = await AsyncStorage.getItem("saved_jobs");
+        if (localSaved) {
+          const localIds = JSON.parse(localSaved);
+          const needsMigration = localIds.filter((id: string) => !dbSavedIds.includes(id));
+          
+          if (needsMigration.length > 0) {
+            // Bulk insert missing IDs
+            const toInsert = needsMigration.map((roleId: string) => ({
+              user_id: effectiveUserId,
+              role_id: roleId,
+            }));
+            
+            await supabase.from("saved_roles").insert(toInsert);
+            const combined = [...new Set([...dbSavedIds, ...localIds])];
+            setSavedJobIds(combined);
+            // Optional: clear local storage after migration
+            // await AsyncStorage.removeItem("saved_jobs");
+          } else {
+            setSavedJobIds(dbSavedIds);
+          }
+        } else {
+          setSavedJobIds(dbSavedIds);
+        }
       }
     } catch (e) {
       console.error("Error loading saved jobs", e);
@@ -155,15 +197,36 @@ export default function Discover() {
   };
 
   const toggleSaveJob = async (jobId: string) => {
-    const newSaved = savedJobIds.includes(jobId)
+    const isSaved = savedJobIds.includes(jobId);
+    const newSaved = isSaved
       ? savedJobIds.filter((id) => id !== jobId)
       : [...savedJobIds, jobId];
     
     setSavedJobIds(newSaved);
-    try {
-      await AsyncStorage.setItem("saved_jobs", JSON.stringify(newSaved));
-    } catch (e) {
-      console.error("Error saving job", e);
+
+    if (effectiveUserId) {
+      try {
+        if (isSaved) {
+          await supabase
+            .from("saved_roles")
+            .delete()
+            .eq("user_id", effectiveUserId)
+            .eq("role_id", jobId);
+        } else {
+          await supabase
+            .from("saved_roles")
+            .insert({ user_id: effectiveUserId, role_id: jobId });
+        }
+      } catch (e) {
+        console.error("Error toggling saved job in DB", e);
+      }
+    } else {
+      // Guest mode fallback
+      try {
+        await AsyncStorage.setItem("saved_jobs", JSON.stringify(newSaved));
+      } catch (e) {
+        console.error("Error saving job to device", e);
+      }
     }
   };
 

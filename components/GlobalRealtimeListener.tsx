@@ -7,11 +7,25 @@ import { useEffect, useRef } from "react";
 import { Platform } from "react-native";
 
 const SEEN_ACCEPTED_KEY = "seen_accepted_connections";
+const SETTINGS_KEY = "user_notification_preferences";
 
 export default function GlobalRealtimeListener({ user }: { user: User }) {
   const pathname = usePathname();
   const pathnameRef = useRef(pathname);
   const userRef = useRef(user);
+
+  const getPreference = async (key: string) => {
+    try {
+      const stored = await AsyncStorage.getItem(SETTINGS_KEY);
+      if (stored) {
+        const prefs = JSON.parse(stored);
+        return prefs[key] !== false; // Default to true if not set or explicitly true
+      }
+    } catch (e) {
+      console.error("Error reading notification preferences", e);
+    }
+    return true; // Default to true
+  };
 
   // Update refs when values change without re-triggering the main effect
   useEffect(() => {
@@ -30,6 +44,7 @@ export default function GlobalRealtimeListener({ user }: { user: User }) {
     let connectionsChannel: any = null;
     let applicationsChannel: any = null;
     let projectRolesChannel: any = null;
+    let postsActivityChannel: any = null;
     let destroyed = false;
 
     const setupListeners = () => {
@@ -42,6 +57,7 @@ export default function GlobalRealtimeListener({ user }: { user: User }) {
       const connectionsChannelId = `global-connections-${user.id}`;
       const appsChannelId = `global-apps-${user.id}`;
       const rolesChannelId = `global-roles-${user.id}`;
+      const activityChannelId = `global-activity-${user.id}`;
 
       // Clean up existing channels before creating new ones to avoid duplicates
       if (dmChannel) supabase.removeChannel(dmChannel);
@@ -49,6 +65,7 @@ export default function GlobalRealtimeListener({ user }: { user: User }) {
       if (connectionsChannel) supabase.removeChannel(connectionsChannel);
       if (applicationsChannel) supabase.removeChannel(applicationsChannel);
       if (projectRolesChannel) supabase.removeChannel(projectRolesChannel);
+      if (postsActivityChannel) supabase.removeChannel(postsActivityChannel);
 
       console.log("GlobalRealtimeListener: Starting listeners for", userId);
 
@@ -79,6 +96,9 @@ export default function GlobalRealtimeListener({ user }: { user: User }) {
                 pathnameRef.current === `/direct-messages/${msg.sender_id}`;
 
               if (isToMe && !isViewingThisChat) {
+                const isEnabled = await getPreference("messages");
+                if (!isEnabled) return;
+
                 const { data: profile } = await supabase
                   .from("profiles")
                   .select("full_name")
@@ -152,6 +172,14 @@ export default function GlobalRealtimeListener({ user }: { user: User }) {
 
                 if (!isMember) return;
 
+                const isGlobalEnabled = await getPreference("project_messages");
+                if (!isGlobalEnabled) return;
+
+                // Check for per-space override
+                const spaceKey = `notifications_space_${newMsg.project_id}_${newMsg.category}`;
+                const spacePref = await AsyncStorage.getItem(spaceKey);
+                if (spacePref === "false") return;
+
                 const { data: profile } = await supabase
                   .from("profiles")
                   .select("full_name")
@@ -187,7 +215,7 @@ export default function GlobalRealtimeListener({ user }: { user: User }) {
             schema: "public",
             table: "connections",
           },
-          (payload) => {
+           async (payload) => {
             const rec = payload.new as any;
             if (!rec) return;
 
@@ -200,22 +228,28 @@ export default function GlobalRealtimeListener({ user }: { user: User }) {
                 rec.receiver_id === currentUser.id &&
                 rec.status === "pending"
               ) {
-                appEvents.emit(EVENTS.SHOW_NOTIFICATION, {
-                  title: "Nouvelle demande de connexion",
-                  body: "Quelqu'un souhaite rejoindre votre réseau",
-                  link: "/notifications",
-                });
+                const isEnabled = await getPreference("connections");
+                if (isEnabled) {
+                  appEvents.emit(EVENTS.SHOW_NOTIFICATION, {
+                    title: "Nouvelle demande de connexion",
+                    body: "Quelqu'un souhaite rejoindre votre réseau",
+                    link: "/notifications",
+                  });
+                }
               }
               else if (
                 payload.eventType === "UPDATE" &&
                 rec.requester_id === currentUser.id &&
                 rec.status === "accepted"
               ) {
-                appEvents.emit(EVENTS.SHOW_NOTIFICATION, {
-                  title: "Demande acceptée",
-                  body: "Vous avez une nouvelle connexion !",
-                  link: "/notifications",
-                });
+                const isEnabled = await getPreference("connections");
+                if (isEnabled) {
+                  appEvents.emit(EVENTS.SHOW_NOTIFICATION, {
+                    title: "Demande acceptée",
+                    body: "Vous avez une nouvelle connexion !",
+                    link: "/notifications",
+                  });
+                }
               }
             }
           },
@@ -255,6 +289,9 @@ export default function GlobalRealtimeListener({ user }: { user: User }) {
             }
 
             if (candidateId !== currentUser.id) return;
+
+            const isEnabled = await getPreference("applications");
+            if (!isEnabled) return;
 
             let rTitle = "un rôle";
             let pTitle = "un projet";
@@ -341,6 +378,11 @@ export default function GlobalRealtimeListener({ user }: { user: User }) {
             const seenIds = seenJson ? JSON.parse(seenJson) : [];
             if (seenIds.includes(newRole.id)) return;
 
+            const isInvitation = currentStatus === "invitation_pending";
+            const prefKey = isInvitation ? "project_invitations" : "applications"; // "assigned" is like an application update
+            const isEnabled = await getPreference(prefKey);
+            if (!isEnabled) return;
+
             appEvents.emit(EVENTS.CONNECTIONS_UPDATED);
 
             let projectTitle = "un projet";
@@ -353,7 +395,6 @@ export default function GlobalRealtimeListener({ user }: { user: User }) {
               if (proj) projectTitle = proj.title;
             }
 
-            const isInvitation = currentStatus === "invitation_pending";
             appEvents.emit(EVENTS.SHOW_NOTIFICATION, {
               title: isInvitation ? "Nouvelle Invitation !" : "Poste Assigné !",
               body: isInvitation
@@ -361,6 +402,77 @@ export default function GlobalRealtimeListener({ user }: { user: User }) {
                 : `Vous avez été ajouté au projet "${projectTitle}" pour le rôle "${roleTitle}".`,
               link: "/notifications",
             });
+          },
+        )
+        .subscribe();
+
+      // 6. Posts Activity Listener (Likes & Comments)
+      postsActivityChannel = supabase
+        .channel(activityChannelId)
+        .on(
+          "postgres_changes",
+          { event: "INSERT", schema: "public", table: "post_likes" },
+          async (payload) => {
+            const like = payload.new as any;
+            if (!like || like.user_id === userId) return;
+
+            // Check if post belongs to me
+            const { data: post } = await supabase
+              .from("posts")
+              .select("user_id")
+              .eq("id", like.post_id)
+              .single();
+
+            if (post?.user_id === userId) {
+              const isEnabled = await getPreference("likes");
+              if (!isEnabled) return;
+
+              const { data: profile } = await supabase
+                .from("profiles")
+                .select("full_name")
+                .eq("id", like.user_id)
+                .single();
+
+              appEvents.emit(EVENTS.SHOW_NOTIFICATION, {
+                title: "Nouveau j'aime",
+                body: `${profile?.full_name || "Quelqu'un"} a aimé votre publication.`,
+                link: "/notifications",
+              });
+              appEvents.emit(EVENTS.CONNECTIONS_UPDATED);
+            }
+          },
+        )
+        .on(
+          "postgres_changes",
+          { event: "INSERT", schema: "public", table: "post_comments" },
+          async (payload) => {
+            const comment = payload.new as any;
+            if (!comment || comment.user_id === userId) return;
+
+            // Check if post belongs to me
+            const { data: post } = await supabase
+              .from("posts")
+              .select("user_id")
+              .eq("id", comment.post_id)
+              .single();
+
+            if (post?.user_id === userId) {
+              const isEnabled = await getPreference("comments");
+              if (!isEnabled) return;
+
+              const { data: profile } = await supabase
+                .from("profiles")
+                .select("full_name")
+                .eq("id", comment.user_id)
+                .single();
+
+              appEvents.emit(EVENTS.SHOW_NOTIFICATION, {
+                title: "Nouveau commentaire",
+                body: `${profile?.full_name || "Quelqu'un"} a commenté votre publication.`,
+                link: "/notifications",
+              });
+              appEvents.emit(EVENTS.CONNECTIONS_UPDATED);
+            }
           },
         )
         .subscribe();
@@ -380,6 +492,7 @@ export default function GlobalRealtimeListener({ user }: { user: User }) {
       if (connectionsChannel) supabase.removeChannel(connectionsChannel);
       if (applicationsChannel) supabase.removeChannel(applicationsChannel);
       if (projectRolesChannel) supabase.removeChannel(projectRolesChannel);
+      if (postsActivityChannel) supabase.removeChannel(postsActivityChannel);
     };
   }, [user.id]); // ONLY re-run if user ID changes (e.g. login/logout)
 

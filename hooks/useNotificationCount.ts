@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 import { AppState } from "react-native";
 
 const SEEN_ACCEPTED_KEY = "seen_accepted_connections";
+const SEEN_POST_ACTIVITY_KEY = "seen_post_activity";
 
 export function useNotificationCount() {
   const { user } = useUser();
@@ -14,6 +15,7 @@ export function useNotificationCount() {
     talentsCount: 0,
     projectsCount: 0,
     jobsCount: 0,
+    socialCount: 0,
   });
 
   const fetchCount = useCallback(async () => {
@@ -106,16 +108,48 @@ export function useNotificationCount() {
         return !seenIds.includes(item.id);
       }).length;
 
+      // 5. Unseen Likes and Comments on my posts
+      let socialCount = 0;
+      const seenActivityJson = await AsyncStorage.getItem(SEEN_POST_ACTIVITY_KEY);
+      const seenActivityIds = seenActivityJson ? JSON.parse(seenActivityJson) : [];
+
+      const { data: myPosts } = await supabase
+        .from("posts")
+        .select("id")
+        .eq("user_id", user.id);
+      
+      const myPostIds = myPosts?.map(p => p.id) || [];
+
+      if (myPostIds.length > 0) {
+        const { data: likes } = await supabase
+          .from("post_likes")
+          .select("post_id, user_id")
+          .in("post_id", myPostIds)
+          .neq("user_id", user.id);
+        
+        const unseenLikes = (likes || []).filter(l => !seenActivityIds.includes(`like_${l.post_id}_${l.user_id}`)).length;
+
+        const { data: comments } = await supabase
+          .from("post_comments")
+          .select("id, post_id, user_id")
+          .in("post_id", myPostIds)
+          .neq("user_id", user.id);
+          
+        const unseenComments = (comments || []).filter(c => !seenActivityIds.includes(`comment_${c.id}`)).length;
+        socialCount = unseenLikes + unseenComments;
+      }
+
       const talentsCount = (pendingCount || 0) + unseenAccepted;
       const projectsCount = unseenAssignments + invitationCount;
       const jobsCount = unseenApplications;
-      const total = talentsCount + projectsCount + jobsCount;
+      const total = talentsCount + projectsCount + jobsCount + socialCount;
 
       setCounts({
         total,
         talentsCount,
         projectsCount,
         jobsCount,
+        socialCount,
       });
     } catch (e) {
       console.error(e);

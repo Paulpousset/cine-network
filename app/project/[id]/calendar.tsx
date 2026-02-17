@@ -6,23 +6,23 @@ import { useTutorial } from "@/providers/TutorialProvider";
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import {
-  useFocusEffect,
-  useGlobalSearchParams,
-  useLocalSearchParams,
-  useRouter,
+    useFocusEffect,
+    useGlobalSearchParams,
+    useLocalSearchParams,
+    useRouter,
 } from "expo-router";
 import React, { useCallback, useState } from "react";
 import {
-  Alert,
-  Button,
-  FlatList,
-  Modal,
-  Platform,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    Alert,
+    Button,
+    FlatList,
+    Modal,
+    Platform,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { supabase } from "../../../lib/supabase";
 
@@ -446,23 +446,42 @@ export default function ProjectCalendar() {
 
         if (newEventType === "category_specific") {
           for (const cat of targetCategories) {
-            await supabase.from("project_messages" as any).insert({
-              project_id: projectId,
-              content: chatMessage,
-              sender_id: (await supabase.auth.getSession()).data.session?.user
-                .id,
-              category: cat,
-            });
+            const senderId = (await supabase.auth.getSession()).data.session?.user.id;
+            if (senderId) {
+              await supabase.from("project_messages" as any).insert({
+                project_id: projectId,
+                content: chatMessage,
+                sender_id: senderId,
+                category: cat,
+              });
+              
+              NotificationService.sendProjectMessageNotification({
+                projectId,
+                category: cat,
+                content: chatMessage,
+                senderId: senderId,
+              });
+            }
           }
         } else if (newEventType === "role_specific") {
           // No specific chat notification for roles for now
         } else {
-          await supabase.from("project_messages" as any).insert({
-            project_id: projectId,
-            content: chatMessage,
-            sender_id: (await supabase.auth.getSession()).data.session?.user.id,
-            category: "general",
-          });
+          const senderId = (await supabase.auth.getSession()).data.session?.user.id;
+          if (senderId) {
+            await supabase.from("project_messages" as any).insert({
+              project_id: projectId,
+              content: chatMessage,
+              sender_id: senderId,
+              category: "general",
+            });
+
+            NotificationService.sendProjectMessageNotification({
+              projectId,
+              category: "general",
+              content: chatMessage,
+              senderId: senderId,
+            });
+          }
         }
       }
 
