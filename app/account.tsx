@@ -6,6 +6,7 @@ import { useUserMode } from "@/hooks/useUserMode";
 import { appEvents, EVENTS } from "@/lib/events";
 import { supabase } from "@/lib/supabase";
 import { useTheme } from "@/providers/ThemeProvider";
+import { useUser } from "@/providers/UserProvider";
 import { JOB_TITLES } from "@/utils/roles";
 import { Ionicons } from "@expo/vector-icons";
 import * as DocumentPicker from "expo-document-picker";
@@ -55,6 +56,7 @@ const ROLES = [
 export default function Account() {
   const router = useRouter();
   const { mode, effectiveUserId, isImpersonating } = useUserMode(); // Mode is mostly visual/role based
+  const { isGuest } = useUser();
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
@@ -228,7 +230,7 @@ export default function Account() {
     },
     tag: {
       paddingVertical: 8,
-      paddingHorizontal: 12,
+      paddingHorizontal: 9,
       borderRadius: 8,
       borderWidth: 1,
       borderColor: colors.border,
@@ -354,13 +356,16 @@ export default function Account() {
       // Fetch personal experience notes
       const { data: experienceNotes } = await supabase
         .from("profile_experience_notes")
-        .select("project_id, note, image_url, custom_title")
+
+
+        .select("project_id, note, image_url, image_urls, custom_title")
         .eq("profile_id", effectiveUserId);
 
       const notesMap = (experienceNotes || []).reduce((acc: any, curr: any) => {
         acc[curr.project_id] = {
             note: curr.note,
             image_url: curr.image_url,
+            image_urls: curr.image_urls || [],
             custom_title: curr.custom_title
         };
         return acc;
@@ -371,7 +376,8 @@ export default function Account() {
           ...p,
           personalNote: notesMap[p.id]?.note || "",
           personalImage: notesMap[p.id]?.image_url || null,
-          personalTitle: notesMap[p.id]?.custom_title || null
+          personalImages: notesMap[p.id]?.image_urls || [],
+          personalTitle: notesMap[p.id]?.custom_title || ""
         })));
       }
 
@@ -404,7 +410,8 @@ export default function Account() {
             roleTitle: p.title,
             personalNote: notesMap[p.tournages?.id]?.note || "",
             personalImage: notesMap[p.tournages?.id]?.image_url || null,
-            personalTitle: notesMap[p.tournages?.id]?.custom_title || null,
+            personalImages: notesMap[p.tournages?.id]?.image_urls || [],
+            personalTitle: notesMap[p.tournages?.id]?.custom_title || "",
             projectId: p.tournages?.id,
             projectTime: p.tournages?.created_at,
             projectTitle: p.tournages?.title,
@@ -426,6 +433,10 @@ export default function Account() {
   // --- UPLOAD HELPERS ---
 
   async function uploadImage(isAvatar: boolean = false) {
+    if (isGuest) {
+        Alert.alert("Invité", "Vous devez être connecté pour modifier votre profil.");
+        return;
+    }
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ["images"],
@@ -439,7 +450,10 @@ export default function Account() {
 
       setUploading(true);
       const image = result.assets[0];
-      const fileExt = image.uri.split(".").pop();
+      let fileExt = (image.uri.split(".").pop() || "jpg").split("?")[0];
+      if (fileExt.includes(":") || fileExt.length > 5) {
+        fileExt = image.mimeType?.split("/")[1] || "jpg";
+      }
       const fileName = `${Date.now()}.${fileExt}`;
       const filePath = isAvatar ? `avatars/${fileName}` : `book/${fileName}`;
 
@@ -473,6 +487,10 @@ export default function Account() {
   }
 
   async function uploadCV() {
+    if (isGuest) {
+        Alert.alert("Invité", "Vous devez être connecté pour modifier votre profil.");
+        return;
+    }
     try {
       const result = await DocumentPicker.getDocumentAsync({
         type: "application/pdf",
@@ -509,6 +527,10 @@ export default function Account() {
   }
 
   async function toggleContactVisibility(value: boolean) {
+    if (isGuest) {
+        Alert.alert("Invité", "Vous devez être connecté pour modifier votre profil.");
+        return;
+    }
     try {
       setIsContactVisible(value); // Optimistic
       if (!effectiveUserId) return;
@@ -528,6 +550,10 @@ export default function Account() {
     projectId: string,
     isVisible: boolean,
   ) {
+    if (isGuest) {
+        Alert.alert("Invité", "Vous devez être connecté pour modifier votre profil.");
+        return;
+    }
     try {
       let newHiddenIds = [...hiddenProjectIds];
       if (isVisible) {
@@ -553,11 +579,12 @@ export default function Account() {
     }
   }
 
-  async function updateExperienceField(projectId: string, field: 'note' | 'image_url' | 'custom_title', value: string | null) {
+  async function updateExperienceField(projectId: string, field: 'note' | 'image_url' | 'custom_title' | 'image_urls', value: string | string[] | null) {
     try {
       const keyMap = {
         note: 'personalNote',
         image_url: 'personalImage',
+        image_urls: 'personalImages',
         custom_title: 'personalTitle'
       };
       
@@ -595,26 +622,55 @@ export default function Account() {
       setUploading(true);
 
       const image = result.assets[0];
-      const fileExt = image.uri.split(".").pop();
+      let fileExt = (image.uri.split(".").pop() || "jpg").split("?")[0];
+      if (fileExt.includes(":") || fileExt.length > 5) {
+        fileExt = image.mimeType?.split("/")[1] || "jpg";
+      }
       const fileName = `experience/${effectiveUserId}/${projectId}_${Date.now()}.${fileExt}`;
-
-      const arrayBuffer = await fetch(image.uri).then((res) => res.arrayBuffer());
+      const response = await fetch(image.uri);
+      const blob = await response.blob();
       const { error: uploadError } = await supabase.storage
         .from("user_content")
-        .upload(fileName, arrayBuffer, {
-          contentType: image.mimeType || "image/jpeg",
-          upsert: true,
+        .upload(fileName, blob, {
+          contentType: image.mimeType || blob.type || "image/jpeg",
+          upsert: false,
         });
 
       if (uploadError) throw uploadError;
 
       const { data: { publicUrl } } = supabase.storage.from("user_content").getPublicUrl(fileName);
       
-      await updateExperienceField(projectId, 'image_url', publicUrl);
+      // Get current images
+      const project = myProjects.find(p => p.id === projectId) || myParticipations.find(p => p.projectId === projectId);
+      const currentImages = project?.personalImages || [];
+      const newImages = [...currentImages, publicUrl];
+
+      await updateExperienceField(projectId, 'image_urls', newImages);
+      // For backward compatibility / main display
+      if (!project?.personalImage) {
+        await updateExperienceField(projectId, 'image_url', publicUrl);
+      }
     } catch (e) {
       Alert.alert("Erreur", "Impossible d'uploader l'image d'expérience");
     } finally {
       setUploading(false);
+    }
+  }
+
+  async function removeExperienceImage(projectId: string, imageUrl: string) {
+    try {
+      const project = myProjects.find(p => p.id === projectId) || myParticipations.find(p => p.projectId === projectId);
+      const currentImages = project?.personalImages || [];
+      const newImages = currentImages.filter((img: string) => img !== imageUrl);
+      
+      await updateExperienceField(projectId, 'image_urls', newImages);
+      
+      // If we removed the main image, update it to the next one or null
+      if (project?.personalImage === imageUrl) {
+        await updateExperienceField(projectId, 'image_url', newImages.length > 0 ? newImages[0] : null);
+      }
+    } catch (e) {
+      Alert.alert("Erreur", "Impossible de supprimer l'image");
     }
   }
 
@@ -757,9 +813,15 @@ export default function Account() {
             <Ionicons name="settings-outline" size={24} color={colors.text} />
           </TouchableOpacity>
           <TouchableOpacity
-            onPress={saveProfile}
-            disabled={loading || uploading}
-            style={{ padding: 5 }}
+            onPress={() => {
+              if (isGuest) {
+                Alert.alert("Invité", "Vous devez être connecté pour modifier votre profil.");
+                return;
+              }
+              saveProfile();
+            }}
+            disabled={loading || uploading || isGuest}
+            style={{ padding: 5, opacity: isGuest ? 0.5 : 1 }}
           >
             {loading || uploading ? (
               <ClapLoading size={24} color={colors.primary} />
@@ -859,8 +921,15 @@ export default function Account() {
               }}
             >
               <TouchableOpacity
-                onPress={() => setPaymentModalVisible(true)}
-                style={[GlobalStyles.primaryButton, { flex: 1, backgroundColor: colors.primary }]}
+                onPress={() => {
+                  if (isGuest) {
+                    Alert.alert("Invité", "Vous devez être connecté pour passer membre Studio.");
+                    return;
+                  }
+                  setPaymentModalVisible(true);
+                }}
+                disabled={isGuest}
+                style={[GlobalStyles.primaryButton, { flex: 1, backgroundColor: colors.primary, opacity: isGuest ? 0.5 : 1 }]}
               >
                 <Text style={GlobalStyles.buttonText}>
                   Passer Pro (9€/mois)
@@ -894,7 +963,7 @@ export default function Account() {
           <Text style={styles.label}>Nom complet</Text>
           <TextInput
             style={styles.input}
-            value={full_name}
+            value={full_name || ""}
             onChangeText={setFullName}
             placeholder="Prénom Nom"
             placeholderTextColor={isDark ? "#6B7280" : "#999"}
@@ -906,7 +975,7 @@ export default function Account() {
           <Text style={styles.label}>Nom d'utilisateur (Pseudo)</Text>
           <TextInput
             style={styles.input}
-            value={username}
+            value={username || ""}
             onChangeText={setUsername}
             placeholder="pseudo"
             autoCapitalize="none"
@@ -952,9 +1021,7 @@ export default function Account() {
             <>
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
                 <Text style={[styles.label, { marginBottom: 0 }]}>Intitulé de poste (Principal)</Text>
-                <Text style={{ fontSize: 10, color: colors.primary, fontWeight: '600' }}>
-                    SÉPARER PAR DES VIRGULES
-                </Text>
+                
               </View>
 
               {/* Affichage des éléments sélectionnés sous forme de tags */}
@@ -1064,9 +1131,6 @@ export default function Account() {
             <>
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
                 <Text style={[styles.label, { marginBottom: 0 }]}>Intitulé de poste (Secondaire)</Text>
-                <Text style={{ fontSize: 10, color: colors.primary, fontWeight: '600' }}>
-                    SÉPARER PAR DES VIRGULES
-                </Text>
               </View>
 
               {/* Affichage des éléments sélectionnés sous forme de tags pour le rôle secondaire */}
@@ -1133,7 +1197,7 @@ export default function Account() {
           <View style={{ flexDirection: "row", gap: 10, marginTop: 15 }}>
             <View style={{ flex: 1 }}>
               <Text style={styles.label}>Genre</Text>
-              <View style={{ flexDirection: "row", gap: 5 }}>
+              <View style={{ flexDirection: "row", gap: 4 }}>
                 {["Homme", "Femme", "Autre"].map((g) => (
                   <TouchableOpacity
                     key={g}
@@ -1161,7 +1225,7 @@ export default function Account() {
               <Text style={styles.label}>Âge</Text>
               <TextInput
                 style={styles.input}
-                value={age}
+                value={age || ""}
                 onChangeText={setAge}
                 placeholder="25"
                 keyboardType="numeric"
@@ -1186,7 +1250,7 @@ export default function Account() {
           </View>
           <TextInput
             style={[styles.input, styles.textArea]}
-            value={bio}
+            value={bio || ""}
             onChangeText={setBio}
             placeholder="Décrivez votre parcours en quelques lignes..."
             multiline
@@ -1200,7 +1264,7 @@ export default function Account() {
           <Text style={styles.label}>Site web / Portfolio URL</Text>
           <TextInput
             style={styles.input}
-            value={website}
+            value={website || ""}
             onChangeText={setWebsite}
             placeholder="https://..."
             autoCapitalize="none"
@@ -1210,7 +1274,7 @@ export default function Account() {
           <Text style={styles.label}>Email Pro (Public)</Text>
           <TextInput
             style={styles.input}
-            value={email_public}
+            value={email_public || ""}
             onChangeText={setEmailPublic}
             placeholder="contact@exemple.com"
             keyboardType="email-address"
@@ -1221,7 +1285,7 @@ export default function Account() {
           <Text style={styles.label}>Téléphone (Optionnel)</Text>
           <TextInput
             style={styles.input}
-            value={phone}
+            value={phone || ""}
             onChangeText={setPhone}
             placeholder="+33 6..."
             keyboardType="phone-pad"
@@ -1263,7 +1327,7 @@ export default function Account() {
                   <Text style={styles.label}>Taille (cm)</Text>
                   <TextInput
                     style={styles.input}
-                    value={height}
+                    value={height || ""}
                     onChangeText={setHeight}
                     placeholder="175"
                     keyboardType="numeric"
@@ -1341,13 +1405,14 @@ export default function Account() {
                 <Text style={[styles.label, { marginBottom: 0 }]}>
                     Matériel (Caméra, Son, Lumière...)
                 </Text>
-                <Text style={{ fontSize: 10, color: colors.primary, fontWeight: '600' }}>
+                
+              </View>
+              <Text style={{ fontSize: 8, color: colors.primary, fontWeight: '600',paddingBottom: 2 }}>
                     SÉPARER PAR DES VIRGULES
                 </Text>
-              </View>
               <TextInput
                 style={styles.input}
-                value={equipment}
+                value={equipment || ""}
                 onChangeText={setEquipment}
                 placeholder="Ex: Sony A7S III, Micro Zoom H6..."
                 placeholderTextColor={isDark ? "#6B7280" : "#999"}
@@ -1355,13 +1420,14 @@ export default function Account() {
               
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
                 <Text style={[styles.label, { marginBottom: 0 }]}>Logiciels & Outils</Text>
-                <Text style={{ fontSize: 10, color: colors.primary, fontWeight: '600' }}>
-                    SÉPARER PAR DES VIRGULES
-                </Text>
+                
               </View>
+              <Text style={{ fontSize: 8, color: colors.primary, fontWeight: '600', paddingBottom: 2 }}>
+                    SÉPARER PAR DES VIRGULES
+              </Text>
               <TextInput
                 style={styles.input}
-                value={software}
+                value={software || ""}
                 onChangeText={setSoftware}
                 placeholder="Premiere Pro, DaVinci, Final Draft..."
                 placeholderTextColor={isDark ? "#6B7280" : "#999"}
@@ -1378,7 +1444,7 @@ export default function Account() {
               <Text style={styles.label}>Spécialités</Text>
               <TextInput
                 style={styles.input}
-                value={specialties}
+                value={specialties || ""}
                 onChangeText={setSpecialties}
                 placeholder="Maquillage SFX, Coiffure époque..."
                 placeholderTextColor={isDark ? "#6B7280" : "#999"}
@@ -1536,7 +1602,7 @@ export default function Account() {
           </Text>
           <TextInput
             style={styles.input}
-            value={showreel_url}
+            value={showreel_url || ""}
             onChangeText={setShowreelUrl}
             placeholder="https://youtube.com/..."
             autoCapitalize="none"
@@ -1607,29 +1673,37 @@ export default function Account() {
                     />
                   </View>
 
-                  <View style={{ flexDirection: 'row', gap: 10, marginBottom: 10 }}>
-                    <TouchableOpacity 
-                        onPress={() => uploadExperienceImage(p.id)}
-                        style={{ width: 80, height: 60, borderRadius: 8, backgroundColor: colors.backgroundSecondary, justifyContent: 'center', alignItems: 'center', borderStyle: 'dashed', borderWidth: 1, borderColor: colors.border }}
-                    >
-                        {(p.personalImage || p.image_url) ? (
-                            <Image source={{ uri: p.personalImage || p.image_url }} style={{ width: '100%', height: '100%', borderRadius: 8 }} />
-                        ) : (
-                            <Ionicons name="camera" size={20} color={colors.textSecondary} />
-                        )}
-                        <View style={{ position: 'absolute', bottom: -5, right: -5, backgroundColor: colors.primary, borderRadius: 10, padding: 2 }}>
-                            <Ionicons name="pencil" size={10} color="white" />
-                        </View>
-                    </TouchableOpacity>
-                    <View style={{ flex: 1 }}>
-                        <TextInput
-                            style={[styles.input, { fontSize: 13, paddingVertical: 8, marginBottom: 0 }]}
-                            placeholder="Titre personnalisé (ex: Ma réalisation préférée)"
-                            placeholderTextColor={isDark ? "#6B7280" : "#999"}
-                            value={p.personalTitle}
-                            onChangeText={(val) => updateExperienceField(p.id, 'custom_title', val)}
-                        />
-                    </View>
+                  <View style={{ marginBottom: 10 }}>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10 }}>
+                        {p.personalImages && p.personalImages.map((img: string, i: number) => (
+                            <View key={i} style={{ position: 'relative' }}>
+                                <Image source={{ uri: img }} style={{ width: 100, height: 75, borderRadius: 8 }} />
+                                <TouchableOpacity 
+                                    onPress={() => removeExperienceImage(p.id, img)}
+                                    style={{ position: 'absolute', top: -5, right: -5, backgroundColor: colors.card, borderRadius: 10 }}
+                                >
+                                    <Ionicons name="close-circle" size={20} color={colors.danger} />
+                                </TouchableOpacity>
+                            </View>
+                        ))}
+                        <TouchableOpacity 
+                            onPress={() => uploadExperienceImage(p.id)}
+                            style={{ width: 100, height: 75, borderRadius: 8, backgroundColor: colors.backgroundSecondary, justifyContent: 'center', alignItems: 'center', borderStyle: 'dashed', borderWidth: 1, borderColor: colors.border }}
+                        >
+                            <Ionicons name="camera" size={24} color={colors.textSecondary} />
+                            <Text style={{ fontSize: 10, color: colors.textSecondary, marginTop: 4 }}>Ajouter</Text>
+                        </TouchableOpacity>
+                    </ScrollView>
+                  </View>
+
+                  <View style={{ marginBottom: 10 }}>
+                    <TextInput
+                        style={[styles.input, { fontSize: 13, paddingVertical: 8, marginBottom: 0 }]}
+                        placeholder="Titre personnalisé (ex: Ma réalisation préférée)"
+                        placeholderTextColor={isDark ? "#6B7280" : "#999"}
+                        value={p.personalTitle || ""}
+                        onChangeText={(val) => updateExperienceField(p.id, 'custom_title', val)}
+                    />
                   </View>
 
                   <View style={{ position: 'relative' }}>
@@ -1637,7 +1711,7 @@ export default function Account() {
                         style={[styles.input, { fontSize: 13, paddingVertical: 8, height: 60, marginBottom: 0, paddingRight: 40 }]}
                         placeholder="Ajouter une description pour ce tournage (visible sur votre profil)..."
                         placeholderTextColor={isDark ? "#6B7280" : "#999"}
-                        value={p.personalNote}
+                        value={p.personalNote || ""}
                         onChangeText={(val) => updateExperienceField(p.id, 'note', val)}
                         multiline
                     />
@@ -1713,29 +1787,37 @@ export default function Account() {
                     />
                   </View>
 
-                  <View style={{ flexDirection: 'row', gap: 10, marginBottom: 10 }}>
-                    <TouchableOpacity 
-                        onPress={() => uploadExperienceImage(p.projectId)}
-                        style={{ width: 80, height: 60, borderRadius: 8, backgroundColor: colors.backgroundSecondary, justifyContent: 'center', alignItems: 'center', borderStyle: 'dashed', borderWidth: 1, borderColor: colors.border }}
-                    >
-                        {(p.personalImage || p.projectImage) ? (
-                            <Image source={{ uri: p.personalImage || p.projectImage }} style={{ width: '100%', height: '100%', borderRadius: 8 }} />
-                        ) : (
-                            <Ionicons name="camera" size={20} color={colors.textSecondary} />
-                        )}
-                        <View style={{ position: 'absolute', bottom: -5, right: -5, backgroundColor: colors.primary, borderRadius: 10, padding: 2 }}>
-                            <Ionicons name="pencil" size={10} color="white" />
-                        </View>
-                    </TouchableOpacity>
-                    <View style={{ flex: 1 }}>
-                        <TextInput
-                            style={[styles.input, { fontSize: 13, paddingVertical: 8, marginBottom: 0 }]}
-                            placeholder="Titre personnalisé (ex: Mon rôle préféré)"
-                            placeholderTextColor={isDark ? "#6B7280" : "#999"}
-                            value={p.personalTitle}
-                            onChangeText={(val) => updateExperienceField(p.projectId, 'custom_title', val)}
-                        />
-                    </View>
+                  <View style={{ marginBottom: 10 }}>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10 }}>
+                        {p.personalImages && p.personalImages.map((img: string, i: number) => (
+                            <View key={i} style={{ position: 'relative' }}>
+                                <Image source={{ uri: img }} style={{ width: 100, height: 75, borderRadius: 8 }} />
+                                <TouchableOpacity 
+                                    onPress={() => removeExperienceImage(p.projectId, img)}
+                                    style={{ position: 'absolute', top: -5, right: -5, backgroundColor: colors.card, borderRadius: 10 }}
+                                >
+                                    <Ionicons name="close-circle" size={20} color={colors.danger} />
+                                </TouchableOpacity>
+                            </View>
+                        ))}
+                        <TouchableOpacity 
+                            onPress={() => uploadExperienceImage(p.projectId)}
+                            style={{ width: 100, height: 75, borderRadius: 8, backgroundColor: colors.backgroundSecondary, justifyContent: 'center', alignItems: 'center', borderStyle: 'dashed', borderWidth: 1, borderColor: colors.border }}
+                        >
+                            <Ionicons name="camera" size={24} color={colors.textSecondary} />
+                            <Text style={{ fontSize: 10, color: colors.textSecondary, marginTop: 4 }}>Ajouter</Text>
+                        </TouchableOpacity>
+                    </ScrollView>
+                  </View>
+
+                  <View style={{ marginBottom: 10 }}>
+                    <TextInput
+                        style={[styles.input, { fontSize: 13, paddingVertical: 8, marginBottom: 0 }]}
+                        placeholder="Titre personnalisé (ex: Mon rôle préféré)"
+                        placeholderTextColor={isDark ? "#6B7280" : "#999"}
+                        value={p.personalTitle || ""}
+                        onChangeText={(val) => updateExperienceField(p.projectId, 'custom_title', val)}
+                    />
                   </View>
 
                   <View style={{ position: 'relative' }}>
@@ -1743,7 +1825,7 @@ export default function Account() {
                         style={[styles.input, { fontSize: 13, paddingVertical: 8, height: 60, marginBottom: 0, paddingRight: 40 }]}
                         placeholder="Racontez votre expérience sur ce projet..."
                         placeholderTextColor={isDark ? "#6B7280" : "#999"}
-                        value={p.personalNote}
+                        value={p.personalNote || ""}
                         onChangeText={(val) => updateExperienceField(p.projectId, 'note', val)}
                         multiline
                     />

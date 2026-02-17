@@ -6,6 +6,7 @@ import { Text, View } from '@/components/Themed';
 import { useFilmingLocations } from '@/hooks/useFilmingLocations';
 import { useLocationCategories } from '@/hooks/useLocationCategories';
 import { useTheme } from '@/providers/ThemeProvider';
+import { useUser } from '@/providers/UserProvider';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
@@ -123,6 +124,7 @@ const CustomSlider = ({ value, min, max, step, onValueChange, disabled, color, c
 
 export default function LocationsScreen() {
   const { colors, isDark } = useTheme();
+  const { isGuest } = useUser();
   const router = useRouter();
   const { categories: LOCATION_CATEGORIES } = useLocationCategories();
   const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
@@ -225,13 +227,15 @@ export default function LocationsScreen() {
           )}
         </View>
         
-        <TouchableOpacity 
-          style={StyleSheet.flatten([styles.addButton, { backgroundColor: colors.primary, marginLeft: 12 }])}
-          onPress={() => router.push('/locations/new')}
-        >
-          <Ionicons name="add" size={24} color="white" />
-          <Text style={styles.addButtonText}>Publier</Text>
-        </TouchableOpacity>
+        {!isGuest && (
+          <TouchableOpacity 
+            style={StyleSheet.flatten([styles.addButton, { backgroundColor: colors.primary, marginLeft: 12 }])}
+            onPress={() => router.push('/locations/new')}
+          >
+            <Ionicons name="add" size={24} color="white" />
+            <Text style={styles.addButtonText}>Publier</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       <View style={styles.filterBar}>

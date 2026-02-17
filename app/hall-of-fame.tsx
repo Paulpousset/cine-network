@@ -5,26 +5,27 @@ import { HallOfFameProject, useHallOfFame } from "@/hooks/useHallOfFame";
 import { useThemedStyles } from "@/hooks/useThemedStyles";
 import { supabase } from "@/lib/supabase";
 import { useTheme } from "@/providers/ThemeProvider";
+import { useUser } from "@/providers/UserProvider";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { FlashList } from "@shopify/flash-list";
 import * as ImagePicker from "expo-image-picker";
 import { Stack, useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
-    Alert,
-    FlatList,
-    Image,
-    Linking,
-    Modal,
-    Platform,
-    RefreshControl,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    useWindowDimensions,
-    View,
+  Alert,
+  FlatList,
+  Image,
+  Linking,
+  Modal,
+  Platform,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  useWindowDimensions,
+  View,
 } from "react-native";
 
 export default function HallOfFameScreen({
@@ -38,6 +39,7 @@ export default function HallOfFameScreen({
   const themedGlobalStyles = useThemedStyles();
   const styles = getStyles(colors, isDark);
   const router = useRouter();
+  const { isGuest } = useUser();
   const { width } = useWindowDimensions();
   const isWebLarge = Platform.OS === "web" && width >= 768;
 
@@ -50,6 +52,17 @@ export default function HallOfFameScreen({
     toggleLike,
     fetchHallOfFame,
   } = useHallOfFame(null);
+
+  const handleToggleLike = (item: HallOfFameProject, liked: boolean) => {
+    if (isGuest) {
+      Alert.alert(
+        "Invité",
+        "Vous devez être connecté pour aimer un projet."
+      );
+      return;
+    }
+    toggleLike(item, liked);
+  };
 
   // Edit Modal
   const [editModalVisible, setEditModalVisible] = useState(false);
@@ -354,7 +367,7 @@ export default function HallOfFameScreen({
       onEdit={() => handleEdit(item)}
       onOpenLink={handleOpenLink}
       router={router}
-      onToggleLike={(liked: boolean) => toggleLike(item, liked)}
+      onToggleLike={(liked: boolean) => handleToggleLike(item, liked)}
       onViewTeam={() => fetchTeam(item.id, item.title)}
       onManageTeam={() => {
         setSelectedProjectId(item.id);
@@ -393,7 +406,7 @@ export default function HallOfFameScreen({
                     />
                   </TouchableOpacity>
                 )}
-                {currentUserId && (
+                {currentUserId && !isGuest && (
                   <TouchableOpacity
                     onPress={() => setAddModalVisible(true)}
                     style={{
@@ -485,7 +498,7 @@ export default function HallOfFameScreen({
               </TouchableOpacity>
             )}
 
-            {currentUserId && (
+            {currentUserId && !isGuest && (
               <TouchableOpacity
                 onPress={() => setAddModalVisible(true)}
                 style={[

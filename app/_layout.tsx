@@ -16,11 +16,11 @@ import * as Linking from "expo-linking";
 import { Stack, usePathname, useRouter, useSegments } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
-  Platform,
-  Text,
-  TouchableOpacity,
-  useWindowDimensions,
-  View,
+    Platform,
+    Text,
+    TouchableOpacity,
+    useWindowDimensions,
+    View,
 } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { supabase } from "../lib/supabase";
@@ -34,11 +34,13 @@ import crashlytics from "@react-native-firebase/crashlytics";
 function RootLayoutContent({
   session,
   isProfileComplete,
+  isGuest,
   isWebLarge,
   pathname,
 }: {
   session: Session | null;
   isProfileComplete: boolean | null;
+  isGuest: boolean;
   isWebLarge: boolean;
   pathname: string;
 }) {
@@ -52,7 +54,7 @@ function RootLayoutContent({
   const showSidebar =
     isWebLarge &&
     session &&
-    isProfileComplete &&
+    (isProfileComplete || isGuest) &&
     pathname !== "/" &&
     pathname !== "/auth" &&
     pathname !== "/complete-profile" &&
@@ -62,7 +64,7 @@ function RootLayoutContent({
 
   return (
     <View style={{ flex: 1, flexDirection: isWebLarge ? "row" : "column" }}>
-      {session && isProfileComplete && (
+      {session && (isProfileComplete || isGuest) && (
         <GlobalRealtimeListener user={session.user} />
       )}
       {showSidebar ? <Sidebar /> : null}
@@ -155,6 +157,7 @@ function RootLayoutInner() {
     session,
     isLoading: userLoading,
     isProfileComplete,
+    isGuest,
     refreshProfile,
   } = useUser();
   const [isMobileWeb, setIsMobileWeb] = useState(false);
@@ -308,25 +311,26 @@ function RootLayoutInner() {
     // SCÉNARIO 2 : Connecté
     else if (session) {
       // Si le profil n'est pas complet et qu'on n'est pas déjà sur la page de complétion
-      // On autorise quand même la page de reset password
+      // On ignore pour les invités (ils peuvent tout voir sans compléter)
       if (
         isProfileComplete === false &&
+        !isGuest &&
         pathname !== "/complete-profile" &&
         !pathname.startsWith("/update-password")
       ) {
         router.replace("/complete-profile");
       }
-      // Si le profil est complet (ou en cours de vérification) et qu'on est sur une page de login/vitrine/complétion
+      // Si le profil est complet (ou qu'on est invité) et qu'on est sur une page de login/vitrine/complétion
       else if (
-        isProfileComplete === true &&
+        (isProfileComplete === true || isGuest) &&
         (pathname === "/auth" ||
           pathname === "/" ||
-          pathname === "/complete-profile")
+          (pathname === "/complete-profile" && isGuest))
       ) {
         router.replace("/my-projects"); // Direction le dashboard
       }
     }
-  }, [session, userLoading, pathname, isProfileComplete]);
+  }, [session, userLoading, pathname, isProfileComplete, isGuest]);
 
   // 3. Bloquer l'accès web sur mobile
   useEffect(() => {
@@ -429,6 +433,7 @@ function RootLayoutInner() {
       <RootLayoutContent
         session={session}
         isProfileComplete={isProfileComplete}
+        isGuest={isGuest}
         isWebLarge={isWebLarge}
         pathname={pathname}
       />

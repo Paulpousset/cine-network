@@ -4,16 +4,16 @@ import * as ImagePicker from "expo-image-picker";
 import { Stack, router } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-  Alert,
-  Image,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    Alert,
+    Image,
+    KeyboardAvoidingView,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 
 import ClapLoading from "@/components/ClapLoading";
@@ -87,15 +87,20 @@ export default function NewPostScreen() {
     try {
       const response = await fetch(uri);
       const blob = await response.blob();
-      const arrayBuffer = await new Response(blob).arrayBuffer();
-      const fileExt = uri.split(".").pop();
+      const arrayBuffer = await blob.arrayBuffer();
+      
+      let fileExt = (uri.split(".").pop() || "jpg").split("?")[0];
+      if (fileExt.includes(":") || fileExt.length > 5) {
+        fileExt = blob.type?.split("/")[1] || "jpg";
+      }
+      
       const fileName = `${Date.now()}.${fileExt}`;
-      const filePath = `${userId}/${fileName}`;
+      const filePath = `posts/${userId}/${fileName}`;
 
       // Assuming a 'posts' bucket exists, or we use 'images'
       // If it fails, we might need to create the bucket manually in supabase dashboard
       const { error: uploadError } = await supabase.storage
-        .from("posts") // Bucket name
+        .from("user_content") // Standardize on user_content bucket
         .upload(filePath, arrayBuffer, {
           contentType: blob.type,
           upsert: false,
@@ -105,7 +110,7 @@ export default function NewPostScreen() {
         throw uploadError;
       }
 
-      const { data } = supabase.storage.from("posts").getPublicUrl(filePath);
+      const { data } = supabase.storage.from("user_content").getPublicUrl(filePath);
       return data.publicUrl;
     } catch (e) {
       console.error("Upload error", e);
@@ -152,7 +157,11 @@ export default function NewPostScreen() {
         Alert.alert("Erreur", "Impossible de publier.");
       } else {
         Alert.alert("Succès", "Post publié !");
-        router.back();
+        if (router.canGoBack()) {
+          router.back();
+        } else {
+          router.replace("/(tabs)");
+        }
       }
     } catch (e) {
       console.error(e);

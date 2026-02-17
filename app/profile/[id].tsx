@@ -1,5 +1,7 @@
 import ClapLoading from "@/components/ClapLoading";
+import ImageViewerModal from "@/components/ImageViewerModal";
 import { GlobalStyles } from "@/constants/Styles";
+import { useUserMode } from "@/hooks/useUserMode";
 import { appEvents, EVENTS } from "@/lib/events";
 import { useTheme } from "@/providers/ThemeProvider";
 import { useUser } from "@/providers/UserProvider";
@@ -20,6 +22,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  useWindowDimensions,
   View
 } from "react-native";
 import { supabase } from "../../lib/supabase";
@@ -27,9 +30,11 @@ import { supabase } from "../../lib/supabase";
 export default function ProfileDetail() {
   const { colors, isDark } = useTheme();
   const styles = createStyles(colors, isDark);
+  const { width: windowWidth } = useWindowDimensions();
   const { id } = useLocalSearchParams();
   const router = useRouter();
-  const { user, profile: myProfile } = useUser();
+  const { user, profile: myProfile, isGuest } = useUser();
+  const { effectiveUserId } = useUserMode();
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [tournages, setTournages] = useState<any[]>([]);
@@ -56,7 +61,12 @@ export default function ProfileDetail() {
 
   // Experience Viewing State
   const [viewingExp, setViewingExp] = useState<any>(null);
+  const [activeImgIndex, setActiveImgIndex] = useState(0);
   const [viewModalVisible, setViewModalVisible] = useState(false);
+
+  // Book Photo Viewer State
+  const [bookViewerVisible, setBookViewerVisible] = useState(false);
+  const [bookInitialIndex, setBookInitialIndex] = useState(0);
 
   const fetchProfile = useCallback(async () => {
     if (isFetchingRef.current) return;
@@ -176,13 +186,14 @@ export default function ProfileDetail() {
       // Fetch experience notes for this profile
       const { data: experienceNotes } = await supabase
         .from("profile_experience_notes")
-        .select("project_id, note, image_url, custom_title")
+        .select("project_id, note, image_url, image_urls, custom_title")
         .eq("profile_id", profileId);
         
       const notesMap = (experienceNotes || []).reduce((acc: any, curr: any) => {
         acc[curr.project_id] = {
             note: curr.note,
             image_url: curr.image_url,
+            image_urls: curr.image_urls || [],
             custom_title: curr.custom_title
         };
         return acc;
@@ -212,6 +223,7 @@ export default function ProfileDetail() {
             projectId: t.id,
             personalNote: notesMap[t.id]?.note || "",
             personalImage: notesMap[t.id]?.image_url || null,
+            personalImages: notesMap[t.id]?.image_urls || [],
             personalTitle: notesMap[t.id]?.custom_title || null
         })));
       }
@@ -258,6 +270,7 @@ export default function ProfileDetail() {
                 projectId: t?.id,
                 personalNote: notesMap[t?.id]?.note || "",
                 personalImage: notesMap[t?.id]?.image_url || null,
+                personalImages: notesMap[t?.id]?.image_urls || [],
                 personalTitle: notesMap[t?.id]?.custom_title || null,
                 image_url: t?.image_url
             };
@@ -292,6 +305,12 @@ export default function ProfileDetail() {
       fetchProfile();
     }, [fetchProfile]),
   );
+
+  useEffect(() => {
+    if (!viewModalVisible) {
+      setActiveImgIndex(0);
+    }
+  }, [viewModalVisible]);
 
   async function handleClap() {
     const currentUserId = user?.id;
@@ -540,6 +559,7 @@ export default function ProfileDetail() {
       title: exp.custom_title || exp.personalTitle || "",
       note: exp.personalNote || "",
       imageUrl: exp.personalImage || null,
+      imageUrls: exp.personalImages || [],
       projectImage: exp.image_url || null, // fallback
     });
     setEditModalVisible(true);
@@ -558,27 +578,48 @@ export default function ProfileDetail() {
         setUploadingExp(true);
   
         const image = result.assets[0];
-        const fileExt = image.uri.split(".").pop();
-        const fileName = `experience/${user?.id}/${editingExp.projectId}_${Date.now()}.${fileExt}`;
-  
-        const arrayBuffer = await fetch(image.uri).then((res) => res.arrayBuffer());
+        let fileExt = (image.uri.split(".").pop() || "jpg").split("?")[0];
+        if (fileExt.includes(":") || fileExt.length > 5) {
+          fileExt = image.mimeType?.split("/")[1] || "jpg";
+        }
+        const fileName = `experience/${id}/${editingExp.projectId}_${Date.now()}.${fileExt}`;
+        const response = await fetch(image.uri);
+        const blob = await response.blob();
         const { error: uploadError } = await supabase.storage
           .from("user_content")
-          .upload(fileName, arrayBuffer, {
-            contentType: image.mimeType || "image/jpeg",
-            upsert: true,
+          .upload(fileName, blob, {
+            contentType: image.mimeType || blob.type || "image/jpeg",
+            upsert: false,
           });
   
         if (uploadError) throw uploadError;
   
         const { data: { publicUrl } } = supabase.storage.from("user_content").getPublicUrl(fileName);
         
-        setEditingExp((prev: any) => ({ ...prev, imageUrl: publicUrl }));
+        setEditingExp((prev: any) => {
+            const newImages = [...(prev?.imageUrls || []), publicUrl];
+            return {
+                ...prev,
+                imageUrls: newImages,
+                imageUrl: prev?.imageUrl || publicUrl // Set first one as main
+            };
+        });
       } catch (e) {
         Alert.alert("Erreur", "Impossible d'uploader l'image d'expérience");
       } finally {
         setUploadingExp(false);
       }
+  };
+
+  const handleRemoveExpImage = (imageUrl: string) => {
+    setEditingExp((prev: any) => {
+        const newImages = (prev?.imageUrls || []).filter((img: string) => img !== imageUrl);
+        return {
+            ...prev,
+            imageUrls: newImages,
+            imageUrl: prev.imageUrl === imageUrl ? (newImages.length > 0 ? newImages[0] : null) : prev.imageUrl
+        };
+    });
   };
 
   const handleSaveExpChanges = async () => {
@@ -588,11 +629,12 @@ export default function ProfileDetail() {
         const { error } = await supabase
             .from("profile_experience_notes")
             .upsert({ 
-                profile_id: user?.id, 
+                profile_id: id, 
                 project_id: editingExp.projectId,
                 note: editingExp.note,
                 custom_title: editingExp.title,
                 image_url: editingExp.imageUrl,
+                image_urls: editingExp.imageUrls,
                 updated_at: new Date().toISOString()
             }, { onConflict: 'profile_id,project_id' });
 
@@ -603,7 +645,8 @@ export default function ProfileDetail() {
             ...t, 
             personalNote: editingExp.note, 
             personalTitle: editingExp.title, 
-            personalImage: editingExp.imageUrl 
+            personalImage: editingExp.imageUrl,
+            personalImages: editingExp.imageUrls
         } : t));
         
         setParticipations(prev => prev.map(p => {
@@ -612,7 +655,8 @@ export default function ProfileDetail() {
                 ...p, 
                 personalNote: editingExp.note, 
                 personalTitle: editingExp.title, 
-                personalImage: editingExp.imageUrl 
+                personalImage: editingExp.imageUrl,
+                personalImages: editingExp.imageUrls
             } : p;
         }));
 
@@ -705,7 +749,7 @@ export default function ProfileDetail() {
             </TouchableOpacity>
           )}
 
-          {isOwnProfile && (
+          {isOwnProfile && !isGuest && (
             <View style={{ position: 'absolute', top: 55, right: 20, flexDirection: 'row', gap: 10, zIndex: 10 }}>
               <TouchableOpacity
                 onPress={() => router.push("/settings")}
@@ -789,14 +833,21 @@ export default function ProfileDetail() {
               <TouchableOpacity
                 style={[
                   styles.actionButton,
+                  isGuest ? { backgroundColor: colors.primary, opacity: 0.5 } :
                   connectionStatus === "accepted"
                     ? { backgroundColor: colors.success }
                     : connectionStatus === "pending"
                       ? { backgroundColor: "#FF9800" }
                       : { backgroundColor: colors.primary },
                 ]}
-                onPress={handleClap}
-                disabled={connectionStatus === "pending" && isRequester}
+                onPress={() => {
+                  if (isGuest) {
+                    Alert.alert("Invité", "Vous devez être connecté pour envoyer un clap.");
+                    return;
+                  }
+                  handleClap();
+                }}
+                disabled={(connectionStatus === "pending" && isRequester) || isGuest}
               >
                 <Ionicons
                   name={
@@ -826,14 +877,21 @@ export default function ProfileDetail() {
               <TouchableOpacity
                 style={[
                   styles.actionButton,
+                  isGuest ? { backgroundColor: "#673AB7", opacity: 0.5 } :
                   mandateStatus === "accepted"
                     ? { backgroundColor: colors.success }
                     : mandateStatus === "pending"
                       ? { backgroundColor: "#FF9800" }
                       : { backgroundColor: "#673AB7" },
                 ]}
-                onPress={handleRequestManagement}
-                disabled={mandateStatus !== null}
+                onPress={() => {
+                  if (isGuest) {
+                    Alert.alert("Invité", "Vous devez être connecté pour gérer un talent.");
+                    return;
+                  }
+                  handleRequestManagement();
+                }}
+                disabled={mandateStatus !== null || isGuest}
               >
                 <Ionicons
                   name={
@@ -884,13 +942,19 @@ export default function ProfileDetail() {
               style={[
                 styles.actionButton,
                 { backgroundColor: colors.primary },
+                isGuest && { opacity: 0.5 },
               ]}
-              onPress={() =>
+              onPress={() => {
+                if (isGuest) {
+                  Alert.alert("Invité", "Vous devez être connecté pour envoyer un message.");
+                  return;
+                }
                 router.push({
                   pathname: "/direct-messages/[id]",
                   params: { id: profile.id },
-                })
-              }
+                });
+              }}
+              disabled={isGuest}
             >
               <Ionicons
                 name="chatbubble-ellipses-outline"
@@ -958,14 +1022,16 @@ export default function ProfileDetail() {
                     }
                   }}
                 >
-                  {(t.image_url) ? (
-                    <Image source={{ uri: t.image_url }} style={styles.experienceImage} />
+                  { (t.personalImages && t.personalImages.length > 0) ? (
+                    <Image source={{ uri: t.personalImages[0] }} style={styles.experienceImage} />
+                  ) : (t.personalImage || t.image_url) ? (
+                    <Image source={{ uri: t.personalImage || t.image_url }} style={styles.experienceImage} />
                   ) : (
                     <View style={[styles.experienceImage, { backgroundColor: colors.primary + '20', justifyContent: 'center', alignItems: 'center' }]}>
                         <Ionicons name="film-outline" size={40} color={colors.primary + '40'} />
                     </View>
                   )}
-                  {isOwnProfile && (
+                  {isOwnProfile && !isGuest && (
                     <View style={styles.editExpBadge}>
                         <Ionicons name="pencil" size={14} color="white" />
                     </View>
@@ -1036,14 +1102,16 @@ export default function ProfileDetail() {
                         }
                     }}
                   >
-                    { (t.image_url) ? (
-                        <Image source={{ uri: t.image_url }} style={styles.experienceImage} />
+                    { (p.personalImages && p.personalImages.length > 0) ? (
+                        <Image source={{ uri: p.personalImages[0] }} style={styles.experienceImage} />
+                    ) : (p.personalImage || t.image_url) ? (
+                        <Image source={{ uri: p.personalImage || t.image_url }} style={styles.experienceImage} />
                     ) : (
                         <View style={[styles.experienceImage, { backgroundColor: colors.backgroundSecondary, justifyContent: 'center', alignItems: 'center' }]}>
                             <Ionicons name="person-outline" size={40} color={colors.textSecondary + '40'} />
                         </View>
                     )}
-                    {isOwnProfile && (
+                    {isOwnProfile && !isGuest && (
                         <View style={styles.editExpBadge}>
                             <Ionicons name="pencil" size={14} color="white" />
                         </View>
@@ -1206,7 +1274,13 @@ export default function ProfileDetail() {
             <Text style={[GlobalStyles.title2, { color: colors.text }]}>Book Photo</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               {profile.book_urls.map((url: string, i: number) => (
-                <TouchableOpacity key={i} onPress={() => {}}>
+                <TouchableOpacity 
+                  key={i} 
+                  onPress={() => {
+                    setBookInitialIndex(i);
+                    setBookViewerVisible(true);
+                  }}
+                >
                   <Image source={{ uri: url }} style={styles.bookImage} />
                 </TouchableOpacity>
               ))}
@@ -1238,32 +1312,39 @@ export default function ProfileDetail() {
 
             <ScrollView showsVerticalScrollIndicator={false}>
                 <View style={{ marginBottom: 20 }}>
-                    <Text style={[styles.attrLabel, { marginBottom: 8 }]}>Image de couverture</Text>
-                    <TouchableOpacity 
-                        onPress={handleUploadExpImage}
-                        style={{ height: 180, borderRadius: 15, backgroundColor: colors.backgroundSecondary, justifyContent: 'center', alignItems: 'center', overflow: 'hidden', borderStyle: 'dashed', borderWidth: 2, borderColor: colors.border }}
-                    >
-                        {(editingExp?.imageUrl || editingExp?.projectImage) ? (
-                            <Image source={{ uri: editingExp.imageUrl || editingExp.projectImage }} style={{ width: '100%', height: '100%' }} />
-                        ) : (
-                            <View style={{ alignItems: 'center' }}>
-                                <Ionicons name="camera-outline" size={40} color={colors.textSecondary} />
-                                <Text style={{ color: colors.textSecondary, marginTop: 10 }}>Ajouter une photo</Text>
+                    <Text style={[styles.attrLabel, { marginBottom: 8 }]}>Photos de l'expérience</Text>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10 }}>
+                        {editingExp?.imageUrls && editingExp.imageUrls.map((img: string, i: number) => (
+                            <View key={i} style={{ position: 'relative' }}>
+                                <Image source={{ uri: img }} style={{ width: 150, height: 100, borderRadius: 12 }} />
+                                <TouchableOpacity 
+                                    onPress={() => handleRemoveExpImage(img)}
+                                    style={{ position: 'absolute', top: -5, right: -5, backgroundColor: colors.background, borderRadius: 12, padding: 2 }}
+                                >
+                                    <Ionicons name="close-circle" size={24} color={colors.danger} />
+                                </TouchableOpacity>
                             </View>
-                        )}
-                        {uploadingExp && (
-                            <View style={{ ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.3)', justifyContent: 'center', alignItems: 'center' }}>
-                                <ClapLoading size={30} color="white" />
-                            </View>
-                        )}
-                    </TouchableOpacity>
+                        ))}
+                        <TouchableOpacity 
+                            onPress={handleUploadExpImage}
+                            style={{ width: 150, height: 100, borderRadius: 12, backgroundColor: colors.backgroundSecondary, justifyContent: 'center', alignItems: 'center', borderStyle: 'dashed', borderWidth: 2, borderColor: colors.border }}
+                        >
+                            <Ionicons name="camera-outline" size={30} color={colors.textSecondary} />
+                            <Text style={{ color: colors.textSecondary, fontSize: 10, marginTop: 4 }}>Ajouter</Text>
+                            {uploadingExp && (
+                                <View style={{ ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.3)', justifyContent: 'center', alignItems: 'center' }}>
+                                    <ClapLoading size={20} color="white" />
+                                </View>
+                            )}
+                        </TouchableOpacity>
+                    </ScrollView>
                 </View>
 
                 <View style={{ marginBottom: 20 }}>
                     <Text style={[styles.attrLabel, { marginBottom: 8 }]}>Titre personnalisé</Text>
                     <TextInput
                         style={[styles.experienceInput, { color: colors.text }]}
-                        value={editingExp?.title}
+                        value={editingExp?.title || ""}
                         onChangeText={(val: string) => setEditingExp((prev: any) => ({ ...prev, title: val }))}
                         placeholder="ex: Mon premier grand tournage..."
                         placeholderTextColor={colors.textSecondary}
@@ -1274,7 +1355,7 @@ export default function ProfileDetail() {
                     <Text style={[styles.attrLabel, { marginBottom: 8 }]}>Votre expérience / Note</Text>
                     <TextInput
                         style={[styles.experienceInput, { height: 120, textAlignVertical: 'top', color: colors.text }]}
-                        value={editingExp?.note}
+                        value={editingExp?.note || ""}
                         onChangeText={(val: string) => setEditingExp((prev: any) => ({ ...prev, note: val }))}
                         placeholder="Racontez votre expérience sur ce projet..."
                         placeholderTextColor={colors.textSecondary}
@@ -1320,8 +1401,26 @@ export default function ProfileDetail() {
       >
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'center', padding: 20 }}>
             <View style={{ backgroundColor: colors.background, borderRadius: 25, overflow: 'hidden' }}>
-                <View style={{ height: 200, backgroundColor: colors.backgroundSecondary }}>
-                    {(viewingExp?.personalImage || viewingExp?.image_url) ? (
+                <View style={{ height: 250, backgroundColor: colors.backgroundSecondary }}>
+                    {viewingExp?.personalImages && viewingExp.personalImages.length > 0 ? (
+                        <ScrollView 
+                            horizontal 
+                            pagingEnabled 
+                            showsHorizontalScrollIndicator={false}
+                            onScroll={(e) => {
+                                const offset = e.nativeEvent.contentOffset.x;
+                                const index = Math.round(offset / (windowWidth - 40));
+                                setActiveImgIndex(index);
+                            }}
+                            scrollEventThrottle={16}
+                        >
+                            {viewingExp.personalImages.map((img: string, i: number) => (
+                                <View key={i} style={{ width: windowWidth - 40, height: 250 }}>
+                                    <Image source={{ uri: img }} style={{ width: '100%', height: '100%' }} />
+                                </View>
+                            ))}
+                        </ScrollView>
+                    ) : (viewingExp?.personalImage || viewingExp?.image_url) ? (
                         <Image source={{ uri: viewingExp.personalImage || viewingExp.image_url }} style={{ width: '100%', height: '100%' }} />
                     ) : (
                         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
@@ -1330,10 +1429,15 @@ export default function ProfileDetail() {
                     )}
                     <TouchableOpacity 
                         onPress={() => setViewModalVisible(false)}
-                        style={{ position: 'absolute', top: 15, right: 15, backgroundColor: 'rgba(0,0,0,0.5)', padding: 8, borderRadius: 20 }}
+                        style={{ position: 'absolute', top: 15, right: 15, backgroundColor: 'rgba(0,0,0,0.5)', padding: 8, borderRadius: 20, zIndex: 10 }}
                     >
                         <Ionicons name="close" size={20} color="white" />
                     </TouchableOpacity>
+                    {viewingExp?.personalImages && viewingExp.personalImages.length > 1 && (
+                        <View style={{ position: 'absolute', bottom: 10, right: 10, backgroundColor: 'rgba(0,0,0,0.6)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 10 }}>
+                            <Text style={{ color: 'white', fontSize: 10, fontWeight: 'bold' }}>{activeImgIndex + 1} / {viewingExp.personalImages.length}</Text>
+                        </View>
+                    )}
                 </View>
 
                 <View style={{ padding: 20 }}>
@@ -1385,6 +1489,13 @@ export default function ProfileDetail() {
             </View>
         </View>
       </Modal>
+
+      <ImageViewerModal
+        isVisible={bookViewerVisible}
+        images={profile?.book_urls || []}
+        initialIndex={bookInitialIndex}
+        onClose={() => setBookViewerVisible(false)}
+      />
     </>
   );
 }

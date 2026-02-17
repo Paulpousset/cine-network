@@ -25,7 +25,7 @@ function TabBarIcon(props: {
 export default function TabLayout() {
   const { colors, isDark } = useTheme();
   const router = useRouter();
-  const { profile, refreshProfile, isLoading: userLoading } = useUser();
+  const { profile, refreshProfile, isLoading: userLoading, isGuest } = useUser();
 
   useEffect(() => {
     // Écouter spécifiquement les mises à jour de profil pour forcer le rafraîchissement
@@ -126,8 +126,8 @@ export default function TabLayout() {
               ? undefined
               : () => (
                   <View style={{ flexDirection: "row", alignItems: "center" }}>
-                    <NotificationIconWithBadge />
-                    <ChatIconWithBadge />
+                    {!isGuest && <NotificationIconWithBadge />}
+                    {!isGuest && <ChatIconWithBadge />}
                   </View>
                 ),
         }}
@@ -136,9 +136,9 @@ export default function TabLayout() {
       <Tabs.Screen
         name="my-talents"
         options={{
-          href: isAgent ? "/my-talents" : null,
+          href: (isAgent && !isGuest) ? "/my-talents" : null,
           // @ts-ignore - handled in CustomTabBar
-          display: isAgent ? "flex" : "none",
+          display: (isAgent && !isGuest) ? "flex" : "none",
           title: "Mes Talents",
           tabBarIcon: ({ color }) => <TabBarIcon name="users" color={color} />,
           headerLeft:
@@ -156,8 +156,8 @@ export default function TabLayout() {
               ? undefined
               : () => (
                   <View style={{ flexDirection: "row", alignItems: "center" }}>
-                    <NotificationIconWithBadge />
-                    <ChatIconWithBadge />
+                    {!isGuest && <NotificationIconWithBadge />}
+                    {!isGuest && <ChatIconWithBadge />}
                   </View>
                 ),
         }}
@@ -185,8 +185,8 @@ export default function TabLayout() {
               ? undefined
               : () => (
                   <View style={{ flexDirection: "row", alignItems: "center" }}>
-                    <NotificationIconWithBadge />
-                    <ChatIconWithBadge />
+                    {!isGuest && <NotificationIconWithBadge />}
+                    {!isGuest && <ChatIconWithBadge />}
                   </View>
                 ),
         }}
@@ -214,8 +214,8 @@ export default function TabLayout() {
               ? undefined
               : () => (
                   <View style={{ flexDirection: "row", alignItems: "center" }}>
-                    <NotificationIconWithBadge />
-                    <ChatIconWithBadge />
+                    {!isGuest && <NotificationIconWithBadge />}
+                    {!isGuest && <ChatIconWithBadge />}
                   </View>
                 ),
         }}
@@ -241,8 +241,8 @@ export default function TabLayout() {
               ? undefined
               : () => (
                   <View style={{ flexDirection: "row", alignItems: "center" }}>
-                    <NotificationIconWithBadge />
-                    <ChatIconWithBadge />
+                    {!isGuest && <NotificationIconWithBadge />}
+                    {!isGuest && <ChatIconWithBadge />}
                   </View>
                 ),
         }}
@@ -270,8 +270,8 @@ export default function TabLayout() {
               ? undefined
               : () => (
                   <View style={{ flexDirection: "row", alignItems: "center" }}>
-                    <NotificationIconWithBadge />
-                    <ChatIconWithBadge />
+                    {!isGuest && <NotificationIconWithBadge />}
+                    {!isGuest && <ChatIconWithBadge />}
                   </View>
                 ),
         }}

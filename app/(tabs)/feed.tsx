@@ -2,6 +2,7 @@ import ClapLoading from "@/components/ClapLoading";
 import PostCard, { FeedPost } from "@/components/PostCard";
 import { useFeed } from "@/hooks/useFeed";
 import { useTheme } from "@/providers/ThemeProvider";
+import { useUser } from "@/providers/UserProvider";
 import { Ionicons } from "@expo/vector-icons";
 import { FlashList } from "@shopify/flash-list";
 import { router, Stack } from "expo-router";
@@ -19,6 +20,7 @@ import {
 
 export default function FeedScreen() {
   const { colors, isDark } = useTheme();
+  const { isGuest } = useUser();
   const styles = createStyles(colors, isDark);
   const {
     posts,
@@ -58,13 +60,15 @@ export default function FeedScreen() {
                 />
               </TouchableOpacity>
 
-              <TouchableOpacity onPress={() => router.push("/post/new")}>
-                <Ionicons
-                  name="add-circle-outline"
-                  size={24}
-                  color={colors.text}
-                />
-              </TouchableOpacity>
+              {!isGuest && (
+                <TouchableOpacity onPress={() => router.push("/post/new")}>
+                  <Ionicons
+                    name="add-circle-outline"
+                    size={24}
+                    color={colors.text}
+                  />
+                </TouchableOpacity>
+              )}
             </View>
           ),
         }}
@@ -93,18 +97,20 @@ export default function FeedScreen() {
               <Text style={[styles.webHeaderButtonText, { color: colors.text }]}>Mes posts</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity
-              onPress={() => router.push("/post/new")}
-              style={[
-                styles.webHeaderButton,
-                { backgroundColor: colors.primary },
-              ]}
-            >
-              <Ionicons name="add-circle-outline" size={18} color="white" />
-              <Text style={[styles.webHeaderButtonText, { color: "white" }]}>
-                Nouveau post
-              </Text>
-            </TouchableOpacity>
+            {!isGuest && (
+              <TouchableOpacity
+                onPress={() => router.push("/post/new")}
+                style={[
+                  styles.webHeaderButton,
+                  { backgroundColor: colors.primary },
+                ]}
+              >
+                <Ionicons name="add-circle-outline" size={18} color="white" />
+                <Text style={[styles.webHeaderButtonText, { color: "white" }]}>
+                  Nouveau post
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
       )}

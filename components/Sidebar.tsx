@@ -8,15 +8,15 @@ import { FontAwesome, Ionicons } from "@expo/vector-icons";
 import { usePathname, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-  AppState,
-  Image,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Switch,
-  Text,
-  useWindowDimensions,
-  View,
+    AppState,
+    Image,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Switch,
+    Text,
+    useWindowDimensions,
+    View,
 } from "react-native";
 import DynamicLogo from "./DynamicLogo";
 import { Hoverable } from "./Hoverable";
@@ -51,7 +51,7 @@ export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const { width } = useWindowDimensions();
-  const { user, profile: currentUserProfile } = useUser();
+  const { user, profile: currentUserProfile, isGuest } = useUser();
   const {
     mode,
     setUserMode,
@@ -445,13 +445,17 @@ export default function Sidebar() {
         : isStudio
           ? studioItems
           : NAVIGATION_ITEMS.filter((item) => {
-              // Hide Mes Talents if not an agent (though it's not and wasn't in NAVIGATION_ITEMS)
-              // We'll actually prepend it if an agent
+              if (isGuest) {
+                // Masquer les notifications et messages pour les invités
+                if (item.href === "/notifications" || item.href === "/direct-messages") {
+                  return false;
+                }
+              }
               return true;
             });
 
   const finalItems = [...currentItems];
-  if (realRole === "agent" && !isInsideProject && !isStudio) {
+  if (realRole === "agent" && !isInsideProject && !isStudio && !isGuest) {
     // Insérer "Mes Talents" après "Mes Projets" (index 0)
     // On s'assure de ne pas le dupliquer s'il est déjà là
     if (!finalItems.some((item) => (item as any)?.id === "my-talents")) {
@@ -1283,48 +1287,50 @@ export default function Sidebar() {
         style={[styles.footer, effectiveCollapsed && { alignItems: "center" }]}
       >
         {/* Switch Mode Studio - Toujours visible sur Web Large */}
-        <View
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: effectiveCollapsed ? "center" : "space-between",
-            paddingVertical: 12,
-            paddingHorizontal: 15,
-            backgroundColor:
-              mode === "studio" ? colors.primary + "05" : "transparent",
-            borderRadius: 12,
-            borderWidth: 1,
-            borderColor: mode === "studio" ? colors.primary + "20" : colors.border,
-            marginBottom: 10,
-          }}
-        >
-          {!effectiveCollapsed && (
-            <Text
-              numberOfLines={1}
-              style={{
-                fontSize: 13,
-                fontWeight: "700",
-                color: mode === "studio" ? colors.primary : (isDark ? "#FFFFFF" : colors.text + "CC"),
-              }}
-            >
-              MODE STUDIO
-            </Text>
-          )}
-          <Switch
-            value={mode === "studio"}
-            onValueChange={(val) => setUserMode(val ? "studio" : "search")}
-            trackColor={{ false: colors.border, true: colors.primary + "80" }}
-            thumbColor={mode === "studio" ? colors.primary : colors.backgroundSecondary}
-            // @ts-ignore
-            style={
-              Platform.OS === "web"
-                ? {
-                    transform: [{ scale: 0.8 }],
-                  }
-                : {}
-            }
-          />
-        </View>
+        {!isGuest && (
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: effectiveCollapsed ? "center" : "space-between",
+              paddingVertical: 12,
+              paddingHorizontal: 15,
+              backgroundColor:
+                mode === "studio" ? colors.primary + "05" : "transparent",
+              borderRadius: 12,
+              borderWidth: 1,
+              borderColor: mode === "studio" ? colors.primary + "20" : colors.border,
+              marginBottom: 10,
+            }}
+          >
+            {!effectiveCollapsed && (
+              <Text
+                numberOfLines={1}
+                style={{
+                  fontSize: 13,
+                  fontWeight: "700",
+                  color: mode === "studio" ? colors.primary : (isDark ? "#FFFFFF" : colors.text + "CC"),
+                }}
+              >
+                MODE STUDIO
+              </Text>
+            )}
+            <Switch
+              value={mode === "studio"}
+              onValueChange={(val) => setUserMode(val ? "studio" : "search")}
+              trackColor={{ false: colors.border, true: colors.primary + "80" }}
+              thumbColor={mode === "studio" ? colors.primary : colors.backgroundSecondary}
+              // @ts-ignore
+              style={
+                Platform.OS === "web"
+                  ? {
+                      transform: [{ scale: 0.8 }],
+                    }
+                  : {}
+              }
+            />
+          </View>
+        )}
 
         {!effectiveCollapsed && (
           <Text style={styles.footerText}>© 2026 Tita</Text>

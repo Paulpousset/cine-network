@@ -1,6 +1,7 @@
 import PopcornLikeButton from "@/components/PopcornLikeButton";
 import { HallOfFameProject } from "@/hooks/useHallOfFame";
 import { useTheme } from "@/providers/ThemeProvider";
+import { useUser } from "@/providers/UserProvider";
 import { Ionicons } from "@expo/vector-icons";
 import { useVideoPlayer, VideoView } from "expo-video";
 import React from "react";
@@ -28,6 +29,7 @@ export default function HallOfFameCard({
   onManageTeam,
 }: HallOfFameCardProps) {
   const { colors, isDark } = useTheme();
+  const { isGuest } = useUser();
   const styles = createStyles(colors, isDark);
   const isDirectVideo =
     item.final_result_url &&
@@ -72,7 +74,7 @@ export default function HallOfFameCard({
           </View>
         </TouchableOpacity>
 
-        {currentUserId === item.owner_id && (
+        {currentUserId === item.owner_id && !isGuest && (
           <TouchableOpacity onPress={onEdit} style={styles.editButton}>
             <Ionicons name="pencil" size={18} color={colors.primary} />
           </TouchableOpacity>

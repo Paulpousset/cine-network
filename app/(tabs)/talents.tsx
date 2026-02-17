@@ -21,12 +21,14 @@ import {
 } from "react-native";
 
 import { useTheme } from "@/providers/ThemeProvider";
+import { useUser } from "@/providers/UserProvider";
 
 const ROLE_CATEGORIES = ["all", ...Object.keys(JOB_TITLES)];
 
 export default function DiscoverProfiles() {
   const { colors, isDark } = useTheme();
   const styles = createStyles(colors, isDark);
+  const { isGuest } = useUser();
   const router = useRouter();
   const {
     profiles,
@@ -95,62 +97,68 @@ export default function DiscoverProfiles() {
           <Text style={styles.suggestionBadgeText}>Mutual</Text>
         </View>
 
-        <TouchableOpacity
-          style={styles.connectButton}
-          onPress={(e) => {
-            e.stopPropagation();
-            sendConnectionRequest(item.id);
-          }}
-        >
-          <Ionicons name="person-add" size={14} color="white" />
-          <Text style={styles.connectButtonText}>Clap</Text>
-        </TouchableOpacity>
+        {!isGuest && (
+          <TouchableOpacity
+            style={styles.connectButton}
+            onPress={(e) => {
+              e.stopPropagation();
+              sendConnectionRequest(item.id);
+            }}
+          >
+            <Ionicons name="person-add" size={14} color="white" />
+            <Text style={styles.connectButtonText}>Clap</Text>
+          </TouchableOpacity>
+        )}
       </TouchableOpacity>
     );
   }
 
   const listHeader = (
     <View>
-      {/* En-tête spécifique au Web car le header natif est masqué */}
+     
       {Platform.OS === "web" ? (
         <View style={styles.webHeader}>
           <Text style={styles.webHeaderTitle}>Réseau</Text>
           <View style={{ flexDirection: "row", gap: 20 }}>
-            <TouchableOpacity
-              onPress={() => router.push("/network/connections")}
-              style={styles.webHeaderButton}
-            >
-              <Ionicons name="people" size={22} color={colors.text} />
-              <Text style={styles.webHeaderButtonText}>Mes relations</Text>
-            </TouchableOpacity>
+            {!isGuest && (
+              <TouchableOpacity
+                onPress={() => router.push("/network/connections")}
+                style={styles.webHeaderButton}
+              >
+                <Ionicons name="people" size={22} color={colors.text} />
+                <Text style={styles.webHeaderButtonText}>Mes relations</Text>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
       ) : (
-        <TouchableOpacity
-          onPress={() => router.push("/network/connections")}
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            padding: 15,
-            backgroundColor: colors.background,
-            borderBottomWidth: 1,
-            borderBottomColor: colors.border,
-          }}
-        >
-          <Ionicons
-            name="people"
-            size={24}
-            color={colors.primary}
-            style={{ marginRight: 10 }}
-          />
-          <Text style={{ fontSize: 16, fontWeight: "600" }}>Mes relations</Text>
-          <Ionicons
-            name="chevron-forward"
-            size={20}
-            color="#ccc"
-            style={{ marginLeft: "auto" }}
-          />
-        </TouchableOpacity>
+        !isGuest && (
+          <TouchableOpacity
+            onPress={() => router.push("/network/connections")}
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              padding: 15,
+              backgroundColor: colors.background,
+              borderBottomWidth: 1,
+              borderBottomColor: colors.border,
+            }}
+          >
+            <Ionicons
+              name="people"
+              size={24}
+              color={colors.primary}
+              style={{ marginRight: 10 }}
+            />
+            <Text style={{ fontSize: 16, fontWeight: "600", color: colors.text }}>Mes relations</Text>
+            <Ionicons
+              name="chevron-forward"
+              size={20}
+              color="#ccc"
+              style={{ marginLeft: "auto" }}
+            />
+          </TouchableOpacity>
+        )
       )}
 
       {/* SECTION SUGGESTIONS */}
