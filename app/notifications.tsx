@@ -27,6 +27,7 @@ export default function NotificationsScreen() {
   const [loading, setLoading] = useState(true);
   const [sections, setSections] = useState<any[]>([]);
   const SEEN_ACCEPTED_KEY = "seen_accepted_connections"; // Key for local storage
+  const SEEN_POST_ACTIVITY_KEY = "seen_post_activity";
 
   const currentUserId = user?.id;
 
@@ -141,6 +142,91 @@ export default function NotificationsScreen() {
 
       if (errorMandates) throw errorMandates;
 
+      // 7. Fetch Likes and Comments on my posts
+      const { data: myPosts } = await supabase
+        .from("posts")
+        .select("id")
+        .eq("user_id", currentUserId);
+
+      const myPostIds = myPosts?.map((p) => p.id) || [];
+      let socialActivity: any[] = [];
+
+      const seenActivityJson = await AsyncStorage.getItem(SEEN_POST_ACTIVITY_KEY);
+      let seenActivityIds: string[] = [];
+      try {
+        seenActivityIds = seenActivityJson ? JSON.parse(seenActivityJson) : [];
+      } catch (e) {
+        seenActivityIds = [];
+      }
+
+      if (myPostIds.length > 0) {
+        // Fetch Likes
+        const { data: likes } = await supabase
+          .from("post_likes")
+          .select(
+            `
+            post_id,
+            user_id,
+            created_at,
+            user:profiles!user_id(full_name, avatar_url)
+          `,
+          )
+          .in("post_id", myPostIds)
+          .neq("user_id", currentUserId)
+          .order("created_at", { ascending: false })
+          .limit(20);
+
+        if (likes) {
+          likes.forEach((l: any) => {
+            const id = `like_${l.post_id}_${l.user_id}`;
+            if (!seenActivityIds.includes(id)) {
+              socialActivity.push({
+                ...l,
+                id,
+                type: "like",
+              });
+            }
+          });
+        }
+
+        // Fetch Comments
+        const { data: comments } = await supabase
+          .from("post_comments")
+          .select(
+            `
+            id,
+            post_id,
+            user_id,
+            content,
+            created_at,
+            user:profiles!user_id(full_name, avatar_url)
+          `,
+          )
+          .in("post_id", myPostIds)
+          .neq("user_id", currentUserId)
+          .order("created_at", { ascending: false })
+          .limit(20);
+
+        if (comments) {
+          comments.forEach((c: any) => {
+            const id = `comment_${c.id}`;
+            if (!seenActivityIds.includes(id)) {
+              socialActivity.push({
+                ...c,
+                id,
+                type: "comment",
+              });
+            }
+          });
+        }
+
+        // Sort social activity by date
+        socialActivity.sort(
+          (a, b) =>
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+        );
+      }
+
       const seenJson = await AsyncStorage.getItem(SEEN_ACCEPTED_KEY);
       let seenIds: string[] = [];
       try {
@@ -250,6 +336,14 @@ export default function NotificationsScreen() {
         });
       }
 
+      if (socialActivity.length > 0) {
+        newSections.push({
+          title: "Activités sur vos posts",
+          data: socialActivity,
+          type: "social",
+        });
+      }
+
       setSections(newSections);
     } catch (e) {
       console.error(e);
@@ -345,22 +439,27 @@ export default function NotificationsScreen() {
     }
   };
 
-  const handleMarkSeen = async (connectionId: string) => {
-    // Mark accepted connection as seen
-    const seenJson = await AsyncStorage.getItem(SEEN_ACCEPTED_KEY);
+  const handleMarkSeen = async (notificationId: string) => {
+    const isSocial =
+      notificationId.startsWith("like_") ||
+      notificationId.startsWith("comment_");
+    const storageKey = isSocial ? SEEN_POST_ACTIVITY_KEY : SEEN_ACCEPTED_KEY;
+
+    // Mark notification as seen
+    const seenJson = await AsyncStorage.getItem(storageKey);
     let seenIds = seenJson ? JSON.parse(seenJson) : [];
     if (!Array.isArray(seenIds)) seenIds = [];
 
-    if (!seenIds.includes(connectionId)) {
-      seenIds.push(connectionId);
-      await AsyncStorage.setItem(SEEN_ACCEPTED_KEY, JSON.stringify(seenIds));
+    if (!seenIds.includes(notificationId)) {
+      seenIds.push(notificationId);
+      await AsyncStorage.setItem(storageKey, JSON.stringify(seenIds));
 
       // Update local state immediately
       setSections((prev) =>
         prev
           .map((section) => ({
             ...section,
-            data: section.data.filter((item: any) => item.id !== connectionId),
+            data: section.data.filter((item: any) => item.id !== notificationId),
           }))
           .filter((section) => section.data.length > 0),
       );
@@ -410,12 +509,25 @@ export default function NotificationsScreen() {
     let seenIds = seenJson ? JSON.parse(seenJson) : [];
     if (!Array.isArray(seenIds)) seenIds = [];
 
+    const seenSocialJson = await AsyncStorage.getItem(SEEN_POST_ACTIVITY_KEY);
+    let seenSocialIds = seenSocialJson ? JSON.parse(seenSocialJson) : [];
+    if (!Array.isArray(seenSocialIds)) seenSocialIds = [];
+
     const newIdsToMark: any[] = [];
+    const newSocialIdsToMark: any[] = [];
+
     sections.forEach((section) => {
       // Don't mark pending requests or invitations as seen, they must be acted upon
       if (section.type === "request") return;
 
       section.data.forEach((item: any) => {
+        if (section.type === "social") {
+          if (!seenSocialIds.includes(item.id)) {
+            newSocialIdsToMark.push(item.id);
+          }
+          return;
+        }
+
         const isApp = item.type === "application";
         const isInvitation = isApp
           ? item.role?.status !== "assigned"
@@ -427,12 +539,22 @@ export default function NotificationsScreen() {
       });
     });
 
-    if (newIdsToMark.length > 0) {
-      const updatedSeenIds = [...seenIds, ...newIdsToMark];
-      await AsyncStorage.setItem(
-        SEEN_ACCEPTED_KEY,
-        JSON.stringify(updatedSeenIds),
-      );
+    if (newIdsToMark.length > 0 || newSocialIdsToMark.length > 0) {
+      if (newIdsToMark.length > 0) {
+        const updatedSeenIds = [...seenIds, ...newIdsToMark];
+        await AsyncStorage.setItem(
+          SEEN_ACCEPTED_KEY,
+          JSON.stringify(updatedSeenIds),
+        );
+      }
+
+      if (newSocialIdsToMark.length > 0) {
+        const updatedSocialSeenIds = [...seenSocialIds, ...newSocialIdsToMark];
+        await AsyncStorage.setItem(
+          SEEN_POST_ACTIVITY_KEY,
+          JSON.stringify(updatedSocialSeenIds),
+        );
+      }
 
       // Refresh notifications to clear the UI
       fetchNotifications();
@@ -542,6 +664,57 @@ export default function NotificationsScreen() {
               </TouchableOpacity>
             </View>
           )}
+        </TouchableOpacity>
+      );
+    }
+
+    // NEW: SOCIAL ACTIVITY
+    if (section.type === "social") {
+      const isLike = item.type === "like";
+      return (
+        <TouchableOpacity
+          style={styles.card}
+          onPress={() => {
+            handleMarkSeen(item.id);
+            // Rediriger vers le post (si possible)
+          }}
+        >
+          <View style={styles.userInfo}>
+            {item.user?.avatar_url ? (
+              <Image
+                source={{ uri: item.user.avatar_url }}
+                style={styles.avatar}
+              />
+            ) : (
+              <View
+                style={[
+                  styles.avatar,
+                  { backgroundColor: colors.primary + "20" },
+                  { justifyContent: "center", alignItems: "center" },
+                ]}
+              >
+                <Ionicons name="person" size={24} color={colors.primary} />
+              </View>
+            )}
+            <View style={{ flex: 1, marginLeft: 12 }}>
+              <Text style={styles.name}>{item.user?.full_name}</Text>
+              <Text style={styles.subtitle}>
+                {isLike
+                  ? "a aimé votre publication"
+                  : `a commenté : "${item.content}"`}
+              </Text>
+            </View>
+          </View>
+          <TouchableOpacity
+            onPress={() => handleMarkSeen(item.id)}
+            style={{ padding: 8 }}
+          >
+            <Ionicons
+              name="checkmark-done"
+              size={20}
+              color={colors.primary}
+            />
+          </TouchableOpacity>
         </TouchableOpacity>
       );
     }

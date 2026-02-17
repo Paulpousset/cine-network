@@ -3,7 +3,11 @@ import { ALL_TOOLS, getDefaultTools } from "@/constants/Tools";
 import { useUserMode } from "@/hooks/useUserMode";
 import { supabase } from "@/lib/supabase";
 import { useTheme } from "@/providers/ThemeProvider";
+import { useTutorial } from "@/providers/TutorialProvider";
+import { useUser } from "@/providers/UserProvider";
+import { NotificationService } from "@/services/NotificationService";
 import { Ionicons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { decode } from "base64-arraybuffer";
 import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system/legacy";
@@ -19,7 +23,9 @@ import {
   Alert,
   FlatList,
   KeyboardAvoidingView,
+  Modal,
   Platform,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -160,6 +166,8 @@ function ChatView({
     }
   }
 
+  const { profile } = useUser();
+
   async function sendMessage() {
     if (!inputText.trim() || !userId) return;
     const text = inputText.trim();
@@ -199,6 +207,15 @@ function ChatView({
       // But since we want the sender info, calling addNewMessage(data.id) or replacing it is better
       addNewMessage(data.id);
       setMessages((prev) => prev.filter((m) => m.id !== tempId));
+
+      // Send push notifications to all project members
+      NotificationService.sendProjectMessageNotification({
+        projectId: projectId as string,
+        senderName: profile?.full_name || profile?.username || "Quelqu'un",
+        category: category as string,
+        content: text,
+        senderId: userId,
+      });
     }
   }
 
@@ -485,17 +502,130 @@ export default function ChannelSpace() {
   const local = useLocalSearchParams();
   const global = useGlobalSearchParams();
   const { mode } = useUserMode();
+  const { isTutorialActive, currentStep } = useTutorial();
+  
   // Robust ID retrieval
-  const id = (local.id as string) || (global.id as string);
-  const category = (local.category as string) || (global.category as string);
+  const rawId = local.id || global.id;
+  const id = (Array.isArray(rawId) ? rawId[0] : rawId) as string;
+  
+  const rawCategory = local.category || global.category;
+  const category = (Array.isArray(rawCategory) ? rawCategory[0] : rawCategory) as string;
 
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<"chat" | "files" | "tools">(
     (local.tab as any) || "chat",
   );
 
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [isMembersModalVisible, setIsMembersModalVisible] = useState(false);
+  const [projectMembers, setProjectMembers] = useState<any[]>([]);
+  const [selectedProfileIds, setSelectedProfileIds] = useState<string[]>([]);
+  const [loadingMembers, setLoadingMembers] = useState(false);
+
+  async function fetchMembersData() {
+    setLoadingMembers(true);
+    try {
+        // 1. Fetch ALL project members
+        const { data: allRoles } = await supabase.from("project_roles")
+            .select("category, assigned_profile:profiles(id, full_name, avatar_url)")
+            .eq("tournage_id", id)
+            .not("assigned_profile_id", "is", null);
+
+        if (allRoles) {
+            const grouped: Record<string, any[]> = {};
+            allRoles.forEach((r: any) => {
+                const cat = r.category || "Autre";
+                if (!grouped[cat]) grouped[cat] = [];
+                if (!grouped[cat].some(m => m.id === r.assigned_profile.id)) {
+                    grouped[cat].push(r.assigned_profile);
+                }
+            });
+            setProjectMembers(Object.entries(grouped).map(([category, members]) => ({ category, members })));
+        }
+
+        // 2. Fetch current space members
+        const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(category);
+        if (isUUID) {
+            const { data } = await supabase.from("project_custom_space_members" as any)
+                .select("profile_id")
+                .eq("space_id", category);
+            if (data) setSelectedProfileIds(data.map(m => m.profile_id));
+        } else {
+            // For native spaces, we combine role members and manual members
+            const { data: manual } = await supabase.from("project_native_space_members" as any)
+                .select("profile_id")
+                .eq("project_id", id)
+                .eq("category", category);
+            
+            const roleMembers = allRoles?.filter(r => r.category === category).map(r => r.assigned_profile.id) || [];
+            const manualMembers = manual?.map(m => m.profile_id) || [];
+            setSelectedProfileIds(Array.from(new Set([...roleMembers, ...manualMembers])));
+        }
+    } catch (e) {
+        console.error(e);
+    } finally {
+        setLoadingMembers(false);
+    }
+  }
+
+  async function toggleMember(profileId: string) {
+      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(category);
+      const isCurrentlySelected = selectedProfileIds.includes(profileId);
+
+      try {
+          if (isUUID) {
+              if (isCurrentlySelected) {
+                  await supabase.from("project_custom_space_members" as any).delete().eq("space_id", category).eq("profile_id", profileId);
+                  setSelectedProfileIds(prev => prev.filter(id => id !== profileId));
+              } else {
+                  await supabase.from("project_custom_space_members" as any).insert({ space_id: category, profile_id: profileId });
+                  setSelectedProfileIds(prev => [...prev, profileId]);
+              }
+          } else {
+              // For native spaces, if we "unselect" someone who is there by ROLE, we might not be able to "remove" them truly
+              // unless we also remove their role. But usually "adding participants" means adding EXTRA ones.
+              // Let's assume we only manage the manual ones here.
+              if (isCurrentlySelected) {
+                  const { error } = await supabase.from("project_native_space_members" as any).delete().eq("project_id", id).eq("category", category).eq("profile_id", profileId);
+                  if (!error) setSelectedProfileIds(prev => prev.filter(id => id !== profileId));
+              } else {
+                  const { error } = await supabase.from("project_native_space_members" as any).insert({ project_id: id, category, profile_id: profileId });
+                  if (!error) setSelectedProfileIds(prev => [...prev, profileId]);
+              }
+          }
+      } catch (e) {
+          Alert.alert("Erreur", "Impossible de mettre à jour les membres");
+      }
+  }
+
+  useEffect(() => {
+    async function loadStatus() {
+      if (id && category) {
+        const key = `notifications_space_${id}_${category}`;
+        const saved = await AsyncStorage.getItem(key);
+        if (saved !== null) {
+          setNotificationsEnabled(saved === "true");
+        }
+      }
+    }
+    loadStatus();
+  }, [id, category]);
+
+  const toggleNotifications = async () => {
+    try {
+      const nextStatus = !notificationsEnabled;
+      const key = `notifications_space_${id}_${category}`;
+      await AsyncStorage.setItem(key, nextStatus.toString());
+      setNotificationsEnabled(nextStatus);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   const [canWrite, setCanWrite] = useState(true);
   const [isOwner, setIsOwner] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [customSpace, setCustomSpace] = useState<any>(null);
 
   // Tools state loaded from DB
   const [availableTools, setAvailableTools] = useState<
@@ -514,16 +644,54 @@ export default function ChannelSpace() {
       // 2. Check Owner & Project
       const { data: project } = await supabase
         .from("tournages")
-        .select("owner_id")
+        .select("owner_id, title")
         .eq("id", id)
         .single();
 
-      const owner = project?.owner_id === userId;
+      const owner = project?.owner_id === userId || (isTutorialActive && project?.title?.includes("Vitrine") && currentStep?.id?.startsWith("admin"));
+      
+      console.log(`[SpacePerms] id: ${id}, user: ${userId}, ownerId: ${project?.owner_id}, isOwner: ${owner}`);
       setIsOwner(owner);
 
-      // 3. Write Permissions (Chat)
+      // check if it's a custom space (category might be a UUID if it's a custom space)
+      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(category);
+      let customS = null;
+      if (isUUID) {
+        const { data } = await supabase.from("project_custom_spaces" as any).select("*").eq("id", category).maybeSingle();
+        if (data) {
+          setCustomSpace(data);
+          customS = data;
+        }
+      }
+
+      // 3. Category Admin check
+      let categoryAdmin = false;
+      if (!isUUID && category !== "general") {
+          const { data: roles } = await supabase
+            .from("project_roles")
+            .select("is_category_admin")
+            .eq("tournage_id", id)
+            .eq("category", category)
+            .eq("assigned_profile_id", userId);
+          if (roles && roles.some((r) => r.is_category_admin)) categoryAdmin = true;
+      }
+      setIsAdmin(categoryAdmin);
+
+      // 4. Write Permissions (Chat)
       let write = false;
-      if (category !== "general") {
+      if (customS) {
+        // Custom Space: check membership
+        if (owner) {
+          write = true;
+        } else {
+            const { data: member } = await supabase.from("project_custom_space_members" as any)
+                .select("id")
+                .eq("space_id", category)
+                .eq("profile_id", userId)
+                .maybeSingle();
+            if (member) write = true;
+        }
+      } else if (category !== "general") {
         write = true;
       } else {
         if (owner) write = true;
@@ -538,14 +706,18 @@ export default function ChannelSpace() {
       }
       setCanWrite(write);
 
-      // 4. Fetch Allowed Tools for this Category
-      await fetchToolsForCategory();
+      // 5. Fetch Allowed Tools for this Category
+      await fetchToolsForCategory(customS);
     }
 
     checkPermissionsAndTools();
   }, [id, category]);
 
-  async function fetchToolsForCategory() {
+  async function fetchToolsForCategory(customS?: any) {
+    if (customS) {
+        setAvailableTools(customS.allowed_tools || []);
+        return;
+    }
     // First try to get custom permissions from DB
     const { data, error } = await supabase
       .from("project_category_permissions")
@@ -598,31 +770,82 @@ export default function ChannelSpace() {
       <Stack.Screen
         options={{
           headerShown: true,
+          headerBackVisible: false, // Prevents showing default iOS back button alongside custom one
           headerTitleAlign: "center",
           headerShadowVisible: false,
           headerStyle: { backgroundColor: colors.background },
           headerTintColor: colors.text,
           headerLeft: () => (
-            <TouchableOpacity
-              onPress={() => {
-                if (router.canGoBack()) {
-                  router.back();
-                } else {
-                  router.replace(`/project/${id}/spaces`);
-                }
-              }}
-              style={{
-                padding: 10,
-                marginLeft: -5, // Optimisation pour la zone de contact iOS
-                flexDirection: "row",
-                alignItems: "center",
-              }}
-              hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
-            >
-              <Ionicons name="arrow-back" size={24} color={colors.text} />
-            </TouchableOpacity>
+            <View style={{ marginLeft: 10 }}>
+              <TouchableOpacity
+                onPress={() => {
+                  if (router.canGoBack()) {
+                    router.back();
+                  } else {
+                    router.replace(`/project/${id}/spaces`);
+                  }
+                }}
+                style={{
+                  width: 38,
+                  height: 38,
+                  borderRadius: 19,
+                  backgroundColor: isDark ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.05)",
+                  justifyContent: "center",
+                  alignItems: "center",
+                }}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Ionicons 
+                  name="arrow-back" 
+                  size={20} 
+                  color={colors.text} 
+                  style={{ marginLeft: -2 }} // Compensation visuelle
+                />
+              </TouchableOpacity>
+            </View>
           ),
-          headerTitle: `Espace ${(category || "").toUpperCase()}`,
+          headerRight: () => (
+            <View style={{ marginRight: 10, flexDirection: 'row', gap: 8 }}>
+              {(isOwner || isAdmin) && (
+                <TouchableOpacity
+                  onPress={() => {
+                    fetchMembersData();
+                    setIsMembersModalVisible(true);
+                  }}
+                  style={{
+                    width: 38,
+                    height: 38,
+                    borderRadius: 19,
+                    backgroundColor: isDark ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.05)",
+                    justifyContent: "center",
+                    alignItems: "center",
+                  }}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <Ionicons name="people-outline" size={20} color={colors.text} />
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity
+                onPress={toggleNotifications}
+                style={{
+                  width: 38,
+                  height: 38,
+                  borderRadius: 19,
+                  backgroundColor: isDark ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.05)",
+                  justifyContent: "center",
+                  alignItems: "center",
+                }}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Ionicons
+                  name={notificationsEnabled ? "notifications-outline" : "notifications-off-outline"}
+                  size={20}
+                  color={notificationsEnabled ? colors.primary : colors.textSecondary}
+                />
+              </TouchableOpacity>
+            </View>
+          ),
+          headerTitle: customSpace ? customSpace.name : `Espace ${(category || "").toUpperCase()}`,
         }}
       />
 
@@ -654,7 +877,7 @@ export default function ChannelSpace() {
               }}
             >
               <Text style={styles.sectionTitle}>
-                Outils pour {category.toUpperCase()}
+                Outils pour {customSpace ? customSpace.name : category.toUpperCase()}
               </Text>
             </View>
 
@@ -697,6 +920,65 @@ export default function ChannelSpace() {
           </View>
         )}
       </View>
+
+      <Modal
+        visible={isMembersModalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setIsMembersModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+            <View style={[styles.modalContent, { backgroundColor: colors.background }]}>
+                <View style={styles.modalHeader}>
+                    <Text style={[styles.modalTitle, { color: colors.text }]}>Membres de l'espace</Text>
+                    <TouchableOpacity onPress={() => setIsMembersModalVisible(false)}>
+                        <Ionicons name="close" size={24} color={colors.text} />
+                    </TouchableOpacity>
+                </View>
+
+                {loadingMembers ? (
+                    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+                        <ClapLoading />
+                    </View>
+                ) : (
+                    <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+                        <Text style={styles.label}>Gérer les participants</Text>
+                        <View style={styles.membersList}>
+                            {projectMembers.map(section => (
+                                <View key={section.category} style={{ width: '100%', marginBottom: 15 }}>
+                                    <Text style={{ fontSize: 11, fontWeight: '700', color: colors.tint, textTransform: 'uppercase', marginBottom: 8, opacity: 0.8 }}>
+                                        {section.category}
+                                    </Text>
+                                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                                        {section.members.map((member: any) => (
+                                            <TouchableOpacity 
+                                                key={member.id} 
+                                                style={[
+                                                    styles.memberItem, 
+                                                    selectedProfileIds.includes(member.id) && { backgroundColor: colors.tint + "20", borderColor: colors.tint }
+                                                ]}
+                                                onPress={() => toggleMember(member.id)}
+                                            >
+                                                <Text style={[styles.memberName, { color: colors.text }]}>{member.full_name || member.username}</Text>
+                                                {selectedProfileIds.includes(member.id) && <Ionicons name="checkmark-circle" size={16} color={colors.tint} />}
+                                            </TouchableOpacity>
+                                        ))}
+                                    </View>
+                                </View>
+                            ))}
+                        </View>
+                    </ScrollView>
+                )}
+                
+                <TouchableOpacity 
+                    style={[styles.closeButton, { backgroundColor: colors.tint }]}
+                    onPress={() => setIsMembersModalVisible(false)}
+                >
+                    <Text style={styles.closeButtonText}>Terminer</Text>
+                </TouchableOpacity>
+            </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -853,6 +1135,60 @@ const createStyles = (colors: any, isDark: boolean) =>
       fontSize: 12,
       color: colors.textSecondary,
       textAlign: "center",
+    },
+    // Modal Styles
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.5)',
+      justifyContent: 'flex-end',
+    },
+    modalContent: {
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
+      padding: 20,
+      maxHeight: '80%',
+    },
+    modalHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 20,
+    },
+    modalTitle: {
+      fontSize: 18,
+      fontWeight: 'bold',
+    },
+    label: {
+      fontSize: 16,
+      fontWeight: '600',
+      marginBottom: 10,
+      color: colors.text,
+    },
+    membersList: {
+      marginBottom: 20,
+    },
+    memberItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      padding: 8,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: colors.border,
+      gap: 8,
+    },
+    memberName: {
+      fontSize: 14,
+    },
+    closeButton: {
+      padding: 15,
+      borderRadius: 12,
+      alignItems: 'center',
+      marginTop: 10,
+    },
+    closeButtonText: {
+      color: '#fff',
+      fontWeight: 'bold',
+      fontSize: 16,
     },
   });
 

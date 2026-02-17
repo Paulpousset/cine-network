@@ -1,19 +1,22 @@
 import { supabase } from "@/lib/supabase";
 import { useTheme } from "@/providers/ThemeProvider";
+import { useUser } from "@/providers/UserProvider";
+import { NotificationService } from "@/services/NotificationService";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    FlatList,
-    Image,
-    KeyboardAvoidingView,
-    Modal,
-    Platform,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  Image,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -31,6 +34,7 @@ export const PostCommentsModal = ({
   userId,
 }: PostCommentsModalProps) => {
   const { colors, isDark } = useTheme();
+  const { isGuest, profile } = useUser();
   const styles = createStyles(colors, isDark);
   const insets = useSafeAreaInsets();
   const [comments, setComments] = useState<any[]>([]);
@@ -68,6 +72,10 @@ export const PostCommentsModal = ({
   };
 
   const handleSend = async () => {
+    if (isGuest) {
+      Alert.alert("Invité", "Vous devez être connecté pour commenter.");
+      return;
+    }
     if (!newComment.trim() || !userId || submitting) return;
 
     setSubmitting(true);
@@ -91,6 +99,26 @@ export const PostCommentsModal = ({
       if (data) {
         setComments([...comments, data]);
         setNewComment("");
+
+        // Trigger notification
+        const { data: post } = await supabase
+          .from("posts")
+          .select("user_id")
+          .eq("id", postId)
+          .single();
+
+        if (post && post.user_id !== userId) {
+          NotificationService.sendGenericNotification({
+            receiverId: post.user_id,
+            title: "Nouveau commentaire",
+            body: `${profile?.full_name || "Quelqu'un"} a commenté votre publication : "${newComment.substring(0, 50)}${newComment.length > 50 ? "..." : ""}"`,
+            data: {
+              type: "comment",
+              postId: postId,
+              url: "/notifications",
+            },
+          });
+        }
       }
     } catch (error) {
       console.error("Error posting comment:", error);
@@ -164,16 +192,17 @@ export const PostCommentsModal = ({
               style={styles.input}
               value={newComment}
               onChangeText={setNewComment}
-              placeholder="Écrire un commentaire..."
+              placeholder={isGuest ? "S'inscrire pour commenter" : "Écrire un commentaire..."}
               placeholderTextColor={colors.text + "60"}
               multiline
+              editable={!isGuest}
             />
             <TouchableOpacity
               onPress={handleSend}
-              disabled={!newComment.trim() || submitting}
+              disabled={isGuest || !newComment.trim() || submitting}
               style={[
                 styles.sendButton,
-                (!newComment.trim() || submitting) && styles.sendButtonDisabled,
+                (isGuest || !newComment.trim() || submitting) && styles.sendButtonDisabled,
               ]}
             >
               <Ionicons name="send" size={20} color="white" />

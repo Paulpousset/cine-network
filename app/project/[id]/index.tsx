@@ -5,6 +5,7 @@ import { useThemedStyles } from "@/hooks/useThemedStyles";
 import { useUserMode } from "@/hooks/useUserMode";
 import { useTheme } from "@/providers/ThemeProvider";
 import { useTutorial } from "@/providers/TutorialProvider";
+import { useUser } from "@/providers/UserProvider";
 import { NotificationService } from "@/services/NotificationService";
 import { JOB_TITLES } from "@/utils/roles";
 import { fuzzySearch } from "@/utils/search";
@@ -472,6 +473,7 @@ const getCategoryColor = (category: string, colors: any) => {
 
 export default function ProjectDetails() {
   const { colors, isDark } = useTheme();
+  const { isGuest } = useUser();
   const themedGlobalStyles = useThemedStyles();
   const styles = createStyles(colors, isDark);
   const { id } = useLocalSearchParams();
@@ -612,10 +614,12 @@ export default function ProjectDetails() {
   }, [id]);
 
   async function toggleLike() {
-    if (!currentUserId) {
+    if (!currentUserId || isGuest) {
       Alert.alert(
         "Connexion requise",
-        "Vous devez être connecté pour aimer un projet.",
+        isGuest
+          ? "Vous devez être connecté pour aimer un projet."
+          : "Vous devez être connecté pour aimer un projet.",
       );
       return;
     }

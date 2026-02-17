@@ -1,18 +1,53 @@
 import { GlobalStyles } from "@/constants/Styles";
 import { useTheme } from "@/providers/ThemeProvider";
+import { useUser } from "@/providers/UserProvider";
+import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 interface JobCardProps {
   item: any;
+  isSaved?: boolean;
+  onSaveToggle?: (id: string) => void;
+  applicationStatus?: string;
+  onApplicationAction?: () => void;
 }
 
-export const JobCard = React.memo(({ item }: JobCardProps) => {
+export const JobCard = React.memo(({ item, isSaved, onSaveToggle, applicationStatus, onApplicationAction }: JobCardProps) => {
   const router = useRouter();
   const { colors, isDark } = useTheme();
+  const { isGuest } = useUser();
   const styles = createStyles(colors, isDark);
   const isBoosted = item.is_boosted;
+
+  const handlePress = () => {
+    if ((applicationStatus === 'accepted' || applicationStatus === 'rejected' || applicationStatus === 'refused') && onApplicationAction) {
+      onApplicationAction();
+    } else {
+      router.push(`/project/role/${item.id}`);
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'accepted': return '#10B981';
+      case 'rejected':
+      case 'refused': return '#EF4444';
+      case 'pending': return '#F59E0B';
+      default: return isDark ? '#A0A0A0' : '#666';
+    }
+  };
+
+  const formatStatus = (status: string) => {
+    switch (status) {
+      case 'accepted': return 'Accepté';
+      case 'rejected':
+      case 'refused': return 'Refusé';
+      case 'pending': return 'En attente';
+      default: return status;
+    }
+  };
 
   return (
     <TouchableOpacity
@@ -25,10 +60,10 @@ export const JobCard = React.memo(({ item }: JobCardProps) => {
           backgroundColor: isDark ? "rgba(255, 215, 0, 0.05)" : "#FFFBE6",
         },
       ]}
-      onPress={() => router.push(`/project/role/${item.id}`)}
+      onPress={handlePress}
     >
       <View style={styles.cardHeader}>
-        <View>
+        <View style={{ flex: 1 }}>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
             <Text style={styles.projectTitle}>
               {item.tournages?.title || "Projet Inconnu"}
@@ -56,15 +91,47 @@ export const JobCard = React.memo(({ item }: JobCardProps) => {
             {item.tournages?.ville ? `• ${item.tournages.ville}` : ""}
           </Text>
         </View>
-        <View style={{ alignItems: "flex-end", gap: 6 }}>
-          {!!item.matchScore && (
-            <View style={styles.matchBadge}>
-              <Text style={styles.matchBadgeText}>{item.matchScore}% Match</Text>
+        <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 8 }}>
+          <View style={{ alignItems: "flex-end", gap: 6 }}>
+            {!!item.matchScore && (
+              <View style={styles.matchBadge}>
+                <Text style={styles.matchBadgeText}>{item.matchScore}% Match</Text>
+              </View>
+            )}
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>{item.category?.toUpperCase()}</Text>
+            </View>
+          </View>
+
+          {applicationStatus && (
+            <View style={[
+              styles.statusBadge,
+              { backgroundColor: getStatusColor(applicationStatus) + "20" }
+            ]}>
+              <Text style={[
+                styles.statusBadgeText,
+                { color: getStatusColor(applicationStatus) }
+              ]}>
+                {formatStatus(applicationStatus)}
+              </Text>
             </View>
           )}
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>{item.category.toUpperCase()}</Text>
-          </View>
+
+          {onSaveToggle && !isGuest && (
+            <TouchableOpacity
+              onPress={(e) => {
+                e.stopPropagation();
+                onSaveToggle(item.id);
+              }}
+              style={styles.saveButton}
+            >
+              <Ionicons
+                name={isSaved ? "bookmark" : "bookmark-outline"}
+                size={22}
+                color={isSaved ? colors.primary : colors.text + "66"}
+              />
+            </TouchableOpacity>
+          )}
         </View>
       </View>
 
@@ -80,7 +147,9 @@ export const JobCard = React.memo(({ item }: JobCardProps) => {
         </Text>
       ) : null}
 
-      <Text style={[styles.ctaText, { color: colors.primary }]}>Voir l'annonce →</Text>
+      <Text style={[styles.ctaText, { color: colors.primary }]}>
+        {(applicationStatus === 'accepted' || applicationStatus === 'rejected' || applicationStatus === 'refused') ? "Retirer de mes candidatures ×" : "Voir l'annonce →"}
+      </Text>
     </TouchableOpacity>
   );
 });
@@ -164,6 +233,22 @@ function createStyles(colors: any, isDark: boolean) {
       borderRadius: 6,
     },
     badgeText: { fontSize: 10, color: colors.primary, fontWeight: "bold" },
+    saveButton: {
+      padding: 4,
+      marginLeft: 4,
+    },
+    statusBadge: {
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 6,
+      marginLeft: 4,
+      height: 24,
+      justifyContent: 'center',
+    },
+    statusBadgeText: {
+      fontSize: 10,
+      fontWeight: 'bold',
+    },
     matchBadge: {
       backgroundColor: isDark ? "#2d1a4d" : "#e0e7ff",
       paddingHorizontal: 6,

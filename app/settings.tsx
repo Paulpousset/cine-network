@@ -297,6 +297,29 @@ export default function Settings() {
                 color={colors.textSecondary}
               />
             </TouchableOpacity>
+
+            <View style={styles.divider} />
+
+            <TouchableOpacity
+              style={styles.settingRow}
+              onPress={() =>
+                router.push("/notification-settings")
+              }
+            >
+              <View style={styles.settingInfo}>
+                <Ionicons
+                  name="notifications-outline"
+                  size={22}
+                  color={colors.primary}
+                />
+                <Text style={styles.settingText}>Notifications Push</Text>
+              </View>
+              <Ionicons
+                name="chevron-forward"
+                size={20}
+                color={colors.textSecondary}
+              />
+            </TouchableOpacity>
           </View>
         </View>
 

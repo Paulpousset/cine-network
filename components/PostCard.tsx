@@ -2,11 +2,11 @@ import AutoHeightImage from "@/components/AutoHeightImage";
 import PopcornLikeButton from "@/components/PopcornLikeButton";
 import { GlobalStyles } from "@/constants/Styles";
 import { usePostActions } from "@/hooks/usePostActions";
-import { supabase } from "@/lib/supabase";
 import { useTheme } from "@/providers/ThemeProvider";
+import { useUser } from "@/providers/UserProvider";
 import { Ionicons } from "@expo/vector-icons";
 import { Href, router } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import {
     Alert,
     Image,
@@ -53,17 +53,12 @@ interface PostCardProps {
 
 const PostCard = ({ item, onImagePress }: PostCardProps) => {
   const { colors, isDark } = useTheme();
+  const { user, isGuest } = useUser();
   const styles = getStyles(colors, isDark);
-  const [userId, setUserId] = useState<string | null>(null);
+  const userId = user?.id;
   const [isCommentsVisible, setIsCommentsVisible] = useState(false);
   const [isShareVisible, setIsShareVisible] = useState(false);
   const { toggleLike } = usePostActions(item.id);
-
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user) setUserId(user.id);
-    });
-  }, []);
 
   const renderContent = (content: string) => {
     const lines = content
@@ -302,7 +297,13 @@ const PostCard = ({ item, onImagePress }: PostCardProps) => {
             <PopcornLikeButton
               liked={item.user_has_liked}
               initialLikes={item.likes_count}
-              onLike={(status) => userId && toggleLike(userId, status)}
+              onLike={(status) => {
+                if (isGuest) {
+                  Alert.alert("Invité", "Vous devez être connecté pour aimer une publication.");
+                  return;
+                }
+                userId && toggleLike(userId, status);
+              }}
               size={22}
             />
 

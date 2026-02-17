@@ -8,6 +8,7 @@ interface UserContextType {
   profile: any | null;
   isProfileComplete: boolean | null;
   isLoading: boolean;
+  isGuest: boolean;
   refreshProfile: () => Promise<void>;
 }
 
@@ -20,6 +21,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     null,
   );
   const [isLoading, setIsLoading] = useState(true);
+  const [isGuest, setIsGuest] = useState(false);
   const profileRef = useRef<any>(null);
   const isFetchingRef = useRef<boolean>(false);
 
@@ -69,7 +71,35 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
       if (!isMounted) return;
       
+      if (initialSession?.user?.is_anonymous) {
+        // Automatically delete and sign out if it's a guest session from a previous launch
+        const userId = initialSession.user.id;
+        console.log("UserProvider: Deleting anonymous user session", userId);
+        
+        // Comprehensive cleanup using the app's existing logic as a reference
+        const cleanup = async () => {
+          try {
+            // Delete profile data (if any was created)
+            await supabase.from("profiles").delete().eq("id", userId);
+            // Delete the auth user record via the specialized RPC
+            await supabase.rpc("delete_user");
+          } catch (e) {
+            console.error("UserProvider: Error during guest cleanup", e);
+          } finally {
+            await supabase.auth.signOut();
+          }
+        };
+
+        cleanup();
+        
+        setSession(null);
+        setIsGuest(false);
+        setIsLoading(false);
+        return;
+      }
+      
       setSession(initialSession);
+      setIsGuest(!!initialSession?.user?.is_anonymous);
       if (initialSession) {
         fetchProfile(initialSession.user.id).finally(() => {
           if (isMounted) setIsLoading(false);
@@ -89,6 +119,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       
       // Update session first
       setSession(newSession);
+      setIsGuest(!!newSession?.user?.is_anonymous);
       
       if (newSession) {
         // Use profileRef.current to avoid stale closure
@@ -125,6 +156,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         profile,
         isProfileComplete,
         isLoading,
+        isGuest,
         refreshProfile,
       }}
     >

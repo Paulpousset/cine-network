@@ -116,13 +116,18 @@ export default function EditPostScreen() {
     try {
       const response = await fetch(uri);
       const blob = await response.blob();
-      const arrayBuffer = await new Response(blob).arrayBuffer();
-      const fileExt = uri.split(".").pop();
+      const arrayBuffer = await blob.arrayBuffer();
+      
+      let fileExt = (uri.split(".").pop() || "jpg").split("?")[0];
+      if (fileExt.includes(":") || fileExt.length > 5) {
+        fileExt = blob.type?.split("/")[1] || "jpg";
+      }
+      
       const fileName = `${Date.now()}.${fileExt}`;
-      const filePath = `${userId}/${fileName}`;
+      const filePath = `posts/${userId}/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
-        .from("posts")
+        .from("user_content")
         .upload(filePath, arrayBuffer, {
           contentType: blob.type,
           upsert: false,
@@ -130,7 +135,7 @@ export default function EditPostScreen() {
 
       if (uploadError) throw uploadError;
 
-      const { data } = supabase.storage.from("posts").getPublicUrl(filePath);
+      const { data } = supabase.storage.from("user_content").getPublicUrl(filePath);
       return data.publicUrl;
     } catch (e) {
       console.error("Upload error", e);
@@ -171,7 +176,11 @@ export default function EditPostScreen() {
       if (error) throw error;
 
       Alert.alert("Succès", "Post mis à jour !");
-      router.back();
+      if (router.canGoBack()) {
+        router.back();
+      } else {
+        router.replace("/(tabs)");
+      }
     } catch (e) {
       console.error(e);
       Alert.alert("Erreur", "Impossible de mettre à jour.");

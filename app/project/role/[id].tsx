@@ -2,6 +2,7 @@ import ClapLoading from "@/components/ClapLoading";
 import { GlobalStyles } from "@/constants/Styles";
 import { useUserMode } from "@/hooks/useUserMode";
 import { useTheme } from "@/providers/ThemeProvider";
+import { useUser } from "@/providers/UserProvider";
 import { NotificationService } from "@/services/NotificationService";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -25,6 +26,7 @@ export default function RoleDetails() {
   const router = useRouter();
   const { effectiveUserId } = useUserMode();
   const { colors, isDark } = useTheme();
+  const { isGuest } = useUser();
   const styles = createStyles(colors, isDark);
 
   const [loading, setLoading] = useState(false);
@@ -72,6 +74,10 @@ export default function RoleDetails() {
   }
 
   function openApplicationModal() {
+    if (isGuest) {
+      Alert.alert("Invité", "Vous devez être connecté pour postuler à un rôle.");
+      return;
+    }
     if (!effectiveUserId) {
       Alert.alert("Erreur", "Vous devez être connecté pour postuler.");
       return;
@@ -81,6 +87,10 @@ export default function RoleDetails() {
   }
 
   async function handleApply() {
+    if (isGuest) {
+      Alert.alert("Invité", "Vous devez être connecté pour postuler.");
+      return;
+    }
     if (!effectiveUserId) {
       Alert.alert("Erreur", "Vous devez être connecté pour postuler.");
       return;

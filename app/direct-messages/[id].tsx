@@ -7,23 +7,23 @@ import { NotificationService } from "@/services/NotificationService";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image"; // Better image component
 import {
-  Stack,
-  useFocusEffect,
-  useLocalSearchParams,
-  useRouter,
+    Stack,
+    useFocusEffect,
+    useLocalSearchParams,
+    useRouter,
 } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
-  Alert,
-  AppState,
-  FlatList,
-  KeyboardAvoidingView,
-  Platform,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    Alert,
+    AppState,
+    FlatList,
+    KeyboardAvoidingView,
+    Platform,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -33,7 +33,7 @@ export default function DirectMessageChat() {
   const insets = useSafeAreaInsets();
   const { colors, isDark } = useTheme();
   const styles = createStyles(colors, isDark);
-  const { user, profile: currentUser } = useUser();
+  const { user, profile: currentUser, isGuest } = useUser();
   const [messages, setMessages] = useState<any[]>([]);
   const [inputText, setTextInput] = useState("");
   const [otherUser, setOtherUser] = useState<any>(null);
@@ -48,16 +48,18 @@ export default function DirectMessageChat() {
   // Mark messages as read when focusing this screen
   useFocusEffect(
     useCallback(() => {
+      if (isGuest) return;
       isFocusedRef.current = true;
       markAllAsRead();
 
       return () => {
         isFocusedRef.current = false;
       };
-    }, [id, currentUserId]),
+    }, [id, currentUserId, isGuest]),
   );
 
   async function markAllAsRead() {
+    if (isGuest) return;
     const myId = currentUserId;
 
     if (!myId || !id) {
@@ -451,15 +453,16 @@ currentUserId
         >
           <TextInput
             style={styles.input}
-            placeholder="Votre message..."
+            placeholder={isGuest ? "S'inscrire pour discuter" : "Votre message..."}
             placeholderTextColor={colors.text + "80"}
             value={inputText}
             onChangeText={setTextInput}
             multiline
+            editable={!isGuest}
             returnKeyType="send"
             blurOnSubmit={true}
             onSubmitEditing={() => {
-              if (inputText.trim()) {
+              if (inputText.trim() && !isGuest) {
                 sendMessage();
               }
             }}
@@ -469,7 +472,7 @@ currentUserId
                 // @ts-ignore: nativeEvent can correspond to web KeyboardEvent
                 if (e.nativeEvent.key === "Enter" && !e.shiftKey) {
                   e.preventDefault(); // Empêcher le saut de ligne
-                  if (inputText.trim()) {
+                  if (inputText.trim() && !isGuest) {
                     sendMessage();
                   }
                 }
@@ -477,14 +480,14 @@ currentUserId
             }}
           />
           <TouchableOpacity
-            onPress={sendMessage}
-            style={{ marginLeft: 10 }}
-            disabled={!inputText.trim()}
+            onPress={isGuest ? undefined : sendMessage}
+            style={[{ marginLeft: 10 }, isGuest && { opacity: 0.5 }]}
+            disabled={!inputText.trim() || isGuest}
           >
             <Ionicons
               name="send"
               size={24}
-              color={inputText.trim() ? colors.primary : colors.text + "40"}
+              color={inputText.trim() && !isGuest ? colors.primary : colors.text + "40"}
             />
           </TouchableOpacity>
         </View>

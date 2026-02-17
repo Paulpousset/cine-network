@@ -1,6 +1,7 @@
 import { appEvents, EVENTS } from "@/lib/events";
 import { supabase } from "@/lib/supabase";
 import { useTheme } from "@/providers/ThemeProvider";
+import { NotificationService } from "@/services/NotificationService";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
@@ -256,6 +257,15 @@ export default function FloatingChatWidget({ userId }: { userId: string }) {
         if (error) throw error;
         if (data) {
           setMessages((prev) => prev.map((m) => (m.id === tempId ? data : m)));
+
+          // Send push notifications
+          NotificationService.sendProjectMessageNotification({
+            projectId: projectId,
+            senderName: profile?.full_name || profile?.username || "Quelqu'un",
+            category: category,
+            content: content,
+            senderId: userId,
+          });
         }
       } catch (e) {
         console.error(e);

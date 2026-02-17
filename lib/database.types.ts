@@ -274,6 +274,24 @@ export type Database = {
           },
         ]
       }
+      location_categories: {
+        Row: {
+          created_at: string | null
+          id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          name: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
       post_comments: {
         Row: {
           content: string
@@ -391,6 +409,54 @@ export type Database = {
           },
         ]
       }
+      profile_experience_notes: {
+        Row: {
+          created_at: string | null
+          custom_title: string | null
+          image_url: string | null
+          image_urls: string[] | null
+          note: string | null
+          profile_id: string
+          project_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          custom_title?: string | null
+          image_url?: string | null
+          image_urls?: string[] | null
+          note?: string | null
+          profile_id: string
+          project_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          custom_title?: string | null
+          image_url?: string | null
+          image_urls?: string[] | null
+          note?: string | null
+          profile_id?: string
+          project_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profile_experience_notes_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profile_experience_notes_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "tournages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           age: number | null
@@ -409,9 +475,12 @@ export type Database = {
           has_completed_tutorial: boolean | null
           height: number | null
           id: string
+          job_title: string | null
           pays: string | null
           phone: string | null
           role: Database["public"]["Enums"]["user_role"] | null
+          secondary_job_title: string | null
+          secondary_role: string | null
           showreel_url: string | null
           skills: string[] | null
           software: string | null
@@ -439,9 +508,12 @@ export type Database = {
           has_completed_tutorial?: boolean | null
           height?: number | null
           id: string
+          job_title?: string | null
           pays?: string | null
           phone?: string | null
           role?: Database["public"]["Enums"]["user_role"] | null
+          secondary_job_title?: string | null
+          secondary_role?: string | null
           showreel_url?: string | null
           skills?: string[] | null
           software?: string | null
@@ -469,9 +541,12 @@ export type Database = {
           has_completed_tutorial?: boolean | null
           height?: number | null
           id?: string
+          job_title?: string | null
           pays?: string | null
           phone?: string | null
           role?: Database["public"]["Enums"]["user_role"] | null
+          secondary_job_title?: string | null
+          secondary_role?: string | null
           showreel_url?: string | null
           skills?: string[] | null
           software?: string | null
@@ -845,6 +920,7 @@ export type Database = {
           is_paid: boolean | null
           quantity_filled: number | null
           remuneration_amount: string | null
+          show_in_team: boolean | null
           software: string | null
           specialties: string | null
           status: string | null
@@ -868,6 +944,7 @@ export type Database = {
           is_paid?: boolean | null
           quantity_filled?: number | null
           remuneration_amount?: string | null
+          show_in_team?: boolean | null
           software?: string | null
           specialties?: string | null
           status?: string | null
@@ -891,6 +968,7 @@ export type Database = {
           is_paid?: boolean | null
           quantity_filled?: number | null
           remuneration_amount?: string | null
+          show_in_team?: boolean | null
           software?: string | null
           specialties?: string | null
           status?: string | null

@@ -11,6 +11,7 @@ import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Dimensions,
   Platform,
   ScrollView,
@@ -27,7 +28,7 @@ const { width: WINDOW_WIDTH } = Dimensions.get('window');
 export default function LocationDetailScreen() {
   const { id } = useLocalSearchParams();
   const { colors } = useTheme();
-  const { user } = useUser();
+  const { user, isGuest } = useUser();
   const router = useRouter();
   const { width: windowWidth } = useWindowDimensions();
   
@@ -279,11 +280,16 @@ export default function LocationDetailScreen() {
 
       <View style={[styles.footer, { borderTopColor: colors.border, backgroundColor: colors.background }]}>
         <TouchableOpacity 
-          style={[styles.contactButton, { backgroundColor: colors.primary }]}
+          style={[styles.contactButton, { backgroundColor: colors.primary, opacity: isGuest ? 0.5 : 1 }]}
           onPress={() => {
+            if (isGuest) {
+              Alert.alert("Invité", "Vous devez être connecté pour contacter un propriétaire.");
+              return;
+            }
             // Logic to open message or contact
             router.push(`/direct-messages/${location.owner_id}`);
           }}
+          disabled={isGuest}
         >
           <Ionicons name="chatbubble-ellipses" size={20} color="white" />
           <Text style={styles.contactButtonText}>Contacter le propriétaire</Text>

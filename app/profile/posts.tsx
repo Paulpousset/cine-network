@@ -76,7 +76,7 @@ export default function UserPostsScreen() {
           created_at,
           user_id,
           project:tournages(id, title), 
-          user:profiles (full_name, avatar_url)
+          user:profiles!user_id (full_name, avatar_url)
         `,
         )
         .eq("user_id", userId)

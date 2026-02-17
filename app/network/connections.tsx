@@ -1,3 +1,4 @@
+import { Text, View } from "@/components/Themed";
 import { GlobalStyles } from "@/constants/Styles";
 import { appEvents, EVENTS } from "@/lib/events";
 import { useTheme } from "@/providers/ThemeProvider";
@@ -11,9 +12,7 @@ import {
     Platform,
     RefreshControl,
     StyleSheet,
-    Text,
     TouchableOpacity,
-    View,
 } from "react-native";
 import { supabase } from "../../lib/supabase";
 
@@ -157,7 +156,7 @@ export default function NetworkConnections() {
       const otherUser = isMeRequester ? item.receiver : item.requester;
 
       return (
-        <View style={GlobalStyles.card}>
+        <View style={styles.card}>
           <TouchableOpacity
             style={styles.info}
             onPress={() =>
@@ -173,26 +172,20 @@ export default function NetworkConnections() {
                 style={styles.avatar}
               />
             ) : (
-              <View
-                style={[
-                  styles.avatar,
-                  {
-                    backgroundColor: "#ccc",
-                    justifyContent: "center",
-                    alignItems: "center",
-                    marginRight: 10,
-                  },
-                ]}
-              >
-                <Ionicons name="person" size={24} color="#fff" />
+              <View style={[styles.avatar, styles.avatarPlaceholder]}>
+                <Ionicons
+                  name="person"
+                  size={30}
+                  color={colors.tabIconDefault}
+                />
               </View>
             )}
 
-            <View style={{ flex: 1 }}>
-              <Text style={GlobalStyles.title2}>
+            <View style={styles.textContainer}>
+              <Text style={styles.name}>
                 {otherUser.full_name || otherUser.username}
               </Text>
-              <Text style={GlobalStyles.caption}>
+              <Text style={styles.description}>
                 {otherUser.role ? otherUser.role.toUpperCase() : "Membre"} •{" "}
                 {otherUser.ville || "N/A"}
               </Text>
@@ -200,7 +193,7 @@ export default function NetworkConnections() {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={{ padding: 10 }}
+            style={styles.deleteButton}
             onPress={() =>
               removeConnection(
                 item.id,
@@ -208,11 +201,7 @@ export default function NetworkConnections() {
               )
             }
           >
-            <Ionicons
-              name="trash-outline"
-              size={20}
-              color={colors.danger}
-            />
+            <Ionicons name="trash-outline" size={24} color={colors.danger} />
           </TouchableOpacity>
         </View>
       );
@@ -222,34 +211,24 @@ export default function NetworkConnections() {
       if (!otherUser) return null;
 
       return (
-        <View style={GlobalStyles.card}>
+        <View style={styles.card}>
           <View style={styles.info}>
-            <View
-              style={[
-                styles.avatar,
-                {
-                  backgroundColor: colors.backgroundSecondary,
-                  justifyContent: "center",
-                  alignItems: "center",
-                  marginRight: 10,
-                },
-              ]}
-            >
-              <Ionicons name="person" size={24} color={colors.tabIconDefault} />
+            <View style={[styles.avatar, styles.avatarPlaceholder]}>
+              <Ionicons name="person" size={30} color={colors.tabIconDefault} />
             </View>
 
-            <View style={{ flex: 1 }}>
-              <Text style={GlobalStyles.title2}>
+            <View style={styles.textContainer}>
+              <Text style={styles.name}>
                 {otherUser.full_name || otherUser.username}
               </Text>
-              <Text style={[GlobalStyles.caption, { color: colors.danger }]}>
+              <Text style={[styles.description, { color: colors.danger }]}>
                 Bloqué
               </Text>
             </View>
           </View>
 
           <TouchableOpacity
-            style={[styles.unblockButton]}
+            style={styles.unblockButton}
             onPress={() => handleUnblock(otherUser.id)}
           >
             <Text style={styles.unblockButtonText}>Débloquer</Text>
@@ -267,11 +246,15 @@ export default function NetworkConnections() {
           headerLeft: () => (
             <TouchableOpacity
               onPress={() => router.back()}
-              style={{ marginRight: 10 }}
+              style={{ marginLeft: Platform.OS === "ios" ? 0 : 10 }}
             >
               <Ionicons name="arrow-back" size={24} color={colors.text} />
             </TouchableOpacity>
           ),
+          headerStyle: {
+            backgroundColor: colors.card,
+          },
+          headerTintColor: colors.text,
         }}
       />
 
@@ -316,11 +299,15 @@ export default function NetworkConnections() {
         renderItem={renderItem}
         contentContainerStyle={{ padding: 15 }}
         refreshControl={
-          <RefreshControl refreshing={loading} onRefresh={fetchData} />
+          <RefreshControl
+            refreshing={loading}
+            onRefresh={fetchData}
+            tintColor={colors.primary}
+          />
         }
         ListEmptyComponent={
           !loading ? (
-            <Text style={{ textAlign: "center", marginTop: 50, color: "#999" }}>
+            <Text style={styles.emptyText}>
               {activeTab === "connections"
                 ? "Votre réseau est vide."
                 : "Aucun utilisateur bloqué."}
@@ -334,7 +321,7 @@ export default function NetworkConnections() {
 
 function createStyles(colors: any, isDark: boolean) {
   return StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.backgroundSecondary },
+  container: { flex: 1, backgroundColor: colors.background },
   tabBar: {
     flexDirection: "row",
     backgroundColor: colors.card,
@@ -360,27 +347,66 @@ function createStyles(colors: any, isDark: boolean) {
     color: colors.primary,
     fontWeight: "700",
   },
+  card: {
+    ...GlobalStyles.card,
+    backgroundColor: colors.card,
+    flexDirection: "row",
+    alignItems: "center",
+    borderColor: colors.border,
+    borderWidth: 1,
+    padding: 12,
+  },
   info: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
+    backgroundColor: "transparent",
   },
   avatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    marginRight: 12,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    marginRight: 15,
+  },
+  avatarPlaceholder: {
+    backgroundColor: colors.backgroundSecondary,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  textContainer: {
+    flex: 1,
+    backgroundColor: "transparent",
+  },
+  name: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: colors.text,
+  },
+  description: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginTop: 2,
   },
   unblockButton: {
     backgroundColor: colors.primary,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 15,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
   },
   unblockButtonText: {
     color: "white",
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: "600",
+  },
+  emptyText: {
+    textAlign: "center",
+    marginTop: 50,
+    color: colors.textSecondary,
+    fontSize: 16,
+  },
+  deleteButton: {
+    padding: 10,
+    backgroundColor: "transparent",
   },
   });
 }

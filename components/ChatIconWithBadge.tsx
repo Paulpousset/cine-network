@@ -1,15 +1,15 @@
-import Colors from "@/constants/Colors";
 import { appEvents, EVENTS } from "@/lib/events";
 import { supabase } from "@/lib/supabase";
+import { useTheme } from "@/providers/ThemeProvider";
 import { useUser } from "@/providers/UserProvider";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { Link } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
-import { useColorScheme, View } from "react-native";
+import { View } from "react-native";
 import { Hoverable } from "./Hoverable";
 
 export default function ChatIconWithBadge() {
-  const colorScheme = useColorScheme();
+  const { colors } = useTheme();
   const { user } = useUser();
   const [unreadCount, setUnreadCount] = useState(0);
 
@@ -54,7 +54,7 @@ export default function ChatIconWithBadge() {
             <FontAwesome
               name="comments"
               size={24}
-              color={Colors[colorScheme ?? "light"].text}
+              color={colors.text}
             />
             {unreadCount > 0 && (
               <View
@@ -70,7 +70,7 @@ export default function ChatIconWithBadge() {
                   alignItems: "center",
                   paddingHorizontal: 2,
                   borderWidth: 1.5,
-                  borderColor: Colors[colorScheme ?? "light"].background,
+                  borderColor: colors.background,
                 }}
               >
                 {/* Small dot style if count is high, or just number */}

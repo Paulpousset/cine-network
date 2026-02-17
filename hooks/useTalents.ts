@@ -126,22 +126,44 @@ export function useTalents() {
       }
       console.log("[useTalents] Start fetching profiles");
 
-      let q = supabase.from("profiles").select("*");
+      let q = supabase
+        .from("profiles")
+        .select("*")
+        .neq("full_name", "Invité");
 
       if (currentUserId) {
-        const { data: blocks } = await supabase
-          .from("user_blocks")
-          .select("blocker_id, blocked_id")
-          .or(
-            `blocker_id.eq.${currentUserId},blocked_id.eq.${currentUserId}`,
-          );
+        // 1. Exclude self
+        q = q.neq("id", currentUserId);
+
+        // 2. Exclude blocked users AND accepted connections
+        const [blocksResult, connectionsResult] = await Promise.all([
+          supabase
+            .from("user_blocks")
+            .select("blocker_id, blocked_id")
+            .or(`blocker_id.eq.${currentUserId},blocked_id.eq.${currentUserId}`),
+          supabase
+            .from("connections")
+            .select("receiver_id, requester_id")
+            .or(`receiver_id.eq.${currentUserId},requester_id.eq.${currentUserId}`)
+            .eq("status", "accepted"),
+        ]);
 
         const blockedIds =
-          blocks?.map((b: any) =>
+          blocksResult.data?.map((b: any) =>
             b.blocker_id === currentUserId ? b.blocked_id : b.blocker_id,
           ) || [];
-        if (blockedIds.length > 0) {
-          q = q.not("id", "in", `(${blockedIds.join(",")})`);
+
+        const connectionIds =
+          connectionsResult.data?.map((c: any) =>
+            c.receiver_id === currentUserId ? c.requester_id : c.receiver_id,
+          ) || [];
+
+        const excludeIds = Array.from(
+          new Set([...blockedIds, ...connectionIds]),
+        );
+
+        if (excludeIds.length > 0) {
+          q = q.not("id", "in", `(${excludeIds.join(",")})`);
         }
       }
 
