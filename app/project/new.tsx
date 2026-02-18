@@ -1,5 +1,4 @@
 import ClapLoading from "@/components/ClapLoading";
-import PaymentModal from "@/components/PaymentModal";
 import WebDatePicker from "@/components/WebDatePicker";
 import { GlobalStyles } from "@/constants/Styles";
 import { useTheme } from "@/providers/ThemeProvider";
@@ -9,15 +8,15 @@ import DateTimePicker from "@react-native-community/datetimepicker";
 import { Stack, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    Alert,
+    KeyboardAvoidingView,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { supabase } from "../../lib/supabase";
@@ -61,7 +60,6 @@ export default function CreateTournage() {
 
   // Subscription Restriction
   const [canCreate, setCanCreate] = useState(true);
-  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
   type Category = keyof typeof JOB_TITLES;
   type SelectedRole = { category: Category; title: string; quantity: number };
@@ -109,12 +107,12 @@ export default function CreateTournage() {
         setCanCreate(false);
         Alert.alert(
           "Limite atteinte",
-          "Vous avez atteint la limite de 1 projet actif avec le plan Gratuit. Passez au plan Studio pour créer des projets illimités.",
+          "Vous avez atteint la limite de 1 projet actif avec le plan Gratuit. Passez au plan Studio pour créer des projets illimités (C'est gratuit !).",
           [
             { text: "Annuler", onPress: () => router.back(), style: "cancel" },
             {
-              text: "Voir les offres",
-              onPress: () => setShowUpgradeModal(true),
+              text: "Devenir membre Studio (Gratuit)",
+              onPress: handleUpgradeSuccess,
             },
           ],
         );
@@ -658,17 +656,6 @@ export default function CreateTournage() {
           </View>
           <View style={{ height: 40 }} />
         </ScrollView>
-
-        <PaymentModal
-          visible={showUpgradeModal}
-          amount={29.0}
-          label="Passer Studio (Projets Illimités)"
-          onClose={() => {
-            setShowUpgradeModal(false);
-            if (!canCreate) router.back(); // If they closed without paying and were blocked, go back
-          }}
-          onSuccess={handleUpgradeSuccess}
-        />
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

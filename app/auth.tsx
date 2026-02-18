@@ -365,7 +365,7 @@ export default function AuthScreen() {
 
       if (credential.identityToken) {
         const {
-          data: { session, user },
+          data: { user },
           error,
         } = await supabase.auth.signInWithIdToken({
           provider: "apple",
@@ -374,6 +374,29 @@ export default function AuthScreen() {
         });
 
         if (error) throw error;
+
+        if (user && (credential.fullName || credential.email)) {
+          const { givenName, familyName } = credential.fullName || {};
+          const fullName = [givenName, familyName].filter(Boolean).join(" ");
+          
+          if (fullName || credential.email) {
+            // Update the profile with the name and email from Apple
+            await supabase.from("profiles").upsert({
+              id: user.id,
+              full_name: fullName || undefined,
+              email: credential.email || undefined,
+              email_public: credential.email || undefined, // Suggest the Apple email as public contact
+              updated_at: new Date().toISOString(),
+            });
+            
+            // Also store it in auth metadata for easier access
+            if (fullName) {
+              await supabase.auth.updateUser({
+                data: { full_name: fullName }
+              });
+            }
+          }
+        }
       } else {
         throw new Error("No identity token.");
       }

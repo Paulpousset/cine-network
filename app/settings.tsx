@@ -323,34 +323,6 @@ export default function Settings() {
           </View>
         </View>
 
-        {/* ABONNEMENT */}
-        {profile?.subscription_tier === 'studio' && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Abonnement</Text>
-            <View style={styles.card}>
-              <View style={[styles.settingRow, { borderBottomWidth: 0 }]}>
-                <View style={styles.settingInfo}>
-                  <View style={{ backgroundColor: colors.primary + '15', padding: 8, borderRadius: 10 }}>
-                    <Ionicons name="star" size={20} color={colors.primary} />
-                  </View>
-                  <View>
-                    <Text style={styles.settingText}>Studio Pro</Text>
-                    <Text style={{ fontSize: 12, color: colors.textSecondary }}>Actif — Souscrit le {getActivationDate()}</Text>
-                  </View>
-                </View>
-                <TouchableOpacity 
-                  onPress={handleCancelSubscription}
-                  style={{ backgroundColor: colors.backgroundSecondary, paddingHorizontal: 15, paddingVertical: 8, borderRadius: 8, borderWidth: 1, borderColor: colors.border }}
-                >
-                  <Text style={{ fontSize: 13, color: colors.danger, fontWeight: '600' }}>Résilier</Text>
-                </TouchableOpacity>
-              </View>
-              <Text style={{ fontSize: 12, color: colors.textSecondary, marginTop: 15, fontStyle: 'italic' }}>
-                En cas de résiliation, vos avantages resteront actifs jusqu'au {getExpiryDate()}.
-              </Text>
-            </View>
-          </View>
-        )}
 
         {/* THÈME */}
         <View style={styles.section}>
