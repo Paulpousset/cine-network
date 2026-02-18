@@ -375,7 +375,7 @@ export default function ConnectionRequests() {
               >
                 <Text
                   style={{
-                    color: colors.tint,
+                    color: colors.text,
                     fontWeight: "600",
                     fontSize: 13,
                   }}

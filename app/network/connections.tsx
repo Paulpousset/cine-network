@@ -6,13 +6,13 @@ import { Ionicons } from "@expo/vector-icons";
 import { Stack, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-    Alert,
-    FlatList,
-    Image,
-    Platform,
-    RefreshControl,
-    StyleSheet,
-    TouchableOpacity,
+  Alert,
+  FlatList,
+  Image,
+  Platform,
+  RefreshControl,
+  StyleSheet,
+  TouchableOpacity,
 } from "react-native";
 import { supabase } from "../../lib/supabase";
 
@@ -336,7 +336,7 @@ function createStyles(colors: any, isDark: boolean) {
     borderBottomColor: "transparent",
   },
   tabItemActive: {
-    borderBottomColor: colors.primary,
+    borderBottomColor: colors.text,
   },
   tabText: {
     fontSize: 14,
@@ -344,7 +344,7 @@ function createStyles(colors: any, isDark: boolean) {
     fontWeight: "500",
   },
   tabTextActive: {
-    color: colors.primary,
+    color: colors.text,
     fontWeight: "700",
   },
   card: {

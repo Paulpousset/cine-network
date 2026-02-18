@@ -8,15 +8,15 @@ import { FontAwesome, Ionicons } from "@expo/vector-icons";
 import { usePathname, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-    AppState,
-    Image,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Switch,
-    Text,
-    useWindowDimensions,
-    View,
+  AppState,
+  Image,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  useWindowDimensions,
+  View,
 } from "react-native";
 import DynamicLogo from "./DynamicLogo";
 import { Hoverable } from "./Hoverable";
@@ -41,9 +41,10 @@ const NAVIGATION_ITEMS = [
   { name: "Casting & Jobs", icon: "briefcase", href: "/jobs" },
 
   { name: "Réseau", icon: "user", href: "/talents" },
-  { name: "Lieux", icon: "map-marker", href: "/locations", isIonicons: false },
+  { name: "Hall of Fame", icon: "trophy", href: "/hall-of-fame" },
   { name: "Notifications", icon: "bell", href: "/notifications" },
-  { name: "Hall of Fame", icon: "trophy", href: "/hall-of-fame" }, // New Item
+  
+  { name: "Lieux", icon: "map-marker", href: "/locations", isIonicons: false },
   { name: "Messages", icon: "comments", href: "/direct-messages", id: "chats" },
 ];
 
@@ -537,13 +538,14 @@ export default function Sidebar() {
             : "transparent",
         }}
       >
-        <View style={{ position: "relative", marginRight: 12 }}>
-          <SafeIcon
-            isIonicons={(item as any).isIonicons}
-            name={item.icon as any}
-            size={20}
-            color={isActive ? colors.tint : (isDark ? "#FFFFFF" : colors.text + "80")}
-          />
+        <View style={{ width: 24, alignItems: "center", justifyContent: "center", marginRight: 12 }}>
+          <View style={{ position: "relative" }}>
+            <SafeIcon
+              isIonicons={(item as any).isIonicons}
+              name={item.icon as any}
+              size={20}
+              color={isActive ? colors.tint : (isDark ? "#FFFFFF" : colors.text + "80")}
+            />
             {/* Badge Chat */}
             {isChats && !expanded && totalUnread > 0 && (
               <View
@@ -577,6 +579,7 @@ export default function Sidebar() {
               />
             )}
           </View>
+        </View>
           {!effectiveCollapsed && (
             <>
               <Text
@@ -673,16 +676,17 @@ export default function Sidebar() {
                         ? colors.primary + "15"
                         : "transparent",
                       borderRadius: 8,
-                      gap: 10,
                       marginLeft: 5,
                     }}
                   >
-                    <SafeIcon
-                      isIonicons={false}
-                      name="film"
-                      size={isStudio ? 14 : 12}
-                      color={isSelected ? colors.primary : (isDark ? "#FFFFFF" : colors.text + "99")}
-                    />
+                    <View style={{ width: 16, alignItems: "center", justifyContent: "center", marginRight: 10 }}>
+                        <SafeIcon
+                            isIonicons={false}
+                            name="film"
+                            size={isStudio ? 14 : 12}
+                            color={isSelected ? colors.primary : (isDark ? "#FFFFFF" : colors.text + "99")}
+                        />
+                    </View>
                     <Text
                       numberOfLines={1}
                       style={{
@@ -944,12 +948,13 @@ export default function Sidebar() {
               paddingVertical: 14,
               paddingHorizontal: 15,
               borderRadius: 12,
-              gap: 12,
               backgroundColor: colors.primary,
               marginBottom: 15,
             }}
           >
-            <SafeIcon isIonicons={false} name="plus-circle" size={18} color="white" />
+            <View style={{ width: 24, alignItems: "center", justifyContent: "center", marginRight: 12 }}>
+              <SafeIcon isIonicons={false} name="plus-circle" size={18} color="white" />
+            </View>
             {!effectiveCollapsed && (
               <Text 
                 numberOfLines={1}
@@ -971,12 +976,13 @@ export default function Sidebar() {
               paddingVertical: 12,
               paddingHorizontal: 15,
               marginBottom: 10,
-              gap: 12,
               borderBottomWidth: 1,
               borderBottomColor: colors.border,
             }}
           >
-            <SafeIcon isIonicons={false} name="arrow-left" size={16} color={colors.text + "CC"} />
+            <View style={{ width: 24, alignItems: "center", justifyContent: "center", marginRight: 12 }}>
+              <SafeIcon isIonicons={false} name="arrow-left" size={16} color={colors.text + "CC"} />
+            </View>
             {!effectiveCollapsed && (
               <Text 
                 numberOfLines={1}
@@ -1006,15 +1012,16 @@ export default function Sidebar() {
                       alignItems: "center",
                       paddingVertical: 8,
                       paddingHorizontal: 15,
-                      gap: 12,
                     }}
                   >
-                    <SafeIcon
-                      isIonicons={false}
-                      name={group.icon as any}
-                      size={14}
-                      color={colors.text + "80"}
-                    />
+                    <View style={{ width: 24, alignItems: "center", justifyContent: "center", marginRight: 12 }}>
+                      <SafeIcon
+                        isIonicons={false}
+                        name={group.icon as any}
+                        size={14}
+                        color={colors.text + "80"}
+                      />
+                    </View>
                     {!effectiveCollapsed && (
                       <>
                         <Text
@@ -1187,21 +1194,22 @@ export default function Sidebar() {
             paddingVertical: 12,
             paddingHorizontal: 15,
             borderRadius: 8,
-            gap: 12,
             backgroundColor: pathname.startsWith("/settings")
               ? colors.primary + "10"
               : "transparent",
             marginTop: 10,
           }}
         >
-          <SafeIcon
-            isIonicons={true}
-            name="settings-outline"
-            size={20}
-            color={
-              pathname.startsWith("/settings") ? colors.primary : (isDark ? "#FFFFFF" : colors.text + "CC")
-            }
-          />
+          <View style={{ width: 24, alignItems: "center", justifyContent: "center", marginRight: 12 }}>
+            <SafeIcon
+              isIonicons={true}
+              name="settings-outline"
+              size={20}
+              color={
+                pathname.startsWith("/settings") ? colors.primary : (isDark ? "#FFFFFF" : colors.text + "CC")
+              }
+            />
+          </View>
           {!effectiveCollapsed && (
             <Text
               numberOfLines={1}
@@ -1233,7 +1241,6 @@ export default function Sidebar() {
             paddingVertical: 12,
             paddingHorizontal: 15,
             borderRadius: 8,
-            gap: 12,
             backgroundColor: pathname.startsWith("/account")
               ? colors.primary + "10"
               : "transparent",
@@ -1243,29 +1250,31 @@ export default function Sidebar() {
             paddingTop: 15,
           }}
         >
-          {avatarUrl ? (
-            <Image
-              source={{ uri: avatarUrl }}
-              style={{
-                width: 24,
-                height: 24,
-                borderRadius: 12,
-                borderWidth: 1,
-                borderColor: pathname.startsWith("/account")
-                  ? colors.primary
-                  : colors.border,
-              }}
-            />
-          ) : (
-            <SafeIcon
-              isIonicons={false}
-              name="user-circle"
-              size={20}
-              color={
-                pathname.startsWith("/account") ? colors.primary : (isDark ? "#FFFFFF" : colors.text + "CC")
-              }
-            />
-          )}
+          <View style={{ width: 24, alignItems: "center", justifyContent: "center", marginRight: 12 }}>
+            {avatarUrl ? (
+              <Image
+                source={{ uri: avatarUrl }}
+                style={{
+                  width: 24,
+                  height: 24,
+                  borderRadius: 12,
+                  borderWidth: 1,
+                  borderColor: pathname.startsWith("/account")
+                    ? colors.primary
+                    : colors.border,
+                }}
+              />
+            ) : (
+              <SafeIcon
+                isIonicons={false}
+                name="user-circle"
+                size={20}
+                color={
+                  pathname.startsWith("/account") ? colors.primary : (isDark ? "#FFFFFF" : colors.text + "CC")
+                }
+              />
+            )}
+          </View>
           {!effectiveCollapsed && (
             <Text
               numberOfLines={1}

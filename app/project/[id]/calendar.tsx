@@ -560,6 +560,20 @@ export default function ProjectCalendar() {
           <TouchableOpacity onPress={() => changeWeek(-1)}>
             <Ionicons name="chevron-back" size={24} color={colors.tint} />
           </TouchableOpacity>
+          
+          <TouchableOpacity 
+            onPress={() => {
+              const d = new Date();
+              const day = d.getDay();
+              const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+              const start = new Date(d.setDate(diff));
+              start.setHours(0, 0, 0, 0);
+              setCurrentWeekStart(start);
+            }}
+          >
+            <Text style={[styles.weekLabel, { color: colors.tint, fontSize: 12 }]}>Aujourd'hui</Text>
+          </TouchableOpacity>
+
           <Text style={styles.weekLabel}>{weekLabel}</Text>
           <TouchableOpacity onPress={() => changeWeek(1)}>
             <Ionicons

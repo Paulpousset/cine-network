@@ -895,6 +895,21 @@ export default function MyProjects() {
                     >
                       <Ionicons name="chevron-back" size={16} color={colors.primary} />
                     </TouchableOpacity>
+
+                    <TouchableOpacity 
+                      onPress={() => {
+                        const d = new Date();
+                        const day = d.getDay();
+                        const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+                        const start = new Date(d.setDate(diff));
+                        start.setHours(0, 0, 0, 0);
+                        setCurrentWeekStart(start);
+                      }}
+                      style={[styles.weekNavBtn, { paddingHorizontal: 8, height: 28, width: 'auto' }]}
+                    >
+                      <Text style={{ fontSize: 10, fontWeight: '600', color: colors.primary }}>Aujourd'hui</Text>
+                    </TouchableOpacity>
+
                     <TouchableOpacity 
                       onPress={() => {
                         const next = new Date(currentWeekStart);

@@ -164,11 +164,11 @@ export default function TabLayout() {
       />
 
       <Tabs.Screen
-        name="jobs"
+        name="feed"
         options={{
-          title: "Castings",
+          title: "Fil d'actu",
           tabBarIcon: ({ color }) => (
-            <TabBarIcon name="briefcase" color={color} />
+            <TabBarIcon name="newspaper-o" color={color} />
           ),
           headerLeft:
             Platform.OS === "web"
@@ -193,11 +193,11 @@ export default function TabLayout() {
       />
 
       <Tabs.Screen
-        name="discover"
+        name="jobs"
         options={{
-          title: "Découvrir",
+          title: "Castings",
           tabBarIcon: ({ color }) => (
-            <TabBarIcon name="search" color={color} />
+            <TabBarIcon name="briefcase" color={color} />
           ),
           headerLeft:
             Platform.OS === "web"
@@ -249,11 +249,11 @@ export default function TabLayout() {
       />
 
       <Tabs.Screen
-        name="feed"
+        name="discover"
         options={{
-          title: "Fil d'actu",
+          title: "Découvrir",
           tabBarIcon: ({ color }) => (
-            <TabBarIcon name="newspaper-o" color={color} />
+            <TabBarIcon name="search" color={color} />
           ),
           headerLeft:
             Platform.OS === "web"
