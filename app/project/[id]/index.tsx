@@ -1,5 +1,4 @@
 import { Hoverable } from "@/components/Hoverable";
-import PaymentModal from "@/components/PaymentModal";
 import RoleFormFields from "@/components/RoleFormFields";
 import { useThemedStyles } from "@/hooks/useThemedStyles";
 import { useUserMode } from "@/hooks/useUserMode";
@@ -13,20 +12,20 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
-  Alert,
-  Animated,
-  Easing,
-  FlatList,
-  Image,
-  Modal,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  useWindowDimensions,
-  View,
+    Alert,
+    Animated,
+    Easing,
+    FlatList,
+    Image,
+    Modal,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    useWindowDimensions,
+    View,
 } from "react-native";
 import { supabase } from "../../../lib/supabase";
 
@@ -538,7 +537,6 @@ export default function ProjectDetails() {
     useState(false);
 
   // Boost Logic
-  const [boostModalVisible, setBoostModalVisible] = useState(false);
   const [roleToBoost, setRoleToBoost] = useState<any>(null);
   const savedManageRole = useRef<any>(null);
 
@@ -2771,10 +2769,19 @@ export default function ProjectDetails() {
                                 savedManageRole.current = manageRole;
                                 setManageRole(null);
 
-                                // 2. Open Boost Modal (delayed)
+                                // 2. Trigger Boost Directly (delayed)
                                 setRoleToBoost(roleItem);
                                 setTimeout(
-                                  () => setBoostModalVisible(true),
+                                  () => {
+                                    Alert.alert(
+                                      "Booster l'annonce",
+                                      "Souhaitez-vous booster cette annonce ? C'est gratuit pour le moment !",
+                                      [
+                                        { text: "Annuler", style: "cancel" },
+                                        { text: "Confirmer", onPress: handleBoostSuccess }
+                                      ]
+                                    );
+                                  },
                                   100,
                                 );
                               }}
@@ -2807,7 +2814,7 @@ export default function ProjectDetails() {
                               >
                                 {roleItem.is_boosted
                                   ? "Boost Actif"
-                                  : "Booster (5€)"}
+                                  : "Booster (Gratuit)"}
                               </Text>
                             </TouchableOpacity>
 
@@ -3109,23 +3116,6 @@ export default function ProjectDetails() {
           </View>
         </View>
       </Modal>
-
-      <PaymentModal
-        visible={boostModalVisible}
-        amount={5.0}
-        label={`Booster l'annonce "${roleToBoost?.title}"`}
-        onClose={() => {
-          setBoostModalVisible(false);
-          // Restore Group Modal on cancel too
-          setTimeout(() => {
-            if (savedManageRole.current) {
-              setManageRole(savedManageRole.current);
-              savedManageRole.current = null;
-            }
-          }, 300);
-        }}
-        onSuccess={handleBoostSuccess}
-      />
     </View>
   );
 }

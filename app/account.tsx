@@ -1,6 +1,5 @@
 import CityAutocomplete from "@/components/CityAutocomplete";
 import ClapLoading from "@/components/ClapLoading";
-import PaymentModal from "@/components/PaymentModal";
 import { GlobalStyles } from "@/constants/Styles";
 import { useUserMode } from "@/hooks/useUserMode";
 import { appEvents, EVENTS } from "@/lib/events";
@@ -14,17 +13,17 @@ import * as ImagePicker from "expo-image-picker";
 import { Stack, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-  Alert,
-  Image,
-  Modal,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Switch,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View
+    Alert,
+    Image,
+    Modal,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Switch,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View
 } from "react-native";
 
 // --- CONSTANTS ---
@@ -91,7 +90,6 @@ export default function Account() {
   const [isContactVisible, setIsContactVisible] = useState(true);
   const [myProjects, setMyProjects] = useState<any[]>([]);
   const [myParticipations, setMyParticipations] = useState<any[]>([]);
-  const [paymentModalVisible, setPaymentModalVisible] = useState(false);
   const [fullTextModal, setFullTextModal] = useState<{
     visible: boolean;
     title: string;
@@ -926,13 +924,20 @@ export default function Account() {
                     Alert.alert("Invité", "Vous devez être connecté pour passer membre Studio.");
                     return;
                   }
-                  setPaymentModalVisible(true);
+                  Alert.alert(
+                    "Devenir Studio",
+                    "Souhaitez-vous passer membre Studio ? C'est gratuit pour le moment !",
+                    [
+                      { text: "Annuler", style: "cancel" },
+                      { text: "Confirmer", onPress: handleUpgradeSuccess }
+                    ]
+                  );
                 }}
                 disabled={isGuest}
                 style={[GlobalStyles.primaryButton, { flex: 1, backgroundColor: colors.primary, opacity: isGuest ? 0.5 : 1 }]}
               >
                 <Text style={GlobalStyles.buttonText}>
-                  Passer Pro (9€/mois)
+                  Passer Studio (Gratuit)
                 </Text>
               </TouchableOpacity>
 
@@ -1868,14 +1873,6 @@ export default function Account() {
 
         <View style={{ height: 50 }} />
       </ScrollView>
-
-      <PaymentModal
-        visible={paymentModalVisible}
-        amount={29.0}
-        label="Abonnement Studio (1 mois)"
-        onClose={() => setPaymentModalVisible(false)}
-        onSuccess={handleUpgradeSuccess}
-      />
 
       <Modal visible={fullTextModal.visible} animationType="slide">
         <View style={{ flex: 1, backgroundColor: colors.background }}>

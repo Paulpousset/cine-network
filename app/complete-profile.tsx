@@ -2,20 +2,21 @@ import ClapLoading from "@/components/ClapLoading";
 import { appEvents, EVENTS } from "@/lib/events";
 import { supabase } from "@/lib/supabase";
 import { useTheme } from "@/providers/ThemeProvider";
+import { useUser } from "@/providers/UserProvider";
 import { JOB_TITLES } from "@/utils/roles";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    Alert,
+    KeyboardAvoidingView,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 
 const ROLES = [
@@ -33,6 +34,7 @@ const ROLES = [
 
 export default function CompleteProfileScreen() {
   const { colors, isDark } = useTheme();
+  const { profile, user } = useUser();
   const styles = getStyles(colors, isDark);
   const [username, setUsername] = useState("");
   const [role, setRole] = useState("");
@@ -42,6 +44,21 @@ export default function CompleteProfileScreen() {
   const [loading, setLoading] = useState(false);
   const [checkingUsername, setCheckingUsername] = useState(false);
   const router = useRouter();
+
+  // Pre-fill username if full_name is available from Apple/Google via Profile or Auth Metadata
+  useEffect(() => {
+    const nameToUse = profile?.full_name || user?.user_metadata?.full_name || user?.user_metadata?.name;
+    
+    if (nameToUse && !username) {
+      const suggestedUsername = nameToUse
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "") // Remove accents
+        .replace(/[^a-z0-9]/g, "_")
+        .substring(0, 20);
+      setUsername(suggestedUsername);
+    }
+  }, [profile?.full_name, user?.user_metadata]);
 
   const handleSave = async () => {
     if (!username || !role) {
@@ -87,6 +104,7 @@ export default function CompleteProfileScreen() {
           job_title: jobTitle,
           secondary_role: secondaryRole,
           secondary_job_title: secondaryJobTitle,
+          full_name: profile?.full_name || user?.user_metadata?.full_name || user?.user_metadata?.name || undefined,
           updated_at: new Date().toISOString(),
         })
         .eq("id", user.id);
@@ -119,14 +137,16 @@ export default function CompleteProfileScreen() {
       >
         <ScrollView contentContainerStyle={styles.scrollContent}>
           <View style={styles.card}>
-            <Text style={styles.title}>Bienvenue !</Text>
+            <Text style={styles.title}>
+              Bienvenue {(profile?.full_name || user?.user_metadata?.full_name || user?.user_metadata?.name)?.split(" ")[0] || ""} !
+            </Text>
             <Text style={styles.subtitle}>
               Avant de commencer, nous avons besoin de deux informations
               importantes.
             </Text>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Choisissez un pseudo</Text>
+              <Text style={styles.label}>Votre pseudo (public)</Text>
               <TextInput
                 style={styles.input}
                 placeholder="Ex: cineaste_du_92"
