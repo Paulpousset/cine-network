@@ -62,9 +62,7 @@ jobs:
 
       - name: 🤖 Build Android
         run: |
-          npx expo prebuild --platform android --clean
-          cd android
-          ./gradlew bundleRelease
+          eas build --platform android --profile production --local --non-interactive --output=build.aab
         env:
           GOOGLE_SERVICES_ANDROID: ${{ secrets.GOOGLE_SERVICES_ANDROID }}
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
@@ -72,23 +70,13 @@ jobs:
           EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
           GRADLE_OPTS: -Dorg.gradle.jvmargs="-Xmx4096m -XX:MaxMetaspaceSize=1024m"
 
-      - name: ✍️ Sign App Bundle
-        uses: r0adkll/sign-android-release@v1
-        id: sign_app
-        with:
-          releaseDirectory: android/app/build/outputs/bundle/release
-          signingKeyBase64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-          alias: ${{ secrets.ANDROID_KEY_ALIAS }}
-          keyStorePassword: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          keyPassword: ${{ secrets.ANDROID_KEY_PASSWORD }}
-
       - name: 📦 Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: android-build
-          path: ${{ steps.sign_app.outputs.signedReleaseFile }}
+          path: build.aab
 
       - name: 🚀 Submit to Google Play
-        run: eas submit --platform android --profile production --path=${{ steps.sign_app.outputs.signedReleaseFile }} --non-interactive
+        run: eas submit --platform android --profile production --path=build.aab --non-interactive
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
