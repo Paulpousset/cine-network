@@ -2,6 +2,8 @@
   "rewrites": [
     { "source": "/charte_confidentialité", "destination": "/index.html" },
     { "source": "/charte-confidentialite", "destination": "/index.html" },
+    { "source": "/privacy-policy", "destination": "/index.html" },
+    { "source": "/privacy_policy", "destination": "/index.html" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }

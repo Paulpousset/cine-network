@@ -11,11 +11,13 @@ workflows:
       java: 17
       groups:
         - eas_credentials
+        - Android_keystores
     triggering:
       events:
         - push
       branch_patterns:
         - pattern: 'master'
+        - pattern: 'dev'
     scripts:
       - name: Recreate config files
         script: |

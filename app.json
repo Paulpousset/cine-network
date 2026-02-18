@@ -46,6 +46,7 @@
       "favicon": "./assets/images/logoapp.png"
     },
     "plugins": [
+      "./plugins/withAndroidSigning",
       "./plugins/withModularHeaders",
       "./plugins/withDisableLint",
       "expo-router",

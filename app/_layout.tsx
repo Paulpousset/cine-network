@@ -16,11 +16,11 @@ import * as Linking from "expo-linking";
 import { Stack, usePathname, useRouter, useSegments } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
-    Platform,
-    Text,
-    TouchableOpacity,
-    useWindowDimensions,
-    View,
+  Platform,
+  Text,
+  TouchableOpacity,
+  useWindowDimensions,
+  View,
 } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { supabase } from "../lib/supabase";
@@ -97,6 +97,10 @@ function RootLayoutContent({
           <Stack.Screen
             name="charte-confidentialite"
             options={{ headerShown: true, title: "Confidentialité" }}
+          />
+          <Stack.Screen
+            name="privacy-policy"
+            options={{ headerShown: true, title: "Privacy Policy" }}
           />
           <Stack.Screen
              name="settings"

@@ -448,6 +448,19 @@ export default function Settings() {
                 </View>
                 <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
             </TouchableOpacity>
+
+            <View style={styles.divider} />
+
+            <TouchableOpacity 
+                style={styles.settingRow} 
+                onPress={() => router.push("/privacy-policy")}
+            >
+                <View style={styles.settingInfo}>
+                    <Ionicons name="shield-checkmark-outline" size={22} color={colors.primary} />
+                    <Text style={styles.settingText}>Privacy Policy (En)</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+            </TouchableOpacity>
             
             <View style={styles.divider} />
             

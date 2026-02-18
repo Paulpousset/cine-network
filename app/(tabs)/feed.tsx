@@ -1,5 +1,7 @@
 import ClapLoading from "@/components/ClapLoading";
 import PostCard, { FeedPost } from "@/components/PostCard";
+import { SuggestedCastingsSidebar } from "@/components/SuggestedCastingsSidebar";
+import { SuggestedProfilesSidebar } from "@/components/SuggestedProfilesSidebar";
 import { useFeed } from "@/hooks/useFeed";
 import { useTheme } from "@/providers/ThemeProvider";
 import { useUser } from "@/providers/UserProvider";
@@ -8,20 +10,24 @@ import { FlashList } from "@shopify/flash-list";
 import { router, Stack } from "expo-router";
 import React, { useState } from "react";
 import {
-    Image,
-    Modal,
-    Platform,
-    RefreshControl,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Image,
+  Modal,
+  Platform,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  useWindowDimensions,
+  View,
 } from "react-native";
 
 export default function FeedScreen() {
   const { colors, isDark } = useTheme();
   const { isGuest } = useUser();
   const styles = createStyles(colors, isDark);
+  const { width } = useWindowDimensions();
+  const isWebLarge = Platform.OS === "web" && width > 1000;
+
   const {
     posts,
     loading,
@@ -162,31 +168,40 @@ export default function FeedScreen() {
         </View>
       </View>
 
-      <View style={styles.feedWrapper}>
-        {loading && !refreshing ? (
-          <ClapLoading
-            style={{ marginTop: 40 }}
-            color={colors.primary}
-            size={40}
-          />
-        ) : (
-          <FlashList
-            data={posts}
-            keyExtractor={(item) => item.id}
-            renderItem={renderItem}
-            // @ts-ignore
-            estimatedItemSize={400}
-            refreshControl={
-              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-            }
-            contentContainerStyle={styles.listContent}
-            ListEmptyComponent={
-              <Text style={styles.emptyText}>
-                Aucune actualité pour le moment. Connectez-vous avec d'autres
-                personnes pour voir leurs posts !
-              </Text>
-            }
-          />
+      <View style={styles.mainContent}>
+        <View style={styles.feedWrapper}>
+          {loading && !refreshing ? (
+            <ClapLoading
+              style={{ marginTop: 40 }}
+              color={colors.primary}
+              size={40}
+            />
+          ) : (
+            <FlashList
+              data={posts}
+              keyExtractor={(item) => item.id}
+              renderItem={renderItem}
+              // @ts-ignore
+              estimatedItemSize={400}
+              refreshControl={
+                <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+              }
+              contentContainerStyle={styles.listContent}
+              ListEmptyComponent={
+                <Text style={styles.emptyText}>
+                  Aucune actualité pour le moment. Connectez-vous avec d'autres
+                  personnes pour voir leurs posts !
+                </Text>
+              }
+            />
+          )}
+        </View>
+
+        {isWebLarge && (
+            <View style={{ paddingTop: 12 }}>
+                <SuggestedProfilesSidebar />
+                <SuggestedCastingsSidebar />
+            </View>
         )}
       </View>
       {/* Full Screen Image Modal */}
@@ -221,11 +236,15 @@ function createStyles(colors: any, isDark: boolean) {
       flex: 1,
       backgroundColor: colors.backgroundSecondary,
     },
+    mainContent: {
+      flex: 1,
+      flexDirection: "row",
+      justifyContent: "center",
+      width: "100%",
+    },
     feedWrapper: {
       flex: 1,
-      width: "100%",
       maxWidth: 700,
-      alignSelf: "center",
     },
     listContent: {
       padding: 12,

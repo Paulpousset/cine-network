@@ -12,15 +12,15 @@ import { useRouter } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
 import React, { useEffect, useRef, useState } from "react";
 import {
-  Alert,
-  Animated,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View
+    Alert,
+    Animated,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View
 } from "react-native";
 import { supabase } from "../lib/supabase";
 
@@ -738,19 +738,29 @@ export default function AuthScreen() {
                 </Text>
               </TouchableOpacity>
 
-              <TouchableOpacity
-                onPress={() => router.push("/charte-confidentialite")}
-                style={{ marginTop: 16, alignItems: "center", opacity: 0.7 }}
-              >
-                <Text
-                  style={{ fontSize: 13, color: colors.text + "80", fontWeight: "500" }}
+              <View style={{ flexDirection: 'row', gap: 10, justifyContent: 'center', marginTop: 16 }}>
+                <TouchableOpacity
+                  onPress={() => router.push("/charte-confidentialite")}
+                  style={{ opacity: 0.7 }}
                 >
-                  En continuant, vous acceptez notre{" "}
-                  <Text style={{ color: colors.primary, fontWeight: "600" }}>
+                  <Text
+                    style={{ fontSize: 13, color: colors.text + "80", fontWeight: "500" }}
+                  >
                     Charte de Confidentialité
                   </Text>
-                </Text>
-              </TouchableOpacity>
+                </TouchableOpacity>
+                <Text style={{ color: colors.text + "40" }}>•</Text>
+                <TouchableOpacity
+                  onPress={() => router.push("/privacy-policy")}
+                  style={{ opacity: 0.7 }}
+                >
+                  <Text
+                    style={{ fontSize: 13, color: colors.text + "80", fontWeight: "500" }}
+                  >
+                    Privacy Policy (EN)
+                  </Text>
+                </TouchableOpacity>
+              </View>
 
               <TouchableOpacity
                 onPress={() => router.push("/protection-mineurs")}
