@@ -108,7 +108,7 @@ function FilterSidebar({
             <Ionicons
               name={isFreeOnly ? "checkbox" : "square-outline"}
               size={20}
-              color={isFreeOnly ? colors.text : colors.textSecondary}
+              color={isFreeOnly ? colors.primary : colors.text}
             />
             <Text
               style={[
@@ -137,7 +137,7 @@ function FilterSidebar({
                     : "radio-button-off"
                 }
                 size={20}
-                color={experienceLevel === level ? colors.text : colors.textSecondary}
+                color={experienceLevel === level ? colors.primary : colors.text}
               />
               <Text
                 style={[
@@ -162,12 +162,12 @@ function FilterSidebar({
           <Text style={[styles.sidebarLabel, { marginTop: 0, marginBottom: 0 }]}>Métiers</Text>
           {!showAllRoles && !roleSearchQuery && (
             <TouchableOpacity onPress={() => setShowAllRoles(true)}>
-              <Text style={{ fontSize: 12, color: colors.textSecondary, fontWeight: '600' }}>Voir tout</Text>
+              <Text style={{ fontSize: 12, color: colors.primary, fontWeight: '600' }}>Voir tout</Text>
             </TouchableOpacity>
           )}
           {showAllRoles && !roleSearchQuery && (
             <TouchableOpacity onPress={() => setShowAllRoles(false)}>
-              <Text style={{ fontSize: 12, color: colors.textSecondary, fontWeight: '600' }}>Réduire</Text>
+              <Text style={{ fontSize: 12, color: colors.primary, fontWeight: '600' }}>Réduire</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -210,8 +210,8 @@ function FilterSidebar({
               size={20}
               color={
                 selectedRoles.length === 0 && selectedSubRoles.length === 0
-                  ? colors.text
-                  : colors.textSecondary
+                  ? colors.primary
+                  : colors.text
               }
             />
             <Text
@@ -258,7 +258,7 @@ function FilterSidebar({
                     <Ionicons
                       name={isSelected ? "checkbox" : "square-outline"}
                       size={20}
-                      color={isSelected ? colors.text : colors.textSecondary}
+                      color={isSelected ? colors.primary : colors.text}
                     />
                     <Text
                       style={[
@@ -314,7 +314,7 @@ function FilterSidebar({
                           size={18}
                           color={
                             selectedSubRoles.includes(sub)
-                              ? colors.text
+                              ? colors.primary
                               : colors.textSecondary
                           }
                         />
@@ -370,15 +370,15 @@ function FilterSidebar({
                 style={{
                   flexDirection: 'row',
                   alignItems: 'center',
-                  backgroundColor: colors.backgroundSecondary,
+                  backgroundColor: colors.primary + '20',
                   paddingHorizontal: 8,
                   paddingVertical: 4,
                   borderRadius: 6,
                   gap: 4
                 }}
               >
-                <Text style={{ fontSize: 12, color: colors.text }}>{city}</Text>
-                <Ionicons name="close" size={14} color={colors.text} />
+                <Text style={{ fontSize: 12, color: colors.primary }}>{city}</Text>
+                <Ionicons name="close" size={14} color={colors.primary} />
               </TouchableOpacity>
             ))}
           </View>
@@ -408,8 +408,11 @@ function FilterSidebar({
                   size={20}
                   color={
                     selectedCities.includes(city)
-                      ? colors.text
-                      : colors.textSecondary
+                      ? colors.primary
+                      : colors.text
+                  }
+                />
+                <Text style={[styles.sidebarCheckboxText, selectedCities.includes(city) && styles.sidebarCheckboxTextActive]}>
                   {city}
                 </Text>
               </TouchableOpacity>
@@ -435,6 +438,29 @@ function FilterSidebar({
           <Text style={styles.resetButtonText}>Réinitialiser tout</Text>
         </TouchableOpacity>
       </ScrollView>
+    </View>
+  );
+}
+
+function WebCellWrapper({ children, style, ...props }: any) {
+  const [isHovered, setIsHovered] = useState(false);
+  return (
+    <View
+      {...props}
+      style={[
+        style,
+        {
+          zIndex: isHovered ? 100000 : 1,
+          overflow: "visible",
+          position: 'relative', // Essentiel pour que le zIndex soit pris en compte sur le web
+        },
+      ]}
+      // @ts-ignore
+      onMouseEnter={() => setIsHovered(true)}
+      // @ts-ignore
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      {children}
     </View>
   );
 }
@@ -639,10 +665,9 @@ export default function DiscoverProfiles() {
       <Modal
         visible={mobileFiltersVisible && !isLargeScreen}
         animationType="slide"
-        statusBarTranslucent
         onRequestClose={() => setMobileFiltersVisible(false)}
       >
-        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['top']}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['top', 'bottom']}>
           <View style={styles.mobileFilterHeader}>
             <Text style={styles.mobileFilterTitle}>Filtres</Text>
             <TouchableOpacity onPress={() => setMobileFiltersVisible(false)}>
@@ -714,16 +739,18 @@ export default function DiscoverProfiles() {
                 ListHeaderComponent={listHeader}
                 data={profiles}
                 keyExtractor={(item: any) => item.id}
+                CellRendererComponent={WebCellWrapper}
                 renderItem={({ item }) => (
                   <TalentCard 
                     item={item} 
                     myConnections={myConnections} 
-                    style={{ padding: 8, flex: 1/3, height: 180 + 16 }}
+                    style={{ padding: 8, flex: 1/3, height: 140 + 16 }}
                   />
                 )}
                 contentContainerStyle={{
                   paddingBottom: 120,
                   paddingHorizontal: 15,
+                  overflow: 'visible',
                 }}
                 ListEmptyComponent={
                   <Text style={{ textAlign: "center", marginTop: 50, color: "#999" }}>
@@ -820,7 +847,7 @@ function createStyles(colors: any, isDark: boolean) {
       fontWeight: '500',
     },
     sidebarCheckboxTextActive: {
-      color: colors.text,
+      color: colors.primary,
       fontWeight: "700",
     },
     resetButton: {
@@ -875,15 +902,17 @@ function createStyles(colors: any, isDark: boolean) {
     mobileFilterHeader: {
       flexDirection: "row",
       justifyContent: "space-between",
-      padding: 20,
+      paddingHorizontal: 24,
+      paddingVertical: 16,
       alignItems: "center",
       borderBottomWidth: 1,
       borderBottomColor: colors.border,
     },
     mobileFilterTitle: {
-      fontSize: 20,
-      fontWeight: "bold",
+      fontSize: 22,
+      fontWeight: '700',
       color: colors.text,
+      letterSpacing: -0.5,
     },
     applyButton: {
       backgroundColor: colors.primary,
@@ -1002,10 +1031,10 @@ function createStyles(colors: any, isDark: boolean) {
     avatarPlaceholder: {
       justifyContent: "center",
       alignItems: "center",
-      backgroundColor: colors.primary,
+      backgroundColor: colors.backgroundSecondary,
     },
     avatarText: {
-      color: "white",
+      color: colors.textSecondary,
       fontSize: 18,
       fontWeight: "bold",
     },
@@ -1053,7 +1082,7 @@ function createStyles(colors: any, isDark: boolean) {
       marginBottom: 8,
     },
     suggestionAvatarText: {
-      color: "white",
+      color: colors.textSecondary,
       fontSize: 20,
       fontWeight: "bold",
     },
@@ -1065,14 +1094,14 @@ function createStyles(colors: any, isDark: boolean) {
     },
     suggestionRole: {
       fontSize: 11,
-      color: colors.primary,
+      color: colors.textSecondary,
       textAlign: "center",
       marginTop: 2,
       fontWeight: '600',
       textTransform: "capitalize",
     },
     suggestionBadge: {
-      backgroundColor: colors.primary + "10",
+      backgroundColor: colors.backgroundSecondary,
       paddingHorizontal: 8,
       paddingVertical: 2,
       borderRadius: 10,
@@ -1080,7 +1109,7 @@ function createStyles(colors: any, isDark: boolean) {
     },
     suggestionBadgeText: {
       fontSize: 10,
-      color: colors.primary,
+      color: colors.text,
       fontWeight: "700",
     },
     connectButton: {

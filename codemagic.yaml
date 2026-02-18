@@ -17,7 +17,7 @@ workflows:
         - push
       branch_patterns:
         - pattern: 'master'
-        - pattern: 'dev'
+       
     scripts:
       - name: Recreate config files
         script: |

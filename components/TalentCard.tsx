@@ -99,7 +99,12 @@ export const TalentCard = React.memo(({ item, myConnections = [], style }: Talen
         router.push(isOwnProfile ? "/account" : { pathname: "/profile/[id]", params: { id: item.id } })
       }
       style={({ hovered }) => [
-        { zIndex: hovered && Platform.OS === 'web' ? 99999 : 1, overflow: 'visible' },
+        { 
+          zIndex: hovered && Platform.OS === 'web' ? 100000 : 1, 
+          overflow: 'visible',
+          // @ts-ignore
+          position: 'relative',
+        },
         style
       ]}
     >
@@ -112,6 +117,8 @@ export const TalentCard = React.memo(({ item, myConnections = [], style }: Talen
             padding: 16,
             height: Platform.OS === 'web' ? 150 : 'auto',
             flex: 1,
+            zIndex: hovered && Platform.OS === 'web' ? 100000 : 1,
+            position: 'relative',
             // Reset global web styles that center and restrict width
             ...(Platform.OS === 'web' ? { marginHorizontal: 0, maxWidth: '100%', alignSelf: 'auto' } : {})
           },
