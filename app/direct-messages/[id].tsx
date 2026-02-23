@@ -24,8 +24,8 @@ import {
     Text,
     TextInput,
     TouchableOpacity,
-    View,
     useWindowDimensions,
+    View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 

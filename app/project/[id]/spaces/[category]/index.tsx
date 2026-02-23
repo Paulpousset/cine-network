@@ -7,31 +7,31 @@ import { useTutorial } from "@/providers/TutorialProvider";
 import { useUser } from "@/providers/UserProvider";
 import { NotificationService } from "@/services/NotificationService";
 import { Ionicons } from "@expo/vector-icons";
-import { Image } from "expo-image";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { decode } from "base64-arraybuffer";
 import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system/legacy";
+import { Image } from "expo-image";
 import {
-  Stack,
-  useGlobalSearchParams,
-  useLocalSearchParams,
-  useRouter,
+    Stack,
+    useGlobalSearchParams,
+    useLocalSearchParams,
+    useRouter,
 } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
 import React, { useEffect, useRef, useState } from "react";
 import {
-  Alert,
-  FlatList,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    Alert,
+    FlatList,
+    KeyboardAvoidingView,
+    Modal,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
