@@ -1,3 +1,5 @@
+import StyledText from '@/components/ui/StyledText';
+import { Text, View } from '@/components/ui/Themed';
 import { FilmingLocation } from '@/hooks/useFilmingLocations';
 import { useTheme } from '@/providers/ThemeProvider';
 import { useUser } from '@/providers/UserProvider';
@@ -7,8 +9,6 @@ import { Link, useRouter } from 'expo-router';
 import React from 'react';
 import { Platform, Pressable, View as RNView, StyleSheet, TouchableOpacity } from 'react-native';
 import ImageViewerModal from './ImageViewerModal';
-import StyledText from '@/components/ui/StyledText';
-import { Text, View } from '@/components/ui/Themed';
 
 interface LocationCardProps {
   location: FilmingLocation;

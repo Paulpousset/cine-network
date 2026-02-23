@@ -1,6 +1,7 @@
+import { Hoverable } from "@/components/common/Hoverable";
 import ClapLoading from "@/components/ui/ClapLoading";
 import DynamicLogo from "@/components/ui/DynamicLogo";
-import { Hoverable } from "@/components/common/Hoverable";
+import { supabase } from "@/lib/supabase";
 import { useTheme } from "@/providers/ThemeProvider";
 import { Ionicons } from "@expo/vector-icons";
 import * as AppleAuthentication from "expo-apple-authentication";
@@ -12,17 +13,16 @@ import { useRouter } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
 import React, { useEffect, useRef, useState } from "react";
 import {
-  Alert,
-  Animated,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View
+    Alert,
+    Animated,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View
 } from "react-native";
-import { supabase } from "@/lib/supabase";
 
 WebBrowser.maybeCompleteAuthSession();
 
