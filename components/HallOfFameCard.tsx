@@ -33,8 +33,10 @@ export default function HallOfFameCard({
   const styles = createStyles(colors, isDark);
   const isDirectVideo =
     item.final_result_url &&
-    (item.final_result_url.match(/\.(mp4|mov|avi|wmv|flv|mkv)$/i) ||
-      item.final_result_url.includes("/storage/v1/object/public/videos/"));
+    (item.final_result_url.toLowerCase().includes(".mp4") || 
+     item.final_result_url.toLowerCase().includes(".mov") ||
+     item.final_result_url.toLowerCase().includes(".avi") ||
+     item.final_result_url.includes("/storage/v1/object/public/videos/"));
 
   const player = useVideoPlayer(
     isDirectVideo ? item.final_result_url : null,
@@ -169,7 +171,7 @@ export default function HallOfFameCard({
             )}
           </View>
 
-          {!!item.final_result_url && !isDirectVideo && (
+          {!!item.final_result_url && (
             <TouchableOpacity
               style={styles.watchButton}
               onPress={() => onOpenLink(item.final_result_url!)}

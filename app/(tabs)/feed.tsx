@@ -10,15 +10,15 @@ import { FlashList } from "@shopify/flash-list";
 import { router, Stack } from "expo-router";
 import React, { useState } from "react";
 import {
-  Image,
-  Modal,
-  Platform,
-  RefreshControl,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  useWindowDimensions,
-  View,
+    Image,
+    Modal,
+    Platform,
+    RefreshControl,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    useWindowDimensions,
+    View,
 } from "react-native";
 
 export default function FeedScreen() {
@@ -134,22 +134,6 @@ export default function FeedScreen() {
           ]}
         >
           <TouchableOpacity
-            onPress={() => setFeedMode("network")}
-            style={[
-              styles.filterBtn,
-              feedMode === "network" && styles.filterBtnActive,
-            ]}
-          >
-            <Text
-              style={[
-                styles.filterText,
-                feedMode === "network" && styles.filterTextActive,
-              ]}
-            >
-              Mon Réseau
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
             onPress={() => setFeedMode("all")}
             style={[
               styles.filterBtn,
@@ -163,6 +147,22 @@ export default function FeedScreen() {
               ]}
             >
               Global
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => setFeedMode("network")}
+            style={[
+              styles.filterBtn,
+              feedMode === "network" && styles.filterBtnActive,
+            ]}
+          >
+            <Text
+              style={[
+                styles.filterText,
+                feedMode === "network" && styles.filterTextActive,
+              ]}
+            >
+              Mon Réseau
             </Text>
           </TouchableOpacity>
         </View>

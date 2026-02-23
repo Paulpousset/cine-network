@@ -12,15 +12,15 @@ import { useRouter } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
 import React, { useEffect, useRef, useState } from "react";
 import {
-    Alert,
-    Animated,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  Alert,
+  Animated,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from "react-native";
 import { supabase } from "../lib/supabase";
 
@@ -336,9 +336,15 @@ export default function AuthScreen() {
     setLoading(true);
     try {
       if (Platform.OS === "web") {
-        const redirectTo = makeRedirectUri({
-          scheme: "tita",
-        });
+        // Sur le web, l'URL de redirection doit être impérativement en HTTPS
+        // et listée dans la configuration Apple Service ID (Return URLs).
+        let redirectTo = window.location.origin + "/auth";
+        
+        // Cas particulier pour le développement local
+        if (window.location.hostname === "localhost") {
+          redirectTo = "http://localhost:8081/auth";
+        }
+
         const { error } = await supabase.auth.signInWithOAuth({
           provider: "apple",
           options: {
@@ -703,7 +709,7 @@ export default function AuthScreen() {
               </View>
 
               <View style={styles.socialButtons}>
-                {appleAuthAvailable && (
+                {(appleAuthAvailable || Platform.OS === "web") && (
                   <Hoverable
                     style={styles.socialButton}
                     hoverStyle={{ backgroundColor: "#f9f9f9" }}

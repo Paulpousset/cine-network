@@ -44,6 +44,8 @@ export interface FeedPost {
   likes_count: number;
   comments_count: number;
   user_has_liked: boolean;
+  score?: number;
+  score_details?: string;
 }
 
 interface PostCardProps {

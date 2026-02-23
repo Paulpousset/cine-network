@@ -75,8 +75,10 @@ export const PostShareModal = ({
     setSharingTo(friendId);
     
     try {
-      const postLink = `https://titapp.fr/post/${post.id}`;
-      const messageContent = `Regarde ce post de ${post.user?.full_name || "quelqu'un"} :\n\n"${post.content?.substring(0, 100)}${post.content?.length > 100 ? "..." : ""}"\n\n${postLink}`;
+      // Create a structured message that the chat can parse
+      // We keep a readable part for older versions or non-compatible bubbles
+      const readableText = `Regarde ce post de ${post.user?.full_name || "quelqu'un"}`;
+      const messageContent = `[POST_SHARE]:${post.id}\n${readableText}`;
 
       const { error } = await supabase.from("direct_messages").insert({
         sender_id: userId,

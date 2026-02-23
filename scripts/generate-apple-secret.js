@@ -16,10 +16,14 @@ const path = require("path");
  */
 
 // --- CONFIGURATION À REMPLIR ---
-const TEAM_ID = ""; // ex: 4P3XXXXXXX
-const KEY_ID = ""; // ex: ABC123DEFG
-const CLIENT_ID = "com..tita";
-const P8_FILE_NAME = ".p8"; // Le nom exact de votre fichier .p8
+// Récupéré de votre capture d'écran Apple Portal :
+const TEAM_ID = ""; 
+const KEY_ID = ""; 
+// 💡 IMPORTANT POUR LE WEB :
+// Pour le Web, utilisez votre "Service ID" (Identifiers -> Service IDs) et NON le Bundle ID.
+// Créez-en un si ce n'est pas fait (ex: com.titasorganization.tita.sid)
+const CLIENT_ID = ""; // À remplacer par votre Service ID
+const P8_FILE_NAME = ".p8"; 
 // -------------------------------
 
 try {

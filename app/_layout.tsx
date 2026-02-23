@@ -110,10 +110,7 @@ function RootLayoutContent({
           <Stack.Screen
             name="direct-messages"
             options={{
-              headerShown: Platform.OS !== "web",
-              title: "Messages",
-              headerTintColor: colors.tint,
-              headerBackTitle: "Retour",
+              headerShown: false,
             }}
           />
           <Stack.Screen name="project" options={{ headerShown: false }} />

@@ -115,7 +115,7 @@ export default function PopcornLikeButton({
               isLiked && styles.textLiked,
             ]}
           >
-            {likesCount} {likesCount > 1 ? "Likes" : "Like"}
+            {likesCount}
           </Text>
         </View>
       </Animated.View>

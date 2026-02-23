@@ -10,6 +10,7 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { FlashList } from "@shopify/flash-list";
 import * as ImagePicker from "expo-image-picker";
 import { Stack, useRouter } from "expo-router";
+import { useVideoPlayer, VideoView } from "expo-video";
 import React, { useState } from "react";
 import {
   Alert,
@@ -27,6 +28,32 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
+
+function VideoPreview({ url }: { url: string }) {
+  const isDirectVideo =
+    url &&
+    (url.toLowerCase().includes(".mp4") || 
+     url.toLowerCase().includes(".mov") ||
+     url.toLowerCase().includes(".avi") ||
+     url.includes("/storage/v1/object/public/videos/"));
+
+  const player = useVideoPlayer(isDirectVideo ? url : null, (player) => {
+    player.loop = false;
+  });
+
+  if (!isDirectVideo) return null;
+
+  return (
+    <View style={{ height: 200, borderRadius: 12, overflow: 'hidden', marginBottom: 15, backgroundColor: 'black' }}>
+      <VideoView
+        player={player}
+        style={{ width: '100%', height: '100%' }}
+        contentFit="contain"
+        nativeControls
+      />
+    </View>
+  );
+}
 
 export default function HallOfFameScreen({
   forceOnlyMine = false,
@@ -182,10 +209,10 @@ export default function HallOfFameScreen({
 
       if (!result.canceled) {
         const asset = result.assets[0];
-        const limit = 5242880; // 5 MB
+        const limit = 20 * 1024 * 1024; // 20 MB
 
         if (asset.fileSize && asset.fileSize > limit) {
-          Alert.alert("Trop volumineux", "La vidéo doit faire moins de 5 Mo.");
+          Alert.alert("Trop volumineux", "La vidéo doit faire moins de 20 Mo.");
           return;
         }
 
@@ -596,6 +623,26 @@ export default function HallOfFameScreen({
               Lien Vidéo (YouTube/Vimeo) ou Upload
             </Text>
 
+            {editUrl ? (
+              <View style={{ backgroundColor: colors.backgroundSecondary, padding: 10, borderRadius: 8, marginBottom: 10 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 5 }}>
+                  <Ionicons name="videocam" size={16} color={colors.primary} />
+                  <Text style={{ fontWeight: '600', color: colors.text, fontSize: 13 }}>Vidéo associée</Text>
+                </View>
+                <Text style={{ fontSize: 12, color: colors.text, opacity: 0.7 }} numberOfLines={1}>
+                  {editUrl}
+                </Text>
+                <TouchableOpacity 
+                  onPress={() => Linking.openURL(editUrl)}
+                  style={{ marginTop: 8 }}
+                >
+                  <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '600' }}>Vérifier le lien / Voir la vidéo</Text>
+                </TouchableOpacity>
+              </View>
+            ) : null}
+
+            <VideoPreview url={editUrl} />
+
             <TouchableOpacity
               style={[
                 styles.uploadButton,
@@ -623,7 +670,7 @@ export default function HallOfFameScreen({
                   <Text
                     style={{ color: colors.primary, fontWeight: "600" }}
                   >
-                    Uploader une vidéo (max 5 Mo)
+                    {editUrl ? "Changer la vidéo (max 20 Mo)" : "Uploader une vidéo (max 20 Mo)"}
                   </Text>
                 </View>
               )}
@@ -764,7 +811,26 @@ export default function HallOfFameScreen({
                 placeholder="Racontez-nous l'histoire du film..."
               />
 
-              <Text style={styles.label}>Lien Vidéo ou Upload (max 5 Mo)</Text>
+              <Text style={styles.label}>Lien Vidéo ou Upload (max 20 Mo)</Text>
+              
+              {addUrl ? (
+                <View style={{ backgroundColor: colors.backgroundSecondary, padding: 10, borderRadius: 8, marginBottom: 10 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 5 }}>
+                    <Ionicons name="videocam" size={16} color={colors.primary} />
+                    <Text style={{ fontWeight: '600', color: colors.text, fontSize: 13 }}>Vidéo associée</Text>
+                  </View>
+                  <Text style={{ fontSize: 12, color: colors.text, opacity: 0.7 }} numberOfLines={1}>
+                    {addUrl}
+                  </Text>
+                  <TouchableOpacity 
+                    onPress={() => Linking.openURL(addUrl)}
+                    style={{ marginTop: 8 }}
+                  >
+                    <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '600' }}>Vérifier le lien / Voir la vidéo</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : null}
+
               <TouchableOpacity
                 style={[styles.uploadButton, { marginBottom: 10, borderColor: colors.primary }]}
                 onPress={() => pickVideo(false)}
@@ -789,6 +855,8 @@ export default function HallOfFameScreen({
                 placeholder="Ou collez un lien (YouTube, Vimeo...)"
                 autoCapitalize="none"
               />
+
+              <VideoPreview url={addUrl} />
 
               <Text style={styles.label}>Affiche du film</Text>
               <TouchableOpacity

@@ -1,4 +1,5 @@
 import ClapLoading from "@/components/ClapLoading";
+import { SharedPostBubble } from "@/components/SharedPostBubble";
 import { appEvents, EVENTS } from "@/lib/events";
 import { supabase } from "@/lib/supabase";
 import { useTheme } from "@/providers/ThemeProvider";
@@ -24,6 +25,7 @@ import {
     TextInput,
     TouchableOpacity,
     View,
+    useWindowDimensions,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -34,6 +36,8 @@ export default function DirectMessageChat() {
   const { colors, isDark } = useTheme();
   const styles = createStyles(colors, isDark);
   const { user, profile: currentUser, isGuest } = useUser();
+  const { width } = useWindowDimensions();
+  const isWebLarge = Platform.OS === "web" && width >= 768;
   const [messages, setMessages] = useState<any[]>([]);
   const [inputText, setTextInput] = useState("");
   const [otherUser, setOtherUser] = useState<any>(null);
@@ -194,7 +198,7 @@ export default function DirectMessageChat() {
       setup();
     }
   }, [currentUserId, id]);
-currentUserId
+
   async function setup() {
     if (!currentUserId) return;
 
@@ -293,9 +297,9 @@ currentUserId
     }
   }
 
-  // Helper to render the custom header on Web
+  // Helper to render the custom header on Web (large view right side)
   const CustomWebHeader = () => {
-    if (Platform.OS !== "web") return null;
+    if (!isWebLarge) return null;
 
     return (
       <View style={styles.webHeader}>
@@ -315,7 +319,7 @@ currentUserId
         )}
         <View>
           <Text style={styles.webHeaderText}>
-            {otherUser?.full_name || otherUser?.username || "Chat"}
+            {otherUser?.full_name || otherUser?.username || "..."}
           </Text>
           {otherUser?.role && (
             <Text style={styles.webHeaderSubtitle}>
@@ -351,7 +355,7 @@ currentUserId
               )}
               <View>
                 <Text style={{ fontSize: 16, fontWeight: "600", color: colors.text }}>
-                  {otherUser?.full_name || otherUser?.username || "Chat"}
+                  {otherUser?.full_name || otherUser?.username || "..."}
                 </Text>
                 {otherUser?.role && (
                   <Text style={{ fontSize: 10, color: colors.text + "80" }}>
@@ -380,12 +384,8 @@ currentUserId
           headerBackTitle: "", // Hide back title text on iOS
           headerStyle: { backgroundColor: colors.background },
           headerTitleStyle: { color: colors.text },
-          // On Web, default header is often hidden or looks bad in this sidebar layout
-          // We can force it shown, OR we can hide it and render our own View.
-          // Given the user report "I don't see who I am writing to",
-          // and app/_layout.tsx sets headerShown: false for web usually,
-          // Let's force it hidden here for Web and use our CustomWebHeader.
-          headerShown: Platform.OS !== "web",
+          // Hide native header ONLY on large web where we have custom layout
+          headerShown: !isWebLarge,
         }}
       />
 
@@ -411,34 +411,73 @@ currentUserId
             contentContainerStyle={{ padding: 15 }}
             renderItem={({ item }) => {
               const isMe = item.sender_id === currentUserId;
+              const isPostShare = item.content?.startsWith("[POST_SHARE]:");
+              // Extract ID from "[POST_SHARE]:id\nReadablePart"
+              const postId = isPostShare ? item.content.split("\n")[0].split(":")[1] : null;
+              const avatarUrl = isMe ? currentUserProfile?.avatar_url : otherUser?.avatar_url;
+
               return (
                 <View
                   style={[
-                    styles.bubble,
-                    isMe ? styles.bubbleMe : styles.bubbleOther,
+                    styles.messageRow,
+                    isMe ? { flexDirection: "row-reverse" } : { flexDirection: "row" },
                   ]}
                 >
-                  <Text
+                  {avatarUrl ? (
+                    <Image source={{ uri: avatarUrl }} style={styles.miniAvatar} />
+                  ) : (
+                    <View
+                      style={[
+                        styles.miniAvatar,
+                        {
+                          justifyContent: "center",
+                          alignItems: "center",
+                          borderWidth: 1,
+                          borderColor: colors.border,
+                        },
+                      ]}
+                    >
+                      <Ionicons
+                        name="person"
+                        size={14}
+                        color={colors.text + "40"}
+                      />
+                    </View>
+                  )}
+                  <View
                     style={[
-                      styles.msgText,
-                      isMe ? { color: "white" } : { color: colors.text },
+                      styles.bubble,
+                      isMe ? styles.bubbleMe : styles.bubbleOther,
+                      isPostShare && { padding: 4, borderRadius: 16 }, // Let the card take space
+                      { [isMe ? "marginRight" : "marginLeft"]: 8 },
                     ]}
                   >
-                    {item.content}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.dateText,
-                      isMe
-                        ? { color: "rgba(255,255,255,0.7)" }
-                        : { color: colors.text + "80" },
-                    ]}
-                  >
-                    {new Date(item.created_at).toLocaleTimeString([], {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </Text>
+                    {isPostShare && postId ? (
+                      <SharedPostBubble postId={postId} />
+                    ) : (
+                      <Text
+                        style={[
+                          styles.msgText,
+                          isMe ? { color: "white" } : { color: colors.text },
+                        ]}
+                      >
+                        {item.content}
+                      </Text>
+                    )}
+                    <Text
+                      style={[
+                        styles.dateText,
+                        isMe
+                          ? { color: "rgba(255,255,255,0.7)" }
+                          : { color: colors.text + "80" },
+                      ]}
+                    >
+                      {new Date(item.created_at).toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </Text>
+                  </View>
                 </View>
               );
             }}
@@ -498,12 +537,22 @@ currentUserId
 
 function createStyles(colors: any, isDark: boolean) {
   return StyleSheet.create({
+    messageRow: {
+      flexDirection: "row",
+      alignItems: "flex-end",
+      marginBottom: 8,
+    },
+    miniAvatar: {
+      width: 24,
+      height: 24,
+      borderRadius: 12,
+      backgroundColor: colors.backgroundSecondary,
+    },
     bubble: {
       maxWidth: "80%",
       paddingHorizontal: 12,
       paddingVertical: 8,
       borderRadius: 16,
-      marginBottom: 4,
     },
     bubbleMe: {
       alignSelf: "flex-end",
