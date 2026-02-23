@@ -671,6 +671,77 @@ export type Database = {
           },
         ]
       }
+      project_custom_space_members: {
+        Row: {
+          created_at: string | null
+          id: string
+          profile_id: string
+          space_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          profile_id: string
+          space_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          profile_id?: string
+          space_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_custom_space_members_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_custom_space_members_space_id_fkey"
+            columns: ["space_id"]
+            isOneToOne: false
+            referencedRelation: "project_custom_spaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_custom_spaces: {
+        Row: {
+          allowed_tools: string[] | null
+          created_at: string | null
+          id: string
+          name: string
+          project_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          allowed_tools?: string[] | null
+          created_at?: string | null
+          id?: string
+          name: string
+          project_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          allowed_tools?: string[] | null
+          created_at?: string | null
+          id?: string
+          name?: string
+          project_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_custom_spaces_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "tournages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project_events: {
         Row: {
           created_at: string
@@ -902,6 +973,45 @@ export type Database = {
           },
         ]
       }
+      project_native_space_members: {
+        Row: {
+          category: string
+          created_at: string | null
+          id: string
+          profile_id: string
+          project_id: string
+        }
+        Insert: {
+          category: string
+          created_at?: string | null
+          id?: string
+          profile_id: string
+          project_id: string
+        }
+        Update: {
+          category?: string
+          created_at?: string | null
+          id?: string
+          profile_id?: string
+          project_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_native_space_members_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_native_space_members_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "tournages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project_roles: {
         Row: {
           age_max: number | null
@@ -1050,6 +1160,42 @@ export type Database = {
           is_contact_visible?: boolean | null
         }
         Relationships: []
+      }
+      saved_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "saved_roles_role_id_fkey"
+            columns: ["role_id"]
+            isOneToOne: false
+            referencedRelation: "project_roles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "saved_roles_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       scenes: {
         Row: {
@@ -1387,6 +1533,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      array_intersect_count: {
+        Args: { arr1: string[]; arr2: string[] }
+        Returns: number
+      }
       delete_user: { Args: never; Returns: undefined }
       get_conversations: {
         Args: never
@@ -1399,6 +1549,58 @@ export type Database = {
           last_message_created_at: string
           receiver_id: string
           sender_id: string
+        }[]
+      }
+      get_recommended_posts:
+        | {
+            Args: { user_id_param: string }
+            Returns: {
+              author_avatar_url: string
+              author_full_name: string
+              comments_count: number
+              content: string
+              created_at: string
+              id: string
+              image_url: string
+              likes_count: number
+              project_id: string
+              recommendation_score: number
+              user_id: string
+              visibility: string
+            }[]
+          }
+        | {
+            Args: { filter_mode?: string; user_id_param: string }
+            Returns: {
+              author_avatar_url: string
+              author_full_name: string
+              comments_total: number
+              likes_total: number
+              p_content: string
+              p_created_at: string
+              p_id: string
+              p_image_url: string
+              p_project_id: string
+              p_user_id: string
+              p_visibility: string
+              recommendation_score: number
+              score_details: string
+            }[]
+          }
+      get_recommended_tournages: {
+        Args: { user_id_param: string }
+        Returns: {
+          likes_total: number
+          recommendation_score: number
+          t_created_at: string
+          t_description: string
+          t_id: string
+          t_image_url: string
+          t_owner_id: string
+          t_status: string
+          t_title: string
+          t_type: string
+          t_ville: string
         }[]
       }
       mark_messages_read: {

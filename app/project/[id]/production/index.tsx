@@ -4,28 +4,48 @@ import { Database } from "@/lib/database.types";
 import { supabase } from "@/lib/supabase";
 import { useTheme } from "@/providers/ThemeProvider";
 import { WeatherService, getWeatherCodeInfo } from "@/services/WeatherService";
+import { generateCallSheet } from "@/utils/pdfGenerator";
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import {
-  useGlobalSearchParams,
-  useLocalSearchParams,
-  useRouter,
+    useGlobalSearchParams,
+    useLocalSearchParams,
+    useRouter,
 } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
-  FlatList,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    FlatList,
+    KeyboardAvoidingView,
+    Modal,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
+
+const deg2rad = (deg: number) => deg * (Math.PI / 180);
+
+/**
+ * Calculates the distance between two coordinates in km using the Haversine formula
+ */
+const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+  const R = 6371; // Radius of the earth in km
+  const dLat = deg2rad(lat2 - lat1);
+  const dLon = deg2rad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(deg2rad(lat1)) *
+      Math.cos(deg2rad(lat2)) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+};
 
 const createStyles = (colors: any, isDark: boolean) =>
   StyleSheet.create({
@@ -255,6 +275,7 @@ type ShootDayWithScenes = ShootDay & {
     schedule_time: string | null;
     scene: Scene;
   }[];
+  day_calls: any[];
 };
 
 type ProposedDay = {
@@ -263,12 +284,14 @@ type ProposedDay = {
   address: string;
   scenes: Scene[];
   sceneTimes: string[];
+  sceneTravels: number[];
   isGoodWeather: boolean;
   weatherForecast?: {
     temp: number;
     code: number;
   };
   callTime: string;
+  wrapTime: string;
 };
 
 const ALLOWED_ROLES = [
@@ -318,6 +341,7 @@ const ShootDayItem = ({
   item,
   index,
   onPress,
+  project,
   projectSets,
   scenesCount,
   pagesCount,
@@ -325,6 +349,7 @@ const ShootDayItem = ({
   item: ShootDayWithScenes;
   index: number;
   onPress: () => void;
+  project: any;
   projectSets: ProjectSet[];
   scenesCount: number;
   pagesCount: number;
@@ -559,12 +584,31 @@ const ShootDayItem = ({
         style={{
           marginTop: 8,
           flexDirection: "row",
-          justifyContent: "flex-end",
+          justifyContent: "space-between",
+          alignItems: "center",
         }}
       >
-        <Text style={{ color: colors.tint, fontSize: 13 }}>
-          Voir détails
-        </Text>
+        <TouchableOpacity
+          style={{ flexDirection: "row", alignItems: "center", gap: 5 }}
+          onPress={() => {
+            if (project) {
+              generateCallSheet(
+                project,
+                item,
+                item.day_calls || [],
+                item.linkedScenes || [],
+                projectSets,
+                weather
+              );
+            }
+          }}
+        >
+          <Ionicons name="download-outline" size={16} color={colors.tint} />
+          <Text style={{ color: colors.tint, fontSize: 12, fontWeight: "500" }}>
+            Feuille de service
+          </Text>
+        </TouchableOpacity>
+        <Text style={{ color: colors.tint, fontSize: 13 }}>Voir détails</Text>
       </View>
     </TouchableOpacity>
   );
@@ -580,6 +624,7 @@ export default function ProductionScreen() {
   const id = local.id || global.id;
 
   const [shootDays, setShootDays] = useState<ShootDayWithScenes[]>([]);
+  const [project, setProject] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [canEdit, setCanEdit] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
@@ -671,10 +716,23 @@ export default function ProductionScreen() {
         .select("*")
         .eq("project_id", id);
 
+      // Pre-geocode sets to avoid repeated geocoding during the optimization loop
+      const setsWithCoords = await Promise.all(
+        (sets || []).map(async (set) => {
+          if (!set.address) return { ...set, lat: null, lon: null };
+          try {
+            const geo = await WeatherService.geocode(set.address);
+            return { ...set, lat: geo?.latitude, lon: geo?.longitude };
+          } catch {
+            return { ...set, lat: null, lon: null };
+          }
+        }),
+      );
+
       const getSetForScene = (slug?: string | null) => {
-        if (!slug || !sets) return null;
+        if (!slug || !setsWithCoords) return null;
         const lowSlug = slug.toLowerCase().trim();
-        return sets.find(
+        return setsWithCoords.find(
           (s) =>
             s.name?.toLowerCase().trim() === lowSlug ||
             lowSlug.includes(s.name?.toLowerCase().trim() || ""),
@@ -764,13 +822,17 @@ export default function ProductionScreen() {
 
         const dayScenes: Scene[] = [];
         const daySceneTimes: string[] = [];
+        const daySceneTravels: number[] = [];
         const dayLocationHistory: string[] = [];
 
         let dayCanContinue = true;
         while (dayCanContinue && dayMinutesUsed < MAX_DAILY_MINUTES) {
           // Find the best next scene from ALL unplanned scenes
           const candidates = unplannedScenes.map((scene) => {
-            const duration = scene.estimated_duration || 60;
+            // Improved duration estimation (Default: 60 min per page if no duration set)
+            const duration =
+              scene.estimated_duration ||
+              Math.max(30, Math.round((scene.script_pages || 1) * 60));
             const isExt = (scene.int_ext || "").toUpperCase().includes("EXT");
             const isNight = (scene.day_night || "")
               .toUpperCase()
@@ -783,10 +845,19 @@ export default function ProductionScreen() {
             // 2. Travel Time (Company Move)
             let travelTime = 0;
             if (currentLoc && sceneLoc !== currentLoc) {
-              const currentSet = getSetForScene(currentLoc);
-              const nextSet = getSetForScene(sceneLoc);
-              // Heuristic: 30m if same city, 60m if different/unknown
-              if (
+              const currentSet = getSetForScene(currentLoc) as any;
+              const nextSet = getSetForScene(sceneLoc) as any;
+              
+              if (currentSet?.lat && currentSet?.lon && nextSet?.lat && nextSet?.lon) {
+                const dist = calculateDistance(
+                  currentSet.lat,
+                  currentSet.lon,
+                  nextSet.lat,
+                  nextSet.lon,
+                );
+                // Heuristic: 15 min loading/base + 4 min per km (slower for trucks/location moves)
+                travelTime = 15 + Math.round(dist * 4);
+              } else if (
                 currentSet?.address_city &&
                 nextSet?.address_city &&
                 currentSet.address_city === nextSet.address_city
@@ -798,6 +869,7 @@ export default function ProductionScreen() {
             }
 
             // 3. Daily Capacity Check
+            // We want to be sure it fits in the day including travel and buffer
             if (dayMinutesUsed + duration + travelTime > MAX_DAILY_MINUTES) {
               return { scene, score: -5000 };
             }
@@ -805,25 +877,33 @@ export default function ProductionScreen() {
             // 4. Scoring Heuristic
             let score = 0;
 
-            // Stay in the same décor if possible
-            if (currentLoc === sceneLoc) score += 500;
+            // Stay in the same décor if possible (CRITICAL for film optimization)
+            if (currentLoc === sceneLoc) {
+              score += 2000;
+            } else if (currentLoc) {
+              // Move: penalize travel time to favor closer locations if we MUST move
+              score -= travelTime * 5;
+            }
 
-            // Priority boost
+            // Priority boost (very high weight)
             const priorityVal = parseInt(scene.priority || "0", 10) || 0;
-            score += priorityVal * 50;
+            score += priorityVal * 200;
 
             // Day/Night logic based on time progression
             const dayProgress = dayMinutesUsed / MAX_DAILY_MINUTES;
             if (isNight) {
-              score += dayProgress * 400; // Higher score as day ends
+              score += dayProgress * 600; // Higher score as day ends
             } else {
-              score += (1 - dayProgress) * 200; // Prefer day scenes early
+              score += (1 - dayProgress) * 300; // Prefer day scenes early
             }
 
             // External scenes preference if weather is good
-            if (isGoodWeather && isExt) score += 100;
+            if (isGoodWeather && isExt) score += 200;
 
-            // Character overlap (stay consistent)
+            // Packing logic: slightly favor longer scenes to fill the schedule better when they fit
+            score += (duration / 60) * 15;
+
+            // Character overlap (stay consistent to minimize convocations and wait time)
             const activeChars = new Set(
               dayScenes.flatMap((ds) => ds.characters || []),
             );
@@ -831,7 +911,7 @@ export default function ProductionScreen() {
             const overlapping = sceneChars.filter((c: string) =>
               activeChars.has(c),
             ).length;
-            score += overlapping * 30;
+            score += overlapping * 50;
 
             return { scene, score, travelTime };
           });
@@ -848,6 +928,7 @@ export default function ProductionScreen() {
               currentCursor += travel;
               dayMinutesUsed += travel;
             }
+            daySceneTravels.push(travel);
 
             // Set specific time for this scene
             const h = Math.floor(currentCursor / 60)
@@ -857,8 +938,11 @@ export default function ProductionScreen() {
             daySceneTimes.push(`${h}:${m}`);
 
             dayScenes.push(s);
-            dayMinutesUsed += s.estimated_duration || 60;
-            currentCursor += (s.estimated_duration || 60) + 15; // 15m buffer
+            const sceneDur =
+              s.estimated_duration ||
+              Math.max(30, Math.round((s.script_pages || 1) * 60));
+            dayMinutesUsed += sceneDur;
+            currentCursor += sceneDur + 15; // 15m buffer / change-over
 
             currentLoc = s.slugline || "INCONNU";
             if (!dayLocationHistory.includes(currentLoc as string))
@@ -887,15 +971,24 @@ export default function ProductionScreen() {
               .toString()
               .padStart(2, "0") + ":00";
 
+          const dayWrapTime =
+            Math.floor(wrapMinutes / 60)
+              .toString()
+              .padStart(2, "0") +
+            ":" +
+            (wrapMinutes % 60).toString().padStart(2, "0");
+
           tempProposed.push({
             date: yyyymmdd,
             location: dayLocationHistory.join(" / "),
             address: getSetForScene(dayLocationHistory[0])?.address || "",
             scenes: dayScenes,
             sceneTimes: daySceneTimes,
+            sceneTravels: daySceneTravels,
             isGoodWeather,
             weatherForecast,
             callTime: dayCallTime,
+            wrapTime: dayWrapTime,
           });
         }
 
@@ -965,7 +1058,7 @@ export default function ProductionScreen() {
             address_street: day.address,
             day_type: "SHOOT",
             call_time: day.callTime,
-            wrap_time: "19:00",
+            wrap_time: day.wrapTime,
             weather_summary: weatherText,
             notes: `Optimisation: ${weatherText}`,
           })
@@ -1060,15 +1153,18 @@ export default function ProductionScreen() {
     console.log("[Production] User logged in:", user.id);
 
     // Check if owner
-    const { data: project } = await supabase
+    const { data: projectData } = await supabase
       .from("tournages")
-      .select("owner_id")
+      .select("*")
       .eq("id", id)
       .single();
 
-    if (project?.owner_id === user.id) {
-      setCanEdit(true);
-      return;
+    if (projectData) {
+      setProject(projectData);
+      if (projectData.owner_id === user.id) {
+        setCanEdit(true);
+        return;
+      }
     }
 
     // Check project roles
@@ -1091,7 +1187,11 @@ export default function ProductionScreen() {
     setLoading(true);
     const { data, error } = await supabase
       .from("shoot_days")
-      .select("*, shoot_day_scenes(*, scene:scenes(*))")
+      .select(`
+        *, 
+        shoot_day_scenes(*, scene:scenes(*)),
+        day_calls(id, call_time, role_id, role:project_roles(title, assigned_profile:profiles(full_name)))
+      `)
       .eq("tournage_id", id)
       .order("date");
 
@@ -1112,6 +1212,7 @@ export default function ProductionScreen() {
           .map((sds: any) => ({
             id: sds.id,
             schedule_time: sds.schedule_time || null,
+            order_index: sds.order_index || 0,
             scene: sds.scene,
           })),
       }));
@@ -1361,6 +1462,7 @@ export default function ProductionScreen() {
       item={item}
       index={index}
       onPress={() => router.push(`/project/${id}/production/${item.id}`)}
+      project={project}
       projectSets={projectSets}
       scenesCount={item.linkedScenes?.length || 0}
       pagesCount={
@@ -2118,7 +2220,7 @@ export default function ProductionScreen() {
                           fontWeight: "bold",
                         }}
                       >
-                        Pâté: {day.callTime}
+                        Call: {day.callTime} | Wrap: {day.wrapTime}
                       </Text>
                       {day.weatherForecast ? (
                         <View
@@ -2163,29 +2265,60 @@ export default function ProductionScreen() {
                   </Text>
                   <View style={{ marginTop: 8 }}>
                     {day.scenes.map((s, sIdx) => (
-                      <View
-                        key={s.id}
-                        style={{
-                          flexDirection: "row",
-                          justifyContent: "space-between",
-                          marginBottom: 4,
-                        }}
-                      >
-                        <Text
-                          style={{ fontSize: 12, color: colors.tint }}
-                        >
-                          • SC. {s.scene_number} - {s.title}
-                        </Text>
-                        <Text
+                      <React.Fragment key={s.id}>
+                        {day.sceneTravels[sIdx] > 0 && (
+                          <View
+                            style={{
+                              flexDirection: "row",
+                              alignItems: "center",
+                              marginVertical: 4,
+                              backgroundColor: colors.border + "40",
+                              paddingHorizontal: 8,
+                              paddingVertical: 4,
+                              borderRadius: 4,
+                            }}
+                          >
+                            <Ionicons
+                              name="car-outline"
+                              size={14}
+                              color={colors.textSecondary}
+                            />
+                            <Text
+                              style={{
+                                fontSize: 10,
+                                color: colors.textSecondary,
+                                marginLeft: 6,
+                                fontWeight: "bold",
+                              }}
+                            >
+                              DÉPLACEMENT ({day.sceneTravels[sIdx]} min)
+                            </Text>
+                          </View>
+                        )}
+                        <View
                           style={{
-                            fontSize: 12,
-                            color: colors.textSecondary,
-                            fontWeight: "500",
+                            flexDirection: "row",
+                            justifyContent: "space-between",
+                            marginBottom: 4,
                           }}
                         >
-                          {day.sceneTimes[sIdx]}
-                        </Text>
-                      </View>
+                          <Text style={{ fontSize: 12, color: colors.tint }}>
+                            • SC. {s.scene_number} - {s.title}
+                          </Text>
+                          <Text
+                            style={{
+                              fontSize: 12,
+                              color: colors.textSecondary,
+                              fontWeight: "500",
+                            }}
+                          >
+                            {day.sceneTimes[sIdx]} (
+                            {s.estimated_duration ||
+                              Math.max(30, Math.round((s.script_pages || 1) * 60))}
+                            m)
+                          </Text>
+                        </View>
+                      </React.Fragment>
                     ))}
                   </View>
                 </View>

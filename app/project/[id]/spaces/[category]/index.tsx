@@ -11,26 +11,27 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { decode } from "base64-arraybuffer";
 import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system/legacy";
+import { Image } from "expo-image";
 import {
-  Stack,
-  useGlobalSearchParams,
-  useLocalSearchParams,
-  useRouter,
+    Stack,
+    useGlobalSearchParams,
+    useLocalSearchParams,
+    useRouter,
 } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
 import React, { useEffect, useRef, useState } from "react";
 import {
-  Alert,
-  FlatList,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    Alert,
+    FlatList,
+    KeyboardAvoidingView,
+    Modal,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -242,21 +243,52 @@ function ChatView({
           }
           renderItem={({ item }) => {
             const isMe = item.sender_id === userId;
+            const avatarUrl = isMe ? profile?.avatar_url : item.sender?.avatar_url;
+
             return (
               <View
                 style={[
-                  styles.messageBubble,
-                  isMe ? styles.myMessage : styles.theirMessage,
+                  styles.messageRow,
+                  isMe ? { flexDirection: "row-reverse" } : { flexDirection: "row" },
                 ]}
               >
-                {!isMe && (
-                  <Text style={styles.senderName}>
-                    {item.sender?.full_name}
-                  </Text>
+                {avatarUrl ? (
+                  <Image source={{ uri: avatarUrl }} style={styles.miniAvatar} />
+                ) : (
+                  <View
+                    style={[
+                      styles.miniAvatar,
+                      {
+                        justifyContent: "center",
+                        alignItems: "center",
+                        borderWidth: 1,
+                        borderColor: colors.border,
+                      },
+                    ]}
+                  >
+                    <Ionicons
+                      name="person"
+                      size={14}
+                      color={colors.textSecondary}
+                    />
+                  </View>
                 )}
-                <Text style={isMe ? styles.myText : styles.theirText}>
-                  {item.content}
-                </Text>
+                <View
+                  style={[
+                    styles.messageBubble,
+                    isMe ? styles.myMessage : styles.theirMessage,
+                    { [isMe ? "marginRight" : "marginLeft"]: 8 },
+                  ]}
+                >
+                  {!isMe && (
+                    <Text style={styles.senderName}>
+                      {item.sender?.full_name}
+                    </Text>
+                  )}
+                  <Text style={isMe ? styles.myText : styles.theirText}>
+                    {item.content}
+                  </Text>
+                </View>
               </View>
             );
           }}
@@ -1014,19 +1046,31 @@ const createStyles = (colors: any, isDark: boolean) =>
     },
 
     // Chat Styles
+    messageRow: {
+      flexDirection: "row",
+      alignItems: "flex-end",
+      marginBottom: 8,
+    },
+    miniAvatar: {
+      width: 24,
+      height: 24,
+      borderRadius: 12,
+      backgroundColor: colors.backgroundSecondary,
+    },
     messageBubble: {
       padding: 10,
       borderRadius: 12,
-      marginBottom: 8,
       maxWidth: "80%",
     },
     myMessage: {
       alignSelf: "flex-end",
       backgroundColor: colors.tint,
+      borderBottomRightRadius: 2,
     },
     theirMessage: {
       alignSelf: "flex-start",
       backgroundColor: isDark ? colors.card : "#e0e0e0",
+      borderBottomLeftRadius: 2,
     },
     senderName: {
       fontSize: 10,

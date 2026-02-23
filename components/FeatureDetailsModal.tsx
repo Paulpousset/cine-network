@@ -4,22 +4,22 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import React, { useEffect } from "react";
 import {
-    Dimensions,
-    Image,
-    Modal,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    View,
+  Dimensions,
+  Image,
+  Modal,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
 } from "react-native";
 import Animated, {
-    Easing,
-    interpolate,
-    useAnimatedStyle,
-    useSharedValue,
-    withDelay,
-    withTiming,
+  Easing,
+  interpolate,
+  useAnimatedStyle,
+  useSharedValue,
+  withDelay,
+  withTiming,
 } from "react-native-reanimated";
 
 const { width, height } = Dimensions.get("window");
@@ -143,23 +143,36 @@ export default function FeatureDetailsModal({
 
             <View style={styles.previewSection}>
               <Text style={styles.sectionTitle}>Aperçu de l'interface</Text>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                style={styles.screenScroll}
-                contentContainerStyle={{ paddingHorizontal: 25 }}
-              >
-                {feature.screens.map((screen, index) => (
-                  <View key={index} style={styles.screenWrapper}>
-                    <Image
-                      source={screen}
-                      style={styles.screenImage}
-                      resizeMode="cover"
-                    />
-                    <View style={styles.screenOverlay} />
-                  </View>
-                ))}
-              </ScrollView>
+              
+              <View style={styles.deviceGroup}>
+                <Text style={styles.deviceLabel}>Mobile</Text>
+                <View style={styles.screensRow}>
+                  {feature.screens.slice(0, 2).map((screen, index) => (
+                    <View key={`mobile-${index}`} style={[styles.screenWrapper, styles.mobileScreenWrapper]}>
+                      <Image
+                        source={screen}
+                        style={styles.screenImage}
+                        resizeMode="contain"
+                      />
+                    </View>
+                  ))}
+                </View>
+              </View>
+
+              <View style={[styles.deviceGroup, { marginTop: 40 }]}>
+                <Text style={styles.deviceLabel}>Web</Text>
+                <View style={styles.webScreensList}>
+                  {feature.screens.slice(2, 4).map((screen, index) => (
+                    <View key={`web-${index}`} style={[styles.screenWrapper, styles.webScreenWrapperLarge]}>
+                      <Image
+                        source={screen}
+                        style={styles.screenImage}
+                        resizeMode="contain"
+                      />
+                    </View>
+                  ))}
+                </View>
+              </View>
             </View>
 
             <Hoverable
@@ -274,33 +287,61 @@ const createStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     marginBottom: 25,
     letterSpacing: -0.5,
   },
-  screenScroll: {
-    marginHorizontal: -25,
-    marginBottom: 20,
+  deviceGroup: {
+    width: "100%",
+  },
+  deviceLabel: {
+    color: "rgba(255,255,255,0.5)",
+    fontSize: 14,
+    fontWeight: "bold",
+    textTransform: "uppercase",
+    marginBottom: 15,
+    letterSpacing: 2,
+  },
+  screensRow: {
+    flexDirection: "row",
+    gap: width > 768 ? 30 : 15,
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+  },
+  webScreensList: {
+    flexDirection: "column",
+    gap: 25,
+    width: "100%",
   },
   screenWrapper: {
-    width: 240,
-    height: 480,
-    marginRight: 25,
-    borderRadius: 35,
-    backgroundColor: "#111",
+    backgroundColor: "transparent",
     overflow: "hidden",
-    borderWidth: 6,
-    borderColor: "#222",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 15 },
     shadowOpacity: 0.4,
     shadowRadius: 20,
     elevation: 10,
   },
+  mobileScreenWrapper: {
+    flex: 1,
+    aspectRatio: 9/18,
+    borderRadius: width > 768 ? 45 : 20,
+    borderWidth: width > 768 ? 8 : 4,
+    borderColor: "#222",
+  },
+  webScreenWrapperLarge: {
+    width: "100%",
+    aspectRatio: 16/10,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: "rgba(255,255,255,0.1)",
+    backgroundColor: "transparent",
+  },
   screenImage: {
+    flex: 1,
     width: "100%",
     height: "100%",
-    opacity: 0.95,
+    opacity: 1,
   },
   screenOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: colors.primary + "08", // 08 is ~3% opacity
+    backgroundColor: "transparent",
   },
   actionButton: {
     paddingVertical: 20,

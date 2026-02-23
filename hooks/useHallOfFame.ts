@@ -23,7 +23,7 @@ export interface HallOfFameProject {
   isLiked: boolean;
 }
 
-export const useHallOfFame = (initialUserId: string | null) => {
+export const useHallOfFame = (initialUserId: string | null = null, isRecommended: boolean = true) => {
   const { user } = useUser();
   const [projects, setProjects] = useState<HallOfFameProject[]>([]);
   const [loading, setLoading] = useState(true);
@@ -39,7 +39,7 @@ export const useHallOfFame = (initialUserId: string | null) => {
     });
 
     return () => unsubBlock();
-  }, [currentUserId]);
+  }, [currentUserId, isRecommended]);
 
   async function fetchHallOfFame(userId: string | null = currentUserId) {
     try {
@@ -59,26 +59,62 @@ export const useHallOfFame = (initialUserId: string | null) => {
           ) || [];
       }
 
-      let query = supabase
-        .from("tournages")
-        .select(
-          `
-            *,
-            project_likes(user_id)
-        `,
-        )
-        .eq("status", "completed")
-        .order("created_at", { ascending: false });
+      let projectsRaw: any[] = [];
 
-      if (blockedIds.length > 0) {
-        query = query.not("owner_id", "in", `(${blockedIds.join(",")})`);
+      if (isRecommended && userId) {
+        const { data, error } = await supabase.rpc("get_recommended_tournages", {
+          user_id_param: userId
+        });
+        if (error) throw error;
+        
+        const mappedData = data?.map((p: any) => ({
+          id: p.t_id,
+          title: p.t_title,
+          description: p.t_description,
+          image_url: p.t_image_url,
+          final_result_url: p.t_final_result_url,
+          ville: p.t_ville,
+          type: p.t_type,
+          status: p.t_status,
+          owner_id: p.t_owner_id,
+          created_at: p.t_created_at,
+          likes_count: parseInt(p.likes_total),
+        })) || [];
+
+        // Re-fetch project_likes for those projects to check isLiked correctly
+        const projectIds = mappedData.map(p => p.id);
+        if (projectIds.length > 0) {
+          const { data: likesData } = await supabase
+            .from("project_likes")
+            .select("project_id, user_id")
+            .in("project_id", projectIds);
+          
+          projectsRaw = mappedData.map(p => ({
+            ...p,
+            project_likes: likesData?.filter(l => l.project_id === p.id) || []
+          }));
+        }
+      } else {
+        let query = supabase
+          .from("tournages")
+          .select(
+            `
+              *,
+              project_likes(user_id)
+          `,
+          )
+          .eq("status", "completed")
+          .order("created_at", { ascending: false });
+
+        if (blockedIds.length > 0) {
+          query = query.not("owner_id", "in", `(${blockedIds.join(",")})`);
+        }
+
+        const { data, error } = await query;
+        if (error) throw error;
+        projectsRaw = data || [];
       }
 
-      const { data: projectsData, error } = await query;
-
-      if (error) throw error;
-
-      const projectsRaw = projectsData || [];
       const ownerIds = [...new Set(projectsRaw.map((p) => p.owner_id))].filter(
         Boolean,
       );

@@ -5,26 +5,27 @@ import { useUserMode } from "@/hooks/useUserMode";
 import { supabase } from "@/lib/supabase";
 import { useTheme } from "@/providers/ThemeProvider";
 import { getWeatherCodeInfo, WeatherService } from "@/services/WeatherService";
+import { generateCallSheet } from "@/utils/pdfGenerator";
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import {
-  useGlobalSearchParams,
-  useLocalSearchParams,
-  useRouter,
+    useGlobalSearchParams,
+    useLocalSearchParams,
+    useRouter,
 } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
-  FlatList,
-  Modal,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    FlatList,
+    Modal,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 
 const DAY_TYPES = ["SHOOT", "SCOUT", "PREP", "OFF", "TRAVEL"];
@@ -82,6 +83,7 @@ export default function DayDetailScreen() {
   const router = useRouter();
 
   const [day, setDay] = useState<any>(null);
+  const [project, setProject] = useState<any>(null);
   const [calls, setCalls] = useState<any[]>([]);
   const [linkedScenes, setLinkedScenes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -221,10 +223,20 @@ export default function DayDetailScreen() {
 
   useEffect(() => {
     fetchDayDetails();
+    fetchProjectInfo();
     fetchCalls();
     fetchLinkedScenes();
     fetchProjectSets();
   }, [dayId]);
+
+  async function fetchProjectInfo() {
+    const { data } = await supabase
+      .from("tournages")
+      .select("*")
+      .eq("id", id)
+      .single();
+    if (data) setProject(data);
+  }
 
   useEffect(() => {
     if (day?.date) {
@@ -421,6 +433,7 @@ export default function DayDetailScreen() {
         `
             id,
             schedule_time,
+            order_index,
             scene:scenes (*)
         `,
       )
@@ -621,6 +634,25 @@ export default function DayDetailScreen() {
     }
   }
 
+  async function handleUpdateCallTime(callId: string, newTime: string) {
+    // Only update if time is somewhat valid or empty
+    if (newTime.length > 0 && !newTime.includes(":")) {
+      // Basic 4-digit support
+      if (newTime.length === 4) {
+        newTime = `${newTime.slice(0, 2)}:${newTime.slice(2, 4)}`;
+      }
+    }
+
+    const { error } = await supabase
+      .from("day_calls")
+      .update({ call_time: newTime || null })
+      .eq("id", callId);
+
+    if (!error) {
+      fetchCalls();
+    }
+  }
+
   async function handleDeleteCall(callId: string) {
     if (Platform.OS === "web") {
       if (window.confirm("Supprimer cette convocation ?")) {
@@ -661,6 +693,14 @@ export default function DayDetailScreen() {
       </View>
     );
 
+  async function handleDownloadPDF() {
+    if (!day || !project) {
+        Alert.alert("Erreur", "Données insuffisantes pour générer le PDF");
+        return;
+    }
+    await generateCallSheet(project, day, calls, linkedScenes, projectSets, dayWeather);
+  }
+
   const totalPages = linkedScenes.reduce(
     (acc, curr) => acc + (curr.scene?.script_pages || 0),
     0,
@@ -678,7 +718,7 @@ export default function DayDetailScreen() {
             onPress={() => router.back()}
             style={{ marginRight: 15 }}
           >
-            <Ionicons name="arrow-back" size={24} color="#000" />
+            <Ionicons name="arrow-back" size={24} color={colors.text} />
           </TouchableOpacity>
         )}
         <Text style={styles.headerTitle}>
@@ -693,13 +733,22 @@ export default function DayDetailScreen() {
         </Text>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 15 }}>
           {!editing && (
-            <TouchableOpacity onPress={handleDeleteDay}>
-              <Ionicons
-                name="trash-outline"
-                size={24}
-                color={colors.tint}
-              />
-            </TouchableOpacity>
+            <>
+              <TouchableOpacity onPress={handleDownloadPDF}>
+                <Ionicons
+                  name="download-outline"
+                  size={24}
+                  color={colors.tint}
+                />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={handleDeleteDay}>
+                <Ionicons
+                  name="trash-outline"
+                  size={24}
+                  color={colors.tint}
+                />
+              </TouchableOpacity>
+            </>
           )}
           <TouchableOpacity onPress={() => setEditing(!editing)}>
             <Text style={{ color: colors.tint, fontWeight: "600" }}>
@@ -1337,11 +1386,17 @@ export default function DayDetailScreen() {
             <View
               style={{ flexDirection: "row", alignItems: "center", gap: 10 }}
             >
-              <Text style={styles.timeBadge}>
-                {call.call_time
-                  ? call.call_time.slice(0, 5)
-                  : day.call_time?.slice(0, 5) || "--:--"}
-              </Text>
+              <TextInput
+                style={styles.timeBadge}
+                defaultValue={
+                  call.call_time
+                    ? call.call_time.slice(0, 5)
+                    : day.call_time?.slice(0, 5) || "08:00"
+                }
+                onEndEditing={(e) => handleUpdateCallTime(call.id, e.nativeEvent.text)}
+                maxLength={5}
+                keyboardType="numbers-and-punctuation"
+              />
               <TouchableOpacity onPress={() => handleDeleteCall(call.id)}>
                 <Ionicons name="trash-outline" size={20} color={isDark ? "#ff5252" : "red"} />
               </TouchableOpacity>
@@ -1615,9 +1670,11 @@ const createStyles = (colors: any, isDark: boolean) =>
       color: isDark ? colors.tint : "#1c7ed6",
       fontWeight: "bold",
       paddingHorizontal: 8,
-      paddingVertical: 4,
+      paddingVertical: Platform.OS === "ios" ? 4 : 2,
       borderRadius: 4,
       overflow: "hidden",
+      textAlign: "center",
+      width: 60,
     },
     // Form
     label: {

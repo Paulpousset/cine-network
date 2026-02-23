@@ -1,6 +1,6 @@
 import ConversationList from "@/components/ConversationList";
 import { useTheme } from "@/providers/ThemeProvider";
-import { Slot, useLocalSearchParams, useRouter } from "expo-router";
+import { Slot, Stack, useLocalSearchParams, useRouter } from "expo-router";
 import React from "react";
 import { Platform, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 
@@ -13,7 +13,7 @@ export default function DirectMessagesLayout() {
   const styles = createStyles(colors, isDark);
 
   if (!isWebLarge) {
-    return <Slot />;
+    return <Stack screenOptions={{ headerShown: true }} />;
   }
 
   return (

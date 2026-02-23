@@ -9,23 +9,25 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-    Dimensions,
-    Linking,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  Dimensions,
+  Image,
+  Linking,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from "react-native";
 import Animated, {
-    FadeIn,
-    FadeInDown,
-    FadeInUp,
-    useAnimatedStyle,
-    useSharedValue,
-    withRepeat,
-    withSequence,
-    withTiming,
+  FadeIn,
+  FadeInDown,
+  FadeInUp,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withSequence,
+  withTiming,
 } from "react-native-reanimated";
 
 const { width } = Dimensions.get("window");
@@ -37,6 +39,12 @@ export default function LandingPage() {
   const floatingValue = useSharedValue(0);
   const [selectedFeature, setSelectedFeature] = useState<any>(null);
 
+  useEffect(() => {
+    if (Platform.OS !== "web") {
+      router.replace("/auth");
+    }
+  }, []);
+
   const FEATURES = [
     {
       title: "Gestion de Projets",
@@ -46,8 +54,13 @@ export default function LandingPage() {
       details:
         "Tita centralise tous vos besoins de production. Gérez vos feuilles de service, suivez le budget en temps réel et coordonnez vos équipes sur le terrain avec une synchronisation instantanée.",
       screens: [
-        require("@/assets/images/screenshots/projects.png"),
-        require("@/assets/images/screenshots/feed.png"),
+        // mobile format
+        require("@/assets/images/screen_vitrine/Screenshot 2026-02-19 at 10.04.39.png"),
+        require("@/assets/images/screen_vitrine/Screenshot 2026-02-19 at 10.05.01.png"),
+        // web fromat
+
+        require("@/assets/images/screen_web/Screenshot 2026-02-19 at 10.14.31.png"),
+        require("@/assets/images/screen_web/Screenshot 2026-02-19 at 10.15.11.png"),
       ],
     },
     {
@@ -58,8 +71,15 @@ export default function LandingPage() {
       details:
         "Notre puissant moteur de recherche vous permet de filtrer les talents par métier, expérience, localisation et disponibilité. Consultez les portfolios et contactez directement les profils qui vous intéressent.",
       screens: [
-        require("@/assets/images/screenshots/network.png"),
-        require("@/assets/images/screenshots/landing.png"),
+         // mobile format
+        require("@/assets/images/screen_vitrine/Screenshot 2026-02-19 at 10.05.49.png"),
+        require("@/assets/images/screen_vitrine/Screenshot 2026-02-19 at 10.05.58.png"),
+        // web format
+        require("@/assets/images/screen_web/Screenshot 2026-02-19 at 10.16.33.png"),
+        require("@/assets/images/screen_web/Screenshot 2026-02-19 at 10.17.49.png"),
+  
+       
+       
       ],
     },
     {
@@ -70,8 +90,13 @@ export default function LandingPage() {
       details:
         "Fini les e-mails perdus. Créez des groupes par projet ou par département, partagez des documents sécurisés et recevez des notifications critiques pour ne jamais rater une mise à jour sur le plateau.",
       screens: [
-        require("@/assets/images/screenshots/messages.png"),
-        require("@/assets/images/screenshots/feed.png"),
+        // mobile format
+         require("@/assets/images/screen_vitrine/Screenshot 2026-02-19 at 10.05.14.png"),
+        require("@/assets/images/screen_vitrine/Screenshot 2026-02-19 at 10.05.18.png"),
+        // web format
+        
+        require("@/assets/images/screen_web/Screenshot 2026-02-19 at 10.18.16.png"),
+        require("@/assets/images/screen_web/Screenshot 2026-02-19 at 10.18.54.png"),
       ],
     },
   ];
@@ -90,6 +115,8 @@ export default function LandingPage() {
   const animatedHeroStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: floatingValue.value * 10 }],
   }));
+
+  if (Platform.OS !== "web") return null;
 
   const handleSupport = () => {
     Linking.openURL("mailto:support@titapp.fr");
@@ -140,8 +167,12 @@ export default function LandingPage() {
                 La plateforme ultime pour les{" "}
                 <Text style={{ color: colors.primary }}>
                   professionnels ou passionnés
+    
                 </Text>{" "}
                 du cinéma
+                {" "}
+                <br />
+                Bien mieux qu'un pietre compte insta !
               </Animated.Text>
             </Animated.View>
 
@@ -150,7 +181,7 @@ export default function LandingPage() {
               style={styles.heroSubtitle}
             >
               Gérez vos projets, trouvez des talents et collaborez en temps réel
-              sur une seule interface fluide et intuitive.
+              sur une interface fluide et intuitive, optimisée pour tous vos écrans.
             </Animated.Text>
 
             <Animated.View
@@ -283,6 +314,7 @@ interface FeatureCardProps {
   description: string;
   index: number;
   onPress: () => void;
+  screens: any[];
 }
 
 function FeatureCard({
@@ -291,13 +323,14 @@ function FeatureCard({
   description,
   index,
   onPress,
+  screens,
 }: FeatureCardProps) {
-  const { colors } = useTheme();
-  const styles = getStyles(colors, false); // and we don't care about isDark for these specific styles if they don't use it
+  const { colors, isDark } = useTheme();
+  const styles = getStyles(colors, isDark);
   return (
     <Hoverable
       onPress={onPress}
-      style={{ flex: 1, minWidth: width > 768 ? 300 : "100%" }}
+      style={{ flex: 1, minWidth: width > 768 ? 320 : "100%" }}
       hoverStyle={{ transform: [{ translateY: -10 }] }}
     >
       <Animated.View
@@ -309,6 +342,15 @@ function FeatureCard({
         </View>
         <Text style={styles.featureTitle}>{title}</Text>
         <Text style={styles.featureDescription}>{description}</Text>
+        
+        {/* Gallery Preview in Card */}
+        {screens && screens.length >= 3 && (
+          <View style={styles.cardPreviewContainer}>
+              <Image source={screens[2]} style={styles.cardWebPreview} resizeMode="contain" />
+              <Image source={screens[0]} style={styles.cardMobilePreview} resizeMode="contain" />
+          </View>
+        )}
+
         <View style={styles.learnMoreContainer}>
           <Text style={styles.learnMoreText}>En savoir plus</Text>
           <Ionicons
@@ -468,7 +510,7 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   },
   featureCard: {
     flex: 1,
-    padding: 40,
+    padding: 30, // Reduit un peu de 40 a 30
     borderRadius: 32,
     backgroundColor: colors.card,
     borderWidth: 1,
@@ -479,6 +521,42 @@ const getStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     shadowOpacity: isDark ? 0.3 : 0.05,
     shadowRadius: 15,
     elevation: 3,
+  },
+  cardPreviewContainer: {
+    width: '100%',
+    height: 180,
+    marginTop: 20,
+    marginBottom: 20,
+    position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cardWebPreview: {
+    width: 220,
+    height: 120,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: 'transparent',
+    transform: [{ translateX: -10 }, { translateY: -10 }],
+    zIndex: 1,
+    overflow: 'hidden',
+  },
+  cardMobilePreview: {
+    position: 'absolute',
+    width: 70,
+    height: 140,
+    borderRadius: 12,
+    borderWidth: 3,
+    borderColor: '#222',
+    backgroundColor: 'transparent',
+    transform: [{ translateX: 60 }, { translateY: 10 }],
+    zIndex: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    overflow: 'hidden',
   },
   featureIconContainer: {
     width: 70,

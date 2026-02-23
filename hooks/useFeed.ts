@@ -11,7 +11,7 @@ export const useFeed = () => {
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [feedMode, setFeedMode] = useState<"network" | "all">("network");
+  const [feedMode, setFeedMode] = useState<"network" | "all">("all");
   const isFetchingRef = useRef(false);
 
   useEffect(() => {
@@ -43,131 +43,57 @@ export const useFeed = () => {
 
     try {
       isFetchingRef.current = true;
-      // Only show full loading if we don't have posts yet
       if (posts.length === 0) {
         setLoading(true);
       }
-      console.log("[useFeed] Start fetching posts for", currentUserId);
+      console.log("[useFeed] Start fetching posts for", currentUserId, "mode:", feedMode);
 
-      // 1. Fetch blocked users IDs (mutual)
-      let blockedUserIds: string[] = [];
-      try {
-        const { data: blocks } = await supabase
-          .from("user_blocks")
-          .select("blocker_id, blocked_id")
-          .or(`blocker_id.eq.${currentUserId},blocked_id.eq.${currentUserId}`);
+      // 1. Fetch from RPC for recommendation-based sorting (integrated direct in feed)
+      const { data: recData, error: recError } = await supabase.rpc("get_recommended_posts", {
+        user_id_param: currentUserId,
+        filter_mode: feedMode
+      });
+      
+      if (recError) throw recError;
+
+      let finalData: FeedPost[] = [];
+      
+      if (recData && recData.length > 0) {
+        // 2. Fetch likes for user_has_liked status if logged in
+        const postIds = recData.map((p: any) => p.p_id);
+        const { data: userLikes } = await supabase
+          .from("post_likes")
+          .select("post_id")
+          .eq("user_id", currentUserId)
+          .in("post_id", postIds);
         
-        blockedUserIds =
-          blocks?.map((b: any) =>
-            b.blocker_id === currentUserId ? b.blocked_id : b.blocker_id,
-          ) || [];
-      } catch (e) {
-        console.warn("Error fetching blocks:", e);
-      }
+        const likedPostIds = new Set(userLikes?.map((l: any) => l.post_id) || []);
 
-      // 2. Fetch connected IDs if in network mode
-      let connectedIds: string[] = [currentUserId];
-      if (feedMode === "network") {
-        try {
-          const { data: connections } = await supabase
-            .from("connections")
-            .select("receiver_id, requester_id")
-            .eq("status", "accepted")
-            .or(`receiver_id.eq.${currentUserId},requester_id.eq.${currentUserId}`);
-
-          const ids = connections?.map((c) =>
-            c.requester_id === currentUserId ? c.receiver_id : c.requester_id,
-          ) || [];
-          connectedIds = [...connectedIds, ...ids];
-        } catch (e) {
-          console.warn("Error fetching connections:", e);
-        }
-      }
-
-      // 3. Try complex query first
-      const buildQuery = (withInteractions: boolean) => {
-        const baseSelect = `
-          id,
-          content,
-          image_url,
-          created_at,
-          user_id,
-          visibility,
-          project:tournages(
-            id, 
-            title, 
-            image_url, 
-            type, 
-            ville, 
-            start_date, 
-            end_date,
-            team:project_roles(
-              title,
-              show_in_team,
-              assigned_profile:profiles(id, avatar_url, full_name)
-            )
-          ), 
-          user:profiles!user_id(full_name, avatar_url)
-        `;
-
-        const select = withInteractions 
-          ? `${baseSelect}, likes:post_likes(user_id), comments:post_comments(count)`
-          : baseSelect;
-
-        let q = supabase
-          .from("posts")
-          .select(select)
-          .order("created_at", { ascending: false });
-
-        if (blockedUserIds.length > 0) {
-          q = q.not("user_id", "in", `(${blockedUserIds.join(",")})`);
-        }
-
-        if (feedMode === "all") {
-          q = q.eq("visibility", "public");
-        } else {
-          q = q.in("user_id", connectedIds);
-        }
-        return q;
-      };
-
-      let { data, error } = await buildQuery(true);
-
-      // 4. Fallback if complex query fails (likely missing tables or ambiguous relationships)
-      if (error && (
-        error.message.includes("post_likes") || 
-        error.message.includes("post_comments") || 
-        error.code === "PGRST204" || 
-        error.code === "42P01" ||
-        error.code === "PGRST201"
-      )) {
-        console.log("Secondary query fallback triggered:", error.message);
-        const fallback = await buildQuery(false);
-        data = fallback.data;
-        error = fallback.error;
-      }
-
-      if (error) {
-        console.error("Error fetching posts:", error);
-      } else if (data) {
-        console.log("[useFeed] Successfully fetched", data.length, "posts");
-        const formattedPosts = (data as any[]).map((post) => ({
-          ...post,
-          likes_count: post.likes?.length || 0,
-          comments_count: post.comments?.[0]?.count || 0,
-          user_has_liked: post.likes?.some(
-            (l: any) => l.user_id === currentUserId,
-          ) || false,
+        finalData = recData.map((p: any) => ({
+          id: p.p_id,
+          content: p.p_content,
+          image_url: p.p_image_url,
+          created_at: p.p_created_at,
+          user_id: p.p_user_id,
+          user: {
+            full_name: p.author_full_name,
+            avatar_url: p.author_avatar_url,
+          },
+          likes_count: parseInt(p.likes_total),
+          comments_count: parseInt(p.comments_total),
+          user_has_liked: likedPostIds.has(p.p_id),
+          score: p.recommendation_score,
+          score_details: p.score_details
         }));
-        setPosts(formattedPosts);
       }
-    } catch (e) {
-      console.error("Critical error in fetchPosts:", e);
+
+      setPosts(finalData);
+    } catch (e: any) {
+      console.error("[useFeed] Error in fetchPosts:", e.message);
     } finally {
       isFetchingRef.current = false;
       setLoading(false);
       setRefreshing(false);
-      console.log("[useFeed] Fetching posts finished");
     }
   };
 

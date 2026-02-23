@@ -1,13 +1,15 @@
 import ConversationList from "@/components/ConversationList";
 import { useTheme } from "@/providers/ThemeProvider";
-import { Stack } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
+import { router, Stack } from "expo-router";
 import React from "react";
 import {
-  Platform,
-  StyleSheet,
-  Text,
-  useWindowDimensions,
-  View,
+    Platform,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    useWindowDimensions,
+    View,
 } from "react-native";
 
 export default function DirectMessagesList() {
@@ -36,6 +38,21 @@ export default function DirectMessagesList() {
       <Stack.Screen
         options={{
           headerTitle: "Messages",
+          headerLeft: () => (
+            <TouchableOpacity
+              onPress={() => {
+                if (router.canGoBack()) {
+                  router.back();
+                } else {
+                  router.replace("/feed");
+                }
+              }}
+              style={{ padding: 10, marginLeft: -5 }}
+              hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
+            >
+              <Ionicons name="arrow-back" size={24} color={colors.primary} />
+            </TouchableOpacity>
+          ),
           headerBackTitle: "Retour",
           headerTintColor: colors.primary,
         }}

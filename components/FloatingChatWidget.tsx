@@ -1,6 +1,7 @@
 import { appEvents, EVENTS } from "@/lib/events";
 import { supabase } from "@/lib/supabase";
 import { useTheme } from "@/providers/ThemeProvider";
+import { useUser } from "@/providers/UserProvider";
 import { NotificationService } from "@/services/NotificationService";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
@@ -18,6 +19,7 @@ import { Hoverable } from "./Hoverable";
 
 export default function FloatingChatWidget({ userId }: { userId: string }) {
   const { colors, isDark } = useTheme();
+  const { profile: currentUser } = useUser();
   const styles = createStyles(colors, isDark);
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
@@ -49,10 +51,19 @@ export default function FloatingChatWidget({ userId }: { userId: string }) {
             newMsg.project_id === activeConversation.projectId &&
             newMsg.category === activeConversation.category
           ) {
-            setMessages((prev) => {
-              if (prev.some((m) => m.id === newMsg.id)) return prev;
-              return [newMsg, ...prev];
-            });
+            // Fetch sender details for channel messages
+            supabase
+              .from("profiles")
+              .select("id, full_name, avatar_url")
+              .eq("id", newMsg.sender_id)
+              .single()
+              .then(({ data: sender }) => {
+                const messageWithSender = { ...newMsg, sender };
+                setMessages((prev) => {
+                  if (prev.some((m) => m.id === newMsg.id)) return prev;
+                  return [messageWithSender, ...prev];
+                });
+              });
           }
         } else {
           // DM Logic
@@ -173,7 +184,7 @@ export default function FloatingChatWidget({ userId }: { userId: string }) {
     try {
       const { data, error } = await supabase
         .from("project_messages")
-        .select("*")
+        .select("*, sender:profiles(id, full_name, avatar_url)")
         .eq("project_id", projectId)
         .eq("category", category)
         .order("created_at", { ascending: false });
@@ -425,22 +436,76 @@ export default function FloatingChatWidget({ userId }: { userId: string }) {
                 contentContainerStyle={{ padding: 10 }}
                 renderItem={({ item }) => {
                   const isMe = item.sender_id === userId;
+                  const isChannel = activeConversation.type === "channel";
+                  const avatarUrl = isMe
+                    ? currentUser?.avatar_url
+                    : isChannel
+                      ? item.sender?.avatar_url
+                      : activeConversation.user?.avatar_url;
+
                   return (
                     <View
                       style={{
-                        alignSelf: isMe ? "flex-end" : "flex-start",
-                        backgroundColor: isMe
-                          ? colors.primary
-                          : colors.backgroundSecondary,
-                        borderRadius: 16,
-                        padding: 10,
-                        marginVertical: 4,
-                        maxWidth: "80%",
+                        flexDirection: isMe ? "row-reverse" : "row",
+                        alignItems: "flex-end",
+                        marginBottom: 8,
                       }}
                     >
-                      <Text style={{ color: isMe ? "white" : colors.text }}>
-                        {item.content}
-                      </Text>
+                      {avatarUrl ? (
+                        <Image
+                          source={{ uri: avatarUrl }}
+                          style={{ width: 20, height: 20, borderRadius: 10 }}
+                        />
+                      ) : (
+                        <View
+                          style={{
+                            width: 20,
+                            height: 20,
+                            borderRadius: 10,
+                            backgroundColor: colors.backgroundSecondary,
+                            justifyContent: "center",
+                            alignItems: "center",
+                          }}
+                        >
+                          <Ionicons
+                            name="person"
+                            size={10}
+                            color={colors.text + "40"}
+                          />
+                        </View>
+                      )}
+                      <View
+                        style={{
+                          backgroundColor: isMe
+                            ? colors.primary
+                            : colors.backgroundSecondary,
+                          borderRadius: 16,
+                          padding: 10,
+                          maxWidth: "80%",
+                          marginLeft: isMe ? 0 : 6,
+                          marginRight: isMe ? 6 : 0,
+                          borderBottomRightRadius: isMe ? 2 : 16,
+                          borderBottomLeftRadius: isMe ? 16 : 2,
+                        }}
+                      >
+                        {isChannel && !isMe && (
+                          <Text
+                            style={{
+                              fontSize: 9,
+                              fontWeight: "600",
+                              color: colors.text + "80",
+                              marginBottom: 2,
+                            }}
+                          >
+                            {item.sender?.full_name || "..."}
+                          </Text>
+                        )}
+                        <Text
+                          style={{ color: isMe ? "white" : colors.text, fontSize: 13 }}
+                        >
+                          {item.content}
+                        </Text>
+                      </View>
                     </View>
                   );
                 }}
