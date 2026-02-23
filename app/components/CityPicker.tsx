@@ -1,4 +1,4 @@
-import ClapLoading from "@/components/ClapLoading";
+import ClapLoading from "@/components/ui/ClapLoading";
 import { useTheme } from "@/providers/ThemeProvider";
 import React, { useState } from "react";
 import {

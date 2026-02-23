@@ -1,6 +1,6 @@
-import AppMap, { Marker, PROVIDER_DEFAULT } from "@/components/AppMap";
-import ClapLoading from "@/components/ClapLoading";
-import { JobCard, ProjectJobCard } from "@/components/JobCard";
+import AppMap, { Marker, PROVIDER_DEFAULT } from "@/components/common/AppMap";
+import { JobCard, ProjectJobCard } from "@/components/project/JobCard";
+import ClapLoading from "@/components/ui/ClapLoading";
 import { useJobs } from "@/hooks/useJobs";
 import { useUserMode } from "@/hooks/useUserMode";
 import { supabase } from "@/lib/supabase";
@@ -12,17 +12,17 @@ import { FlashList } from "@shopify/flash-list";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-  Modal,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Switch,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  TouchableWithoutFeedback,
-  useWindowDimensions,
-  View
+    Modal,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Switch,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    TouchableWithoutFeedback,
+    useWindowDimensions,
+    View
 } from "react-native";
 
 // On récupère les clés de ton fichier rolesList.ts

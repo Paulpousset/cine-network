@@ -158,21 +158,32 @@ export function useTalents() {
 
   const fetchCities = async () => {
     try {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("ville")
-        .not("ville", "is", null);
+      // Use the optimized RPC for much better performance on large datasets
+      const { data, error } = await supabase.rpc("get_unique_cities");
 
-      if (error) throw error;
-      const cities = Array.from(
-        new Set(
-          data
-            ?.map((p: any) => p.ville)
-            .filter((c) => c)
-            .map((c) => c!.trim()),
-        ),
-      ).sort();
-      setAvailableCities(["all", ...cities]);
+      if (error) {
+        // Fallback to standard query if RPC doesn't exist yet
+        console.warn("get_unique_cities RPC not found, falling back to profile scan...");
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from("profiles")
+          .select("ville")
+          .not("ville", "is", null);
+        
+        if (fallbackError) throw fallbackError;
+        
+        const cities = Array.from(
+          new Set(
+            fallbackData
+              ?.map((p: any) => p.ville)
+              .filter((c) => c)
+              .map((c) => c!.trim()),
+          ),
+        ).sort();
+        setAvailableCities(["all", ...cities]);
+      } else {
+        const cities = data.map((item: any) => item.ville.trim());
+        setAvailableCities(["all", ...cities]);
+      }
     } catch (e) {
       console.log("Error fetching cities", e);
     }

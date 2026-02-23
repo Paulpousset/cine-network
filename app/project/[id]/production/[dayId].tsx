@@ -1,6 +1,6 @@
 import AddressAutocomplete from "@/app/components/AddressAutocomplete";
 import CityPicker from "@/app/components/CityPicker";
-import WebDatePicker from "@/components/WebDatePicker";
+import WebDatePicker from "@/components/common/WebDatePicker";
 import { useUserMode } from "@/hooks/useUserMode";
 import { supabase } from "@/lib/supabase";
 import { useTheme } from "@/providers/ThemeProvider";

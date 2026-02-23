@@ -1,7 +1,7 @@
-import ClapLoading from "@/components/ClapLoading";
-import PostCard, { FeedPost } from "@/components/PostCard";
-import { SuggestedCastingsSidebar } from "@/components/SuggestedCastingsSidebar";
-import { SuggestedProfilesSidebar } from "@/components/SuggestedProfilesSidebar";
+import ClapLoading from "@/components/ui/ClapLoading";
+import PostCard, { FeedPost } from "@/components/feed/PostCard";
+import { SuggestedCastingsSidebar } from "@/components/profile/SuggestedCastingsSidebar";
+import { SuggestedProfilesSidebar } from "@/components/profile/SuggestedProfilesSidebar";
 import { useFeed } from "@/hooks/useFeed";
 import { useTheme } from "@/providers/ThemeProvider";
 import { useUser } from "@/providers/UserProvider";
@@ -36,12 +36,24 @@ export default function FeedScreen() {
     feedMode,
     setFeedMode,
     userId,
+    loadMore,
+    hasNextPage,
+    isLoadingMore,
   } = useFeed();
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   const renderItem = ({ item }: { item: FeedPost }) => (
     <PostCard item={item} onImagePress={setSelectedImage} />
   );
+
+  const renderFooter = () => {
+    if (!isLoadingMore) return null;
+    return (
+      <View style={{ paddingVertical: 20, alignItems: "center" }}>
+        <ClapLoading size={30} />
+      </View>
+    );
+  };
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -183,6 +195,13 @@ export default function FeedScreen() {
               renderItem={renderItem}
               // @ts-ignore
               estimatedItemSize={400}
+              onEndReached={() => {
+                if (hasNextPage && !isLoadingMore) {
+                  loadMore();
+                }
+              }}
+              onEndReachedThreshold={0.5}
+              ListFooterComponent={renderFooter}
               refreshControl={
                 <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
               }

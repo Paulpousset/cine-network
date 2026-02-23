@@ -1,4 +1,4 @@
-import ScreenContainer from "@/components/ScreenContainer";
+import ScreenContainer from "@/components/layout/ScreenContainer";
 import { ALL_TOOLS } from "@/constants/Tools";
 import { useTheme } from "@/providers/ThemeProvider";
 import { Ionicons } from "@expo/vector-icons";

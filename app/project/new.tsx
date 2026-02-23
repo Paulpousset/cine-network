@@ -1,5 +1,5 @@
-import ClapLoading from "@/components/ClapLoading";
-import WebDatePicker from "@/components/WebDatePicker";
+import WebDatePicker from "@/components/common/WebDatePicker";
+import ClapLoading from "@/components/ui/ClapLoading";
 import { GlobalStyles } from "@/constants/Styles";
 import { useTheme } from "@/providers/ThemeProvider";
 import { JOB_TITLES } from "@/utils/roles";

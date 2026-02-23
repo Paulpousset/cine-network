@@ -1,25 +1,29 @@
-import ClapLoading from "@/components/ClapLoading";
+import ClapLoading from "@/components/ui/ClapLoading";
 import { GlobalStyles } from "@/constants/Styles";
 import { useUserMode } from "@/hooks/useUserMode";
 import { useTutorial } from "@/providers/TutorialProvider";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Image } from "expo-image";
 import { useFocusEffect, useRouter } from "expo-router";
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import {
-  Alert,
-  Image,
   Modal,
   Platform,
+  RefreshControl,
   ScrollView,
   SectionList,
   StyleSheet,
   Text,
   TouchableOpacity,
   useWindowDimensions,
-  View,
+  View
 } from "react-native";
-import { supabase } from "../../lib/supabase";
+
+import DynamicLogo from "@/components/ui/DynamicLogo";
+import { useMyProjectsData } from "@/hooks/useMyProjects";
+import { useTheme } from "@/providers/ThemeProvider";
+import { useUser } from "@/providers/UserProvider";
 
 type Project = {
   id: string;
@@ -33,10 +37,6 @@ type Project = {
   city?: string;
   is_paid?: boolean;
 };
-
-import DynamicLogo from "@/components/DynamicLogo";
-import { useTheme } from "@/providers/ThemeProvider";
-import { useUser } from "@/providers/UserProvider";
 
 export default function MyProjects() {
   const { colors, isDark } = useTheme();
@@ -55,17 +55,46 @@ export default function MyProjects() {
   const isWebLarge = Platform.OS === "web" && isMd;
   const isWebWide = Platform.OS === "web" && isLg;
   const { hasCompletedTutorial } = useTutorial();
-  const [sections, setSections] = useState<
-    { title: string; data: Project[] }[]
-  >([]);
-  const [loading, setLoading] = useState(true);
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const [recentMessages, setRecentMessages] = useState<any[]>([]);
-  const [recentNotifications, setRecentNotifications] = useState<any[]>([]);
-  const [allNotifications, setAllNotifications] = useState<any[]>([]);
+  const { user } = useUser();
+  
+  const {
+    ownedProjects,
+    participatingProjects,
+    recentMessages,
+    upcomingEvents,
+    notifications,
+    isLoading,
+    isRefetching,
+    refetch,
+  } = useMyProjectsData(user?.id);
+
+  const [localSeenIds, setLocalSeenIds] = useState<string[]>([]);
   const [isHistoryVisible, setIsHistoryVisible] = useState(false);
-  const [seenNotificationIds, setSeenNotificationIds] = useState<string[]>([]);
-  const [upcomingEvents, setUpcomingEvents] = useState<any[]>([]);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  
+  const sections = useMemo(() => [
+    { title: "Mes Créations", data: ownedProjects },
+    { title: "Mes Participations", data: participatingProjects },
+  ], [ownedProjects, participatingProjects]);
+
+  const onRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    await refetch();
+    setIsRefreshing(false);
+  }, [refetch]);
+
+  const allNotifications = useMemo(() => {
+    const notifs = (notifications as any)?.all || [];
+    return notifs.map((n: any) => ({
+      ...n,
+      isRead: n.isRead || localSeenIds.includes(n.id)
+    }));
+  }, [(notifications as any)?.all, localSeenIds]);
+
+  const recentNotifications = useMemo(() => 
+    allNotifications.filter((n: any) => !n.isRead).slice(0, 4)
+  , [allNotifications]);
+
   const [currentWeekStart, setCurrentWeekStart] = useState(() => {
     const d = new Date();
     const day = d.getDay();
@@ -85,8 +114,9 @@ export default function MyProjects() {
 
   useFocusEffect(
     useCallback(() => {
-      fetchMyProjects();
-    }, []),
+      // Sync silencieuse au focus (sans spinner)
+      refetch();
+    }, [refetch]),
   );
 
   // Mode control: hide FAB if in search mode
@@ -99,11 +129,9 @@ export default function MyProjects() {
       if (!seenIds.includes(id)) {
         seenIds.push(id);
         await AsyncStorage.setItem("seen_project_notifications", JSON.stringify(seenIds));
-        setSeenNotificationIds(seenIds);
-        
-        // Update both states
-        setRecentNotifications(prev => prev.filter(n => n.id !== id));
-        setAllNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
+        setLocalSeenIds(prev => [...prev, id]);
+        // Background refetch to sync
+        refetch();
       }
     } catch (e) {
       console.error(e);
@@ -112,284 +140,14 @@ export default function MyProjects() {
 
   const markAllAsRead = async () => {
     try {
-      const allIds = allNotifications.map(n => n.id);
+      const allIds = allNotifications.map((n: any) => n.id);
       await AsyncStorage.setItem("seen_project_notifications", JSON.stringify(allIds));
-      setSeenNotificationIds(allIds);
-      setRecentNotifications([]);
-      setAllNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+      setLocalSeenIds(allIds);
+      refetch();
     } catch (e) {
       console.error(e);
     }
   };
-
-  async function fetchMyProjects() {
-    try {
-      setLoading(true);
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-
-      if (session) {
-        setCurrentUserId(session.user.id);
-      } else {
-        return;
-      }
-
-      // 1. Fetch Owned Projects (Excluding completed ones)
-      const { data: ownedData, error: ownedError } = await supabase
-        .from("tournages")
-        .select(`
-            *,
-            team:project_roles(
-                id,
-                title,
-                show_in_team,
-                assigned_profile:profiles(id, avatar_url, full_name)
-            )
-        `)
-        .eq("owner_id", session.user.id)
-        .neq("status", "completed")
-        .order("created_at", { ascending: false });
-
-      if (ownedError) throw ownedError;
-
-      // Check notifications for owned
-      let ownedProjects = (ownedData || []).map(p => ({
-        ...p,
-        team_visible: p.team?.filter((r: any) => r.show_in_team && r.assigned_profile).map((r: any) => ({
-          ...r.assigned_profile,
-          role_title: r.title
-        })) || []
-      }));
-
-      if (ownedProjects.length > 0) {
-        const tournageIds = ownedProjects.map((p) => p.id);
-        const { data: pendingApps } = await supabase
-          .from("applications" as any)
-          .select(
-            `
-          role_id,
-          project_roles!inner (
-            tournage_id
-          )
-        `,
-          )
-          .eq("status", "pending")
-          .in("project_roles.tournage_id", tournageIds);
-
-        ownedProjects = ownedProjects.map((p) => ({
-          ...p,
-          has_notifications: pendingApps?.some(
-            (app: any) => app.project_roles?.tournage_id === p.id,
-          ),
-        }));
-      }
-
-      // 2. Fetch Participating Projects (Excluding completed ones)
-      const { data: participations, error: partError } = await supabase
-        .from("project_roles")
-        .select(
-          `
-          tournage_id,
-          tournages (
-            *,
-            team:project_roles(
-                id,
-                title,
-                show_in_team,
-                assigned_profile:profiles(id, avatar_url, full_name)
-            )
-          )
-        `,
-        )
-        .eq("assigned_profile_id", session.user.id)
-        .neq("tournages.owner_id", session.user.id)
-        .neq("tournages.status", "completed")
-        .eq("status", "assigned");
-
-      if (partError) throw partError;
-
-      const participatingMap = new Map();
-      participations?.forEach((p: any) => {
-        if (p.tournages && p.tournages.status !== "completed") {
-          const proj = {
-            ...p.tournages,
-            team_visible: p.tournages.team?.filter((r: any) => r.show_in_team && r.assigned_profile).map((r: any) => ({
-              ...r.assigned_profile,
-              role_title: r.title
-            })) || []
-          };
-          participatingMap.set(proj.id, proj);
-        }
-      });
-      const participatingProjects = Array.from(participatingMap.values());
-
-      setSections([
-        { title: "Mes Créations", data: ownedProjects },
-        { title: "Mes Participations", data: participatingProjects as any },
-      ]);
-
-      // 3. Fetch Recent Messages for these projects
-      const allProjectIds = [
-        ...ownedProjects.map((p) => p.id),
-        ...participatingProjects.map((p: any) => p.id),
-      ];
-
-      if (allProjectIds.length > 0) {
-        const { data: messages, error: msgError } = await supabase
-          .from("project_messages" as any)
-          .select(`
-            id,
-            project_id,
-            category,
-            content,
-            created_at,
-            sender:profiles(full_name),
-            project:tournages(title)
-          `)
-          .in("project_id", allProjectIds)
-          .order("created_at", { ascending: false })
-          .limit(30); // limit 30 to be sure we get 4 different groups
-
-        if (!msgError && messages) {
-          const uniqueGroups: any[] = [];
-          const seen = new Set();
-          for (const msg of messages) {
-            const key = `${msg.project_id}-${msg.category}`;
-            if (!seen.has(key)) {
-              seen.add(key);
-              uniqueGroups.push(msg);
-              if (uniqueGroups.length === 4) break;
-            }
-          }
-          setRecentMessages(uniqueGroups);
-        }
-
-        // 4. Fetch All Events for the current projects
-        const { data: events, error: eventError } = await supabase
-          .from("project_events" as any)
-          .select(`
-            *,
-            project:tournages(title)
-          `)
-          .in("tournage_id", allProjectIds);
-
-        // 5. Fetch All Shoot Days
-        const { data: shootDays, error: sdError } = await supabase
-          .from("shoot_days")
-          .select(`
-            *,
-            project:tournages(title)
-          `)
-          .in("tournage_id", allProjectIds);
-
-        let allCalendarEvents: any[] = [];
-        
-        if (!eventError && events) {
-          allCalendarEvents = [...allCalendarEvents, ...events];
-        }
-
-        if (!sdError && shootDays) {
-          const shootEvents = shootDays.map(sd => ({
-            id: sd.id,
-            tournage_id: sd.tournage_id,
-            title: `🎥 Tournage: ${sd.location || "Lieu non défini"}`,
-            start_time: sd.date + (sd.call_time ? `T${sd.call_time}` : "T08:00:00"),
-            project: sd.project,
-            is_shoot_day: true
-          }));
-          allCalendarEvents = [...allCalendarEvents, ...shootEvents];
-        }
-
-        setUpcomingEvents(allCalendarEvents);
-
-        // 6. Fetch Recent Notifications (Applications, Files, Participants)
-        let allNotifs: any[] = [];
-        const seenJson = await AsyncStorage.getItem("seen_project_notifications");
-        const seenIds: string[] = seenJson ? JSON.parse(seenJson) : [];
-        setSeenNotificationIds(seenIds);
-        
-        // 6a. Pending Applications for owned projects
-        const ownedIds = ownedProjects.map(p => p.id);
-        if (ownedIds.length > 0) {
-          const { data: apps } = await supabase
-            .from('applications')
-            .select('*, candidate:profiles(full_name), role:project_roles!inner(title, tournage:tournages(title, id, image_url))')
-            .eq('status', 'pending')
-            .in('project_roles.tournage_id', ownedIds)
-            .order('created_at', { ascending: false })
-            .limit(20);
-            
-          if (apps) {
-            allNotifs = [...allNotifs, ...apps.map(a => ({
-              id: a.id,
-              type: 'application',
-              title: 'Candidature',
-              subtitle: `${a.candidate?.full_name} sur "${a.role?.title}"`,
-              project_title: (a.role as any)?.tournage?.title,
-              project_image: (a.role as any)?.tournage?.image_url,
-              created_at: a.created_at,
-              project_id: (a.role as any)?.tournage?.id,
-              isRead: seenIds.includes(a.id)
-            }))];
-          }
-        }
-
-        // 6b. New Files
-        const { data: files } = await supabase
-          .from('project_files')
-          .select('*, uploader:profiles(full_name), project:tournages(title, id, image_url)')
-          .in('project_id', allProjectIds)
-          .order('created_at', { ascending: false })
-          .limit(20);
-          
-        if (files) {
-          allNotifs = [...allNotifs, ...files.map(f => ({
-            id: f.id,
-            type: 'file',
-            title: 'Fichier',
-            subtitle: `${f.uploader?.full_name} a ajouté "${f.name}"`,
-            project_title: f.project?.title,
-            project_image: f.project?.image_url,
-            created_at: f.created_at,
-            project_id: f.project?.id,
-            isRead: seenIds.includes(f.id)
-          }))];
-        }
-
-        // 6c. New Participants (Assigned roles)
-        const { data: participants } = await supabase
-          .from('project_roles')
-          .select('*, assigned_profile:profiles(full_name), tournage:tournages(title, id, image_url)')
-          .in('tournage_id', allProjectIds)
-          .not('assigned_profile_id', 'is', null)
-          .order('created_at', { ascending: false })
-          .limit(20);
-
-        if (participants) {
-           allNotifs = [...allNotifs, ...participants.map(p => ({
-            id: p.id,
-            type: 'participant',
-            title: 'Nouveau membre',
-            subtitle: `${p.assigned_profile?.full_name} rejoint "${p.title}"`,
-            project_title: p.tournage?.title,
-            project_image: p.tournage?.image_url,
-            created_at: p.created_at,
-            project_id: p.tournage?.id,
-            isRead: seenIds.includes(p.id)
-          }))];
-        }
-
-        const sorted = allNotifs.sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-        setAllNotifications(sorted);
-        setRecentNotifications(sorted.filter(n => !n.isRead).slice(0, 4));
-      }
-    } catch (error) {
-      Alert.alert("Erreur", (error as Error).message);
-    } finally {
-      setLoading(false);
-    }
-  }
 
   const renderProjectItem = ({ item }: { item: Project }) => {
     // Calcul des tailles basé sur l'état des breakpoints
@@ -423,7 +181,8 @@ export default function MyProjects() {
                 isWebLarge && styles.webProjectImage,
                 { width: imgSize, height: imgSize }
               ]}
-              resizeMode="cover"
+              contentFit="cover"
+              transition={200}
             />
           ) : (
             <View
@@ -521,7 +280,7 @@ export default function MyProjects() {
                   />
                   <Text style={[styles.cardActionText, { fontSize: isLg ? 12 : 10 }]}>Équipe</Text>
                 </TouchableOpacity>
-                {item.owner_id === currentUserId && (
+                {item.owner_id === user?.id && (
                   <TouchableOpacity
                     style={styles.cardAction}
                     onPress={(e) => {
@@ -556,7 +315,7 @@ export default function MyProjects() {
 
   return (
     <View style={styles.container}>
-      {loading ? (
+      {isLoading ? (
         <ClapLoading
           size={50}
           color={colors.primary}
@@ -564,7 +323,17 @@ export default function MyProjects() {
         />
       ) : isWebLarge ? (
         /* Layout Web avec ScrollView global pour que tout défile ensemble */
-        <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+        <ScrollView 
+          style={{ flex: 1 }} 
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefreshing}
+              onRefresh={onRefresh}
+              tintColor={colors.primary}
+            />
+          }
+        >
           {/* Nouveau : Header interne au ScrollView pour un défilement unifié */}
           <View style={[styles.webHeader, { marginBottom: 0, paddingBottom: 10 }]}>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 20 }}>
@@ -651,7 +420,7 @@ export default function MyProjects() {
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={[styles.webStatValue, { fontSize: isLg ? 24 : 18 }]}>
-                        {upcomingEvents.filter(e => {
+                        {upcomingEvents.filter((e: any) => {
                           const eventDate = new Date(e.start_time);
                           const today = new Date();
                           today.setHours(0, 0, 0, 0);
@@ -679,7 +448,7 @@ export default function MyProjects() {
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={[styles.webStatValue, { fontSize: isLg ? 24 : 18 }]}>
-                        {sections[0]?.data.filter(p => (p as any).has_notifications).length || 0}
+                        {sections[0]?.data.filter((p: any) => p.has_notifications).length || 0}
                       </Text>
                       <Text style={[styles.webStatLabel, { fontSize: isLg ? 12 : 10 }]} numberOfLines={1}>Alertes</Text>
                     </View>
@@ -688,7 +457,7 @@ export default function MyProjects() {
               </View>
 
               {/* Sections de Projets */}
-              {sections.map((section, sIndex) => (
+              {sections.map((section: any, sIndex: number) => (
                 <View key={section.title + sIndex} style={[styles.webSectionWrapper, { paddingHorizontal: 10, marginBottom: 30 }]}>
                   <View style={styles.webSectionHeaderContainer}>
                     <Text style={styles.webSectionHeader}>{section.title}</Text>
@@ -697,7 +466,7 @@ export default function MyProjects() {
 
                   <View style={styles.webGridContainer}>
                     {section.data.length > 0 ? (
-                      section.data.map((item) => (
+                      section.data.map((item: any) => (
                         <View 
                           key={item.id} 
                           style={[
@@ -745,7 +514,7 @@ export default function MyProjects() {
                   overflow: 'hidden' 
                 }}>
                   {recentNotifications.length > 0 ? (
-                    recentNotifications.slice(0, 4).map((notif, index) => (
+                    recentNotifications.slice(0, 4).map((notif: any, index: number) => (
                       <TouchableOpacity
                         key={notif.id}
                         style={{ 
@@ -791,7 +560,7 @@ export default function MyProjects() {
                            <Text style={{ fontSize: 9, color: isDark ? '#E2E8F0' : '#64748B', marginTop: 1, fontWeight: '600' }} numberOfLines={1}>{notif.subtitle}</Text>
                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
                              {notif.project_image ? (
-                               <Image source={{ uri: notif.project_image }} style={{ width: 14, height: 14, borderRadius: 4 }} />
+                               <Image source={{ uri: notif.project_image }} style={{ width: 14, height: 14, borderRadius: 4 }} contentFit="cover" transition={200} />
                              ) : (
                                <View style={{ width: 14, height: 14, borderRadius: 4, backgroundColor: colors.border, justifyContent: 'center', alignItems: 'center' }}>
                                  <Ionicons name="film-outline" size={10} color="#94A3B8" />
@@ -837,7 +606,7 @@ export default function MyProjects() {
                     borderRadius: 16, 
                     overflow: 'hidden' 
                   }}>
-                    {recentMessages.slice(0, 4).map((msg, index) => (
+                    {recentMessages.slice(0, 4).map((msg: any, index: number) => (
                       <TouchableOpacity
                         key={msg.id}
                         style={{ 
@@ -933,13 +702,13 @@ export default function MyProjects() {
                   marginTop: 15,
                   gap: 0 
                 }]}>
-                  {getWeekDays(currentWeekStart).map((day, index) => {
-                    const dayEvents = upcomingEvents.filter(e => {
+                  {getWeekDays(currentWeekStart).map((day: Date, index: number) => {
+                    const dayEvents = upcomingEvents.filter((e: any) => {
                       const eDate = new Date(e.start_time);
                       return eDate.getDate() === day.getDate() && 
                              eDate.getMonth() === day.getMonth() && 
                              eDate.getFullYear() === day.getFullYear();
-                    }).sort((a,b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
+                    }).sort((a: any, b: any) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
 
                     const isToday = new Date().toDateString() === day.toDateString();
 
@@ -967,7 +736,7 @@ export default function MyProjects() {
                           </Text>
                         </View>
                         <View style={{ gap: 5, marginTop: 5 }}>
-                          {dayEvents.slice(0, 3).map((event, eIdx) => (
+                          {dayEvents.slice(0, 3).map((event: any, eIdx: number) => (
                             <TouchableOpacity 
                               key={eIdx} 
                               onPress={() => router.push({ pathname: "/project/[id]/calendar", params: { id: event.tournage_id } } as any)}
@@ -1010,16 +779,28 @@ export default function MyProjects() {
         /* Layout Mobile avec SectionList standard */
         <SectionList
           sections={sections}
-          keyExtractor={(item, index) => item.id + index}
+          keyExtractor={(item: any, index: number) => item.id + index}
           renderItem={renderProjectItem}
-          renderSectionHeader={({ section: { title } }) => (
+          renderSectionHeader={({ section: { title } }: any) => (
             <Text style={styles.sectionHeader}>{title}</Text>
           )}
           contentContainerStyle={styles.listContent}
           ListEmptyComponent={
-            <Text style={styles.emptyText}>Aucun projet pour l'instant.</Text>
+            <View style={{ padding: 40, alignItems: 'center' }}>
+              <Ionicons name="film-outline" size={48} color={colors.text + "20"} />
+              <Text style={{ textAlign: "center", color: colors.text + "80", marginTop: 10 }}>
+                Aucun projet pour l'instant. Commencez à créer en appuyant sur le bouton + !
+              </Text>
+            </View>
           }
           stickySectionHeadersEnabled={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefreshing}
+              onRefresh={onRefresh}
+              tintColor={colors.primary}
+            />
+          }
         />
       )}
 
@@ -1068,7 +849,7 @@ export default function MyProjects() {
               </TouchableOpacity>
             </View>
 
-            {allNotifications.some(n => !n.isRead) && (
+            {allNotifications.some((n: any) => !n.isRead) && (
               <TouchableOpacity 
                 onPress={markAllAsRead}
                 style={{ marginBottom: 20, alignSelf: 'flex-start' }}
@@ -1080,7 +861,7 @@ export default function MyProjects() {
             <ScrollView showsVerticalScrollIndicator={false}>
               {allNotifications.length > 0 ? (
                 Object.entries(
-                  allNotifications.reduce((groups: any, notif) => {
+                  allNotifications.reduce((groups: any, notif: any) => {
                     const date = new Date(notif.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
                     if (!groups[date]) groups[date] = [];
                     groups[date].push(notif);
@@ -1121,7 +902,7 @@ export default function MyProjects() {
                             <Text style={{ fontSize: 12, color: isDark ? '#E2E8F0' : '#64748B' }}>{n.subtitle}</Text>
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
                                {n.project_image ? (
-                                 <Image source={{ uri: n.project_image }} style={{ width: 16, height: 16, borderRadius: 4 }} />
+                                 <Image source={{ uri: n.project_image }} style={{ width: 16, height: 16, borderRadius: 4 }} contentFit="cover" transition={200} />
                                ) : (
                                  <View style={{ width: 16, height: 16, borderRadius: 4, backgroundColor: colors.border, justifyContent: 'center', alignItems: 'center' }}>
                                    <Ionicons name="film-outline" size={10} color="#94A3B8" />

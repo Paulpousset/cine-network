@@ -1,4 +1,4 @@
-import { Text, View } from "@/components/Themed";
+import { Text, View } from "@/components/ui/Themed";
 import { GlobalStyles } from "@/constants/Styles";
 import { appEvents, EVENTS } from "@/lib/events";
 import { useTheme } from "@/providers/ThemeProvider";

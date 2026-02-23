@@ -1,6 +1,6 @@
-import ImageViewerModal from '@/components/ImageViewerModal';
-import ScreenContainer from '@/components/ScreenContainer';
-import StyledText from '@/components/StyledText';
+import ImageViewerModal from '@/components/common/ImageViewerModal';
+import ScreenContainer from '@/components/layout/ScreenContainer';
+import StyledText from '@/components/ui/StyledText';
 import { FilmingLocation } from '@/hooks/useFilmingLocations';
 import { supabase } from '@/lib/supabase';
 import { useTheme } from '@/providers/ThemeProvider';
@@ -10,17 +10,17 @@ import { Image } from 'expo-image';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  Dimensions,
-  Platform,
-  ScrollView,
-  Share,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-  useWindowDimensions,
+    ActivityIndicator,
+    Alert,
+    Dimensions,
+    Platform,
+    ScrollView,
+    Share,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
+    useWindowDimensions,
 } from 'react-native';
 
 const { width: WINDOW_WIDTH } = Dimensions.get('window');

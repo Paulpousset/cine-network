@@ -1,4 +1,4 @@
-import ClapLoading from "@/components/ClapLoading";
+import ClapLoading from "@/components/ui/ClapLoading";
 import { appEvents, EVENTS } from "@/lib/events";
 import { supabase } from "@/lib/supabase";
 import { useTheme } from "@/providers/ThemeProvider";

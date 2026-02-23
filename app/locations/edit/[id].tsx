@@ -1,7 +1,7 @@
-import AddressAutocomplete from '@/components/AddressAutocomplete';
-import CityAutocomplete from '@/components/CityAutocomplete';
-import ScreenContainer from '@/components/ScreenContainer';
-import StyledText from '@/components/StyledText';
+import AddressAutocomplete from '@/components/common/AddressAutocomplete';
+import CityAutocomplete from '@/components/common/CityAutocomplete';
+import ScreenContainer from '@/components/layout/ScreenContainer';
+import StyledText from '@/components/ui/StyledText';
 import { useFilmingLocations } from '@/hooks/useFilmingLocations';
 import { useLocationCategories } from '@/hooks/useLocationCategories';
 import { supabase } from '@/lib/supabase';
@@ -12,16 +12,16 @@ import * as ImagePicker from 'expo-image-picker';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  FlatList,
-  Modal,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    FlatList,
+    Modal,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 
 export default function EditLocationScreen() {

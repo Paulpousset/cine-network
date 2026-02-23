@@ -1,5 +1,5 @@
-import ClapLoading from "@/components/ClapLoading";
-import { Hoverable } from "@/components/Hoverable";
+import ClapLoading from "@/components/ui/ClapLoading";
+import { Hoverable } from "@/components/common/Hoverable";
 import { supabase } from "@/lib/supabase";
 import { updatePasswordSchema } from "@/schemas/auth";
 import { Ionicons } from "@expo/vector-icons";

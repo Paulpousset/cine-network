@@ -1,7 +1,7 @@
-import AppMap, { Marker } from "@/components/AppMap";
-import ClapLoading from "@/components/ClapLoading";
-import { Hoverable } from "@/components/Hoverable";
-import RoleFormFields from "@/components/RoleFormFields";
+import AppMap, { Marker } from "@/components/common/AppMap";
+import { Hoverable } from "@/components/common/Hoverable";
+import RoleFormFields from "@/components/profile/RoleFormFields";
+import ClapLoading from "@/components/ui/ClapLoading";
 import { useUserMode } from "@/hooks/useUserMode";
 import { useTheme } from "@/providers/ThemeProvider";
 import { NotificationService } from "@/services/NotificationService";
@@ -10,17 +10,17 @@ import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
-  Alert,
-  FlatList,
-  Modal,
-  Platform,
-  ScrollView,
-  SectionList,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    Alert,
+    FlatList,
+    Modal,
+    Platform,
+    ScrollView,
+    SectionList,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { supabase } from "../../../lib/supabase";
 import { JOB_TITLES } from "../../../utils/roles";

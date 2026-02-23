@@ -1,5 +1,5 @@
-import { Hoverable } from "@/components/Hoverable";
-import RoleFormFields from "@/components/RoleFormFields";
+import { Hoverable } from "@/components/common/Hoverable";
+import RoleFormFields from "@/components/profile/RoleFormFields";
 import { useThemedStyles } from "@/hooks/useThemedStyles";
 import { useUserMode } from "@/hooks/useUserMode";
 import { useTheme } from "@/providers/ThemeProvider";

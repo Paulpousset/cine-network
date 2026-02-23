@@ -1,4 +1,4 @@
-import ClapLoading from "@/components/ClapLoading";
+import ClapLoading from "@/components/ui/ClapLoading";
 import { supabase } from "@/lib/supabase";
 import { useTheme } from "@/providers/ThemeProvider";
 import { Ionicons } from "@expo/vector-icons";

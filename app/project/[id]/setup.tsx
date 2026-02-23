@@ -1,5 +1,5 @@
-import ClapLoading from "@/components/ClapLoading";
-import RoleFormFields from "@/components/RoleFormFields";
+import ClapLoading from "@/components/ui/ClapLoading";
+import RoleFormFields from "@/components/profile/RoleFormFields";
 import { useUserMode } from "@/hooks/useUserMode";
 import { useTheme } from "@/providers/ThemeProvider";
 import { JOB_TITLES } from "@/utils/roles";

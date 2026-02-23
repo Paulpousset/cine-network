@@ -46,3 +46,6 @@ GoogleService-Info.plist
 
 # Google Service Account Key
 tita-485608-0b710ce49066.json
+
+# add coverage folder
+coverage/

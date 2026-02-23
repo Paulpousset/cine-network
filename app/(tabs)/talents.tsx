@@ -1,5 +1,5 @@
-import ClapLoading from "@/components/ClapLoading";
-import { TalentCard } from "@/components/TalentCard";
+import ClapLoading from "@/components/ui/ClapLoading";
+import { TalentCard } from "@/components/profile/TalentCard";
 import { GlobalStyles } from "@/constants/Styles";
 import { useTalents } from "@/hooks/useTalents";
 import { JOB_TITLES } from "@/utils/roles";

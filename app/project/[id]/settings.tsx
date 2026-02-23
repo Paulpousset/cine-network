@@ -1,8 +1,8 @@
 import AddressAutocomplete from "@/app/components/AddressAutocomplete";
 import CityPicker from "@/app/components/CityPicker";
 import CountryPicker from "@/app/components/CountryPicker";
-import ClapLoading from "@/components/ClapLoading";
-import WebDatePicker from "@/components/WebDatePicker";
+import WebDatePicker from "@/components/common/WebDatePicker";
+import ClapLoading from "@/components/ui/ClapLoading";
 import { GlobalStyles } from "@/constants/Styles";
 import { useUserMode } from "@/hooks/useUserMode";
 import { supabase } from "@/lib/supabase";
@@ -13,15 +13,15 @@ import * as ImagePicker from "expo-image-picker";
 import { Stack, useFocusEffect, useGlobalSearchParams, useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
-  Alert,
-  Image,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    Alert,
+    Image,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { id } from "zod/v4/locales";
 // @ts-ignore
