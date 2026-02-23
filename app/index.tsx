@@ -1,6 +1,6 @@
-import DynamicLogo from "@/components/DynamicLogo";
-import FeatureDetailsModal from "@/components/FeatureDetailsModal";
-import { Hoverable } from "@/components/Hoverable";
+import DynamicLogo from "@/components/ui/DynamicLogo";
+import FeatureDetailsModal from "@/components/common/FeatureDetailsModal";
+import { Hoverable } from "@/components/common/Hoverable";
 import { appEvents, EVENTS } from "@/lib/events";
 import { useTheme } from "@/providers/ThemeProvider";
 import { Ionicons } from "@expo/vector-icons";

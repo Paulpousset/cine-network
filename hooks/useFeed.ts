@@ -1,120 +1,131 @@
-import { FeedPost } from "@/components/PostCard";
+import { FeedPost } from "@/components/feed/PostCard";
 import { appEvents, EVENTS } from "@/lib/events";
 import { supabase } from "@/lib/supabase";
 import { useUser } from "@/providers/UserProvider";
-import { useFocusEffect } from "expo-router";
-import { useCallback, useEffect, useRef, useState } from "react";
-import { AppState } from "react-native";
+import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
+
+const PAGE_SIZE = 15;
+
+interface RecommendedPostRPCResult {
+  p_id: string;
+  p_content: string;
+  p_image_url: string;
+  p_user_id: string;
+  p_created_at: string;
+  p_visibility: string;
+  p_project_id: string;
+  author_full_name: string;
+  author_avatar_url: string;
+  likes_total: string | number;
+  comments_total: string | number;
+  recommendation_score: number;
+  score_details: string;
+}
 
 export const useFeed = () => {
-  const { user, isLoading } = useUser();
-  const [posts, setPosts] = useState<FeedPost[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+  const { user } = useUser();
   const [feedMode, setFeedMode] = useState<"network" | "all">("all");
-  const isFetchingRef = useRef(false);
+  const queryClient = useQueryClient();
+
+  const fetchPosts = async ({ pageParam = 0 }): Promise<FeedPost[]> => {
+    const currentUserId = user?.id;
+    if (!currentUserId) return [];
+
+    console.log("[useFeed] Fetching page", pageParam, "for", currentUserId, "mode:", feedMode);
+
+    const { data: recData, error: recError } = await supabase.rpc("get_recommended_posts", {
+      user_id_param: currentUserId,
+      filter_mode: feedMode,
+      limit_param: PAGE_SIZE,
+      offset_param: pageParam * PAGE_SIZE
+    });
+    
+    if (recError) {
+      // Fallback for old RPC signature if new one hasn't been applied yet
+      if (recError.message.includes("too many arguments")) {
+        console.warn("RPC lacks pagination params, falling back...");
+        const { data: fallbackData, error: fallbackError } = await supabase.rpc("get_recommended_posts", {
+          user_id_param: currentUserId,
+          filter_mode: feedMode
+        });
+        if (fallbackError) throw fallbackError;
+        return processRecData(fallbackData || [], currentUserId);
+      }
+      throw recError;
+    }
+
+    return processRecData(recData || [], currentUserId);
+  };
+
+  const processRecData = async (recData: RecommendedPostRPCResult[], currentUserId: string): Promise<FeedPost[]> => {
+    if (recData.length === 0) return [];
+
+    const postIds = recData.map((p) => p.p_id);
+    const { data: userLikes } = await supabase
+      .from("post_likes")
+      .select("post_id")
+      .eq("user_id", currentUserId)
+      .in("post_id", postIds);
+    
+    const likedPostIds = new Set(userLikes?.map((l: any) => l.post_id) || []);
+
+    return recData.map((p) => ({
+      id: p.p_id,
+      content: p.p_content,
+      image_url: p.p_image_url,
+      created_at: p.p_created_at,
+      user_id: p.p_user_id,
+      user: {
+        full_name: p.author_full_name,
+        avatar_url: p.author_avatar_url,
+      },
+      likes_count: typeof p.likes_total === 'string' ? parseInt(p.likes_total) : p.likes_total,
+      comments_count: typeof p.comments_total === 'string' ? parseInt(p.comments_total) : p.comments_total,
+      user_has_liked: likedPostIds.has(p.p_id),
+      score: p.recommendation_score,
+      score_details: p.score_details
+    }));
+  };
+
+  const {
+    data,
+    isLoading: loading,
+    refetch,
+    isRefetching: refreshing,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage
+  } = useInfiniteQuery({
+    queryKey: ["feed", user?.id, feedMode],
+    queryFn: fetchPosts,
+    initialPageParam: 0,
+    getNextPageParam: (lastPage, allPages) => {
+      return lastPage.length === PAGE_SIZE ? allPages.length : undefined;
+    },
+    enabled: !!user?.id,
+    staleTime: 1000 * 60 * 2,
+  });
+
+  const posts = data?.pages.flat() || [];
 
   useEffect(() => {
-    // Listen for tutorial completion and blocks to refresh feed
     const unsubTutorial = appEvents.on(EVENTS.TUTORIAL_COMPLETED, () => {
-      console.log("[useFeed] Tutorial completed, refreshing...");
-      fetchPosts();
+      queryClient.invalidateQueries({ queryKey: ["feed"] });
     });
 
     const unsubBlock = appEvents.on(EVENTS.USER_BLOCKED, () => {
-      console.log("[useFeed] User block status changed, refreshing...");
-      fetchPosts();
+      queryClient.invalidateQueries({ queryKey: ["feed"] });
     });
 
     return () => {
       unsubTutorial();
       unsubBlock();
     };
-  }, []);
-
-  const fetchPosts = async () => {
-    if (isFetchingRef.current) return;
-    const currentUserId = user?.id;
-
-    if (!currentUserId) {
-      setLoading(false);
-      return;
-    }
-
-    try {
-      isFetchingRef.current = true;
-      if (posts.length === 0) {
-        setLoading(true);
-      }
-      console.log("[useFeed] Start fetching posts for", currentUserId, "mode:", feedMode);
-
-      // 1. Fetch from RPC for recommendation-based sorting (integrated direct in feed)
-      const { data: recData, error: recError } = await supabase.rpc("get_recommended_posts", {
-        user_id_param: currentUserId,
-        filter_mode: feedMode
-      });
-      
-      if (recError) throw recError;
-
-      let finalData: FeedPost[] = [];
-      
-      if (recData && recData.length > 0) {
-        // 2. Fetch likes for user_has_liked status if logged in
-        const postIds = recData.map((p: any) => p.p_id);
-        const { data: userLikes } = await supabase
-          .from("post_likes")
-          .select("post_id")
-          .eq("user_id", currentUserId)
-          .in("post_id", postIds);
-        
-        const likedPostIds = new Set(userLikes?.map((l: any) => l.post_id) || []);
-
-        finalData = recData.map((p: any) => ({
-          id: p.p_id,
-          content: p.p_content,
-          image_url: p.p_image_url,
-          created_at: p.p_created_at,
-          user_id: p.p_user_id,
-          user: {
-            full_name: p.author_full_name,
-            avatar_url: p.author_avatar_url,
-          },
-          likes_count: parseInt(p.likes_total),
-          comments_count: parseInt(p.comments_total),
-          user_has_liked: likedPostIds.has(p.p_id),
-          score: p.recommendation_score,
-          score_details: p.score_details
-        }));
-      }
-
-      setPosts(finalData);
-    } catch (e: any) {
-      console.error("[useFeed] Error in fetchPosts:", e.message);
-    } finally {
-      isFetchingRef.current = false;
-      setLoading(false);
-      setRefreshing(false);
-    }
-  };
-
-  useFocusEffect(
-    useCallback(() => {
-      fetchPosts();
-    }, [user?.id, feedMode]),
-  );
-
-  useEffect(() => {
-    const subscription = AppState.addEventListener("change", (nextAppState) => {
-      if (nextAppState === "active") {
-        fetchPosts();
-      }
-    });
-    return () => subscription.remove();
-  }, [user?.id, feedMode]);
+  }, [queryClient]);
 
   const onRefresh = () => {
-    setRefreshing(true);
-    fetchPosts();
+    refetch();
   };
 
   return {
@@ -125,5 +136,8 @@ export const useFeed = () => {
     feedMode,
     setFeedMode,
     userId: user?.id,
+    loadMore: fetchNextPage,
+    hasNextPage,
+    isLoadingMore: isFetchingNextPage
   };
 };

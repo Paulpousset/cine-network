@@ -1,5 +1,5 @@
-import ClapLoading from "@/components/ClapLoading";
-import ImageViewerModal from "@/components/ImageViewerModal";
+import ImageViewerModal from "@/components/common/ImageViewerModal";
+import ClapLoading from "@/components/ui/ClapLoading";
 import { GlobalStyles } from "@/constants/Styles";
 import { useUserMode } from "@/hooks/useUserMode";
 import { appEvents, EVENTS } from "@/lib/events";
@@ -10,20 +10,20 @@ import * as ImagePicker from "expo-image-picker";
 import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
-  Alert,
-  AppState,
-  Image,
-  KeyboardAvoidingView,
-  Linking,
-  Modal,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  useWindowDimensions,
-  View
+    Alert,
+    AppState,
+    Image,
+    KeyboardAvoidingView,
+    Linking,
+    Modal,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    useWindowDimensions,
+    View
 } from "react-native";
 import { supabase } from "../../lib/supabase";
 

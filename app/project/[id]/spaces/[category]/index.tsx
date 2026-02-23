@@ -1,4 +1,4 @@
-import ClapLoading from "@/components/ClapLoading";
+import ClapLoading from "@/components/ui/ClapLoading";
 import { ALL_TOOLS, getDefaultTools } from "@/constants/Tools";
 import { useUserMode } from "@/hooks/useUserMode";
 import { supabase } from "@/lib/supabase";

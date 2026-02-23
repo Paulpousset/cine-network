@@ -1,8 +1,8 @@
-import AppMap, { Marker } from '@/components/AppMap';
-import LocationCard from '@/components/LocationCard';
-import ScreenContainer from '@/components/ScreenContainer';
-import StyledText from '@/components/StyledText';
-import { Text, View } from '@/components/Themed';
+import AppMap, { Marker } from '@/components/common/AppMap';
+import LocationCard from '@/components/common/LocationCard';
+import ScreenContainer from '@/components/layout/ScreenContainer';
+import StyledText from '@/components/ui/StyledText';
+import { Text, View } from '@/components/ui/Themed';
 import { useFilmingLocations } from '@/hooks/useFilmingLocations';
 import { useLocationCategories } from '@/hooks/useLocationCategories';
 import { useTheme } from '@/providers/ThemeProvider';
@@ -11,16 +11,16 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
-  FlatList,
-  Modal,
-  Platform,
-  RefreshControl,
-  View as RNView,
-  ScrollView,
-  StyleSheet,
-  TextInput,
-  TouchableOpacity
+    ActivityIndicator,
+    FlatList,
+    Modal,
+    Platform,
+    RefreshControl,
+    View as RNView,
+    ScrollView,
+    StyleSheet,
+    TextInput,
+    TouchableOpacity
 } from 'react-native';
 
 // Pure JS Draggable Slider to avoid Native Module issues

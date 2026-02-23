@@ -1,13 +1,13 @@
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { BottomTabBarProps } from "@react-navigation/bottom-tabs";
-import { Link, Tabs, useRouter } from "expo-router";
+import { Link, Redirect, Tabs, useRouter } from "expo-router";
 import React from "react";
 import { Image, Pressable, View } from "react-native";
 
-import ChatIconWithBadge from "@/components/ChatIconWithBadge";
-import ClapLoading from "@/components/ClapLoading";
-import CustomTabBar from "@/components/CustomTabBar"; // Imported
-import NotificationIconWithBadge from "@/components/NotificationIconWithBadge";
+import NotificationIconWithBadge from "@/components/common/NotificationIconWithBadge";
+import CustomTabBar from "@/components/layout/CustomTabBar"; // Imported
+import ChatIconWithBadge from "@/components/messaging/ChatIconWithBadge";
+import ClapLoading from "@/components/ui/ClapLoading";
 import { appEvents, EVENTS } from "@/lib/events";
 import { useTheme } from "@/providers/ThemeProvider";
 import { useUser } from "@/providers/UserProvider";
@@ -25,7 +25,7 @@ function TabBarIcon(props: {
 export default function TabLayout() {
   const { colors, isDark } = useTheme();
   const router = useRouter();
-  const { profile, refreshProfile, isLoading: userLoading, isGuest } = useUser();
+  const { session, profile, refreshProfile, isLoading: userLoading, isGuest, isProfileComplete } = useUser();
 
   useEffect(() => {
     // Écouter spécifiquement les mises à jour de profil pour forcer le rafraîchissement
@@ -38,6 +38,23 @@ export default function TabLayout() {
       unsubProfile();
     };
   }, [refreshProfile]);
+
+  if (userLoading) {
+    return (
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: colors.background }}>
+        <ClapLoading size={40} color={colors.primary} />
+      </View>
+    );
+  }
+
+  // Guards
+  if (!session) {
+    return <Redirect href="/auth" />;
+  }
+
+  if (isProfileComplete === false && !isGuest) {
+    return <Redirect href="/complete-profile" />;
+  }
 
   const avatarUrl = profile?.avatar_url;
   const userRole = profile?.role;

@@ -1,4 +1,4 @@
-import ClapLoading from "@/components/ClapLoading";
+import ClapLoading from "@/components/ui/ClapLoading";
 import { GlobalStyles } from "@/constants/Styles";
 import { ALL_TOOLS } from "@/constants/Tools";
 import { useTheme } from "@/providers/ThemeProvider";

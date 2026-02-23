@@ -16,7 +16,7 @@ import {
     View,
 } from "react-native";
 
-import ClapLoading from "@/components/ClapLoading";
+import ClapLoading from "@/components/ui/ClapLoading";
 import { GlobalStyles } from "@/constants/Styles";
 import { supabase } from "@/lib/supabase";
 

@@ -1,6 +1,6 @@
-import ClapLoading from "@/components/ClapLoading";
-import HallOfFameCard from "@/components/HallOfFameCard";
-import ProjectTeamManager from "@/components/ProjectTeamManager";
+import ClapLoading from "@/components/ui/ClapLoading";
+import HallOfFameCard from "@/components/profile/HallOfFameCard";
+import ProjectTeamManager from "@/components/project/ProjectTeamManager";
 import { HallOfFameProject, useHallOfFame } from "@/hooks/useHallOfFame";
 import { useThemedStyles } from "@/hooks/useThemedStyles";
 import { supabase } from "@/lib/supabase";

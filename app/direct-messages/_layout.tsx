@@ -1,4 +1,4 @@
-import ConversationList from "@/components/ConversationList";
+import ConversationList from "@/components/messaging/ConversationList";
 import { useTheme } from "@/providers/ThemeProvider";
 import { Slot, Stack, useLocalSearchParams, useRouter } from "expo-router";
 import React from "react";

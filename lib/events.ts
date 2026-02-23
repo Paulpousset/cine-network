@@ -3,24 +3,24 @@
  * Used to trigger Sidebar refresh when messages are marked as read
  */
 
-type EventCallback = (data?: any) => void;
+type EventCallback<T = any> = (data?: T) => void;
 
 class EventEmitter {
   private listeners: Map<string, Set<EventCallback>> = new Map();
 
-  on(event: string, callback: EventCallback) {
+  on<T = any>(event: string, callback: EventCallback<T>) {
     if (!this.listeners.has(event)) {
       this.listeners.set(event, new Set());
     }
-    this.listeners.get(event)!.add(callback);
+    this.listeners.get(event)!.add(callback as EventCallback);
 
     // Return unsubscribe function
     return () => {
-      this.listeners.get(event)?.delete(callback);
+      this.listeners.get(event)?.delete(callback as EventCallback);
     };
   }
 
-  emit(event: string, data?: any) {
+  emit<T = any>(event: string, data?: T) {
     this.listeners.get(event)?.forEach((callback) => callback(data));
   }
 }

@@ -1,5 +1,5 @@
-import CityAutocomplete from "@/components/CityAutocomplete";
-import ClapLoading from "@/components/ClapLoading";
+import CityAutocomplete from "@/components/common/CityAutocomplete";
+import ClapLoading from "@/components/ui/ClapLoading";
 import { GlobalStyles } from "@/constants/Styles";
 import { useUserMode } from "@/hooks/useUserMode";
 import { appEvents, EVENTS } from "@/lib/events";

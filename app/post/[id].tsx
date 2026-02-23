@@ -1,5 +1,5 @@
-import ClapLoading from "@/components/ClapLoading";
-import PostCard from "@/components/PostCard";
+import ClapLoading from "@/components/ui/ClapLoading";
+import PostCard from "@/components/feed/PostCard";
 import { supabase } from "@/lib/supabase";
 import { useTheme } from "@/providers/ThemeProvider";
 import { useUser } from "@/providers/UserProvider";

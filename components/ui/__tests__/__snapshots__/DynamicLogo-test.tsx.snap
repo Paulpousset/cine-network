@@ -1,0 +1,15 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`DynamicLogo rend le logo en mode sombre quand isDark est true 1`] = `
+<SvgMock
+  height={40}
+  width={120}
+/>
+`;
+
+exports[`DynamicLogo utilise le logo violet comme repli si la couleur est inconnue 1`] = `
+<SvgMock
+  height={40}
+  width={120}
+/>
+`;

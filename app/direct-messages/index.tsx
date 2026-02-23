@@ -1,4 +1,4 @@
-import ConversationList from "@/components/ConversationList";
+import ConversationList from "@/components/messaging/ConversationList";
 import { useTheme } from "@/providers/ThemeProvider";
 import { Ionicons } from "@expo/vector-icons";
 import { router, Stack } from "expo-router";

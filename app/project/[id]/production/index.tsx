@@ -1,4 +1,4 @@
-import WebDatePicker from "@/components/WebDatePicker";
+import WebDatePicker from "@/components/common/WebDatePicker";
 import { useUserMode } from "@/hooks/useUserMode";
 import { Database } from "@/lib/database.types";
 import { supabase } from "@/lib/supabase";
