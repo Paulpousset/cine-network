@@ -8,17 +8,17 @@ import { Ionicons } from "@expo/vector-icons";
 import { Stack, useGlobalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-    Alert,
-    FlatList,
-    Modal,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    useWindowDimensions,
-    View,
+  Alert,
+  FlatList,
+  Modal,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  useWindowDimensions,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { supabase } from "../../../../lib/supabase";
@@ -49,6 +49,7 @@ export default function ChatList() {
   const [selectedTools, setSelectedTools] = useState<string[]>([]);
   const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
   const [projectMembers, setProjectMembers] = useState<any[]>([]);
+  const [nativeSpaces, setNativeSpaces] = useState<string[]>([]);
   const [creating, setCreating] = useState(false);
 
   const getCategoryColor = (category: string) => {
@@ -73,11 +74,11 @@ export default function ChatList() {
     if (projectId) {
       setLoading(true);
       fetchChannels();
-      if (isOwner) fetchProjectMembers();
+      fetchProjectMembers();
     } else {
       setDebugInfo("No Project ID found in params?? ID: " + typeof id);
     }
-  }, [projectId, isOwner]);
+  }, [projectId]);
 
   async function fetchProjectMembers() {
       const { data } = await supabase.from("project_roles")
@@ -91,11 +92,24 @@ export default function ChatList() {
               const cat = role.category || "Autre";
               if (!grouped[cat]) grouped[cat] = [];
               
-              if (!grouped[cat].some(m => m.id === role.assigned_profile.id)) {
+              if (role.assigned_profile && !grouped[cat].some(m => m.id === role.assigned_profile.id)) {
                   grouped[cat].push(role.assigned_profile);
               }
           });
           setProjectMembers(Object.entries(grouped).map(([category, members]) => ({ category, members })));
+      }
+
+      // Fetch active native spaces for this project
+      const { data: projData } = await supabase
+        .from("tournages")
+        .select("active_native_spaces")
+        .eq("id", projectId)
+        .maybeSingle();
+      
+      if (projData?.active_native_spaces) {
+        setNativeSpaces(projData.active_native_spaces);
+      } else {
+        setNativeSpaces([]);
       }
   }
 
@@ -150,7 +164,7 @@ export default function ChatList() {
 
       const { data: proj, error: projError } = await supabase
         .from("tournages")
-        .select("*")
+        .select("*, collaborators")
         .eq("id", projectId)
         .maybeSingle();
 
@@ -160,8 +174,10 @@ export default function ChatList() {
       }
 
       setProject(proj);
+      const isCollaborator = (proj?.collaborators || []).includes(userId);
       const userIsOwner =
         proj?.owner_id === userId ||
+        isCollaborator ||
         (isTutorialActive &&
           proj?.title?.includes("Vitrine") &&
           currentStep?.id?.startsWith("admin"));
@@ -181,10 +197,19 @@ export default function ChatList() {
       let categories: string[] = [];
       if (userIsOwner) {
         categories = Array.from(new Set(roles.map((r: any) => r.category)));
+        // Filter by active_native_spaces if it exists
+        if (proj?.active_native_spaces && Array.isArray(proj.active_native_spaces)) {
+           categories = categories.filter(cat => proj.active_native_spaces.includes(cat));
+        }
         categories = ["general", ...categories];
       } else {
         const myRoles = roles.filter((r: any) => r.assigned_profile_id === userId);
         categories = Array.from(new Set(myRoles.map((r: any) => r.category)));
+
+        // Filter by active_native_spaces for members too!
+        if (proj?.active_native_spaces && Array.isArray(proj.active_native_spaces)) {
+           categories = categories.filter(cat => proj.active_native_spaces.includes(cat));
+        }
 
         // Also check native space memberships
         const { data: manualNative } = await supabase
@@ -195,7 +220,9 @@ export default function ChatList() {
         
         if (manualNative && manualNative.length > 0) {
             manualNative.forEach(m => {
-                if (!categories.includes(m.category)) categories.push(m.category);
+                // Check if this manual category is also allowed/active
+                const isActive = !proj?.active_native_spaces || proj.active_native_spaces.includes(m.category);
+                if (isActive && !categories.includes(m.category)) categories.push(m.category);
             });
         }
 
@@ -215,11 +242,19 @@ export default function ChatList() {
           const { data } = await supabase.from("project_custom_spaces" as any).select("*").eq("project_id", projectId);
           customSpacesData = data || [];
       } else {
-          const { data } = await supabase.from("project_custom_spaces" as any)
-            .select("*, project_custom_space_members!inner(profile_id)")
-            .eq("project_id", projectId)
-            .eq("project_custom_space_members.profile_id", userId);
-          customSpacesData = data || [];
+          // Check if user is in any custom space
+          const { data: membership } = await supabase.from("project_custom_space_members" as any)
+            .select("space_id")
+            .eq("profile_id", userId);
+          
+          if (membership && membership.length > 0) {
+              const spaceIds = membership.map(m => m.space_id);
+              const { data } = await supabase.from("project_custom_spaces" as any)
+                .select("*")
+                .eq("project_id", projectId)
+                .in("id", spaceIds);
+              customSpacesData = data || [];
+          }
       }
 
       const customChannels: Channel[] = customSpacesData.map(cs => ({
@@ -428,6 +463,76 @@ export default function ChatList() {
                 </View>
 
                 <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+                    {/* Native Spaces Management for Owner */}
+                    {isOwner && (
+                      <View style={{ marginBottom: 25, borderBottomWidth: 1, borderBottomColor: colors.border, paddingBottom: 20 }}>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
+                          <Text style={[styles.label, { color: colors.primary, marginBottom: 0 }]}>Groupes automatiques par métier</Text>
+                          <TouchableOpacity 
+                            onPress={() => setIsAddModalVisible(false)}
+                            style={{ backgroundColor: colors.primary, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 15 }}
+                          >
+                            <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 12 }}>Terminer</Text>
+                          </TouchableOpacity>
+                        </View>
+                        <Text style={{ fontSize: 12, color: colors.text + "80", marginBottom: 15 }}>
+                          L'activation d'une catégorie crée immédiatement un groupe dédié.
+                        </Text>
+                        
+                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+                          {Array.from(new Set(projectMembers.map(s => s.category))).map(cat => {
+                            const isActive = nativeSpaces.includes(cat);
+                            return (
+                              <TouchableOpacity
+                                key={cat}
+                                onPress={async () => {
+                                  const newNative = isActive 
+                                    ? nativeSpaces.filter(n => n !== cat)
+                                    : [...nativeSpaces, cat];
+                                  
+                                  const { error } = await supabase
+                                    .from("tournages")
+                                    .update({ active_native_spaces: newNative } as any)
+                                    .eq("id", projectId);
+                                  
+                                  if (!error) {
+                                    setNativeSpaces(newNative);
+                                    fetchChannels();
+                                  }
+                                }}
+                                style={{
+                                  paddingHorizontal: 12,
+                                  paddingVertical: 8,
+                                  borderRadius: 20,
+                                  borderWidth: 1,
+                                  borderColor: isActive ? colors.primary : colors.border,
+                                  backgroundColor: isActive ? colors.primary + "15" : "transparent",
+                                  flexDirection: 'row',
+                                  alignItems: 'center',
+                                  gap: 6
+                                }}
+                              >
+                                <Ionicons 
+                                  name={isActive ? "checkbox" : "square-outline"} 
+                                  size={16} 
+                                  color={isActive ? colors.primary : colors.text + "60"} 
+                                />
+                                <Text style={{ 
+                                  color: isActive ? colors.primary : colors.text + "80",
+                                  fontWeight: isActive ? '600' : '400',
+                                  textTransform: 'uppercase',
+                                  fontSize: 12
+                                }}>
+                                  {cat}
+                                </Text>
+                              </TouchableOpacity>
+                            );
+                          })}
+                        </View>
+                      </View>
+                    )}
+
+                    <Text style={[styles.label, { color: colors.primary }]}>Créer un espace personnalisé</Text>
                     <Text style={styles.label}>Nom de l'espace</Text>
                     <TextInput
                         style={[styles.input, { color: colors.text, borderColor: colors.border }]}
@@ -445,7 +550,7 @@ export default function ChatList() {
                                     {section.category}
                                 </Text>
                                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                                    {section.members.map(member => (
+                                    {section.members.map((member: any) => (
                                         <TouchableOpacity 
                                             key={member.id} 
                                             style={[

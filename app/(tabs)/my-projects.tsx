@@ -8,16 +8,16 @@ import { Image } from "expo-image";
 import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
 import {
-  Modal,
-  Platform,
-  RefreshControl,
-  ScrollView,
-  SectionList,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  useWindowDimensions,
-  View
+    Modal,
+    Platform,
+    RefreshControl,
+    ScrollView,
+    SectionList,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    useWindowDimensions,
+    View
 } from "react-native";
 
 import DynamicLogo from "@/components/ui/DynamicLogo";
@@ -30,6 +30,7 @@ type Project = {
   title: string;
   description: string;
   type: string;
+  project_types?: string[];
   created_at: string;
   owner_id: string;
   image_url?: string;
@@ -219,10 +220,13 @@ export default function MyProjects() {
                     flexDirection: "row",
                     alignItems: "center",
                     flexShrink: 0,
+                    gap: 4,
                   }}
                 >
                   <Text style={[styles.cardType, { fontSize: isLg ? 10 : 8 }]}>
-                    {item.type.replace("_", " ")}
+                    {item.project_types && item.project_types.length > 0
+                      ? item.project_types.map(t => t.replace("_", " ")).join(", ")
+                      : item.type.replace("_", " ")}
                   </Text>
                   {item.is_paid && <Text style={[styles.paidBadge, { fontSize: isLg ? 9 : 7, paddingHorizontal: 4 }]}>PAYÉ</Text>}
                 </View>
@@ -547,9 +551,9 @@ export default function MyProjects() {
                              borderColor: colors.card
                            }} />
                            <Ionicons 
-                             name={notif.type === 'application' ? 'person-add' : notif.type === 'file' ? 'document' : 'people'} 
+                             name={notif.type === 'application' ? 'person-add' : notif.type === 'file' ? 'document' : notif.type === 'calendar' ? 'calendar' : 'people'} 
                              size={16} 
-                             color={notif.type === 'application' ? '#E91E63' : notif.type === 'file' ? '#3B82F6' : '#10B981'} 
+                             color={notif.type === 'application' ? '#E91E63' : notif.type === 'file' ? '#3B82F6' : notif.type === 'calendar' ? '#F59E0B' : '#10B981'} 
                            />
                         </View>
                         <View style={{ flex: 1 }}>
@@ -890,11 +894,11 @@ export default function MyProjects() {
                             backgroundColor: n.isRead ? 'transparent' : colors.primary + '05'
                           }}
                         >
-                          <View style={{ width: 40, height: 40, borderRadius: 10, backgroundColor: n.type === 'application' ? '#E91E6315' : n.type === 'file' ? '#3B82F615' : '#10B98115', justifyContent: 'center', alignItems: 'center' }}>
+                          <View style={{ width: 40, height: 40, borderRadius: 10, backgroundColor: n.type === 'application' ? '#E91E6315' : n.type === 'file' ? '#3B82F615' : n.type === 'calendar' ? '#F59E0B15' : '#10B98115', justifyContent: 'center', alignItems: 'center' }}>
                             <Ionicons 
-                                name={n.type === 'application' ? 'person-add' : n.type === 'file' ? 'document' : 'people'} 
+                                name={n.type === 'application' ? 'person-add' : n.type === 'file' ? 'document' : n.type === 'calendar' ? 'calendar' : 'people'} 
                                 size={18} 
-                                color={n.type === 'application' ? '#E91E63' : n.type === 'file' ? '#3B82F6' : '#10B981'} 
+                                color={n.type === 'application' ? '#E91E63' : n.type === 'file' ? '#3B82F6' : n.type === 'calendar' ? '#F59E0B' : '#10B981'} 
                             />
                           </View>
                           <View style={{ flex: 1 }}>

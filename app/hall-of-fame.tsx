@@ -1,6 +1,6 @@
-import ClapLoading from "@/components/ui/ClapLoading";
 import HallOfFameCard from "@/components/profile/HallOfFameCard";
 import ProjectTeamManager from "@/components/project/ProjectTeamManager";
+import ClapLoading from "@/components/ui/ClapLoading";
 import { HallOfFameProject, useHallOfFame } from "@/hooks/useHallOfFame";
 import { useThemedStyles } from "@/hooks/useThemedStyles";
 import { supabase } from "@/lib/supabase";
@@ -13,20 +13,20 @@ import { Stack, useRouter } from "expo-router";
 import { useVideoPlayer, VideoView } from "expo-video";
 import React, { useState } from "react";
 import {
-  Alert,
-  FlatList,
-  Image,
-  Linking,
-  Modal,
-  Platform,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  useWindowDimensions,
-  View,
+    Alert,
+    FlatList,
+    Image,
+    Linking,
+    Modal,
+    Platform,
+    RefreshControl,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    useWindowDimensions,
+    View,
 } from "react-native";
 
 function VideoPreview({ url }: { url: string }) {
@@ -107,8 +107,9 @@ export default function HallOfFameScreen({
   const [addTitle, setAddTitle] = useState("");
   const [addDesc, setAddDesc] = useState("");
   const [addUrl, setAddUrl] = useState("");
-  const [addType, setAddType] = useState("court_metrage");
+  const [addTypes, setAddTypes] = useState<string[]>(["court_metrage"]);
   const [addImageUrl, setAddImageUrl] = useState("");
+  const [addProductionCompany, setAddProductionCompany] = useState("");
 
   // Team Modal
   const [teamModalVisible, setTeamModalVisible] = useState(false);
@@ -319,7 +320,8 @@ export default function HallOfFameScreen({
           description: addDesc.trim(),
           final_result_url: addUrl.trim(),
           image_url: addImageUrl,
-          type: addType,
+          type: addTypes[0], // On garde le premier pour la compatibilité si besoin, mais on pourrait stocker l'array si la DB le supporte. Si la DB attend un string, on prend le premier.
+          production_company: addProductionCompany.trim(),
           status: "completed",
         })
         .select()
@@ -358,7 +360,8 @@ export default function HallOfFameScreen({
     setAddDesc("");
     setAddUrl("");
     setAddImageUrl("");
-    setAddType("court_metrage");
+    setAddTypes(["court_metrage"]);
+    setAddProductionCompany("");
   }
 
   async function saveEdit() {
@@ -779,7 +782,7 @@ export default function HallOfFameScreen({
                 placeholder="Ex: Mon Chef-d'œuvre"
               />
 
-              <Text style={styles.label}>Type de projet</Text>
+              <Text style={styles.label}>Type de projet (sélectionnez-en un ou plusieurs)</Text>
               <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 10 }}>
                 {[
                   { value: "court_metrage", label: "Court" },
@@ -788,19 +791,36 @@ export default function HallOfFameScreen({
                   { value: "clip", label: "Clip" },
                   { value: "publicite", label: "Pub" },
                   { value: "documentaire", label: "Docu" },
+                  { value: "etudiant", label: "Étudiant" },
                 ].map((t) => (
                   <TouchableOpacity
                     key={t.value}
                     style={[
                       { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20, borderWidth: 1, borderColor: colors.border },
-                      addType === t.value && { backgroundColor: colors.primary, borderColor: colors.primary }
+                      addTypes.includes(t.value) && { backgroundColor: colors.primary, borderColor: colors.primary }
                     ]}
-                    onPress={() => setAddType(t.value)}
+                    onPress={() => {
+                      if (addTypes.includes(t.value)) {
+                        if (addTypes.length > 1) {
+                          setAddTypes(addTypes.filter(v => v !== t.value));
+                        }
+                      } else {
+                        setAddTypes([...addTypes, t.value]);
+                      }
+                    }}
                   >
-                    <Text style={[{ fontSize: 12, color: colors.text }, addType === t.value && { color: 'white' }]}>{t.label}</Text>
+                    <Text style={[{ fontSize: 12, color: colors.text }, addTypes.includes(t.value) && { color: 'white' }]}>{t.label}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
+
+              <Text style={styles.label}>Société de production (optionnel)</Text>
+              <TextInput
+                style={styles.textInput}
+                value={addProductionCompany}
+                onChangeText={setAddProductionCompany}
+                placeholder="Ex: Gaumont, Netflix..."
+              />
 
               <Text style={styles.label}>Description (optionnel)</Text>
               <TextInput

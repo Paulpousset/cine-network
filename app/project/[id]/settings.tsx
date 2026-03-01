@@ -23,7 +23,7 @@ import {
     TouchableOpacity,
     View,
 } from "react-native";
-import { id } from "zod/v4/locales";
+
 // @ts-ignore
 
 const PROJECT_TYPES = [
@@ -52,6 +52,7 @@ export default function ProjectSettings() {
 
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [isOwner, setIsOwner] = useState(false);
+  const [isTrueOwner, setIsTrueOwner] = useState(false);
   const [userRoles, setUserRoles] = useState<any[]>([]);
 
   // Form fields
@@ -185,8 +186,9 @@ export default function ProjectSettings() {
         return;
       }
       setProject(projectData);
-      const isUserOwner = projectData.owner_id === userId;
-      setIsOwner(isUserOwner);
+      const isUserCollaborator = projectData.owner_id === userId || (projectData.collaborators || []).includes(userId);
+      setIsOwner(isUserCollaborator);
+      setIsTrueOwner(projectData.owner_id === userId);
 
       setTitle(projectData.title);
       setDescription(projectData.description || "");
@@ -293,7 +295,11 @@ export default function ProjectSettings() {
           "\n\nNote: Nous n'avons pas pu localiser l'adresse précisément sur la carte. Vérifiez l'orthographe ou utilisez une ville connue.";
       }
 
-      Alert.alert("Succès", successMsg);
+      if (Platform.OS === "web") {
+        window.alert(successMsg);
+      } else {
+        Alert.alert("Succès", successMsg);
+      }
       fetchData();
     } catch (error) {
       Alert.alert("Erreur", (error as Error).message);
@@ -360,6 +366,73 @@ export default function ProjectSettings() {
   }
 
   async function handleDeleteProject() {
+    const performDelete = async () => {
+      try {
+        setSaving(true);
+
+        // 1. Delete dependent data manually because foreign keys might not be set to CASCADE
+
+        // Delete messages
+        await supabase
+          .from("project_messages" as any)
+          .delete()
+          .eq("project_id", projectId);
+
+        // Delete events
+        await supabase
+          .from("project_events" as any)
+          .delete()
+          .eq("tournage_id", projectId);
+
+        // Delete roles (and related applications if they don't cascade, but usually roles->tournage is cascade?
+        // If not, we delete applications first then roles)
+        // Let's assume we need to be thorough.
+        const { data: roles } = await supabase
+          .from("project_roles")
+          .select("id")
+          .eq("tournage_id", projectId);
+        if (roles && roles.length > 0) {
+          const roleIds = roles.map((r) => r.id);
+          // Delete applications for these roles
+          await supabase
+            .from("applications")
+            .delete()
+            .in("role_id", roleIds);
+          // Delete roles
+          await supabase
+            .from("project_roles")
+            .delete()
+            .eq("tournage_id", projectId);
+        }
+
+        // Delete posts linked to project if any
+        await supabase.from("posts").delete().eq("project_id", projectId);
+
+        // 2. Finally delete the project
+        const { error } = await supabase
+          .from("tournages")
+          .delete()
+          .eq("id", projectId);
+        if (error) throw error;
+
+        router.replace("/(tabs)/my-projects");
+      } catch (error) {
+        Alert.alert("Erreur", (error as Error).message);
+      } finally {
+        setSaving(false);
+      }
+    };
+
+    if (Platform.OS === "web") {
+      const confirmed = window.confirm(
+        "Supprimer le projet\n\nÊtes-vous sûr de vouloir supprimer ce projet ? Cette action est irréversible."
+      );
+      if (confirmed) {
+        performDelete();
+      }
+      return;
+    }
+
     Alert.alert(
       "Supprimer le projet",
       "Êtes-vous sûr de vouloir supprimer ce projet ? Cette action est irréversible.",
@@ -368,68 +441,46 @@ export default function ProjectSettings() {
         {
           text: "Supprimer",
           style: "destructive",
-          onPress: async () => {
-            try {
-              setSaving(true);
-
-              // 1. Delete dependent data manually because foreign keys might not be set to CASCADE
-
-              // Delete messages
-              await supabase
-                .from("project_messages" as any)
-                .delete()
-                .eq("project_id", id);
-
-              // Delete events
-              await supabase
-                .from("project_events" as any)
-                .delete()
-                .eq("tournage_id", id);
-
-              // Delete roles (and related applications if they don't cascade, but usually roles->tournage is cascade?
-              // If not, we delete applications first then roles)
-              // Let's assume we need to be thorough.
-              const { data: roles } = await supabase
-                .from("project_roles")
-                .select("id")
-                .eq("tournage_id", id);
-              if (roles && roles.length > 0) {
-                const roleIds = roles.map((r) => r.id);
-                // Delete applications for these roles
-                await supabase
-                  .from("applications")
-                  .delete()
-                  .in("role_id", roleIds);
-                // Delete roles
-                await supabase
-                  .from("project_roles")
-                  .delete()
-                  .eq("tournage_id", id);
-              }
-
-              // Delete posts linked to project if any
-              await supabase.from("posts").delete().eq("project_id", id);
-
-              // 2. Finally delete the project
-              const { error } = await supabase
-                .from("tournages")
-                .delete()
-                .eq("id", id);
-              if (error) throw error;
-
-              router.replace("/(tabs)/my-projects");
-            } catch (error) {
-              Alert.alert("Erreur", (error as Error).message);
-            } finally {
-              setSaving(false);
-            }
-          },
+          onPress: performDelete,
         },
       ],
     );
   }
 
   async function handleRemoveParticipant(roleId: string) {
+    const performRemove = async () => {
+      try {
+        // Remove accepted application to allow re-apply
+        await supabase
+          .from("applications")
+          .delete()
+          .eq("role_id", roleId)
+          .eq("status", "accepted");
+
+        const { error } = await supabase
+          .from("project_roles")
+          .update({ assigned_profile_id: null, status: "open" })
+          .eq("id", roleId);
+
+        if (error) throw error;
+        fetchData();
+      } catch (error) {
+        if (Platform.OS === "web") {
+          window.alert("Erreur: " + (error as Error).message);
+        } else {
+          Alert.alert("Erreur", (error as Error).message);
+        }
+      }
+    };
+
+    if (Platform.OS === "web") {
+      const confirmed = window.confirm("Retirer le participant\n\nVoulez-vous retirer ce participant du projet ?");
+      if (confirmed) {
+        performRemove();
+      }
+      return;
+    }
+
     Alert.alert(
       "Retirer le participant",
       "Voulez-vous retirer ce participant du projet ?",
@@ -438,26 +489,7 @@ export default function ProjectSettings() {
         {
           text: "Retirer",
           style: "destructive",
-          onPress: async () => {
-            try {
-              // Remove accepted application to allow re-apply
-              await supabase
-                .from("applications")
-                .delete()
-                .eq("role_id", roleId)
-                .eq("status", "accepted");
-
-              const { error } = await supabase
-                .from("project_roles")
-                .update({ assigned_profile_id: null, status: "open" })
-                .eq("id", roleId);
-
-              if (error) throw error;
-              fetchData();
-            } catch (error) {
-              Alert.alert("Erreur", (error as Error).message);
-            }
-          },
+          onPress: performRemove,
         },
       ],
     );
@@ -808,26 +840,28 @@ export default function ProjectSettings() {
             </View>
 
             {/* SECTION 6: DANGER ZONE */}
-            <View style={[styles.formSection, { borderColor: colors.danger + "40", backgroundColor: isDark ? 'transparent' : '#fff9f9' }]}>
-              <View style={styles.formSectionHeader}>
-                <Ionicons name="warning-outline" size={18} color={colors.danger} />
-                <Text style={[styles.formSectionTitle, { color: colors.danger }]}>Zone de danger</Text>
-              </View>
+            {isTrueOwner && (
+              <View style={[styles.formSection, { borderColor: colors.danger + "40", backgroundColor: isDark ? 'transparent' : '#fff9f9' }]}>
+                <View style={styles.formSectionHeader}>
+                  <Ionicons name="warning-outline" size={18} color={colors.danger} />
+                  <Text style={[styles.formSectionTitle, { color: colors.danger }]}>Zone de danger</Text>
+                </View>
 
-              <TouchableOpacity
-                style={styles.deleteButton}
-                onPress={handleDeleteProject}
-                disabled={saving}
-              >
-                {saving ? (
-                  <ClapLoading color={colors.danger} size={24} />
-                ) : (
-                  <Text style={styles.deleteButtonText}>
-                    Supprimer définitivement ce projet
-                  </Text>
-                )}
-              </TouchableOpacity>
-            </View>
+                <TouchableOpacity
+                  style={styles.deleteButton}
+                  onPress={handleDeleteProject}
+                  disabled={saving}
+                >
+                  {saving ? (
+                    <ClapLoading color={colors.danger} size={24} />
+                  ) : (
+                    <Text style={styles.deleteButtonText}>
+                      Supprimer définitivement ce projet
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            )}
           </>
         )}
 

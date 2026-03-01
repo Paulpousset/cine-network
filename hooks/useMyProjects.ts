@@ -8,6 +8,7 @@ export interface Project {
   title: string;
   description: string;
   type: string;
+  project_types?: string[];
   created_at: string;
   owner_id: string;
   image_url?: string;
@@ -23,7 +24,8 @@ export const useMyProjectsData = (userId: string | undefined) => {
   const ownedQuery = useQuery({
     queryKey: ["projects", "owned", userId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      // PROJETS POSSÉDÉS (OWNER)
+      const { data: ownedData, error: ownedError } = await supabase
         .from("tournages")
         .select(`
             *,
@@ -38,15 +40,64 @@ export const useMyProjectsData = (userId: string | undefined) => {
         .neq("status", "completed")
         .order("created_at", { ascending: false });
 
-      if (error) throw error;
+      if (ownedError) throw ownedError;
 
-      let projects = (data || []).map(p => ({
+      // PROJETS OÙ L'UTILISATEUR EST COLLABORATEUR (ADMIN via array collaborators)
+      const { data: collabData, error: collabError } = await supabase
+        .from("tournages")
+        .select(`
+            *,
+            team:project_roles(
+                id,
+                title,
+                show_in_team,
+                assigned_profile:profiles(id, avatar_url, full_name)
+            )
+        `)
+        .contains("collaborators", [userId])
+        .neq("owner_id", userId)
+        .neq("status", "completed");
+
+      if (collabError) throw collabError;
+
+      // PROJETS OÙ L'UTILISATEUR EST COLLABORATEUR (Legacy via project_roles admin)
+      const { data: adminRoles, error: adminError } = await supabase
+        .from("project_roles")
+        .select(`
+          tournages (
+            *,
+            team:project_roles(
+                id,
+                title,
+                show_in_team,
+                assigned_profile:profiles(id, avatar_url, full_name)
+            )
+          )
+        `)
+        .eq("assigned_profile_id", userId)
+        .eq("is_category_admin", true)
+        .eq("status", "assigned")
+        .neq("tournages.owner_id", userId)
+        .neq("tournages.status", "completed");
+
+      if (adminError) throw adminError;
+
+      const legacyCollabs = (adminRoles || [])
+        .map((r: any) => r.tournages)
+        .filter((t: any) => t !== null);
+
+      let projects = [...(ownedData || []), ...(collabData || []), ...legacyCollabs].map(p => ({
         ...p,
         team_visible: p.team?.filter((r: any) => r.show_in_team && r.assigned_profile).map((r: any) => ({
           ...r.assigned_profile,
           role_title: r.title
         })) || []
       }));
+
+      // Dédupliquer au cas où (même si filtré par neq owner_id)
+      const uniqueProjectsMap = new Map();
+      projects.forEach(p => uniqueProjectsMap.set(p.id, p));
+      projects = Array.from(uniqueProjectsMap.values());
 
       if (projects.length > 0) {
         const tournageIds = projects.map((p) => p.id);
@@ -90,13 +141,16 @@ export const useMyProjectsData = (userId: string | undefined) => {
         .eq("assigned_profile_id", userId)
         .neq("tournages.owner_id", userId)
         .neq("tournages.status", "completed")
-        .eq("status", "assigned");
+        .eq("status", "assigned")
+        .or('is_category_admin.eq.false,is_category_admin.is.null'); // On exclut les admins déjà dans ownedQuery
 
       if (error) throw error;
 
       const participatingMap = new Map();
+      const ownedIds = new Set(ownedQuery.data?.map(p => p.id) || []);
+      
       data?.forEach((p: any) => {
-        if (p.tournages && p.tournages.status !== "completed") {
+        if (p.tournages && p.tournages.status !== "completed" && !ownedIds.has(p.tournages.id)) {
           const proj = {
             ...p.tournages,
             team_visible: p.tournages.team?.filter((r: any) => r.show_in_team && r.assigned_profile).map((r: any) => ({
@@ -198,15 +252,30 @@ export const useMyProjectsData = (userId: string | undefined) => {
       const seenJson = await AsyncStorage.getItem("seen_project_notifications");
       const seenIds: string[] = seenJson ? JSON.parse(seenJson) : [];
 
-      const [appsResp, filesResp, participantsResp] = await Promise.all([
+      const [appsResp, filesResp, participantsResp, eventsResp] = await Promise.all([
         ownedIds.length > 0 
           ? supabase.from('applications').select('*, candidate:profiles(full_name), role:project_roles!inner(title, tournage:tournages(title, id, image_url))').eq('status', 'pending').in('project_roles.tournage_id', ownedIds).order('created_at', { ascending: false }).limit(20)
           : Promise.resolve({ data: [] }),
         supabase.from('project_files').select('*, uploader:profiles(full_name), project:tournages(title, id, image_url)').in('project_id', allProjectIds).order('created_at', { ascending: false }).limit(20),
-        supabase.from('project_roles').select('*, assigned_profile:profiles(full_name), tournage:tournages(title, id, image_url)').in('tournage_id', allProjectIds).not('assigned_profile_id', 'is', null).order('created_at', { ascending: false }).limit(20)
+        supabase.from('project_roles').select('*, assigned_profile:profiles(full_name), tournage:tournages(title, id, image_url)').in('tournage_id', allProjectIds).not('assigned_profile_id', 'is', null).order('created_at', { ascending: false }).limit(20),
+        supabase.from('project_events' as any).select('*, project:tournages(title, id, image_url)').in('tournage_id', allProjectIds).order('created_at', { ascending: false }).limit(20)
       ]);
 
       let allNotifs: any[] = [];
+
+      if (eventsResp.data) {
+        allNotifs = [...allNotifs, ...eventsResp.data.map(e => ({
+          id: e.id,
+          type: 'calendar',
+          title: 'Calendrier',
+          subtitle: `Nouvel événement : "${e.title}"`,
+          project_title: e.project?.title,
+          project_image: e.project?.image_url,
+          created_at: e.created_at,
+          project_id: e.tournage_id,
+          isRead: seenIds.includes(e.id)
+        }))];
+      }
 
       if (appsResp.data) {
         allNotifs = [...allNotifs, ...appsResp.data.map(a => ({

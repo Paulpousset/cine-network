@@ -6,17 +6,17 @@ import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
-  FlatList,
-  Image,
-  Modal,
-  Platform,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    FlatList,
+    Image,
+    Modal,
+    Platform,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 
 type ProjectCharacter =
@@ -121,11 +121,11 @@ export default function CastingScreen() {
     // Check if owner
     const { data: project } = await supabase
       .from("tournages")
-      .select("owner_id")
+      .select("owner_id, collaborators")
       .eq("id", id)
       .single();
 
-    if (project?.owner_id === user.id) {
+    if (project?.owner_id === user.id || (project?.collaborators || []).includes(user.id)) {
       setHasAccess(true);
       setCheckingAccess(false);
       return;

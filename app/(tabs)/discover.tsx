@@ -2,7 +2,7 @@ import HallOfFameScreen from '@/app/hall-of-fame';
 import LocationsScreen from '@/app/locations/index';
 import { useTheme } from '@/providers/ThemeProvider';
 import { Ionicons } from '@expo/vector-icons';
-import { Stack } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { Platform, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 
@@ -10,6 +10,7 @@ export default function DiscoverScreen() {
   const { colors, isDark } = useTheme();
   const [activeTab, setActiveTab] = useState<'hall-of-fame' | 'locations'>('hall-of-fame');
   const { width } = useWindowDimensions();
+  const router = useRouter();
   const isWebLarge = Platform.OS === 'web' && width >= 768;
 
   const styles = createStyles(colors, isDark);
@@ -20,6 +21,14 @@ export default function DiscoverScreen() {
         options={{ 
           title: "Découvrir",
           headerShown: Platform.OS !== 'web',
+          headerRight: () => activeTab === 'hall-of-fame' ? (
+            <TouchableOpacity 
+              onPress={() => router.push('/hall-of-fame')}
+              style={{ marginRight: 15 }}
+            >
+              <Ionicons name="add" size={24} color={colors.primary} />
+            </TouchableOpacity>
+          ) : null,
         }} 
       />
       

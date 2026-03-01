@@ -2,12 +2,12 @@ import ClapLoading from "@/components/ui/ClapLoading";
 import { useTheme } from "@/providers/ThemeProvider";
 import React, { useState } from "react";
 import {
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 
 type CityPickerProps = {
@@ -30,7 +30,6 @@ export default function CityPicker({
   // Fonction qui appelle l'API Photon (OpenStreetMap)
   async function searchCities(text: string) {
     setQuery(text);
-    onSelect(text); // On met à jour le parent en temps réel aussi (au cas où il ne clique pas)
 
     if (text.length < 2) {
       setSuggestions([]);
@@ -150,7 +149,7 @@ const styles = StyleSheet.create({
   },
   suggestionsBox: {
     position: "absolute",
-    top: 50, // Juste en dessous de l'input
+    top: "100%", // Juste en dessous de l'input
     left: 0,
     right: 0,
     borderWidth: 1,
@@ -161,7 +160,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 5,
-    zIndex: 1000,
+    zIndex: 2000,
   },
   item: {
     padding: 12,

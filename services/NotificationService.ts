@@ -228,6 +228,7 @@ export const NotificationService = {
     receiverId: string;
     projectTitle: string;
     roleTitle: string;
+    projectId?: string;
   }) => {
     return NotificationService.sendGenericNotification({
       receiverId: params.receiverId,
@@ -235,7 +236,29 @@ export const NotificationService = {
       body: `On vous propose le rôle "${params.roleTitle}" sur le projet "${params.projectTitle}".`,
       data: {
         type: "role_invitation",
-        url: "/notifications",
+        projectId: params.projectId,
+        url: params.projectId ? `/project/${params.projectId}` : "/notifications",
+      },
+    });
+  },
+
+  /**
+   * Notification for a project collaborator invitation
+   */
+  sendCollaboratorInvitationNotification: async (params: {
+    receiverId: string;
+    projectTitle: string;
+    projectId: string;
+    inviterName: string;
+  }) => {
+    return NotificationService.sendGenericNotification({
+      receiverId: params.receiverId,
+      title: "Invitation Collaboration",
+      body: `${params.inviterName} vous invite à collaborer sur le projet "${params.projectTitle}" en tant qu'administrateur.`,
+      data: {
+        type: "collaborator_invitation",
+        projectId: params.projectId,
+        url: `/project/${params.projectId}`,
       },
     });
   },

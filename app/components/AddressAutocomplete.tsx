@@ -45,7 +45,6 @@ export default function AddressAutocomplete({
 
   async function searchAddress(text: string) {
     setQuery(text);
-    onSelect(text);
 
     if (text.length < 3) {
       setSuggestions([]);
@@ -75,12 +74,24 @@ export default function AddressAutocomplete({
 
   function handleSelect(item: any) {
     const props = item.properties;
-    const streetPart = [props.housenumber, props.street].filter(Boolean).join(' ') || props.name || props.city;
-    const itemCity = props.city;
-    const itemZipcode = props.postcode;
-    const country = props.country;
+    
+    // Prioritize housenumber + street, then name, then city
+    const streetPart = props.street 
+      ? [props.housenumber, props.street].filter(Boolean).join(' ')
+      : props.name || props.city || "";
+      
+    const itemCity = props.city || "";
+    const itemZipcode = props.postcode || "";
+    const country = props.country || "";
 
-    const displayLabel = streetPart + (country ? `, ${country}` : '');
+    // Build a nice display label
+    let displayLabel = streetPart;
+    if (itemCity && !streetPart.includes(itemCity)) {
+      displayLabel += `, ${itemCity}`;
+    }
+    if (country && !displayLabel.includes(country)) {
+      displayLabel += `, ${country}`;
+    }
 
     setQuery(displayLabel);
     setShowList(false);
@@ -126,19 +137,24 @@ export default function AddressAutocomplete({
           >
             {suggestions.map((item, index) => {
               const props = item.properties;
-              const mainLabel = [props.housenumber, props.street].filter(Boolean).join(' ') || props.name || props.city;
+              
+              // Correct logic for main label in suggestions
+              const mainLabel = props.street 
+                ? [props.housenumber, props.street].filter(Boolean).join(' ')
+                : props.name || props.city || "";
+                
               const subLabel = [props.postcode, props.city, props.state, props.country]
                 .filter(Boolean)
-                .filter((val, index, self) => self.indexOf(val) === index && val !== mainLabel)
+                .filter((val, idx, self) => self.indexOf(val) === idx && val !== mainLabel)
                 .join(', ');
 
               return (
                 <TouchableOpacity
-                  key={item.properties.id || index}
+                  key={props.osm_id || props.id || index}
                   style={styles.item}
                   onPress={() => handleSelect(item)}
                 >
-                  <Text style={styles.itemText}>{mainLabel}</Text>
+                  <Text style={[styles.itemText, { color: colors.text }]}>{mainLabel}</Text>
                   {subLabel ? <Text style={{ fontSize: 12, color: colors.textSecondary }}>{subLabel}</Text> : null}
                 </TouchableOpacity>
               );
@@ -167,10 +183,14 @@ function createStyles(colors: any, isDark: boolean) {
     top: 15, // Adjusted to align with input height
   },
   suggestionsBox: {
-    backgroundColor: colors.background,
+    backgroundColor: colors.card,
+    position: "absolute",
+    top: "100%",
+    left: 0,
+    right: 0,
+    zIndex: 1000,
     borderWidth: 1,
     borderColor: colors.border,
-    borderTopWidth: 0,
     maxHeight: 200,
     borderRadius: 8,
     marginTop: 2,

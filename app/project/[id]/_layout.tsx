@@ -5,20 +5,20 @@ import { useTheme } from "@/providers/ThemeProvider";
 import { Ionicons } from "@expo/vector-icons";
 import { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import {
-  Stack,
-  Tabs,
-  useLocalSearchParams,
-  usePathname,
-  useRouter,
+    Stack,
+    Tabs,
+    useLocalSearchParams,
+    usePathname,
+    useRouter,
 } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-  Platform,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-  useWindowDimensions,
+    Platform,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
+    useWindowDimensions,
 } from "react-native";
 
 function CustomProjectTabBar({
@@ -61,7 +61,7 @@ function CustomProjectTabBar({
 
         // Add Logistics ONLY if owner or if category has permission
 
-        // Add Admin only if owner
+        // Add Admin ONLY if owner/collaborator
         if (isOwner) {
           visibleRoutes.push("admin");
         } else if (isMember) {
@@ -147,16 +147,28 @@ export default function ProjectIdLayout() {
 
       const userId = session.user.id;
 
-      // Check Owner
+      // Check Owner & Collaborators
       const { data: project } = await supabase
         .from("tournages")
-        .select("owner_id")
+        .select("owner_id, collaborators")
         .eq("id", projectId)
         .maybeSingle();
 
-      if (project && project.owner_id === userId) {
+      const isDirectCollaborator = project?.collaborators?.includes(userId);
+
+      // Check for Admin Role (Legacy or Specific)
+      const { data: adminRoleData } = await supabase
+        .from("project_roles")
+        .select("id")
+        .eq("tournage_id", projectId)
+        .eq("assigned_profile_id", userId)
+        .eq("status", "assigned")
+        .eq("is_category_admin", true)
+        .maybeSingle();
+
+      if ((project && project.owner_id === userId) || isDirectCollaborator || adminRoleData) {
         setIsOwner(true);
-        // Owner is implicitly a member
+        // Admin is implicitly a member
         setIsMember(true);
         setUserRole("Administrateur");
         // Owners have all tools

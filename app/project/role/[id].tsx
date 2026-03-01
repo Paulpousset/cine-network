@@ -10,12 +10,16 @@ import React, { useEffect, useState } from "react";
 import {
     Alert,
     Image,
+    Keyboard,
+    KeyboardAvoidingView,
     Modal,
+    Platform,
     ScrollView,
     StyleSheet,
     Text,
     TextInput,
     TouchableOpacity,
+    TouchableWithoutFeedback,
     View,
 } from "react-native";
 import { supabase } from "../../../lib/supabase";
@@ -462,7 +466,10 @@ export default function RoleDetails() {
 
             <TouchableOpacity 
               style={[styles.projectLinkButton, { borderColor: colors.primary }]}
-              onPress={() => router.push(`/project/${role.tournage_id}`)}
+              onPress={() => router.push({
+                pathname: `/project/${role.tournage_id}`,
+                params: { view: 'showcase' }
+              })}
             >
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                 <Ionicons name="film-outline" size={24} color={colors.primary} />
@@ -546,69 +553,76 @@ export default function RoleDetails() {
         transparent
         onRequestClose={() => setApplicationModalVisible(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View
-              style={{
-                flexDirection: "row",
-                justifyContent: "space-between",
-                alignItems: "center",
-                marginBottom: 15,
-              }}
-            >
-              <Text style={[GlobalStyles.title2, { color: colors.text }]}>Postuler</Text>
-              <TouchableOpacity
-                onPress={() => setApplicationModalVisible(false)}
-              >
-                <Ionicons name="close" size={24} color={colors.text} />
-              </TouchableOpacity>
-            </View>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={{ flex: 1 }}
+        >
+          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+            <View style={styles.modalOverlay}>
+              <View style={styles.modalContent}>
+                <View
+                  style={{
+                    flexDirection: "row",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    marginBottom: 15,
+                  }}
+                >
+                  <Text style={[GlobalStyles.title2, { color: colors.text }]}>Postuler</Text>
+                  <TouchableOpacity
+                    onPress={() => setApplicationModalVisible(false)}
+                  >
+                    <Ionicons name="close" size={24} color={colors.text} />
+                  </TouchableOpacity>
+                </View>
 
-            <Text style={{ marginBottom: 10, color: colors.text, opacity: 0.7 }}>
-              Vous pouvez ajouter un message personnel à votre candidature.
-            </Text>
-
-            <View
-              style={{
-                borderWidth: 1,
-                borderColor: colors.border,
-                borderRadius: 8,
-                padding: 10,
-                backgroundColor: colors.backgroundSecondary,
-                height: 120,
-                marginBottom: 20,
-              }}
-            >
-              <TextInput
-                style={{
-                  flex: 1,
-                  textAlignVertical: "top",
-                  color: colors.text,
-                }}
-                placeholder="Bonjour, je suis très intéressé par ce rôle..."
-                placeholderTextColor={isDark ? "#999" : "#666"}
-                multiline
-                value={applicationMessage}
-                onChangeText={setApplicationMessage}
-                autoFocus
-              />
-            </View>
-
-            <TouchableOpacity
-              style={[GlobalStyles.primaryButton, { backgroundColor: colors.primary }]}
-              onPress={handleApply}
-              disabled={applying}
-            >
-              {applying ? (
-                <ClapLoading color="white" size={24} />
-              ) : (
-                <Text style={GlobalStyles.buttonText}>
-                  Envoyer ma candidature
+                <Text style={{ marginBottom: 10, color: colors.text, opacity: 0.7 }}>
+                  Vous pouvez ajouter un message personnel à votre candidature.
                 </Text>
-              )}
-            </TouchableOpacity>
-          </View>
-        </View>
+
+                <View
+                  style={{
+                    borderWidth: 1,
+                    borderColor: colors.border,
+                    borderRadius: 8,
+                    padding: 10,
+                    backgroundColor: colors.backgroundSecondary,
+                    height: 120,
+                    marginBottom: 20,
+                  }}
+                >
+                  <TextInput
+                    style={{
+                      flex: 1,
+                      textAlignVertical: "top",
+                      color: colors.text,
+                    }}
+                    placeholder="Bonjour, je suis très intéressé par ce rôle..."
+                    placeholderTextColor={isDark ? "#999" : "#666"}
+                    multiline
+                    value={applicationMessage}
+                    onChangeText={setApplicationMessage}
+                    autoFocus
+                  />
+                </View>
+
+                <TouchableOpacity
+                  style={[GlobalStyles.primaryButton, { backgroundColor: colors.primary }]}
+                  onPress={handleApply}
+                  disabled={applying}
+                >
+                  {applying ? (
+                    <ClapLoading color="white" size={24} />
+                  ) : (
+                    <Text style={GlobalStyles.buttonText}>
+                      Envoyer ma candidature
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+          </TouchableWithoutFeedback>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );
