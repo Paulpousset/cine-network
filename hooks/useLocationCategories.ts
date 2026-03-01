@@ -16,7 +16,7 @@ export function useLocationCategories() {
 
       if (fetchError) throw fetchError;
 
-      setCategories(data.map(c => c.name));
+      setCategories(data?.map(c => c.name) || []);
     } catch (err) {
       console.error('Error fetching categories:', err);
       setError(err);

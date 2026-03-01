@@ -13,25 +13,25 @@ import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system/legacy";
 import { Image } from "expo-image";
 import {
-    Stack,
-    useGlobalSearchParams,
-    useLocalSearchParams,
-    useRouter,
+  Stack,
+  useGlobalSearchParams,
+  useLocalSearchParams,
+  useRouter,
 } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
 import React, { useEffect, useRef, useState } from "react";
 import {
-    Alert,
-    FlatList,
-    KeyboardAvoidingView,
-    Modal,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  FlatList,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -553,6 +553,7 @@ export default function ChannelSpace() {
   const [projectMembers, setProjectMembers] = useState<any[]>([]);
   const [selectedProfileIds, setSelectedProfileIds] = useState<string[]>([]);
   const [loadingMembers, setLoadingMembers] = useState(false);
+  const [projectAdmins, setProjectAdmins] = useState<string[]>([]);
 
   async function fetchMembersData() {
     setLoadingMembers(true);
@@ -564,24 +565,51 @@ export default function ChannelSpace() {
             .not("assigned_profile_id", "is", null);
 
         if (allRoles) {
+            console.log(`[FetchMembers] allRoles count: ${allRoles.length}`);
             const grouped: Record<string, any[]> = {};
-            allRoles.forEach((r: any) => {
+            
+            // 1a. Handle Owner separately if not in project_roles
+            const { data: projData } = await supabase.from("tournages").select("owner_id, collaborators").eq("id", id).single();
+            if (projData) {
+                const ownerIds = [projData.owner_id, ...(projData.collaborators || [])];
+                setProjectAdmins(ownerIds);
+                const { data: ownerProfiles } = await supabase.from("profiles").select("id, full_name, avatar_url").in("id", ownerIds);
+                
+                if (ownerProfiles) {
+                    grouped["ADMINISTRATION"] = ownerProfiles;
+                }
+            }
+
+            (allRoles as any[]).forEach((r: any) => {
                 const cat = r.category || "Autre";
                 if (!grouped[cat]) grouped[cat] = [];
-                if (!grouped[cat].some(m => m.id === r.assigned_profile.id)) {
-                    grouped[cat].push(r.assigned_profile);
+                const profile = r.assigned_profile;
+                if (profile && !grouped[cat].some(m => m.id === profile.id)) {
+                    // Avoid duplicating if they are already in ADMINISTRATION
+                    const alreadyInAdmin = grouped["ADMINISTRATION"]?.some((m: any) => m.id === profile.id);
+                    if (!alreadyInAdmin) {
+                        grouped[cat].push(profile);
+                    }
                 }
             });
-            setProjectMembers(Object.entries(grouped).map(([category, members]) => ({ category, members })));
+            console.log(`[FetchMembers] grouped categories: ${Object.keys(grouped).join(', ')}`);
+            setProjectMembers(Object.entries(grouped)
+                .filter(([_, members]) => members.length > 0)
+                .map(([category, members]) => ({ category, members })));
         }
 
         // 2. Fetch current space members
         const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(category);
+        const { data: projDataSnapshot } = await supabase.from("tournages").select("owner_id, collaborators").eq("id", id).single();
+        const admins = projDataSnapshot ? [projDataSnapshot.owner_id, ...(projDataSnapshot.collaborators || [])] : [];
+
         if (isUUID) {
             const { data } = await supabase.from("project_custom_space_members" as any)
                 .select("profile_id")
                 .eq("space_id", category);
-            if (data) setSelectedProfileIds(data.map(m => m.profile_id));
+            console.log(`[FetchMembers] custom space members: ${data?.length || 0}`);
+            const members = data?.map(m => m.profile_id) || [];
+            setSelectedProfileIds(Array.from(new Set([...members, ...admins])));
         } else {
             // For native spaces, we combine role members and manual members
             const { data: manual } = await supabase.from("project_native_space_members" as any)
@@ -589,12 +617,20 @@ export default function ChannelSpace() {
                 .eq("project_id", id)
                 .eq("category", category);
             
-            const roleMembers = allRoles?.filter(r => r.category === category).map(r => r.assigned_profile.id) || [];
-            const manualMembers = manual?.map(m => m.profile_id) || [];
-            setSelectedProfileIds(Array.from(new Set([...roleMembers, ...manualMembers])));
+            console.log(`[FetchMembers] native manual members: ${manual?.length || 0}`);
+            const roleMembers = (allRoles as any[])?.filter(r => r.category === category).map(r => r.assigned_profile?.id).filter(Boolean) || [];
+            
+            if (category === "general") {
+                // For general space, everyone in the project is a member
+                const allRoleIds = (allRoles as any[]).map(r => r.assigned_profile?.id).filter(Boolean);
+                setSelectedProfileIds(Array.from(new Set([...allRoleIds, ...admins])));
+            } else {
+                const manualMembers = manual?.map(m => m.profile_id) || [];
+                setSelectedProfileIds(Array.from(new Set([...roleMembers, ...manualMembers, ...admins])));
+            }
         }
     } catch (e) {
-        console.error(e);
+        console.error("[FetchMembers] Error:", e);
     } finally {
         setLoadingMembers(false);
     }
@@ -676,11 +712,12 @@ export default function ChannelSpace() {
       // 2. Check Owner & Project
       const { data: project } = await supabase
         .from("tournages")
-        .select("owner_id, title")
+        .select("owner_id, title, collaborators")
         .eq("id", id)
         .single();
 
-      const owner = project?.owner_id === userId || (isTutorialActive && project?.title?.includes("Vitrine") && currentStep?.id?.startsWith("admin"));
+      const isCollaborator = (project?.collaborators || []).includes(userId);
+      const owner = project?.owner_id === userId || isCollaborator || (isTutorialActive && project?.title?.includes("Vitrine") && currentStep?.id?.startsWith("admin"));
       
       console.log(`[SpacePerms] id: ${id}, user: ${userId}, ownerId: ${project?.owner_id}, isOwner: ${owner}`);
       setIsOwner(owner);
@@ -705,7 +742,7 @@ export default function ChannelSpace() {
             .eq("tournage_id", id)
             .eq("category", category)
             .eq("assigned_profile_id", userId);
-          if (roles && roles.some((r) => r.is_category_admin)) categoryAdmin = true;
+          if (roles && roles.some((r) => r.is_category_admin) || isCollaborator) categoryAdmin = true;
       }
       setIsAdmin(categoryAdmin);
 
@@ -838,25 +875,23 @@ export default function ChannelSpace() {
           ),
           headerRight: () => (
             <View style={{ marginRight: 10, flexDirection: 'row', gap: 8 }}>
-              {(isOwner || isAdmin) && (
-                <TouchableOpacity
-                  onPress={() => {
-                    fetchMembersData();
-                    setIsMembersModalVisible(true);
-                  }}
-                  style={{
-                    width: 38,
-                    height: 38,
-                    borderRadius: 19,
-                    backgroundColor: isDark ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.05)",
-                    justifyContent: "center",
-                    alignItems: "center",
-                  }}
-                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                >
-                  <Ionicons name="people-outline" size={20} color={colors.text} />
-                </TouchableOpacity>
-              )}
+              <TouchableOpacity
+                onPress={() => {
+                  fetchMembersData();
+                  setIsMembersModalVisible(true);
+                }}
+                style={{
+                  width: 38,
+                  height: 38,
+                  borderRadius: 19,
+                  backgroundColor: isDark ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.05)",
+                  justifyContent: "center",
+                  alignItems: "center",
+                }}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Ionicons name="people-outline" size={20} color={colors.text} />
+              </TouchableOpacity>
               <TouchableOpacity
                 onPress={toggleNotifications}
                 style={{
@@ -973,31 +1008,64 @@ export default function ChannelSpace() {
                         <ClapLoading />
                     </View>
                 ) : (
-                    <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
-                        <Text style={styles.label}>Gérer les participants</Text>
+                    <ScrollView style={{ flex: 1 }}>
+                        <Text style={styles.label}>
+                            {(isOwner || isAdmin) ? "Gérer les participants" : "Liste des participants"}
+                        </Text>
                         <View style={styles.membersList}>
                             {projectMembers.map(section => (
                                 <View key={section.category} style={{ width: '100%', marginBottom: 15 }}>
-                                    <Text style={{ fontSize: 11, fontWeight: '700', color: colors.tint, textTransform: 'uppercase', marginBottom: 8, opacity: 0.8 }}>
-                                        {section.category}
-                                    </Text>
-                                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                                        {section.members.map((member: any) => (
-                                            <TouchableOpacity 
-                                                key={member.id} 
-                                                style={[
-                                                    styles.memberItem, 
-                                                    selectedProfileIds.includes(member.id) && { backgroundColor: colors.tint + "20", borderColor: colors.tint }
-                                                ]}
-                                                onPress={() => toggleMember(member.id)}
-                                            >
-                                                <Text style={[styles.memberName, { color: colors.text }]}>{member.full_name || member.username}</Text>
-                                                {selectedProfileIds.includes(member.id) && <Ionicons name="checkmark-circle" size={16} color={colors.tint} />}
-                                            </TouchableOpacity>
-                                        ))}
+                                    <View style={{ width: '100%', flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                                        <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: colors.tint, opacity: 0.6 }} />
+                                        <Text style={{ fontSize: 11, fontWeight: '700', color: colors.tint, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                                            {section.category}
+                                        </Text>
+                                    </View>
+                                    <View style={{ 
+                                        flexDirection: 'row', 
+                                        flexWrap: 'wrap', 
+                                        gap: 8,
+                                    }}>
+                                        {section.members.map((member: any) => {
+                                            const isSelected = selectedProfileIds.includes(member.id);
+                                            const canEdit = isOwner || isAdmin;
+                                            const isPermanent = projectAdmins.some(aId => aId === member.id);
+
+                                            // Si on n'est pas admin, on ne cache QUE les gens qui ne sont pas dans l'espace
+                                            if (!canEdit && !isSelected) return null;
+
+                                            return (
+                                                <TouchableOpacity 
+                                                    key={member.id} 
+                                                    disabled={!canEdit || isPermanent}
+                                                    style={[
+                                                        styles.memberItem, 
+                                                        isSelected && { backgroundColor: colors.tint + "20", borderColor: colors.tint },
+                                                        !isSelected && { opacity: 0.6 }
+                                                    ]}
+                                                    onPress={() => toggleMember(member.id)}
+                                                >
+                                                    <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: colors.backgroundSecondary, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                                                        {member.avatar_url ? (
+                                                            <Image source={{ uri: member.avatar_url }} style={{ width: '100%', height: '100%' }} />
+                                                        ) : (
+                                                            <Ionicons name="person" size={14} color={colors.textSecondary} />
+                                                        )}
+                                                    </View>
+                                                    <Text style={[styles.memberName, { color: colors.text }]}>{member.full_name || member.username}</Text>
+                                                    {isSelected && canEdit && <Ionicons name="checkmark-circle" size={16} color={colors.tint} />}
+                                                    {isPermanent && <Ionicons name="star" size={12} color={colors.tint} style={{ marginLeft: -2 }} />}
+                                                </TouchableOpacity>
+                                            );
+                                        })}
                                     </View>
                                 </View>
                             ))}
+                            {projectMembers.length === 0 && (
+                                <Text style={{ color: colors.textSecondary, fontStyle: 'italic', textAlign: 'center', marginTop: 20 }}>
+                                    Aucun membre trouvé pour ce projet.
+                                </Text>
+                            )}
                         </View>
                     </ScrollView>
                 )}
@@ -1190,7 +1258,7 @@ const createStyles = (colors: any, isDark: boolean) =>
       borderTopLeftRadius: 20,
       borderTopRightRadius: 20,
       padding: 20,
-      maxHeight: '80%',
+      height: '80%',
     },
     modalHeader: {
       flexDirection: 'row',
@@ -1214,11 +1282,12 @@ const createStyles = (colors: any, isDark: boolean) =>
     memberItem: {
       flexDirection: 'row',
       alignItems: 'center',
-      padding: 8,
-      borderRadius: 8,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      borderRadius: 20,
       borderWidth: 1,
       borderColor: colors.border,
-      gap: 8,
+      gap: 6,
     },
     memberName: {
       fontSize: 14,

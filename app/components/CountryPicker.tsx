@@ -2,12 +2,12 @@ import ClapLoading from "@/components/ui/ClapLoading";
 import { useTheme } from "@/providers/ThemeProvider";
 import React, { useState } from "react";
 import {
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 
 type CountryPickerProps = {
@@ -147,9 +147,10 @@ const styles = StyleSheet.create({
   },
   suggestionsBox: {
     position: "absolute",
-    top: 50,
+    top: "100%",
     left: 0,
     right: 0,
+    zIndex: 1000,
     borderWidth: 1,
     borderRadius: 8,
     maxHeight: 200,

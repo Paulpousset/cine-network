@@ -3,6 +3,7 @@ import ClapLoading from "@/components/ui/ClapLoading";
 import { GlobalStyles } from "@/constants/Styles";
 import { useTheme } from "@/providers/ThemeProvider";
 import { useTutorial } from "@/providers/TutorialProvider";
+import { NotificationService } from "@/services/NotificationService";
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import {
@@ -144,7 +145,7 @@ export default function ProjectCalendar() {
 
       const { data: proj, error: projError } = await supabase
         .from("tournages")
-        .select("owner_id, title")
+        .select("owner_id, title, collaborators")
         .eq("id", projectId)
         .maybeSingle();
 
@@ -152,8 +153,10 @@ export default function ProjectCalendar() {
         console.error("Calendar: Error fetching project:", projError);
       }
 
+      const isCollaborator = (proj?.collaborators || []).includes(session.user.id);
       const owner =
         proj?.owner_id === session.user.id ||
+        isCollaborator ||
         (isTutorialActive &&
           proj?.title?.includes("Vitrine") &&
           currentStep?.id?.startsWith("admin"));

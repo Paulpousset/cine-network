@@ -29,11 +29,11 @@ export function useManageTeam() {
 
       const { data: proj } = await supabase
         .from("tournages")
-        .select("owner_id")
+        .select("owner_id, collaborators")
         .eq("id", id)
         .single();
 
-      if (proj?.owner_id !== session.user.id) {
+      if (proj?.owner_id !== session.user.id && !(proj?.collaborators || []).includes(session.user.id)) {
         Alert.alert(
           "Accès refusé",
           "Seul le propriétaire peut gérer l'équipe.",

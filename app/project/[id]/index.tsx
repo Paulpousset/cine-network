@@ -12,20 +12,20 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
-    Alert,
-    Animated,
-    Easing,
-    FlatList,
-    Image,
-    Modal,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    useWindowDimensions,
-    View,
+  Alert,
+  Animated,
+  Easing,
+  FlatList,
+  Image,
+  Modal,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  useWindowDimensions,
+  View,
 } from "react-native";
 import { supabase } from "../../../lib/supabase";
 
@@ -35,25 +35,27 @@ function ProjectShowcase({
   roles,
   isLiked,
   onToggleLike,
+  isVisitor,
 }: {
   project: any;
   roles: any[];
   isLiked: boolean;
   onToggleLike: () => void;
+  isVisitor: boolean;
 }) {
   const router = useRouter();
   const { colors, isDark } = useTheme();
   const themedGlobalStyles = useThemedStyles();
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
-  // Filter only published roles that are not assigned
-  // We align with the logic that if it's not draft and not assigned, it's open.
+  // Filter roles that are not assigned.
+  // Owners/Collaborators (non-visitors) see draft roles too.
   const openRoles = roles.filter(
-    (r) => r.status !== "draft" && !r.assigned_profile_id,
+    (r) => !r.assigned_profile_id && (isVisitor ? r.status !== "draft" : true),
   );
 
   const teamVisible = roles.filter(
-    (r) => r.assigned_profile_id && r.show_in_team !== false,
+    (r) => r.assigned_profile_id && r.show_in_team !== false && r.status === "assigned",
   );
 
   // Group team by category
@@ -126,32 +128,28 @@ function ProjectShowcase({
           </Text>
         </View>
 
-        {/* LIKE BUTTON */}
+        {/* BACK BUTTON */}
         <TouchableOpacity
-          onPress={onToggleLike}
+          onPress={() => router.back()}
           style={{
             position: "absolute",
-            top: 20,
-            right: 20,
-            backgroundColor: "rgba(255,255,255,0.2)",
-            borderRadius: 25,
-            width: 50,
-            height: 50,
+            top: Platform.OS === 'ios' ? 50 : 20,
+            left: 20,
+            backgroundColor: "rgba(0,0,0,0.3)",
+            borderRadius: 20,
+            width: 40,
+            height: 40,
             justifyContent: "center",
             alignItems: "center",
           }}
         >
-          <Ionicons
-            name={isLiked ? "heart" : "heart-outline"}
-            size={30}
-            color={isLiked ? "#E91E63" : "white"}
-          />
+          <Ionicons name="arrow-back" size={24} color="white" />
         </TouchableOpacity>
       </View>
 
       <View style={{ padding: 20 }}>
         {/* Info Bar */}
-        <View style={{ flexDirection: "row", gap: 15, marginBottom: 20 }}>
+        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 15, marginBottom: 20 }}>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
             <Ionicons name="location-outline" size={16} color={colors.text + "80"} />
             <Text style={{ color: colors.text + "80" }}>
@@ -168,6 +166,26 @@ function ProjectShowcase({
                   month: "long",
                   year: "numeric",
                 })}
+              </Text>
+            </View>
+          )}
+          
+          {/* Production info */}
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
+            <Ionicons name="business-outline" size={16} color={colors.text + "80"} />
+            <Text style={{ color: colors.text + "80" }}>
+              {project.production_type === "recherche" 
+                ? "Prod : En recherche" 
+                : (project.production_company || "Prod : Non précisée")}
+            </Text>
+          </View>
+
+          {/* School info for students */}
+          {(project.type?.includes("etudiant") || project.school_name) && (
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
+              <Ionicons name="school-outline" size={16} color={colors.text + "80"} />
+              <Text style={{ color: colors.text + "80" }}>
+                {project.school_name || "École non précisée"}
               </Text>
             </View>
           )}
@@ -475,7 +493,7 @@ export default function ProjectDetails() {
   const { isGuest } = useUser();
   const themedGlobalStyles = useThemedStyles();
   const styles = createStyles(colors, isDark);
-  const { id } = useLocalSearchParams();
+  const { id, view } = useLocalSearchParams();
   const router = useRouter();
   const { width } = useWindowDimensions();
   const isLargeScreen = width > 768; // Tablet/Desktop breakpoint
@@ -486,6 +504,9 @@ export default function ProjectDetails() {
   const [loading, setLoading] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [isVisitor, setIsVisitor] = useState(false); // New state to track visitor status
+
+  // Forcing showcase mode even if member/owner
+  const forceShowcase = view === "showcase";
 
   // Detailed Role Form State
   const [roleFormVisible, setRoleFormVisible] = useState(false);
@@ -701,11 +722,12 @@ export default function ProjectDetails() {
       setIsLiked(processedProj.isLiked);
 
       const ownerId = proj.owner_id;
+      const collaborators = proj.collaborators || [];
 
-      // Check membership
+      // Check membership/ownership
       let isMember = false;
       if (userId) {
-        if (userId === ownerId) {
+        if (userId === ownerId || collaborators.includes(userId)) {
           isMember = true;
         } else {
           const { data: memberData } = await supabase
@@ -1575,12 +1597,12 @@ export default function ProjectDetails() {
   const isOwner =
     (project?.owner_id &&
       currentUserId &&
-      project.owner_id === currentUserId) ||
+      (project.owner_id === currentUserId || (project.collaborators || []).includes(currentUserId))) ||
     (isTutorialActive &&
       project?.title?.includes("Vitrine") &&
       currentStep?.id?.startsWith("admin"));
 
-  // Un rôle est visible s'il n'est pas en brouillon OU s'il y a quelqu'un d'assigné (pour l'équipe)
+  // Un rôle est visible s'il n'est pas en brouillon OU s'il y a quelqu'un d'assigné (pour l'équipe) OU si on est propriétaire/collaborateur
   const visibleRoles = roles.filter(
     (r) => isOwner || r.status !== "draft" || r.assigned_profile_id,
   );
@@ -1675,7 +1697,7 @@ export default function ProjectDetails() {
       </View>
     );
 
-  if (isVisitor && project) {
+  if ((isVisitor || forceShowcase) && project) {
     return (
       <View style={styles.container}>
         <Stack.Screen options={{ headerShown: false }} />
@@ -1683,7 +1705,8 @@ export default function ProjectDetails() {
           project={project}
           roles={roles}
           isLiked={isLiked}
-          onToggleLike={toggleLike}
+          onToggleLike={toggleLike} 
+          isVisitor={isVisitor}
         />
       </View>
     );
@@ -1740,16 +1763,18 @@ export default function ProjectDetails() {
             >
               {isOwner && (
                 <>
-                  <TouchableOpacity
-                    onPress={() => router.push(`/project/${id}/manage_team`)}
-                    style={{ padding: 5 }}
-                  >
-                    <Ionicons
-                      name="shield-checkmark-outline"
-                      size={24}
-                      color={colors.text}
-                    />
-                  </TouchableOpacity>
+                  {Platform.OS === "web" && (
+                    <TouchableOpacity
+                      onPress={() => router.push(`/project/${id}/manage_team`)}
+                      style={{ padding: 5 }}
+                    >
+                      <Ionicons
+                        name="shield-checkmark-outline"
+                        size={24}
+                        color={colors.text}
+                      />
+                    </TouchableOpacity>
+                  )}
 
                   <TouchableOpacity
                     onPress={() =>
@@ -2839,53 +2864,119 @@ export default function ProjectDetails() {
                         )}
 
                         {/* Assignment */}
-                        <View>
+                        <View style={{ marginTop: 5 }}>
                           {assignedUser ? (
                             <View style={styles.assignedCard}>
                               <View style={{ flex: 1 }}>
-                                <Text style={{ fontWeight: "bold" }}>
+                                <Text style={{ fontWeight: "bold", color: colors.text }}>
                                   {assignedUser.full_name ||
                                     assignedUser.username}
                                 </Text>
                               </View>
                               <TouchableOpacity
                                 onPress={() => removeAssignment(roleItem)}
+                                style={{ padding: 5 }}
                               >
-                                <Ionicons
-                                  name="close-circle"
-                                  size={20}
-                                  color="red"
-                                />
+                                <View style={{ backgroundColor: "#FF4444", borderRadius: 12, padding: 2 }}>
+                                  <Ionicons
+                                    name="close"
+                                    size={16}
+                                    color="#FFF"
+                                  />
+                                </View>
                               </TouchableOpacity>
                             </View>
                           ) : (
-                            <View>
-                              <TextInput
-                                placeholder="Assigner : taper un nom..."
-                                style={[
-                                  styles.input,
-                                  { height: 40, fontSize: 12, marginBottom: 5 },
-                                ]}
-                                editable={false}
-                              />
+                            <View style={{ gap: 10 }}>
                               <TouchableOpacity
-                                style={{
-                                  position: "absolute",
-                                  top: 0,
-                                  left: 0,
-                                  right: 0,
-                                  bottom: 0,
-                                  justifyContent: "center",
-                                  alignItems: "center",
+                                onPress={async () => {
+                                  try {
+                                    const { data: profile, error } = await supabase
+                                      .from("profiles")
+                                      .select("id, full_name, username, avatar_url")
+                                      .eq("id", currentUserId)
+                                      .single();
+                                    
+                                    if (error) throw error;
+                                    
+                                    const { data, error: updateError } = await supabase
+                                      .from("project_roles")
+                                      .update({ 
+                                        assigned_profile_id: profile.id, 
+                                        status: "assigned" // Direct assignment for owners/collaborators
+                                      })
+                                      .eq("id", roleItem.id)
+                                      .select();
+
+                                    if (updateError) throw updateError;
+
+                                    const updated = {
+                                      ...roleItem,
+                                      assigned_profile_id: profile.id,
+                                      assigned_profile: profile,
+                                      status: "assigned",
+                                    };
+
+                                    setRoles((prev) =>
+                                      prev.map((r) => (r.id === roleItem.id ? updated : r)),
+                                    );
+
+                                    // Update the manageRole state as well
+                                    if (manageRole && (manageRole as any).key) {
+                                      setManageRole((prev: any) => ({
+                                        ...prev,
+                                        items: prev.items.map((r: any) => (r.id === roleItem.id ? updated : r)),
+                                      }));
+                                    } else {
+                                      setManageRole(updated);
+                                    }
+
+                                    Alert.alert("Succès", "Vous avez été assigné à ce poste.");
+                                  } catch (e) {
+                                    Alert.alert("Erreur", "Impossible de vous assigner à ce poste.");
+                                  }
                                 }}
-                                onPress={() => {
-                                  setManageRole(roleItem); // Switch to single
+                                style={{
+                                  flexDirection: "row",
+                                  alignItems: "center",
+                                  backgroundColor: colors.primary + "15",
+                                  paddingVertical: 12,
+                                  paddingHorizontal: 16,
+                                  borderRadius: 10,
+                                  borderWidth: 1,
+                                  borderColor: colors.primary + "30",
+                                  justifyContent: "center",
+                                  gap: 10
                                 }}
                               >
-                                <Text style={{ color: colors.text + "80", fontSize: 12 }}>
-                                  🔍 Taper pour chercher...
+                                <Ionicons name="person-add" size={20} color={colors.primary} />
+                                <Text style={{ color: colors.primary, fontWeight: "700", fontSize: 14 }}>
+                                  M'assigner à ce poste
                                 </Text>
                               </TouchableOpacity>
+
+                              <View style={{ position: 'relative' }}>
+                                <TouchableOpacity
+                                  style={{
+                                    flexDirection: 'row',
+                                    alignItems: 'center',
+                                    backgroundColor: isDark ? colors.background : "#fff",
+                                    borderWidth: 1,
+                                    borderColor: colors.border,
+                                    borderRadius: 10,
+                                    paddingVertical: 12,
+                                    paddingHorizontal: 16,
+                                    justifyContent: 'center',
+                                    gap: 10
+                                  }}
+                                  onPress={() => setManageRole(roleItem)}
+                                >
+                                  <Ionicons name="search" size={18} color={colors.text + "80"} />
+                                  <Text style={{ color: colors.text + "80", fontSize: 14, fontWeight: "500" }}>
+                                    Assigner quelqu'un d'autre...
+                                  </Text>
+                                </TouchableOpacity>
+                              </View>
                             </View>
                           )}
                         </View>
@@ -3304,3 +3395,7 @@ const createStyles = (colors: any, isDark: boolean) => StyleSheet.create({
 function setResults(arg0: never[]) {
   throw new Error("Function not implemented.");
 }
+function setBoostModalVisible(arg0: boolean) {
+  throw new Error("Function not implemented.");
+}
+

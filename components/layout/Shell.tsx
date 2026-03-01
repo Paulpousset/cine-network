@@ -51,7 +51,7 @@ export function Shell() {
             headerTitleStyle: {
               color: colors.text,
             },
-            headerTintColor: colors.tint,
+            headerTintColor: colors.primary,
           }}
         >
           <Stack.Screen name="index" options={{ headerShown: false }} />

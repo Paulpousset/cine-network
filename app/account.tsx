@@ -706,6 +706,13 @@ export default function Account() {
     setErrors(newErrors);
 
     if (Object.keys(newErrors).length > 0) {
+      const missingFields = Object.values(newErrors).join("\n- ");
+      const alertMsg = "Certains champs obligatoires sont manquants :\n\n- " + missingFields;
+      if (Platform.OS === "web") {
+        window.alert("Champs requis\n\n" + alertMsg);
+      } else {
+        Alert.alert("Champs requis", alertMsg);
+      }
       return;
     }
 

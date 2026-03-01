@@ -1,5 +1,5 @@
-import ClapLoading from "@/components/ui/ClapLoading";
 import RoleFormFields from "@/components/profile/RoleFormFields";
+import ClapLoading from "@/components/ui/ClapLoading";
 import { useUserMode } from "@/hooks/useUserMode";
 import { useTheme } from "@/providers/ThemeProvider";
 import { JOB_TITLES } from "@/utils/roles";
@@ -8,15 +8,15 @@ import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
-  Alert,
-  FlatList,
-  Modal,
-  Platform,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View
+    Alert,
+    FlatList,
+    Modal,
+    Platform,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { supabase } from "../../../lib/supabase";
@@ -65,8 +65,49 @@ type DraftRole = {
   isPaid?: boolean;
   remunerationAmount?: string;
   isFilled?: boolean;
+  isPublished?: boolean;
   data?: any;
   errors?: Record<string, string>;
+};
+
+const CreationHeader = ({ onBack, title }: { onBack: () => void; title: string }) => {
+  const { colors } = useTheme();
+  return (
+    <View style={{ 
+      flexDirection: 'row', 
+      alignItems: 'center', 
+      justifyContent: 'space-between', 
+      paddingHorizontal: 16, 
+      paddingVertical: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+      backgroundColor: colors.backgroundSecondary
+    }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+        <TouchableOpacity onPress={onBack} style={{ marginRight: 12 }}>
+          <Ionicons name="chevron-back" size={24} color={colors.text} />
+        </TouchableOpacity>
+        <View>
+          <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>{title}</Text>
+          <Text style={{ fontSize: 12, color: colors.text + '80' }}>Configuration finale</Text>
+        </View>
+      </View>
+      
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginRight: 16 }}>
+        {[1, 2, 3].map((s) => (
+          <View
+            key={s}
+            style={{
+              width: s === 3 ? 16 : 6,
+              height: 6,
+              borderRadius: 3,
+              backgroundColor: s <= 3 ? colors.primary : colors.text + '20'
+            }}
+          />
+        ))}
+      </View>
+    </View>
+  );
 };
 
 export default function ProjectSetupWizard() {
@@ -147,12 +188,13 @@ export default function ProjectSetupWizard() {
           isPaid: false,
           remunerationAmount: "",
           isFilled: false,
+          isPublished: true,
           data: {},
         }));
         setDraftRoles(drafts);
       }
     } catch {}
-  }, [id]);
+  }, [id, params?.prefillRoles]);
 
   async function fetchProject() {
     try {
@@ -195,6 +237,7 @@ export default function ProjectSetupWizard() {
         isPaid: false,
         remunerationAmount: "",
         isFilled: false,
+        isPublished: false,
         data: {},
       },
     ]);
@@ -343,11 +386,13 @@ export default function ProjectSetupWizard() {
       setSaving(true);
       const baseRows = draftRoles.flatMap((r) => {
         const qty = parseInt(r.quantity) || 1;
+        const status = r.assignee?.id ? "invitation_pending" : (r.isPublished !== false ? "published" : "draft");
         return Array.from({ length: qty }).map(() => ({
           tournage_id: id,
           category: r.category,
           title: r.title || "",
           description: r.description || null,
+          status,
         }));
       });
 
@@ -355,6 +400,7 @@ export default function ProjectSetupWizard() {
       try {
         const rowsWithExtras = draftRoles.flatMap((r) => {
           const qty = parseInt(r.quantity) || 1;
+          const status = r.assignee?.id ? "invitation_pending" : (r.isPublished !== false ? "published" : "draft");
           return Array.from({ length: qty }).map(() => ({
             tournage_id: id,
             category: r.category,
@@ -370,7 +416,7 @@ export default function ProjectSetupWizard() {
             specialties: r.specialties || null,
             is_paid: r.isPaid ?? false,
             remuneration_amount: r.isPaid ? r.remunerationAmount : null,
-            status: r.assignee?.id ? "invitation_pending" : "published",
+            status,
           }));
         });
         const { error: tryErr } = await supabase
@@ -381,9 +427,7 @@ export default function ProjectSetupWizard() {
         // fallback: insert without assignment
         const { error } = await supabase
           .from("project_roles")
-          .insert(
-            baseRows.map((r) => ({ ...r, status: "published" })) as any[],
-          );
+          .insert(baseRows as any[]);
         if (error) throw error;
       }
 
@@ -716,6 +760,32 @@ export default function ProjectSetupWizard() {
                 </TouchableOpacity>
               </View>
 
+              <Text style={styles.label}>Publier ce rôle ?</Text>
+              <View style={styles.rowWrap}>
+                <TouchableOpacity
+                  onPress={() => updateDraft(item.id, { isPublished: true })}
+                  style={[
+                    styles.catChip,
+                    item.isPublished === true && styles.catChipSelected,
+                  ]}
+                >
+                  <Text style={{ color: item.isPublished === true ? "white" : "#333" }}>
+                    Publier
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => updateDraft(item.id, { isPublished: false })}
+                  style={[
+                    styles.catChip,
+                    (item.isPublished === false || item.isPublished === undefined) && styles.catChipSelected,
+                  ]}
+                >
+                  <Text style={{ color: (item.isPublished === false || item.isPublished === undefined) ? "white" : "#333" }}>
+                    Brouillon
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
               {/* ASSIGNMENT */}
 
               <Text style={styles.label}>Assigner quelqu'un (optionnel)</Text>
@@ -856,138 +926,187 @@ export default function ProjectSetupWizard() {
   );
 }
 
-const createStyles = (colors: any, isDark: boolean) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.backgroundSecondary },
-  header: {
-    padding: 20,
-    backgroundColor: colors.background,
-    borderBottomWidth: 1,
-    borderColor: colors.border,
-  },
-  title: { fontSize: 22, fontWeight: "bold", color: colors.text },
-  subtitle: { color: colors.text + "80", marginTop: 4 },
-  sectionHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: 15,
-  },
-  sectionTitle: { fontSize: 18, fontWeight: "bold", color: colors.text },
-  roleCard: {
-    backgroundColor: colors.card,
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 12,
-    shadowColor: "#000",
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 2,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  rowWrap: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "center",
-    gap: 8,
-    marginBottom: 10,
-  },
-  catChip: {
-    borderColor: colors.border,
-    borderWidth: 1,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 16,
-  },
-  catChipSelected: { backgroundColor: colors.primary, borderColor: colors.primary },
-  jobChip: {
-    backgroundColor: colors.backgroundSecondary,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 15,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  jobChipSelected: {
-    backgroundColor: colors.text,
-    borderColor: colors.text,
-  },
-  roleHeader: { fontSize: 12, color: colors.text + "80", marginBottom: 8 },
-  label: {
-    fontSize: 14,
-    fontWeight: "600",
-    marginBottom: 6,
-    color: colors.text,
-    textAlign: "center",
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 8,
-    padding: 10,
-    marginBottom: 10,
-    backgroundColor: colors.backgroundSecondary,
-    color: colors.text,
-  },
-  assigneeRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: 10,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 8,
-    backgroundColor: colors.background,
-  },
-  assignBtn: {
-    backgroundColor: colors.primary,
-    padding: 10,
-    alignItems: "center",
-    borderRadius: 8,
-  },
-  footer: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: colors.background,
-    padding: 10,
-    borderTopWidth: 1,
-    borderColor: colors.border,
-  },
-  saveButton: {
-    backgroundColor: colors.primary,
-    padding: 15,
-    borderRadius: 12,
-    alignItems: "center",
-  },
-  saveButtonText: {
-    color: "white",
-    fontWeight: "bold",
-    fontSize: 16,
-  },
-  modalOverlay: {
-    flex: 1,
-    justifyContent: "center",
-    backgroundColor: "rgba(0,0,0,0.5)",
-    padding: 20,
-  },
-  modalContent: {
-    backgroundColor: colors.background,
-    borderRadius: 15,
-    padding: 20,
-    maxHeight: "80%",
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    textAlign: "center",
-    marginBottom: 15,
-    color: colors.text,
-  },
-  profileRow: {
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderColor: colors.border,
-  },
-});
+const createStyles = (colors: any, isDark: boolean) => {
+  const isWeb = Platform.OS === "web";
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.backgroundSecondary },
+    header: {
+      padding: isWeb ? 40 : 20,
+      backgroundColor: colors.background,
+      borderBottomWidth: 1,
+      borderColor: colors.border,
+      alignItems: isWeb ? "center" : "flex-start",
+    },
+    title: { 
+      fontSize: isWeb ? 32 : 22, 
+      fontWeight: "800", 
+      color: colors.text,
+      letterSpacing: -0.5,
+    },
+    subtitle: { 
+      fontSize: isWeb ? 16 : 14,
+      color: colors.text + "80", 
+      marginTop: 4 
+    },
+    sectionHeader: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      padding: isWeb ? 30 : 15,
+      width: isWeb ? "100%" : "auto",
+      maxWidth: isWeb ? 900 : "none",
+      alignSelf: isWeb ? "center" : "auto",
+    },
+    sectionTitle: { 
+      fontSize: 20, 
+      fontWeight: "700", 
+      color: colors.primary,
+      textTransform: "uppercase",
+      letterSpacing: 1
+    },
+    roleCard: {
+      backgroundColor: colors.card,
+      borderRadius: 16,
+      padding: isWeb ? 30 : 16,
+      marginBottom: 20,
+      shadowColor: "#000",
+      shadowOpacity: 0.1,
+      shadowRadius: 10,
+      elevation: 4,
+      borderWidth: 1,
+      borderColor: colors.border + "60",
+      width: isWeb ? "100%" : "auto",
+      maxWidth: isWeb ? 900 : "none",
+      alignSelf: isWeb ? "center" : "auto",
+    },
+    rowWrap: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      justifyContent: "center",
+      gap: 10,
+      marginBottom: 15,
+    },
+    catChip: {
+      borderColor: colors.border,
+      borderWidth: 1,
+      paddingVertical: 8,
+      paddingHorizontal: 14,
+      borderRadius: 20,
+      backgroundColor: colors.backgroundSecondary,
+    },
+    catChipSelected: { 
+      backgroundColor: colors.primary, 
+      borderColor: colors.primary 
+    },
+    jobChip: {
+      backgroundColor: colors.backgroundSecondary,
+      paddingVertical: 8,
+      paddingHorizontal: 14,
+      borderRadius: 20,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    jobChipSelected: {
+      backgroundColor: colors.text,
+      borderColor: colors.text,
+    },
+    roleHeader: { 
+      fontSize: 12, 
+      color: colors.text + "80", 
+      marginBottom: 10,
+      fontWeight: "600",
+      textTransform: "uppercase",
+      letterSpacing: 0.5
+    },
+    label: {
+      fontSize: 14,
+      fontWeight: "700",
+      marginBottom: 8,
+      color: colors.text,
+      textAlign: "center",
+    },
+    input: {
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 12,
+      padding: 14,
+      marginBottom: 15,
+      backgroundColor: colors.backgroundSecondary,
+      color: colors.text,
+      fontSize: 15,
+    },
+    assigneeRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      padding: 14,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 12,
+      backgroundColor: colors.background,
+    },
+    assignBtn: {
+      backgroundColor: colors.primary + "15",
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+      alignItems: "center",
+      borderRadius: 20,
+    },
+    footer: {
+      position: isWeb ? "relative" : "absolute",
+      bottom: 0,
+      left: 0,
+      right: 0,
+      backgroundColor: colors.background,
+      padding: 20,
+      borderTopWidth: 1,
+      borderColor: colors.border,
+      alignItems: "center",
+      marginTop: isWeb ? 40 : 0,
+    },
+    saveButton: {
+      backgroundColor: colors.primary,
+      paddingVertical: 18,
+      paddingHorizontal: 40,
+      borderRadius: 30,
+      alignItems: "center",
+      width: isWeb ? 400 : "100%",
+      shadowColor: colors.primary,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.3,
+      shadowRadius: 10,
+      elevation: 5,
+    },
+    saveButtonText: {
+      color: "#FFFFFF",
+      fontWeight: "800",
+      fontSize: 17,
+    },
+    modalOverlay: {
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center",
+      backgroundColor: "rgba(0,0,0,0.6)",
+      padding: 20,
+    },
+    modalContent: {
+      backgroundColor: colors.background,
+      borderRadius: 24,
+      padding: 30,
+      width: isWeb ? 550 : "100%",
+      maxHeight: "80%",
+    },
+    modalTitle: {
+      fontSize: 22,
+      fontWeight: "800",
+      textAlign: "center",
+      marginBottom: 20,
+      color: colors.text,
+    },
+    profileRow: {
+      paddingVertical: 15,
+      borderBottomWidth: 1,
+      borderColor: colors.border + "60",
+    },
+  });
+};

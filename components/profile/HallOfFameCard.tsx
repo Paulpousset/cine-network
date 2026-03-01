@@ -105,7 +105,10 @@ export default function HallOfFameCard({
           onPress={() =>
             item.final_result_url
               ? onOpenLink(item.final_result_url)
-              : router.push(`/project/${item.id}`)
+              : router.push({
+                  pathname: `/project/${item.id}`,
+                  params: { view: 'showcase' }
+                })
           }
           style={styles.mediaContainer}
         >

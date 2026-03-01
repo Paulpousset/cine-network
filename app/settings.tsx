@@ -268,7 +268,7 @@ export default function Settings() {
       <Stack.Screen options={{ 
         title: "Réglages",
         headerShown: true,
-        headerTintColor: colors.tint,
+        headerTintColor: colors.primary,
         headerStyle: { backgroundColor: colors.background }
       }} />
 

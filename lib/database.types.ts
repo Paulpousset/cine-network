@@ -1439,6 +1439,14 @@ export type Database = {
           title: string
           type: Database["public"]["Enums"]["project_type"] | null
           ville: string | null
+          production_company: string | null
+          estimated_duration: string | null
+          production_type: "recherche" | "associative" | "professionnelle" | null
+          school_name: string | null
+          shooting_cities: string[] | null
+          scenario_url: string | null
+          scenario_visibility: "public" | "invitation" | "productions" | "network" | null
+          collaborators: string[] | null
         }
         Insert: {
           address?: string | null
@@ -1460,6 +1468,14 @@ export type Database = {
           title: string
           type?: Database["public"]["Enums"]["project_type"] | null
           ville?: string | null
+          production_company?: string | null
+          estimated_duration?: string | null
+          production_type?: "recherche" | "associative" | "professionnelle" | null
+          school_name?: string | null
+          shooting_cities?: string[] | null
+          scenario_url?: string | null
+          scenario_visibility?: "public" | "invitation" | "productions" | "network" | null
+          collaborators?: string[] | null
         }
         Update: {
           address?: string | null
@@ -1481,6 +1497,14 @@ export type Database = {
           title?: string
           type?: Database["public"]["Enums"]["project_type"] | null
           ville?: string | null
+          production_company?: string | null
+          estimated_duration?: string | null
+          production_type?: "recherche" | "associative" | "professionnelle" | null
+          school_name?: string | null
+          shooting_cities?: string[] | null
+          scenario_url?: string | null
+          scenario_visibility?: "public" | "invitation" | "productions" | "network" | null
+          collaborators?: string[] | null
         }
         Relationships: [
           {
