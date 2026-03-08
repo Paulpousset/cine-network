@@ -1,7 +1,9 @@
 import { supabase } from "@/lib/supabase";
 import { useUser } from "@/providers/UserProvider";
+import { Logger } from "@/services/LoggerService";
 import { NotificationService } from "@/services/NotificationService";
 import { useState } from "react";
+import { Alert } from "react-native";
 
 export const usePostActions = (postId: string) => {
   const [loading, setLoading] = useState(false);
@@ -16,7 +18,8 @@ export const usePostActions = (postId: string) => {
           .insert({ post_id: postId, user_id: userId });
 
         if (error) {
-          console.error("Error inserting like:", error);
+          Logger.error(error, "usePostActions.toggleLike:insert");
+          Alert.alert("Erreur", "Impossible d'aimer cette publication pour le moment.");
           return;
         }
 
@@ -48,12 +51,14 @@ export const usePostActions = (postId: string) => {
           .eq("user_id", userId);
 
         if (error) {
-          console.error("Error deleting like:", error);
+          Logger.error(error, "usePostActions.toggleLike:delete");
+          Alert.alert("Erreur", "Impossible de retirer votre j'aime.");
           return;
         }
       }
     } catch (error) {
-      console.error("Error toggling like:", error);
+      Logger.error(error, "usePostActions.toggleLike:catch");
+      Alert.alert("Erreur", "Une erreur inattendue est survenue.");
     }
   };
 
@@ -101,7 +106,8 @@ export const usePostActions = (postId: string) => {
       return { data, error };
     } catch (error) {
       setLoading(false);
-      console.error("Error adding comment:", error);
+      Logger.error(error, "usePostActions.addComment");
+      Alert.alert("Erreur", "Impossible d'ajouter le commentaire.");
       return { data: null, error };
     }
   };

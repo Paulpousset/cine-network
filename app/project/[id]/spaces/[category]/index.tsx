@@ -392,6 +392,13 @@ function FilesView({
       const file = result.assets[0];
       if (!file) return;
 
+      // Limit to 15MB for space files
+      const MAX_FILE_SIZE = 15 * 1024 * 1024;
+      if (file.size && file.size > MAX_FILE_SIZE) {
+        Alert.alert("Fichier trop volumineux", "Le fichier ne doit pas dépasser 15 Mo.");
+        return;
+      }
+
       setUploading(true);
 
       let fileBody;

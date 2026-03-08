@@ -20,6 +20,7 @@ import ClapLoading from "@/components/ui/ClapLoading";
 import { GlobalStyles } from "@/constants/Styles";
 import { supabase } from "@/lib/supabase";
 import { postSchema } from "@/schemas/post";
+import { compressImage } from "@/utils/imageCompression";
 
 import { useTheme } from "@/providers/ThemeProvider";
 
@@ -75,11 +76,12 @@ export default function NewPostScreen() {
       mediaTypes: ["images"],
       allowsEditing: true,
       aspect: [4, 3],
-      quality: 0.7,
+      quality: 0.5,
     });
 
     if (!result.canceled) {
-      setImage(result.assets[0].uri);
+      const compressedUri = await compressImage(result.assets[0].uri);
+      setImage(compressedUri);
     }
   };
 

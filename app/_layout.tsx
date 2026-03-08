@@ -1,3 +1,4 @@
+import ErrorBoundary from "@/app/components/ErrorBoundary";
 import FilmStripTransition from "@/components/common/FilmStripTransition";
 import { TutorialOverlay } from "@/components/common/TutorialOverlay";
 
@@ -14,11 +15,13 @@ import { Platform, Text, TouchableOpacity, View } from "react-native";
 
 export default function RootLayout() {
   return (
-    <AppProviders>
-      <AppInitializer>
-        <RootLayoutInner />
-      </AppInitializer>
-    </AppProviders>
+    <ErrorBoundary>
+      <AppProviders>
+        <AppInitializer>
+          <RootLayoutInner />
+        </AppInitializer>
+      </AppProviders>
+    </ErrorBoundary>
   );
 }
 
