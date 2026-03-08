@@ -1,7 +1,7 @@
 import { supabase } from '@/lib/supabase';
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import React from 'react';
-import AuthScreen from '../(auth)/index';
+import AuthScreen from '../auth';
 
 describe('AuthScreen', () => {
   beforeEach(() => {

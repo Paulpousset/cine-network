@@ -2,6 +2,7 @@ import WebDatePicker from "@/components/common/WebDatePicker";
 import ClapLoading from "@/components/ui/ClapLoading";
 import { GlobalStyles } from "@/constants/Styles";
 import { useTheme } from "@/providers/ThemeProvider";
+import { Logger } from "@/services/LoggerService";
 import { NotificationService } from "@/services/NotificationService";
 import { JOB_TITLES } from "@/utils/roles";
 import { Ionicons } from "@expo/vector-icons";
@@ -259,6 +260,14 @@ export default function CreateTournage() {
       if (res.canceled) return;
 
       const file = res.assets[0];
+      
+      // Limit to 15MB for scenarios
+      const MAX_FILE_SIZE = 15 * 1024 * 1024;
+      if (file.size && file.size > MAX_FILE_SIZE) {
+        Alert.alert("Fichier trop volumineux", "Le scénario ne doit pas dépasser 15 Mo.");
+        return;
+      }
+
       setUploadingScenario(true);
       setScenarioName(file.name);
 
@@ -472,7 +481,7 @@ const selectedList = Object.values(selected);
           .single();
 
       if (error) {
-        console.error("Supabase insert error details:", error);
+        Logger.error(error, "new.tsx:createProject:insertTournage");
         throw error;
       }
 
@@ -549,10 +558,10 @@ const selectedList = Object.values(selected);
           }
 
           if (rolesError) {
-            console.error("Error inserting prefilled roles:", JSON.stringify(rolesError, null, 2));
-            Alert.alert("Avertissement", "Le projet a été créé mais certains rôles n'ont pas pu être enregistrés car le format des données est invalide.");
+            Logger.error(rolesError, "new.tsx:createProject:insertRoles");
+            Alert.alert("Avertissement", "Le projet a été créé mais certains rôles n'ont pas pu être enregistrés.");
           } else {
-            console.log("Roles successfully inserted");
+            Logger.log("Roles successfully inserted");
           }
         }
 

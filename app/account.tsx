@@ -6,6 +6,7 @@ import { appEvents, EVENTS } from "@/lib/events";
 import { supabase } from "@/lib/supabase";
 import { useTheme } from "@/providers/ThemeProvider";
 import { useUser } from "@/providers/UserProvider";
+import { compressImage } from "@/utils/imageCompression";
 import { JOB_TITLES } from "@/utils/roles";
 import { Ionicons } from "@expo/vector-icons";
 import * as DocumentPicker from "expo-document-picker";
@@ -439,23 +440,24 @@ export default function Account() {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ["images"],
         allowsEditing: true,
-        quality: 0.8,
-        base64: true,
+        quality: 0.5,
       });
 
       if (result.canceled || !result.assets || result.assets.length === 0)
         return;
 
       setUploading(true);
-      const image = result.assets[0];
-      let fileExt = (image.uri.split(".").pop() || "jpg").split("?")[0];
+      const originalUri = result.assets[0].uri;
+      const compressedUri = await compressImage(originalUri, isAvatar ? 400 : 1080);
+      
+      let fileExt = (compressedUri.split(".").pop() || "jpg").split("?")[0];
       if (fileExt.includes(":") || fileExt.length > 5) {
-        fileExt = image.mimeType?.split("/")[1] || "jpg";
+        fileExt = result.assets[0].mimeType?.split("/")[1] || "jpg";
       }
       const fileName = `${Date.now()}.${fileExt}`;
       const filePath = isAvatar ? `avatars/${fileName}` : `book/${fileName}`;
 
-      const arrayBuffer = await fetch(image.uri).then((res) =>
+      const arrayBuffer = await fetch(compressedUri).then((res) =>
         res.arrayBuffer(),
       );
 
@@ -495,9 +497,18 @@ export default function Account() {
       });
 
       if (result.canceled || !result.assets) return;
+      
+      const file = result.assets[0];
+      
+      // Limit to 5MB for CVs
+      const MAX_CV_SIZE = 5 * 1024 * 1024;
+      if (file.size && file.size > MAX_CV_SIZE) {
+        Alert.alert("Fichier trop volumineux", "Votre CV ne doit pas dépasser 5 Mo.");
+        return;
+      }
+
       setUploading(true);
 
-      const file = result.assets[0];
       const fileName = `cvs/${Date.now()}_${file.name}`;
 
       const arrayBuffer = await fetch(file.uri).then((res) =>
@@ -613,24 +624,26 @@ export default function Account() {
         mediaTypes: ["images"],
         allowsEditing: true,
         aspect: [16, 9],
-        quality: 0.8,
+        quality: 0.5,
       });
 
       if (result.canceled || !result.assets) return;
       setUploading(true);
 
-      const image = result.assets[0];
-      let fileExt = (image.uri.split(".").pop() || "jpg").split("?")[0];
+      const originalUri = result.assets[0].uri;
+      const compressedUri = await compressImage(originalUri, 1280);
+      
+      let fileExt = (compressedUri.split(".").pop() || "jpg").split("?")[1] || (compressedUri.split(".").pop() || "jpg").split("?")[0];
       if (fileExt.includes(":") || fileExt.length > 5) {
-        fileExt = image.mimeType?.split("/")[1] || "jpg";
+        fileExt = result.assets[0].mimeType?.split("/")[1] || "jpg";
       }
       const fileName = `experience/${effectiveUserId}/${projectId}_${Date.now()}.${fileExt}`;
-      const response = await fetch(image.uri);
+      const response = await fetch(compressedUri);
       const blob = await response.blob();
       const { error: uploadError } = await supabase.storage
         .from("user_content")
         .upload(fileName, blob, {
-          contentType: image.mimeType || blob.type || "image/jpeg",
+          contentType: result.assets[0].mimeType || blob.type || "image/jpeg",
           upsert: false,
         });
 
