@@ -12,18 +12,19 @@ import * as DocumentPicker from "expo-document-picker";
 import { Stack, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
-    Alert,
-    Image,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TextStyle,
-    TouchableOpacity,
-    View,
-    ViewStyle
+  ActivityIndicator,
+  Alert,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TextStyle,
+  TouchableOpacity,
+  View,
+  ViewStyle
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { supabase } from "../../lib/supabase";
@@ -521,12 +522,12 @@ const selectedList = Object.values(selected);
             estimated_duration: estimatedDuration,
             production_type: productionType as any,
             school_name: types.includes("etudiant") ? schoolName.trim() : null,
-            shooting_cities: shooting_cities.length > 0 ? shooting_cities : null,
-            scenario_url: scenario_url,
-            scenario_visibility: scenario_visibility as any,
+            shooting_cities: shootingCities.length > 0 ? shootingCities : null,
+            scenario_url: scenarioUrl,
+            scenario_visibility: scenarioVisibility as any,
             collaborators: null,
-            pending_collaborators: (selectedProduction ? [selectedProduction.id, ...collaborator_ids] : collaborator_ids).length > 0 
-              ? (selectedProduction ? [selectedProduction.id, ...collaborator_ids] : collaborator_ids) 
+            pending_collaborators: (selectedProduction ? [selectedProduction.id, ...collaboratorIds] : collaboratorIds).length > 0 
+              ? (selectedProduction ? [selectedProduction.id, ...collaboratorIds] : collaboratorIds) 
               : null,
             active_native_spaces: createAutoSpaces ? uniqueCategories : [],
           })
