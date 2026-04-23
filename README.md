@@ -19,85 +19,135 @@ Tita is a professional mobile application built with React Native and Expo, desi
 
 - **Frontend**: [Expo](https://expo.dev/) / [React Native](https://reactnative.dev/)
 - **Routing**: [Expo Router](https://docs.expo.dev/router/introduction/) (File-based navigation)
-- **Backend**: [Supabase](https://supabase.com/) (Auth, Real-time DB, Storage)
+- **Backend**: [Supabase](https://supabase.com/) (Auth, Real-time DB, Storage, Edge Functions)
 - **State/Hooks**: Custom hooks for session and environment management.
 - **Utilities**: React Native Maps, Expo Image/Document Pickers.
 
-## 📦 Getting Started
+## 📦 Getting Started (Developer Onboarding)
 
-### Prerequisites
+### 📋 Prerequisites
 
 Before you begin, ensure you have the following installed:
 
-- [Node.js](https://nodejs.org/) (v18 or higher recommended)
-- [npm](https://www.npmjs.com/) or [yarn](https://yarnpkg.com/)
-- [Expo Go](https://expo.dev/client) app on your mobile device for testing.
-- A [Supabase](https://supabase.com/) account and project.
+- **Node.js**: v18 or higher (using `nvm` is recommended).
+- **Package Manager**: `npm` (v10+).
+- **Supabase CLI**: Required for local database development and migrations.
+  ```bash
+  npm install supabase --save-dev
+  ```
+- **Expo Go**: Install on your iOS/Android device for testing.
+- **Simulators**: Xcode (for iOS) or Android Studio (for Android) if you want to run emulators.
 
-### Environment Setup
-
-Create a `.env` file in the root directory (or use your preferred environment management tool) and add your Supabase credentials:
-
-```env
-EXPO_PUBLIC_SUPABASE_URL=your_supabase_project_url
-EXPO_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-```
-
-### Installation
+### 🔧 Installation & Setup
 
 1. **Clone the repository:**
-
    ```bash
    git clone https://github.com/paulpousset/cine-network.git
    cd cine-network
    ```
 
 2. **Install dependencies:**
-
    ```bash
    npm install
+   ```
+
+3. **Install Playwright browsers (for E2E tests):**
+   ```bash
    npx playwright install --with-deps
    ```
 
-3. **Start the development server:**
+4. **Database Setup (Supabase):**
+   If you have the Supabase CLI installed, you can start the local development environment:
    ```bash
-   npx expo start
+   npx supabase start
    ```
+   *Note: Ensure Docker is running if you use the local Supabase environment.*
+
+### 🔐 Environment Variables
+
+Create a `.env` file in the root directory and add the following:
+
+```env
+# Supabase Configuration
+EXPO_PUBLIC_SUPABASE_URL=your_supabase_project_url
+EXPO_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+
+# Optional: Service Role Key (NEVER use this in the frontend, only for scripts)
+# SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+```
+
+### 🏃 Running the App
+
+Start the Expo development server:
+```bash
+npx expo start
+```
+
+- Press **`a`** for Android.
+- Press **`i`** for iOS.
+- Press **`w`** for Web.
+- Scan the QR code with **Expo Go** for physical devices.
+
+---
+
+## 🏗 Workflow & Best Practices
+
+### 🌿 Git Flow
+- **main**: Production-ready code.
+- **dev**: Target branch for integrations.
+- **feature/* / fix/*** : Create your branch from `dev`.
+- Always open a Pull Request (PR) to `dev` for review.
+
+### 💾 Database Migrations
+We use Supabase migrations for all schema changes.
+- **Pull remote changes**: `npx supabase db pull`
+- **Create a new migration**: `npx supabase migration new your_change_name`
+- **Apply migrations locally**: `npx supabase db reset`
+
+### 🎨 Theming & UI
+- Use the `useTheme()` hook for colors and status.
+- Components should be modular and stored in `components/`.
+- Global styles are located in `constants/Styles.ts`.
+
+---
 
 ## 🧪 Testing
 
 The project includes unit tests and End-to-End (E2E) tests.
 
-### Unit Tests
-
+### Unit Tests (Jest)
 ```bash
 npm test
 ```
 
-### E2E Tests (Web)
+### E2E Tests (Playwright)
+We use [Playwright](https://playwright.dev/) for the web version.
+- **Run all tests:** `npm run test:e2e`
+- **Interactive UI:** `npm run test:e2e:ui`
 
-We use [Playwright](https://playwright.dev/) for E2E testing the web version of the application.
-
-- **Run tests:** `npm run test:e2e`
-- **Open UI mode:** `npm run test:e2e:ui`
-- **Debug tests:** `npm run test:e2e:debug`
-
-Before running E2E tests for the first time, ensure you have installed the necessary browsers:
-
-```bash
-npx playwright install
-```
-
-> Use the **Expo Go** app to scan the QR code and run the app on your device, or press `i` for iOS simulator, `a` for Android emulator, or `w` for web.
+---
 
 ## 📂 Project Structure
 
 ```text
 /
-├── app/                  # Application routes (Expo Router)
-│   ├── (tabs)/           # Main navigation: Projects, Jobs, Talents
-│   ├── project/          # Project management and details
-│   ├── profile/          # User professional profiles
+├── app/                  # Expo Router (File-based navigation)
+│   ├── (tabs)/           # Main App Sections (Feed, Projects, Talents)
+│   ├── project/          # Project creation and settings
+│   ├── profile/          # User profiles
+│   └── api/              # Local API routes / Handlers
+├── components/           # Reusable UI components
+├── hooks/                # Custom React hooks (logic, data fetching)
+├── lib/                  # Library configs (Supabase, Events)
+├── providers/            # React Context Providers (Theme, Auth, User)
+├── services/             # Business logic & services (Notifications, Logs)
+├── supabase/             # Database migrations and configuration
+└── utils/                # Helper functions and constants
+```
+
+## 📄 License
+This project is private and proprietary. Unauthorized copying or distribution is strictly prohibited.
+
 │   └── account.tsx       # User settings and account management
 ├── assets/               # Static assets (fonts, images)
 ├── components/           # Reusable UI components
