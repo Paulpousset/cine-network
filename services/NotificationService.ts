@@ -254,7 +254,7 @@ export const NotificationService = {
     return NotificationService.sendGenericNotification({
       receiverId: params.receiverId,
       title: "Invitation Collaboration",
-      body: `${params.inviterName} vous invite à collaborer sur le projet "${params.projectTitle}" en tant qu'administrateur.`,
+      body: `${params.inviterName} vous invite à collaborer sur le projet "${params.projectTitle}" en tant que collaborateur.`,
       data: {
         type: "collaborator_invitation",
         projectId: params.projectId,

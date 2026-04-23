@@ -8,15 +8,15 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 const ROLES = [
@@ -38,6 +38,7 @@ export default function CompleteProfileScreen() {
   const styles = getStyles(colors, isDark);
   const [username, setUsername] = useState("");
   const [role, setRole] = useState("");
+  const [isCompanyAccount, setIsCompanyAccount] = useState<boolean | null>(null);
   const [jobTitle, setJobTitle] = useState("");
   const [secondaryRole, setSecondaryRole] = useState("");
   const [secondaryJobTitle, setSecondaryJobTitle] = useState("");
@@ -61,8 +62,8 @@ export default function CompleteProfileScreen() {
   }, [profile?.full_name, user?.user_metadata]);
 
   const handleSave = async () => {
-    if (!username || !role) {
-      Alert.alert("Champs requis", "Veuillez choisir un pseudo et un rôle.");
+    if (!username || (!isCompanyAccount && !role) || (isCompanyAccount === null)) {
+      Alert.alert("Champs requis", "Veuillez remplir toutes les informations.");
       return;
     }
 
@@ -96,11 +97,13 @@ export default function CompleteProfileScreen() {
         return;
       }
 
+      const finalRole = isCompanyAccount ? "societe_production" : role;
+
       const { error } = await supabase
         .from("profiles")
         .update({
           username: username.trim(),
-          role: role,
+          role: finalRole,
           job_title: jobTitle,
           secondary_role: secondaryRole,
           secondary_job_title: secondaryJobTitle,
@@ -159,127 +162,168 @@ export default function CompleteProfileScreen() {
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Quel est votre rôle principal ?</Text>
+              <Text style={styles.label}>Type de compte (Choix définitif)</Text>
               <View style={styles.rolesGrid}>
-                {ROLES.map((r) => (
-                  <TouchableOpacity
-                    key={r.value}
-                    style={[
-                      styles.roleButton,
-                      role === r.value && styles.roleButtonActive,
-                    ]}
-                    onPress={() => {
-                      setRole(r.value);
-                      setJobTitle("");
-                    }}
-                  >
-                    <Text
-                      style={[
-                        styles.roleText,
-                        role === r.value && styles.roleTextActive,
-                      ]}
-                    >
-                      {r.label}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+               
+                <TouchableOpacity
+                  style={[
+                    styles.roleButton,
+                    isCompanyAccount === false && styles.roleButtonActive,
+                    { flex: 1, paddingVertical: 15 }
+                  ]}
+                  onPress={() => setIsCompanyAccount(false)}
+                >
+                  <Text style={[styles.roleText, isCompanyAccount === false && styles.roleTextActive]}>
+                     Profil Créatif / Talent
+                  </Text>
+                </TouchableOpacity>
+                 <TouchableOpacity
+                  style={[
+                    styles.roleButton,
+                    isCompanyAccount === true && styles.roleButtonActive,
+                    { flex: 1, paddingVertical: 15 }
+                  ]}
+                  onPress={() => {
+                    setIsCompanyAccount(true);
+                    setRole("");
+                    setJobTitle("");
+                    setSecondaryRole("");
+                    setSecondaryJobTitle("");
+                  }}
+                >
+                  <Text style={[styles.roleText, isCompanyAccount === true && styles.roleTextActive]}>
+                     Société de Production
+                  </Text>
+                </TouchableOpacity>
               </View>
             </View>
 
-            {role && (JOB_TITLES as any)[role] && (
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Précisez votre poste</Text>
-                <View style={styles.rolesGrid}>
-                  {(JOB_TITLES as any)[role].map((title: string) => (
-                    <TouchableOpacity
-                      key={title}
-                      style={[
-                        styles.roleButton,
-                        jobTitle === title && styles.roleButtonActive,
-                      ]}
-                      onPress={() => setJobTitle(title)}
-                    >
-                      <Text
+            {isCompanyAccount === false && (
+              <>
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>Quel est votre rôle principal ?</Text>
+                  <View style={styles.rolesGrid}>
+                    {ROLES.map((r) => (
+                      <TouchableOpacity
+                        key={r.value}
                         style={[
-                          styles.roleText,
-                          jobTitle === title && styles.roleTextActive,
+                          styles.roleButton,
+                          role === r.value && styles.roleButtonActive,
                         ]}
+                        onPress={() => {
+                          setRole(r.value);
+                          setJobTitle("");
+                        }}
                       >
-                        {title}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
+                        <Text
+                          style={[
+                            styles.roleText,
+                            role === r.value && styles.roleTextActive,
+                          ]}
+                        >
+                          {r.label}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
                 </View>
-              </View>
-            )}
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Avez-vous un rôle secondaire ? (Optionnel)</Text>
-              <View style={styles.rolesGrid}>
-                {ROLES.map((r) => (
-                  <TouchableOpacity
-                    key={r.value}
-                    style={[
-                      styles.roleButton,
-                      secondaryRole === r.value && styles.roleButtonActive,
-                    ]}
-                    onPress={() => {
-                      if (secondaryRole === r.value) {
-                        setSecondaryRole("");
-                        setSecondaryJobTitle("");
-                      } else {
-                        setSecondaryRole(r.value);
-                        setSecondaryJobTitle("");
-                      }
-                    }}
-                  >
-                    <Text
-                      style={[
-                        styles.roleText,
-                        secondaryRole === r.value && styles.roleTextActive,
-                      ]}
-                    >
-                      {r.label}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
+                {role && (JOB_TITLES as any)[role] && (
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.label}>Précisez votre poste</Text>
+                    <View style={styles.rolesGrid}>
+                      {(JOB_TITLES as any)[role].map((title: string) => (
+                        <TouchableOpacity
+                          key={title}
+                          style={[
+                            styles.roleButton,
+                            jobTitle === title && styles.roleButtonActive,
+                          ]}
+                          onPress={() => setJobTitle(title)}
+                        >
+                          <Text
+                            style={[
+                              styles.roleText,
+                              jobTitle === title && styles.roleTextActive,
+                            ]}
+                          >
+                            {title}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+                )}
 
-            {secondaryRole && (JOB_TITLES as any)[secondaryRole] && (
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Poste secondaire</Text>
-                <View style={styles.rolesGrid}>
-                  {(JOB_TITLES as any)[secondaryRole].map((title: string) => (
-                    <TouchableOpacity
-                      key={title}
-                      style={[
-                        styles.roleButton,
-                        secondaryJobTitle === title && styles.roleButtonActive,
-                      ]}
-                      onPress={() => setSecondaryJobTitle(title)}
-                    >
-                      <Text
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>Avez-vous un rôle secondaire ? (Optionnel)</Text>
+                  <View style={styles.rolesGrid}>
+                    {ROLES.map((r) => (
+                      <TouchableOpacity
+                        key={r.value}
                         style={[
-                          styles.roleText,
-                          secondaryJobTitle === title && styles.roleTextActive,
+                          styles.roleButton,
+                          secondaryRole === r.value && styles.roleButtonActive,
                         ]}
+                        onPress={() => {
+                          if (secondaryRole === r.value) {
+                            setSecondaryRole("");
+                            setSecondaryJobTitle("");
+                          } else {
+                            setSecondaryRole(r.value);
+                            setSecondaryJobTitle("");
+                          }
+                        }}
                       >
-                        {title}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
+                        <Text
+                          style={[
+                            styles.roleText,
+                            secondaryRole === r.value && styles.roleTextActive,
+                          ]}
+                        >
+                          {r.label}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
                 </View>
-              </View>
+
+                {secondaryRole && (JOB_TITLES as any)[secondaryRole] && (
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.label}>Poste secondaire</Text>
+                    <View style={styles.rolesGrid}>
+                      {(JOB_TITLES as any)[secondaryRole].map((title: string) => (
+                        <TouchableOpacity
+                          key={title}
+                          style={[
+                            styles.roleButton,
+                            secondaryJobTitle === title && styles.roleButtonActive,
+                          ]}
+                          onPress={() => setSecondaryJobTitle(title)}
+                        >
+                          <Text
+                            style={[
+                              styles.roleText,
+                              secondaryJobTitle === title && styles.roleTextActive,
+                            ]}
+                          >
+                            {title}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+                )}
+              </>
             )}
 
             <TouchableOpacity
               style={[
                 styles.saveButton,
-                (loading || !username || !role) && styles.disabledButton,
+                (loading || !username || (isCompanyAccount === null) || (!isCompanyAccount && !role)) && styles.disabledButton,
               ]}
               onPress={handleSave}
-              disabled={loading || !username || !role}
+              disabled={loading || !username || (isCompanyAccount === null) || (!isCompanyAccount && !role)}
             >
               {loading ? (
                 <ClapLoading size={24} color="#fff" />

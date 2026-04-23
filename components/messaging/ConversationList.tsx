@@ -33,6 +33,7 @@ export default function ConversationList({ selectedUserId, onSelect }: Conversat
   const [searchQuery, setSearchQuery] = useState("");
   const [profileResults, setProfileResults] = useState<any[]>([]);
   const [messageHistoryResults, setMessageHistoryResults] = useState<any[]>([]);
+  const [activeTab, setActiveTab] = useState<"people" | "companies">("people");
 
   useEffect(() => {
     fetchConversations();
@@ -82,7 +83,7 @@ export default function ConversationList({ selectedUserId, onSelect }: Conversat
     try {
       const { data } = await supabase
         .from("profiles")
-        .select("id, full_name, username, avatar_url")
+        .select("id, full_name, username, avatar_url, role")
         .or(`full_name.ilike.%${query}%,username.ilike.%${query}%`)
         .neq("id", currentUserId)
         .limit(5);
@@ -118,7 +119,7 @@ export default function ConversationList({ selectedUserId, onSelect }: Conversat
         const otherUserIds = data.map(m => m.sender_id === currentUserId ? m.receiver_id : m.sender_id);
         const { data: users } = await supabase
           .from("profiles")
-          .select("id, full_name, avatar_url, username")
+          .select("id, full_name, avatar_url, username, role")
           .in("id", Array.from(new Set(otherUserIds)));
 
         const results = data.map(m => {
@@ -179,6 +180,7 @@ export default function ConversationList({ selectedUserId, onSelect }: Conversat
             full_name: c.full_name,
             avatar_url: c.avatar_url,
             username: c.username,
+            role: c.role,
           },
           lastMessage: {
             content: c.last_message_content,
@@ -190,6 +192,22 @@ export default function ConversationList({ selectedUserId, onSelect }: Conversat
         }));
 
       setConversations(formattedConversations);
+      
+      // Fetch roles for all conversation users to ensure separation works even if RPC doesn't return it
+      const otherUserIds = formattedConversations.map(c => c.user.id);
+      if (otherUserIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from("profiles")
+          .select("id, role")
+          .in("id", otherUserIds);
+        
+        if (profiles) {
+          setConversations(prev => prev.map(c => {
+            const p = profiles.find(prof => prof.id === c.user.id);
+            return p ? { ...c, user: { ...c.user, role: p.role } } : c;
+          }));
+        }
+      }
     } catch (e) {
       console.error("Error fetching conversations:", e);
     } finally {
@@ -290,16 +308,29 @@ export default function ConversationList({ selectedUserId, onSelect }: Conversat
     return nameMatch || contentMatch;
   });
 
-  const listData = [
-    ...filteredConversations.map((c) => ({ ...c, itemType: "conversation" })),
+  const companyConvs = filteredConversations.filter(c => c.user.role === 'societe_production');
+  const individualConvs = filteredConversations.filter(c => c.user.role !== 'societe_production');
+
+  const listData = activeTab === "companies" ? [
+    ...companyConvs.map((c) => ({ ...c, itemType: "conversation" })),
     ...(profileResults.length > 0
       ? [{ itemType: "header", title: "Nouveaux contacts" }]
       : []),
-    ...profileResults.map((p) => ({ user: p, itemType: "profile" })),
+    ...profileResults.filter(p => p.role === 'societe_production').map((p) => ({ user: p, itemType: "profile" })),
     ...(messageHistoryResults.length > 0
       ? [{ itemType: "header", title: "Messages trouvés" }]
       : []),
-    ...messageHistoryResults.map((m) => ({ ...m, itemType: "message" })),
+    ...messageHistoryResults.filter(m => m.user?.role === 'societe_production').map((m) => ({ ...m, itemType: "message" })),
+  ] : [
+    ...individualConvs.map((c) => ({ ...c, itemType: "conversation" })),
+    ...(profileResults.length > 0
+      ? [{ itemType: "header", title: "Nouveaux contacts" }]
+      : []),
+    ...profileResults.filter(p => p.role !== 'societe_production').map((p) => ({ user: p, itemType: "profile" })),
+    ...(messageHistoryResults.length > 0
+      ? [{ itemType: "header", title: "Messages trouvés" }]
+      : []),
+    ...messageHistoryResults.filter(m => m.user?.role !== 'societe_production').map((m) => ({ ...m, itemType: "message" })),
   ];
 
   if (loading && !refreshing) {
@@ -312,6 +343,25 @@ export default function ConversationList({ selectedUserId, onSelect }: Conversat
 
   return (
     <View style={styles.container}>
+      <View style={styles.tabContainer}>
+        <TouchableOpacity 
+          style={[styles.tab, activeTab === "people" && styles.activeTab]}
+          onPress={() => setActiveTab("people")}
+        >
+          <Text style={[styles.tabText, activeTab === "people" && styles.activeTabText]}>
+            Membres
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={[styles.tab, activeTab === "companies" && styles.activeTab]}
+          onPress={() => setActiveTab("companies")}
+        >
+          <Text style={[styles.tabText, activeTab === "companies" && styles.activeTabText]}>
+            Sociétés de Production
+          </Text>
+        </TouchableOpacity>
+      </View>
+
       <View style={styles.searchContainer}>
         <Ionicons
           name="search"
@@ -364,6 +414,53 @@ function createStyles(colors: any, isDark: boolean) {
     container: {
       flex: 1,
       backgroundColor: colors.background,
+    },
+    tabContainer: {
+      flexDirection: "row",
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+      gap: 12,
+      justifyContent: "center", // Centre les boutons sur PC
+    },
+    tab: {
+      flex: 1,
+      maxWidth: Platform.OS === "web" ? 250 : "50%", // Évite que les boutons soient trop larges sur PC
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      borderRadius: 12,
+      backgroundColor: colors.backgroundSecondary,
+      alignItems: "center",
+      justifyContent: "center",
+      borderWidth: 1,
+      borderColor: colors.border,
+      ...Platform.select({
+        web: {
+          cursor: "pointer",
+          transition: "all 0.2s ease",
+        }
+      })
+    },
+    activeTab: {
+      backgroundColor: colors.primary,
+      borderColor: colors.primary,
+      ...Platform.select({
+        web: {
+          boxShadow: "0 4px 12px " + colors.primary + "40",
+        }
+      })
+    },
+    tabText: {
+      fontSize: 14,
+      fontWeight: "700", // Texte plus gras pour PC
+      color: colors.text,
+      opacity: 0.6,
+      textAlign: "center", // Centrage explicite du texte
+    },
+    activeTabText: {
+      color: "#FFF",
+      opacity: 1,
     },
     searchContainer: {
       paddingHorizontal: 16,

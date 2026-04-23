@@ -54,7 +54,7 @@ export const useMyProjectsData = (userId: string | undefined) => {
                 assigned_profile:profiles(id, avatar_url, full_name)
             )
         `)
-        .contains("collaborators", [userId])
+        .or(`collaborators.cs.{${userId}},pending_collaborators.cs.{${userId}}`)
         .neq("owner_id", userId)
         .neq("status", "completed");
 

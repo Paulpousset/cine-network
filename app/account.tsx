@@ -4,6 +4,7 @@ import { GlobalStyles } from "@/constants/Styles";
 import { useUserMode } from "@/hooks/useUserMode";
 import { appEvents, EVENTS } from "@/lib/events";
 import { supabase } from "@/lib/supabase";
+import { useAlert } from "@/providers/ModalProvider";
 import { useTheme } from "@/providers/ThemeProvider";
 import { useUser } from "@/providers/UserProvider";
 import { compressImage } from "@/utils/imageCompression";
@@ -55,9 +56,11 @@ const ROLES = [
 
 export default function Account() {
   const router = useRouter();
+  const { showAlert } = useAlert();
   const { mode, effectiveUserId, isImpersonating } = useUserMode(); // Mode is mostly visual/role based
   const { isGuest } = useUser();
   const [loading, setLoading] = useState(true);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [profile, setProfile] = useState<any>({});
@@ -705,6 +708,11 @@ export default function Account() {
     }
   }
 
+  const handleChange = (setter: (val: any) => void) => (value: any) => {
+    setter(value);
+    setHasUnsavedChanges(true);
+  };
+
   // --- SAVE ---
 
   async function saveProfile() {
@@ -721,11 +729,10 @@ export default function Account() {
     if (Object.keys(newErrors).length > 0) {
       const missingFields = Object.values(newErrors).join("\n- ");
       const alertMsg = "Certains champs obligatoires sont manquants :\n\n- " + missingFields;
-      if (Platform.OS === "web") {
-        window.alert("Champs requis\n\n" + alertMsg);
-      } else {
-        Alert.alert("Champs requis", alertMsg);
-      }
+      showAlert({
+        title: "Champs requis",
+        message: alertMsg,
+      });
       return;
     }
 
@@ -780,11 +787,7 @@ export default function Account() {
 
       appEvents.emit(EVENTS.PROFILE_UPDATED);
 
-      if (Platform.OS === "web") {
-        window.alert("Succès\n\nVotre profil a été mis à jour !");
-      } else {
-        Alert.alert("Succès", "Votre profil a été mis à jour !");
-      }
+      setHasUnsavedChanges(false);
     } catch (e) {
       const message =
         "Une erreur est survenue lors de la sauvegarde.\n" +
@@ -817,7 +820,33 @@ export default function Account() {
       <Stack.Screen options={{ headerShown: false }} />
       {/* HEADER */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={{ padding: 5 }}>
+        <TouchableOpacity
+          onPress={() => {
+            const handleBack = () => {
+              if (router.canGoBack()) {
+                router.back();
+              } else {
+                router.replace("/(tabs)");
+              }
+            };
+
+            if (hasUnsavedChanges) {
+              showAlert({
+                title: "Modifications non enregistrées",
+                message: "Vous avez des modifications non enregistrées. Voulez-vous enregistrer avant de quitter ?",
+                confirmLabel: "Quitter",
+                onConfirm: handleBack,
+                onSave: () => {
+                  saveProfile();
+                  handleBack();
+                }
+              });
+            } else {
+              handleBack();
+            }
+          }}
+          style={{ padding: 5 }}
+        >
           <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
         <Text style={[GlobalStyles.title2, { marginBottom: 0, color: colors.text }]}>
@@ -833,7 +862,11 @@ export default function Account() {
           <TouchableOpacity
             onPress={() => {
               if (isGuest) {
-                Alert.alert("Invité", "Vous devez être connecté pour modifier votre profil.");
+                showAlert({
+                  title: "Invité",
+                  message: "Vous devez être connecté pour modifier votre profil.",
+                  onConfirm: () => {},
+                });
                 return;
               }
               saveProfile();
@@ -989,7 +1022,7 @@ export default function Account() {
           <TextInput
             style={styles.input}
             value={full_name || ""}
-            onChangeText={setFullName}
+            onChangeText={handleChange(setFullName)}
             placeholder="Prénom Nom"
             placeholderTextColor={isDark ? "#6B7280" : "#999"}
           />
@@ -1001,7 +1034,7 @@ export default function Account() {
           <TextInput
             style={styles.input}
             value={username || ""}
-            onChangeText={setUsername}
+            onChangeText={handleChange(setUsername)}
             placeholder="pseudo"
             autoCapitalize="none"
             placeholderTextColor={isDark ? "#6B7280" : "#999"}
@@ -1016,29 +1049,43 @@ export default function Account() {
             showsHorizontalScrollIndicator={false}
             style={{ marginBottom: 15 }}
           >
-            {ROLES.map((r) => (
-              <TouchableOpacity
-                key={r.value}
-                onPress={() => {
-                  setRole(r.value);
-                  setJobTitle(""); // Reset job title when category changes
-                }}
-                style={[
-                  styles.tag,
-                  role === r.value && styles.tagSelected,
-                  { marginRight: 8 },
-                ]}
-              >
-                <Text
+            {ROLES.map((r) => {
+              const isDisabled = (profile?.role === "societe_production" && r.value !== "societe_production") || 
+                                (profile?.role !== "societe_production" && r.value === "societe_production" && profile?.role);
+              
+              return (
+                <TouchableOpacity
+                  key={r.value}
+                  onPress={() => {
+                    if (isDisabled) {
+                      Alert.alert(
+                        "Rôle restreint", 
+                        profile?.role === "societe_production" 
+                          ? "En tant que société de production, vous ne pouvez pas changer de rôle."
+                          : "Vous ne pouvez pas devenir une société de production après la création du compte."
+                      );
+                      return;
+                    }
+                    setRole(r.value);
+                    setJobTitle(""); // Reset job title when category changes
+                  }}
                   style={[
-                    styles.tagText,
-                    role === r.value && styles.tagTextSelected,
+                    styles.tag,
+                    role === r.value && styles.tagSelected,
+                    { marginRight: 8, opacity: isDisabled ? 0.3 : 1 },
                   ]}
                 >
-                  {r.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
+                  <Text
+                    style={[
+                      styles.tagText,
+                      role === r.value && styles.tagTextSelected,
+                    ]}
+                  >
+                    {r.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </ScrollView>
           {errors.role && <Text style={styles.errorText}>{errors.role}</Text>}
 
@@ -1110,13 +1157,17 @@ export default function Account() {
           >
             <TouchableOpacity
               onPress={() => {
+                if (profile?.role === "societe_production") {
+                  Alert.alert("Rôle restreint", "En tant que société de production, vous ne pouvez pas avoir de rôle secondaire.");
+                  return;
+                }
                 setSecondaryRole("");
                 setSecondaryJobTitle("");
               }}
               style={[
                 styles.tag,
                 secondaryRole === "" && styles.tagSelected,
-                { marginRight: 8 },
+                { marginRight: 8, opacity: profile?.role === "societe_production" ? 0.3 : 1 },
               ]}
             >
               <Text
@@ -1128,28 +1179,40 @@ export default function Account() {
                 Aucun
               </Text>
             </TouchableOpacity>
-            {ROLES.map((r) => (
-              <TouchableOpacity
-                key={r.value}
-                onPress={() => {
-                  setSecondaryRole(r.value);
-                }}
-                style={[
-                  styles.tag,
-                  secondaryRole === r.value && styles.tagSelected,
-                  { marginRight: 8 },
-                ]}
-              >
-                <Text
+            {ROLES.map((r) => {
+              const isDisabled = profile?.role === "societe_production" || r.value === "societe_production";
+              return (
+                <TouchableOpacity
+                  key={r.value}
+                  onPress={() => {
+                    if (isDisabled) {
+                      Alert.alert(
+                        "Rôle restreint",
+                        r.value === "societe_production"
+                          ? "Une société de production ne peut pas être un rôle secondaire."
+                          : "En tant que société de production, vous ne pouvez pas avoir de rôle secondaire."
+                      );
+                      return;
+                    }
+                    setSecondaryRole(r.value);
+                  }}
                   style={[
-                    styles.tagText,
-                    secondaryRole === r.value && styles.tagTextSelected,
+                    styles.tag,
+                    secondaryRole === r.value && styles.tagSelected,
+                    { marginRight: 8, opacity: isDisabled ? 0.3 : 1 },
                   ]}
                 >
-                  {r.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
+                  <Text
+                    style={[
+                      styles.tagText,
+                      secondaryRole === r.value && styles.tagTextSelected,
+                    ]}
+                  >
+                    {r.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </ScrollView>
 
           {secondaryRole && (JOB_TITLES as any)[secondaryRole] && (
@@ -1276,7 +1339,7 @@ export default function Account() {
           <TextInput
             style={[styles.input, styles.textArea]}
             value={bio || ""}
-            onChangeText={setBio}
+            onChangeText={handleChange(setBio)}
             placeholder="Décrivez votre parcours en quelques lignes..."
             multiline
             placeholderTextColor={isDark ? "#6B7280" : "#999"}
@@ -1290,7 +1353,7 @@ export default function Account() {
           <TextInput
             style={styles.input}
             value={website || ""}
-            onChangeText={setWebsite}
+            onChangeText={handleChange(setWebsite)}
             placeholder="https://..."
             autoCapitalize="none"
             placeholderTextColor={isDark ? "#6B7280" : "#999"}
@@ -1300,7 +1363,7 @@ export default function Account() {
           <TextInput
             style={styles.input}
             value={email_public || ""}
-            onChangeText={setEmailPublic}
+            onChangeText={handleChange(setEmailPublic)}
             placeholder="contact@exemple.com"
             keyboardType="email-address"
             autoCapitalize="none"
@@ -1311,7 +1374,7 @@ export default function Account() {
           <TextInput
             style={styles.input}
             value={phone || ""}
-            onChangeText={setPhone}
+            onChangeText={handleChange(setPhone)}
             placeholder="+33 6..."
             keyboardType="phone-pad"
             placeholderTextColor={isDark ? "#6B7280" : "#999"}
@@ -1876,6 +1939,10 @@ export default function Account() {
 
         <TouchableOpacity
           onPress={async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session) {
+                await supabase.from("profiles").update({ expo_push_token: null } as any).eq("id", session.user.id);
+            }
             await supabase.auth.signOut();
             router.replace("/");
           }}

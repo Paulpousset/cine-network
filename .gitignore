@@ -49,3 +49,10 @@ tita-485608-0b710ce49066.json
 
 # add coverage folder
 coverage/
+
+# Logs
+logs/*.log
+logs/*.sql
+
+# Supabase temporary files
+supabase/.temp/

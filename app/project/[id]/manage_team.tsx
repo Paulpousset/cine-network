@@ -24,6 +24,7 @@ export default function ManageTeam() {
     sections,
     toggleAdmin,
     router,
+    id,
     categoryPermissions,
     updateCategoryPermissions,
   } = useManageTeam();
@@ -77,6 +78,16 @@ export default function ManageTeam() {
         </TouchableOpacity>
         <Text style={[GlobalStyles.title2, { color: colors.text }]}>Gérer les Admins</Text>
         <View style={{ width: 40 }} />
+      </View>
+
+      <View style={styles.actionRow}>
+        <TouchableOpacity
+          onPress={() => router.push(`/project/${id}/invite` as any)}
+          style={styles.inviteButton}
+        >
+          <Ionicons name="person-add" size={18} color="white" />
+          <Text style={styles.inviteButtonText}>Inviter des membres</Text>
+        </TouchableOpacity>
       </View>
 
       <Text style={styles.subtitle}>
@@ -228,6 +239,24 @@ function createStyles(colors: any, isDark: boolean) {
     marginBottom: 20,
     fontSize: 14,
     fontStyle: "italic",
+    marginTop: 15,
+  },
+  actionRow: {
+    marginBottom: 10,
+  },
+  inviteButton: {
+    backgroundColor: colors.primary,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 12,
+    borderRadius: 12,
+    gap: 10,
+  },
+  inviteButtonText: {
+    color: "white",
+    fontWeight: "700",
+    fontSize: 14,
   },
   sectionHeader: {
     backgroundColor: colors.backgroundSecondary,

@@ -1,6 +1,7 @@
 import WebDatePicker from "@/components/common/WebDatePicker";
 import ClapLoading from "@/components/ui/ClapLoading";
 import { GlobalStyles } from "@/constants/Styles";
+import { useAlert } from "@/providers/ModalProvider";
 import { useTheme } from "@/providers/ThemeProvider";
 import { Logger } from "@/services/LoggerService";
 import { NotificationService } from "@/services/NotificationService";
@@ -49,8 +50,8 @@ const ESTIMATED_DURATIONS = [
 
 const PRODUCTION_TYPES = [
   { value: "recherche", label: "En recherche" },
-  { value: "associative", label: "Associative" },
-  { value: "professionnelle", label: "Pro" },
+  { value: "societe", label: "Oui (Société)" },
+  { value: "non", label: "Non" },
 ];
 
 const SCENARIO_VISIBILITY_OPTIONS = [
@@ -108,6 +109,7 @@ const CreationHeader = ({ step, onBack, onClose, title }: { step: number; onBack
 
 export default function CreateTournage() {
   const router = useRouter();
+  const { showAlert } = useAlert();
   const { colors, isDark } = useTheme();
   const styles = createStyles(colors, isDark);
 
@@ -150,6 +152,12 @@ export default function CreateTournage() {
   const [searchingCollaborators, setSearchingCollaborators] = useState(false);
   const [selectedCollaborators, setSelectedCollaborators] = useState<any[]>([]);
   const [createAutoSpaces, setCreateAutoSpaces] = useState(true);
+
+  // Production search
+  const [searchProductionQuery, setSearchProductionQuery] = useState("");
+  const [productionSuggestions, setProductionSuggestions] = useState<any[]>([]);
+  const [searchingProduction, setSearchingProduction] = useState(false);
+  const [selectedProduction, setSelectedProduction] = useState<any | null>(null);
 
   // Profile Picker for Roles (Step 3)
   const [roleSearchId, setRoleSearchId] = useState<string | null>(null);
@@ -208,17 +216,13 @@ export default function CreateTournage() {
 
       if ((count || 0) >= 1) {
         setCanCreate(false);
-        Alert.alert(
-          "Limite atteinte",
-          "Vous avez atteint la limite de 1 projet actif avec le plan Gratuit.",
-          [
-            { text: "Annuler", onPress: () => router.back(), style: "cancel" },
-            {
-              text: "Devenir membre Studio (Gratuit)",
-              onPress: handleUpgradeSuccess,
-            },
-          ],
-        );
+        showAlert({
+          title: "Limite atteinte",
+          message: "Vous avez atteint la limite de 1 projet actif avec le plan Gratuit.",
+          confirmLabel: "Devenir membre Studio (Gratuit)",
+          onConfirm: handleUpgradeSuccess,
+          onCancel: () => router.back(),
+        });
       }
     } catch (e) {
       console.log("Error checking limits:", e);
@@ -241,12 +245,17 @@ export default function CreateTournage() {
         .eq("id", session.user.id);
 
       setCanCreate(true);
-      Alert.alert(
-        "Félicitations !",
-        "Vous pouvez maintenant créer des projets illimités.",
-      );
+      showAlert({
+        title: "Félicitations !",
+        message: "Vous pouvez maintenant créer des projets illimités.",
+        onConfirm: () => {},
+      });
     } catch (e) {
-      Alert.alert("Erreur", "Mise à jour échouée.");
+      showAlert({
+        title: "Erreur",
+        message: "Mise à jour échouée.",
+        onConfirm: () => {},
+      });
     }
   }
 
@@ -264,7 +273,11 @@ export default function CreateTournage() {
       // Limit to 15MB for scenarios
       const MAX_FILE_SIZE = 15 * 1024 * 1024;
       if (file.size && file.size > MAX_FILE_SIZE) {
-        Alert.alert("Fichier trop volumineux", "Le scénario ne doit pas dépasser 15 Mo.");
+        showAlert({
+          title: "Fichier trop volumineux",
+          message: "Le scénario ne doit pas dépasser 15 Mo.",
+          onConfirm: () => {},
+        });
         return;
       }
 
@@ -295,7 +308,11 @@ export default function CreateTournage() {
 
       setScenarioUrl(publicUrl);
     } catch (e) {
-      Alert.alert("Erreur", "Upload du scénario échoué.");
+      showAlert({
+        title: "Erreur",
+        message: "Upload du scénario échoué.",
+        onConfirm: () => {},
+      });
       setScenarioName("");
     } finally {
       setUploadingScenario(false);
@@ -363,6 +380,39 @@ export default function CreateTournage() {
     const newCollabs = selectedCollaborators.filter((c) => c.id !== id);
     setSelectedCollaborators(newCollabs);
     setCollaboratorIds(newCollabs.map((c) => c.id));
+  }
+
+  async function searchProductions(text: string) {
+    setSearchProductionQuery(text);
+    if (text.length < 3) {
+      setProductionSuggestions([]);
+      return;
+    }
+
+    try {
+      setSearchingProduction(true);
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id, full_name, username, avatar_url")
+        .eq("user_role", "societe_production")
+        .or(`full_name.ilike.%${text}%,username.ilike.%${text}%`)
+        .limit(5);
+
+      if (error) throw error;
+      setProductionSuggestions(data || []);
+    } catch (e) {
+      console.log("Search production error:", e);
+    } finally {
+      setSearchingProduction(false);
+    }
+  }
+
+  function selectProduction(profile: any) {
+    setSelectedProduction(profile);
+    setProductionCompany(profile.full_name || profile.username || "");
+    setProductionType("professionnelle");
+    setSearchProductionQuery("");
+    setProductionSuggestions([]);
   }
 
   async function getCoordinates(fullAddress: string) {
@@ -471,10 +521,13 @@ const selectedList = Object.values(selected);
             estimated_duration: estimatedDuration,
             production_type: productionType as any,
             school_name: types.includes("etudiant") ? schoolName.trim() : null,
-            shooting_cities: shootingCities.length > 0 ? shootingCities : null,
-            scenario_url: scenarioUrl,
-            scenario_visibility: scenarioVisibility as any,
-            collaborators: collaboratorIds.length > 0 ? collaboratorIds : null,
+            shooting_cities: shooting_cities.length > 0 ? shooting_cities : null,
+            scenario_url: scenario_url,
+            scenario_visibility: scenario_visibility as any,
+            collaborators: null,
+            pending_collaborators: (selectedProduction ? [selectedProduction.id, ...collaborator_ids] : collaborator_ids).length > 0 
+              ? (selectedProduction ? [selectedProduction.id, ...collaborator_ids] : collaborator_ids) 
+              : null,
             active_native_spaces: createAutoSpaces ? uniqueCategories : [],
           })
           .select()
@@ -492,8 +545,13 @@ const selectedList = Object.values(selected);
             .select("full_name, username")
             .eq("id", session.user.id)
             .single();
-          const inviterName = profile?.full_name || profile?.username || "L'administrateur";
-          selectedCollaborators.forEach(collab => {
+          const inviterName = profile?.full_name || profile?.username || "Le collaborateur";
+          
+          const allPendingToInvite = selectedProduction 
+            ? [selectedProduction, ...selectedCollaborators] 
+            : selectedCollaborators;
+
+          allPendingToInvite.forEach(collab => {
             NotificationService.sendCollaboratorInvitationNotification({
               receiverId: collab.id,
               projectTitle: title.trim(),
@@ -552,7 +610,7 @@ const selectedList = Object.values(selected);
                 receiverId: inv.assigned_profile_id!,
                 projectTitle: title.trim(),
                 roleTitle: inv.title,
-                projectId: data.id, // Ajout du projectId si supporté par le service
+                projectId: data.id,
               });
             });
           }
@@ -622,26 +680,130 @@ const selectedList = Object.values(selected);
                 />
                 {errors.title && <Text style={styles.errorText}>{errors.title}</Text>}
 
-                <Text style={[styles.fieldLabel, { marginTop: 15 }]}>Production</Text>
-                <TextInput
-                  placeholder="Nom de la société..."
-                  style={styles.formInput}
-                  value={productionCompany}
-                  onChangeText={setProductionCompany}
-                />
-
-                <Text style={[styles.fieldLabel, { marginTop: 15 }]}>Type de production</Text>
+                <Text style={[styles.fieldLabel, { marginTop: 15 }]}>Avez-vous une société de production ?</Text>
                 <View style={styles.typeContainer}>
                   {PRODUCTION_TYPES.map((t) => (
                     <TouchableOpacity
                       key={t.value}
-                      style={[styles.typeButton, productionType === t.value && styles.typeButtonSelected]}
-                      onPress={() => setProductionType(t.value)}
+                      style={[
+                        styles.typeButton, 
+                        productionType === t.value && styles.typeButtonSelected,
+                        t.value === "recherche" && productionType === "recherche" && { backgroundColor: colors.primary, borderColor: colors.primary }
+                      ]}
+                      onPress={() => {
+                        setProductionType(t.value);
+                        if (t.value !== "societe") {
+                          setProductionCompany("");
+                          setSelectedProduction(null);
+                        }
+                      }}
                     >
-                      <Text style={{ color: productionType === t.value ? "white" : colors.primary }}>{t.label}</Text>
+                      <Text style={{ 
+                        color: productionType === t.value ? "white" : colors.primary,
+                        fontWeight: t.value === "recherche" ? "700" : "400"
+                      }}>
+                        {t.label}
+                      </Text>
                     </TouchableOpacity>
                   ))}
                 </View>
+
+                {productionType === "societe" && (
+                  <>
+                    <Text style={[styles.fieldLabel, { marginTop: 15 }]}>Société de Production</Text>
+                    {selectedProduction ? (
+                      <View style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        backgroundColor: colors.background,
+                        padding: 10,
+                        borderRadius: 8,
+                        borderWidth: 1,
+                        borderColor: colors.primary,
+                        marginBottom: 10
+                      }}>
+                        <Image
+                          source={selectedProduction.avatar_url ? { uri: selectedProduction.avatar_url } : {}}
+                          style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: colors.border }}
+                        />
+                        <View style={{ flex: 1, marginLeft: 10 }}>
+                          <Text style={{ color: colors.text, fontWeight: "600" }}>{selectedProduction.full_name}</Text>
+                          <Text style={{ color: colors.textSecondary, fontSize: 12 }}>Société invitée</Text>
+                        </View>
+                        <TouchableOpacity onPress={() => {
+                          setSelectedProduction(null);
+                          setProductionCompany("");
+                        }}>
+                          <Ionicons name="close-circle" size={24} color={colors.textSecondary} />
+                        </TouchableOpacity>
+                      </View>
+                    ) : (
+                      <View style={{ position: "relative", zIndex: 3000 }}>
+                        <TextInput
+                          placeholder="Rechercher une société existante..."
+                          style={styles.formInput}
+                          value={searchProductionQuery}
+                          onChangeText={searchProductions}
+                        />
+                        {searchingProduction && (
+                          <ActivityIndicator 
+                            size="small" 
+                            color={colors.primary} 
+                            style={{ position: "absolute", right: 10, top: 12 }} 
+                          />
+                        )}
+                        
+                        {productionSuggestions.length > 0 && (
+                          <View style={{
+                            position: "absolute",
+                            top: 48,
+                            left: 0,
+                            right: 0,
+                            backgroundColor: colors.backgroundSecondary,
+                            borderRadius: 8,
+                            borderWidth: 1,
+                            borderColor: colors.border,
+                            zIndex: 3001,
+                            elevation: 5
+                          }}>
+                            {productionSuggestions.map((p) => (
+                              <TouchableOpacity
+                                key={p.id}
+                                style={{
+                                  flexDirection: "row",
+                                  alignItems: "center",
+                                  padding: 10,
+                                  borderBottomWidth: 1,
+                                  borderBottomColor: colors.border
+                                }}
+                                onPress={() => selectProduction(p)}
+                              >
+                                <Image
+                                  source={p.avatar_url ? { uri: p.avatar_url } : {}}
+                                  style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: colors.border }}
+                                />
+                                <Text style={{ marginLeft: 10, color: colors.text }}>{p.full_name || p.username}</Text>
+                              </TouchableOpacity>
+                            ))}
+                          </View>
+                        )}
+                        
+                        <Text style={{ fontSize: 11, color: colors.textSecondary, marginTop: 4, fontStyle: "italic" }}>
+                          Ou renseignez le nom manuellement ci-dessous :
+                        </Text>
+                        <TextInput
+                          placeholder="Nom de la société..."
+                          style={[styles.formInput, { marginTop: 4 }]}
+                          value={productionCompany}
+                          onChangeText={(t) => {
+                            setProductionCompany(t);
+                            if (selectedProduction) setSelectedProduction(null);
+                          }}
+                        />
+                      </View>
+                    )}
+                  </>
+                )}
 
                 <Text style={[styles.fieldLabel, { marginTop: 15 }]}>Pitch</Text>
                 <TextInput
@@ -786,7 +948,7 @@ const selectedList = Object.values(selected);
               <View style={styles.formSection}>
                 <View style={styles.formSectionHeader}>
                   <Ionicons name="people-outline" size={18} color={colors.primary} />
-                  <Text style={styles.formSectionTitle}>Administrateurs du projet</Text>
+                  <Text style={styles.formSectionTitle}>Collaborateurs du projet</Text>
                 </View>
                 
                 <View style={{ 
@@ -1400,7 +1562,7 @@ const selectedList = Object.values(selected);
             </>
           )}
           
-          <View style={{ height: 40 }} />
+    <View style={{ height: 40 }} />
           <Text style={{ textAlign: "center", color: colors.text + "40", marginBottom: 20 }}>Étape {step} sur 3</Text>
         </View>
       </ScrollView>
