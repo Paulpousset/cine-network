@@ -31,10 +31,6 @@ Before you begin, ensure you have the following installed:
 
 - **Node.js**: v18 or higher (using `nvm` is recommended).
 - **Package Manager**: `npm` (v10+).
-- **Supabase CLI**: Required for local database development and migrations.
-  ```bash
-  npm install supabase --save-dev
-  ```
 - **Expo Go**: Install on your iOS/Android device for testing.
 - **Simulators**: Xcode (for iOS) or Android Studio (for Android) if you want to run emulators.
 
@@ -56,24 +52,14 @@ Before you begin, ensure you have the following installed:
    npx playwright install --with-deps
    ```
 
-4. **Database Setup (Supabase):**
-   If you have the Supabase CLI installed, you can start the local development environment:
-   ```bash
-   npx supabase start
-   ```
-   *Note: Ensure Docker is running if you use the local Supabase environment.*
-
 ### 🔐 Environment Variables
 
 Create a `.env` file in the root directory and add the following:
 
 ```env
-# Supabase Configuration
+# Supabase Configuration (Remote Instance)
 EXPO_PUBLIC_SUPABASE_URL=your_supabase_project_url
 EXPO_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-
-# Optional: Service Role Key (NEVER use this in the frontend, only for scripts)
-# SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
 ```
 
 ### 🏃 Running the App
@@ -97,12 +83,6 @@ npx expo start
 - **dev**: Target branch for integrations.
 - **feature/* / fix/*** : Create your branch from `dev`.
 - Always open a Pull Request (PR) to `dev` for review.
-
-### 💾 Database Migrations
-We use Supabase migrations for all schema changes.
-- **Pull remote changes**: `npx supabase db pull`
-- **Create a new migration**: `npx supabase migration new your_change_name`
-- **Apply migrations locally**: `npx supabase db reset`
 
 ### 🎨 Theming & UI
 - Use the `useTheme()` hook for colors and status.
