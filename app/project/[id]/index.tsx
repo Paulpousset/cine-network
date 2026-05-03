@@ -1,5 +1,6 @@
 import { Hoverable } from "@/components/common/Hoverable";
 import RoleFormFields from "@/components/profile/RoleFormFields";
+import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 import { useThemedStyles } from "@/hooks/useThemedStyles";
 import { useUserMode } from "@/hooks/useUserMode";
 import { useTheme } from "@/providers/ThemeProvider";
@@ -12,20 +13,19 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
-  Alert,
-  Animated,
-  Easing,
-  FlatList,
-  Image,
-  Modal,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  useWindowDimensions,
-  View,
+    Animated,
+    Easing,
+    FlatList,
+    Image,
+    Modal,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    useWindowDimensions,
+    View
 } from "react-native";
 import { supabase } from "../../../lib/supabase";
 
@@ -36,17 +36,23 @@ function ProjectShowcase({
   isLiked,
   onToggleLike,
   isVisitor,
+  onCollaborationResponse,
+  currentUserId,
 }: {
   project: any;
   roles: any[];
   isLiked: boolean;
   onToggleLike: () => void;
   isVisitor: boolean;
+  onCollaborationResponse?: (accept: boolean) => void;
+  currentUserId?: string | null;
 }) {
   const router = useRouter();
   const { colors, isDark } = useTheme();
   const themedGlobalStyles = useThemedStyles();
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+
+  const isPendingCollab = project.pending_collaborators?.includes(currentUserId);
 
   // Filter roles that are not assigned.
   // Owners/Collaborators (non-visitors) see draft roles too.
@@ -148,6 +154,56 @@ function ProjectShowcase({
       </View>
 
       <View style={{ padding: 20 }}>
+        {/* Invitation Banner */}
+        {isPendingCollab && onCollaborationResponse && (
+          <View style={{
+            backgroundColor: colors.primary + "15",
+            borderRadius: 12,
+            padding: 16,
+            marginBottom: 20,
+            borderWidth: 1,
+            borderColor: colors.primary + "30",
+          }}>
+            <Text style={{ 
+              color: colors.text, 
+              fontSize: 16, 
+              fontWeight: "600", 
+              marginBottom: 12,
+              textAlign: "center"
+            }}>
+              Vous êtes invité à collaborer sur ce projet en tant que collaborateur
+            </Text>
+            <View style={{ flexDirection: "row", gap: 12 }}>
+              <TouchableOpacity 
+                onPress={() => onCollaborationResponse(true)}
+                style={{
+                  flex: 1,
+                  backgroundColor: colors.primary,
+                  paddingVertical: 10,
+                  borderRadius: 8,
+                  alignItems: "center"
+                }}
+              >
+                <Text style={{ color: "white", fontWeight: "bold" }}>Accepter</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                onPress={() => onCollaborationResponse(false)}
+                style={{
+                  flex: 1,
+                  backgroundColor: colors.backgroundSecondary,
+                  paddingVertical: 10,
+                  borderRadius: 8,
+                  alignItems: "center",
+                  borderWidth: 1,
+                  borderColor: colors.border
+                }}
+              >
+                <Text style={{ color: colors.text, fontWeight: "bold" }}>Refuser</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
         {/* Info Bar */}
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 15, marginBottom: 20 }}>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
@@ -176,6 +232,8 @@ function ProjectShowcase({
             <Text style={{ color: colors.text + "80" }}>
               {project.production_type === "recherche" 
                 ? "Prod : En recherche" 
+                : project.production_type === "non"
+                ? "Prod : Aucune"
                 : (project.production_company || "Prod : Non précisée")}
             </Text>
           </View>
@@ -505,6 +563,23 @@ export default function ProjectDetails() {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [isVisitor, setIsVisitor] = useState(false); // New state to track visitor status
 
+  // Modal State
+  const [modalConfig, setModalConfig] = useState<{
+    visible: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    isDestructive?: boolean;
+    confirmLabel?: string;
+  }>({
+    visible: false,
+    title: "",
+    message: "",
+    onConfirm: () => {},
+  });
+
+  const hideModal = () => setModalConfig((prev) => ({ ...prev, visible: false }));
+
   // Forcing showcase mode even if member/owner
   const forceShowcase = view === "showcase";
 
@@ -634,12 +709,14 @@ export default function ProjectDetails() {
 
   async function toggleLike() {
     if (!currentUserId || isGuest) {
-      Alert.alert(
-        "Connexion requise",
-        isGuest
-          ? "Vous devez être connecté pour aimer un projet."
-          : "Vous devez être connecté pour aimer un projet.",
-      );
+      setModalConfig({
+        visible: true,
+        title: "Connexion requise",
+        message: "Vous devez être connecté pour aimer un projet.",
+        isDestructive: false,
+        confirmLabel: "OK",
+        onConfirm: hideModal,
+      });
       return;
     }
 
@@ -679,7 +756,14 @@ export default function ProjectDetails() {
           ? (prev?.likes_count || 0) + 1
           : Math.max(0, (prev?.likes_count || 1) - 1),
       }));
-      Alert.alert("Erreur", "Impossible de modifier le like.");
+      setModalConfig({
+        visible: true,
+        title: "Erreur",
+        message: "Impossible de modifier le like.",
+        isDestructive: false,
+        confirmLabel: "OK",
+        onConfirm: hideModal,
+      });
     }
   }
 
@@ -723,12 +807,16 @@ export default function ProjectDetails() {
 
       const ownerId = proj.owner_id;
       const collaborators = proj.collaborators || [];
+      const pendingCollaborators = proj.pending_collaborators || [];
 
       // Check membership/ownership
       let isMember = false;
       if (userId) {
         if (userId === ownerId || collaborators.includes(userId)) {
           isMember = true;
+        } else if (pendingCollaborators.includes(userId)) {
+          // Keep isMember false but the project is loaded for the user to see the invitation
+          isMember = false;
         } else {
           const { data: memberData } = await supabase
             .from("project_roles")
@@ -748,7 +836,14 @@ export default function ProjectDetails() {
         await fetchApplications();
       }
     } catch (error) {
-      Alert.alert("Erreur", (error as Error).message);
+      setModalConfig({
+        visible: true,
+        title: "Erreur",
+        message: (error as Error).message,
+        isDestructive: false,
+        confirmLabel: "OK",
+        onConfirm: hideModal,
+      });
       router.back();
     } finally {
       setLoading(false);
@@ -821,6 +916,51 @@ export default function ProjectDetails() {
     }
 
     setRoles(items);
+  }
+
+  async function handleCollaborationResponse(accept: boolean) {
+    if (!currentUserId || !project) return;
+    
+    setLoading(true);
+    try {
+      const newPending = (project.pending_collaborators || []).filter((uid: string) => uid !== currentUserId);
+      const updates: any = { pending_collaborators: newPending };
+      
+      if (accept) {
+        const newCollabs = [...(project.collaborators || []), currentUserId];
+        updates.collaborators = newCollabs;
+      }
+      
+      const { error } = await supabase
+        .from("tournages")
+        .update(updates)
+        .eq("id", project.id);
+        
+      if (error) throw error;
+      
+      setModalConfig({
+        visible: true,
+        title: accept ? "C'est parti !" : "Invitation refusée",
+        message: accept ? "Vous êtes maintenant collaborateur de ce projet." : "L'invitation a été retirée.",
+        isDestructive: false,
+        confirmLabel: "OK",
+        onConfirm: hideModal,
+      });
+      
+      fetchProjectDetails();
+    } catch (error) {
+      setModalConfig({
+        visible: true,
+        title: "Erreur",
+        message: "Impossible de répondre à l'invitation.",
+        isDestructive: false,
+        confirmLabel: "OK",
+        onConfirm: hideModal,
+      });
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
   }
 
   function openAddRole() {
@@ -1233,37 +1373,38 @@ export default function ProjectDetails() {
   }
 
   async function deleteRole(roleId: string) {
-    Alert.alert("Supprimer", "Voulez-vous supprimer ce rôle ?", [
-      { text: "Annuler", style: "cancel" },
-      {
-        text: "Supprimer",
-        style: "destructive",
-        onPress: async () => {
-          const { error } = await supabase
-            .from("project_roles")
-            .delete()
-            .eq("id", roleId);
-          if (!error) {
-            setRoles((prev) => prev.filter((r) => r.id !== roleId));
-            if (manageRole && (manageRole as any).key) {
-              const updatedItems = (manageRole as any).items.filter(
-                (r: any) => r.id !== roleId,
-              );
-              const newTotal = updatedItems.length;
-              if (updatedItems.length === 0) setManageRole(null);
-              else
-                setManageRole({
-                  ...manageRole,
-                  items: updatedItems,
-                  totalQty: newTotal,
-                });
-            } else {
-              setManageRole(null);
-            }
+    setModalConfig({
+      visible: true,
+      title: "Supprimer",
+      message: "Voulez-vous supprimer ce rôle ?",
+      isDestructive: true,
+      confirmLabel: "Supprimer",
+      onConfirm: async () => {
+        hideModal();
+        const { error } = await supabase
+          .from("project_roles")
+          .delete()
+          .eq("id", roleId);
+        if (!error) {
+          setRoles((prev) => prev.filter((r) => r.id !== roleId));
+          if (manageRole && (manageRole as any).key) {
+            const updatedItems = (manageRole as any).items.filter(
+              (r: any) => r.id !== roleId,
+            );
+            const newTotal = updatedItems.length;
+            if (updatedItems.length === 0) setManageRole(null);
+            else
+              setManageRole({
+                ...manageRole,
+                items: updatedItems,
+                totalQty: newTotal,
+              });
+          } else {
+            setManageRole(null);
           }
-        },
+        }
       },
-    ]);
+    });
   }
 
   // --- Manage Role Logic ---
@@ -1707,6 +1848,8 @@ export default function ProjectDetails() {
           isLiked={isLiked}
           onToggleLike={toggleLike} 
           isVisitor={isVisitor}
+          onCollaborationResponse={handleCollaborationResponse}
+          currentUserId={currentUserId}
         />
       </View>
     );
@@ -2752,30 +2895,44 @@ export default function ProjectDetails() {
                             flexDirection: "row",
                             alignItems: "center",
                             marginBottom: 10,
-                            backgroundColor: isDraft ? "#fff3e0" : "#e8f5e9",
-                            padding: 6,
-                            borderRadius: 4,
+                            backgroundColor: isDraft ? "#fff7ed" : "#f0fdf4",
+                            paddingHorizontal: 12,
+                            paddingVertical: 8,
+                            borderRadius: 8,
                             alignSelf: "flex-start",
+                            borderWidth: 1,
+                            borderColor: isDraft ? "#ffedd5" : "#dcfce7",
                             opacity: assignedUser ? 0.5 : 1,
+                            shadowColor: "#000",
+                            shadowOffset: { width: 0, height: 1 },
+                            shadowOpacity: 0.1,
+                            shadowRadius: 1,
+                            elevation: 1,
                           }}
                         >
                           <Ionicons
                             name={isDraft ? "eye-off-outline" : "eye-outline"}
                             size={16}
-                            color={isDraft ? "orange" : "green"}
+                            color={isDraft ? "#c2410c" : "#15803d"}
                           />
                           <Text
                             style={{
-                              marginLeft: 6,
-                              fontSize: 12,
+                              marginLeft: 8,
+                              fontSize: 13,
                               fontWeight: "600",
-                              color: isDraft ? "orange" : "green",
+                              color: isDraft ? "#c2410c" : "#15803d",
                             }}
                           >
                             {isDraft
-                              ? "Brouillon (Non visible)"
-                              : "Publié (Visible)"}
+                              ? "Brouillon (Cliquer pour publier)"
+                              : "Publié (Cliquer pour masquer)"}
                           </Text>
+                          <Ionicons
+                            name="chevron-forward"
+                            size={14}
+                            color={isDraft ? "#c2410c" : "#15803d"}
+                            style={{ marginLeft: 6, opacity: 0.5 }}
+                          />
                         </TouchableOpacity>
 
                         {/* BOOST BUTTON */}
@@ -3207,6 +3364,15 @@ export default function ProjectDetails() {
           </View>
         </View>
       </Modal>
+      <ConfirmationModal
+        visible={modalConfig.visible}
+        title={modalConfig.title}
+        message={modalConfig.message}
+        onConfirm={modalConfig.onConfirm}
+        onCancel={hideModal}
+        confirmLabel={modalConfig.confirmLabel}
+        isDestructive={modalConfig.isDestructive}
+      />
     </View>
   );
 }

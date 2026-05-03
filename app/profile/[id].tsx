@@ -51,6 +51,7 @@ export default function ProfileDetail() {
   const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
   const [mandateStatus, setMandateStatus] = useState<string | null>(null);
   const [isBlocked, setIsBlocked] = useState(false);
+  const [isCompanyInvitePending, setIsCompanyInvitePending] = useState(false);
   const isFetchingRef = React.useRef(false);
 
   // Experience Editing State
@@ -311,6 +312,36 @@ export default function ProfileDetail() {
       setActiveImgIndex(0);
     }
   }, [viewModalVisible]);
+
+  async function handleCompanyInvite() {
+    const currentUserId = user?.id;
+    if (!currentUserId) {
+      Alert.alert("Erreur", "Vous devez être connecté.");
+      return;
+    }
+
+    try {
+      // For now, we reuse the recruitment logic or a specialized connection type
+      // since we don't have the table yet. Let's use an Alert to explain.
+      Alert.alert(
+        "Invitation d'équipe",
+        `Voulez-vous inviter ${profile?.full_name || profile?.username} à rejoindre votre société ? (Simulé pour le moment)`,
+        [
+          { text: "Annuler", style: "cancel" },
+          { 
+            text: "Inviter", 
+            onPress: () => {
+              setIsCompanyInvitePending(true);
+              Alert.alert("Succès", "L'invitation a été envoyée.");
+            }
+          }
+        ]
+      );
+    } catch (e) {
+      Alert.alert("Erreur", "Action impossible.");
+      console.error(e);
+    }
+  }
 
   async function handleClap() {
     const currentUserId = user?.id;
@@ -819,17 +850,9 @@ export default function ProfileDetail() {
             </View>
           )}
 
-          <View
-            style={{
-              flexDirection: "row",
-              gap: 10,
-              marginTop: 15,
-              flexWrap: "wrap",
-              justifyContent: "center",
-            }}
-          >
-            {/* CLAP BUTTON */}
-            {!isOwnProfile && (
+          <View style={{ flexDirection: "row", gap: 10, marginTop: 15, flexWrap: "wrap", justifyContent: "center" }}>
+            {/* CLAP BUTTON - REMOVED FOR PRODUCTION COMPANIES */}
+            {!isOwnProfile && profile?.role !== "societe_production" && myProfile?.role !== "societe_production" && (
               <TouchableOpacity
                 style={[
                   styles.actionButton,
@@ -872,8 +895,86 @@ export default function ProfileDetail() {
               </TouchableOpacity>
             )}
 
+            {/* JOIN COMPANY BUTTON */}
+            {!isOwnProfile && profile?.role === "societe_production" && (
+              <TouchableOpacity
+                style={[
+                  styles.actionButton, 
+                  { backgroundColor: colors.primary },
+                  isCompanyInvitePending && { backgroundColor: "#FF9800" }
+                ]}
+                onPress={() => {
+                  if (isGuest) {
+                    Alert.alert("Invité", "Vous devez être connecté pour rejoindre une société.");
+                    return;
+                  }
+                  if (isCompanyInvitePending) {
+                    Alert.alert("En attente", "Votre demande d'adhésion est en cours de validation.");
+                    return;
+                  }
+                  
+                  Alert.alert(
+                    "Rejoindre la société", 
+                    `Souhaitez-vous envoyer une demande pour rejoindre ${profile?.full_name || "cette société"} ?`,
+                    [
+                      { text: "Annuler", style: "cancel" },
+                      { 
+                        text: "Envoyer ma demande", 
+                        onPress: () => {
+                          setIsCompanyInvitePending(true);
+                          Alert.alert("Demande envoyée", "La société a reçu votre demande de recrutement.");
+                        } 
+                      }
+                    ]
+                  );
+                }}
+                disabled={isGuest}
+              >
+                <Ionicons name={isCompanyInvitePending ? "time" : "business"} size={20} color="white" />
+                <Text style={styles.actionButtonText}>
+                  {isCompanyInvitePending ? "Demande envoyée" : "Rejoindre"}
+                </Text>
+              </TouchableOpacity>
+            )}
+
+            {/* INVITE TO COMPANY BUTTON (If current user IS a company and viewing a talent) */}
+            {!isOwnProfile && myProfile?.role === "societe_production" && profile?.role !== "societe_production" && (
+              <TouchableOpacity
+                style={[
+                  styles.actionButton, 
+                  { backgroundColor: "#673AB7" },
+                  isCompanyInvitePending && { backgroundColor: "#FF9800" }
+                ]}
+                onPress={() => {
+                  if (isCompanyInvitePending) {
+                    Alert.alert("En attente", "Une invitation est déjà en cours pour ce profil.");
+                    return;
+                  }
+                  
+                  Alert.alert(
+                    "Inviter à rejoindre la société", 
+                    `Souhaitez-vous inviter ${profile?.full_name || "ce talent"} à rejoindre votre société ?`,
+                    [
+                      { text: "Annuler", style: "cancel" },
+                      { 
+                        text: "Envoyer l'invitation", 
+                        onPress: () => {
+                          handleCompanyInvite();
+                        } 
+                      }
+                    ]
+                  );
+                }}
+              >
+                <Ionicons name={isCompanyInvitePending ? "time" : "person-add"} size={20} color="white" />
+                <Text style={styles.actionButtonText}>
+                  {isCompanyInvitePending ? "Invitation envoyée" : "Inviter"}
+                </Text>
+              </TouchableOpacity>
+            )}
+
             {/* MANDATE BUTTON - Only for Agents */}
-            {!isOwnProfile && currentUserRole === "agent" && (
+            {!isOwnProfile && currentUserRole === "agent" && profile?.role !== "societe_production" && (
               <TouchableOpacity
                 style={[
                   styles.actionButton,

@@ -1,5 +1,6 @@
 import { useUserMode } from "@/hooks/useUserMode";
 import { supabase } from "@/lib/supabase";
+import { useAlert } from "@/providers/ModalProvider";
 import { ACCENT_COLORS, AccentColor, useTheme } from "@/providers/ThemeProvider";
 import { useTutorial } from "@/providers/TutorialProvider";
 import { useUser } from "@/providers/UserProvider";
@@ -7,18 +8,18 @@ import { Ionicons } from "@expo/vector-icons";
 import { Stack, useRouter } from "expo-router";
 import React from "react";
 import {
-    Alert,
-    Linking,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  Linking,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from "react-native";
 
 export default function Settings() {
   const router = useRouter();
+  const { showAlert } = useAlert();
   const { themeMode, setThemeMode, accentColor, setAccentColor, colors, isDark } = useTheme();
   const { startTutorial, isLoading: isTutorialLoading } = useTutorial();
   const { user, profile, refreshProfile } = useUser();
@@ -95,21 +96,16 @@ export default function Settings() {
         `mailto:support@titapp.fr?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
       );
     } else {
-      Alert.alert(
-        "Signaler un problème",
-        "Souhaitez-vous contacter le support pour signaler un bug ou une suggestion ?",
-        [
-          { text: "Annuler", style: "cancel" },
-          {
-            text: "Contacter",
-            onPress: () => {
-              Linking.openURL(
-                `mailto:support@titapp.fr?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
-              );
-            },
-          },
-        ]
-      );
+      showAlert({
+        title: "Signaler un problème",
+        message: "Souhaitez-vous contacter le support pour signaler un bug ou une suggestion ?",
+        confirmLabel: "Contacter",
+        onConfirm: () => {
+          Linking.openURL(
+            `mailto:support@titapp.fr?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
+          );
+        },
+      });
     }
   };
 
@@ -164,59 +160,45 @@ export default function Settings() {
           const successTitle = "Compte supprimé";
           const successMsg = "Votre compte et vos données ont été supprimés avec succès.";
 
-          if (Platform.OS === "web") {
-            window.alert(`${successTitle}\n\n${successMsg}`);
-          } else {
-            Alert.alert(successTitle, successMsg);
-          }
-
-          await supabase.auth.signOut();
-          router.replace("/");
+          showAlert({
+            title: successTitle,
+            message: successMsg,
+            onConfirm: async () => {
+              await supabase.auth.signOut();
+              router.replace("/");
+            },
+          });
         }
       } catch (error: any) {
         const errTitle = "Erreur";
         const errMsg = "Impossible de supprimer le compte: " + (error.message || JSON.stringify(error));
-        if (Platform.OS === "web") {
-          window.alert(`${errTitle}\n\n${errMsg}`);
-        } else {
-          Alert.alert(errTitle, errMsg);
-        }
+        showAlert({
+          title: errTitle,
+          message: errMsg,
+          onConfirm: () => {},
+        });
       } finally {
         setDeleting(false);
       }
     };
 
-    if (Platform.OS === "web") {
-      if (
-        window.confirm(
-          "ATTENTION : Cette action est IRREVERSIBLE. Toutes vos données, projets, messages et candidatures seront supprimés définitivement. Souhaitez-vous continuer ?",
-        )
-      ) {
-        confirmDelete();
-      }
-    } else {
-      Alert.alert(
-        "Zone de Danger : Suppression du compte",
-        "ATTENTION : Cette action est IRREVERSIBLE. Toutes vos données (profil, projets créés, messages, participations) seront supprimées définitivement.\n\nSouhaitez-vous vraiment continuer ?",
-        [
-          { text: "Annuler", style: "cancel" },
-          {
-            text: "SUPPRIMER DÉFINITIVEMENT",
-            style: "destructive",
-            onPress: confirmDelete,
-          },
-        ],
-      );
-    }
+    showAlert({
+      title: "Zone de Danger : Suppression du compte",
+      message: "ATTENTION : Cette action est IRREVERSIBLE. Toutes vos données (profil, projets créés, messages, participations) seront supprimées définitivement.\n\nSouhaitez-vous vraiment continuer ?",
+      confirmLabel: "SUPPRIMER DÉFINITIVEMENT",
+      isDestructive: true,
+      onConfirm: confirmDelete,
+    });
   };
 
   const handleCancelSubscription = async () => {
     const expiryDate = getExpiryDate();
-    if (Platform.OS === "web") {
-      const confirm = window.confirm(
-        `Souhaitez-vous résilier votre abonnement Studio Pro ?\n\nNote : Vous conserverez tous vos avantages jusqu'au ${expiryDate}.`
-      );
-      if (confirm) {
+    showAlert({
+      title: "Résilier l'abonnement Studio Pro",
+      message: `Êtes-vous sûr de vouloir résilier votre abonnement ? Vous conserverez tous vos avantages Studio Pro jusqu'au ${expiryDate}.`,
+      confirmLabel: "Confirmer la résiliation",
+      isDestructive: true,
+      onConfirm: async () => {
         try {
           const { error } = await supabase
             .from("profiles")
@@ -224,45 +206,25 @@ export default function Settings() {
             .eq("id", effectiveUserId);
 
           if (error) throw error;
-          window.alert(`Votre abonnement a été résilié. Vous conserverez vos accès Studio Pro jusqu'au ${expiryDate}.`);
-          refreshProfile();
-        } catch (e) {
-          window.alert("Erreur lors de la résiliation.");
-        }
-      }
-    } else {
-      Alert.alert(
-        "Résilier l'abonnement Studio Pro",
-        `Êtes-vous sûr de vouloir résilier votre abonnement ? Vous conserverez tous vos avantages Studio Pro jusqu'au ${expiryDate}.`,
-        [
-          { text: "Garder mon abonnement", style: "cancel" },
-          {
-            text: "Confirmer la résiliation",
-            style: "destructive",
-            onPress: async () => {
-              try {
-                const { error } = await supabase
-                  .from("profiles")
-                  .update({ subscription_tier: "free" })
-                  .eq("id", effectiveUserId);
-
-                if (error) throw error;
-                
-                Alert.alert(
-                  "Abonnement résilié",
-                  `Votre abonnement a été résilié. Vous conserverez vos accès Studio Pro jusqu'au ${expiryDate}.`
-                );
-                refreshProfile(); 
-              } catch (e) {
-                Alert.alert("Erreur", "Impossible de résilier l'abonnement.");
-              }
+          showAlert({
+            title: "Abonnement résilié",
+            message: `Votre abonnement a été résilié. Vous conserverez vos accès Studio Pro jusqu'au ${expiryDate}.`,
+            onConfirm: () => {
+              refreshProfile();
             },
-          },
-        ]
-      );
-    }
+          });
+        } catch (e) {
+          showAlert({
+            title: "Erreur",
+            message: "Impossible de résilier l'abonnement.",
+            onConfirm: () => {},
+          });
+        }
+      },
+    });
   };
 
+           
   return (
     <View style={styles.container}>
       <Stack.Screen options={{ 
@@ -480,6 +442,10 @@ export default function Settings() {
             <TouchableOpacity 
                 style={styles.settingRow} 
                 onPress={async () => {
+                    const { data: { session } } = await supabase.auth.getSession();
+                    if (session) {
+                        await supabase.from("profiles").update({ expo_push_token: null } as any).eq("id", session.user.id);
+                    }
                     await supabase.auth.signOut();
                     router.replace("/");
                 }}

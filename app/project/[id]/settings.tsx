@@ -3,16 +3,20 @@ import CityPicker from "@/app/components/CityPicker";
 import CountryPicker from "@/app/components/CountryPicker";
 import WebDatePicker from "@/components/common/WebDatePicker";
 import ClapLoading from "@/components/ui/ClapLoading";
+import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 import { GlobalStyles } from "@/constants/Styles";
 import { useUserMode } from "@/hooks/useUserMode";
 import { supabase } from "@/lib/supabase";
+import { useAlert } from "@/providers/ModalProvider";
 import { useTheme } from "@/providers/ThemeProvider";
+import { NotificationService } from "@/services/NotificationService";
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import * as ImagePicker from "expo-image-picker";
 import { Stack, useFocusEffect, useGlobalSearchParams, useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
+    ActivityIndicator,
     Alert,
     Image,
     Platform,
@@ -26,13 +30,20 @@ import {
 
 // @ts-ignore
 
+const PRODUCTION_TYPES = [
+  { value: "recherche", label: "En recherche" },
+  { value: "societe", label: "Oui (Société)" },
+  { value: "non", label: "Non" },
+];
+
 const PROJECT_TYPES = [
-  { label: "Long-métrage", value: "long_metrage" },
-  { label: "Court-métrage", value: "court_metrage" },
-  { label: "Série", value: "serie" },
-  { label: "Clip", value: "clip" },
-  { label: "Publicité", value: "publicite" },
-  { label: "Documentaire", value: "documentaire" },
+  { value: "court_metrage", label: "Court-métrage" },
+  { value: "long_metrage", label: "Long-métrage" },
+  { value: "serie", label: "Série" },
+  { value: "clip", label: "Clip" },
+  { value: "publicite", label: "Pub" },
+  { value: "documentaire", label: "Docu" },
+  { value: "etudiant", label: "Étudiant" },
 ];
 
 export default function ProjectSettings() {
@@ -44,11 +55,13 @@ export default function ProjectSettings() {
   const router = useRouter();
   const { mode } = useUserMode();
   const { colors, isDark } = useTheme();
+  const { showAlert } = useAlert();
   const styles = createStyles(colors, isDark);
   const [project, setProject] = useState<any>(null);
   const [participants, setParticipants] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [isOwner, setIsOwner] = useState(false);
@@ -70,10 +83,41 @@ export default function ProjectSettings() {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
 
+  const [productionType, setProductionType] = useState("recherche");
+  const [productionCompany, setProductionCompany] = useState("");
+  const [searchProductionQuery, setSearchProductionQuery] = useState("");
+  const [productionSuggestions, setProductionSuggestions] = useState<any[]>([]);
+  const [searchingProduction, setSearchingProduction] = useState(false);
+  const [selectedProduction, setSelectedProduction] = useState<any | null>(null);
+
   const [showStartPicker, setShowStartPicker] = useState(false);
   const [showEndPicker, setShowEndPicker] = useState(false);
 
+  // Collaborators management
+  const [collaborators, setCollaborators] = useState<any[]>([]);
+  const [pendingCollaborators, setPendingCollaborators] = useState<any[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+
   const [uploading, setUploading] = useState(false);
+
+  // Modal State
+  const [modalConfig, setModalConfig] = useState<{
+    visible: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    isDestructive?: boolean;
+    confirmLabel?: string;
+  }>({
+    visible: false,
+    title: "",
+    message: "",
+    onConfirm: () => {},
+  });
+
+  const hideModal = () => setModalConfig(prev => ({ ...prev, visible: false }));
 
   // Geocoding helper
   async function getCoordinates(fullAddress: string) {
@@ -190,6 +234,25 @@ export default function ProjectSettings() {
       setIsOwner(isUserCollaborator);
       setIsTrueOwner(projectData.owner_id === userId);
 
+      // Fetch collaborators profiles
+      const collabIds = projectData.collaborators || [];
+      const pendingIds = projectData.pending_collaborators || [];
+
+      if (collabIds.length > 0 || pendingIds.length > 0) {
+        const { data: collabProfiles } = await supabase
+          .from("profiles")
+          .select("id, full_name, username, avatar_url")
+          .in("id", [...collabIds, ...pendingIds]);
+
+        if (collabProfiles) {
+          setCollaborators(collabProfiles.filter(p => collabIds.includes(p.id)));
+          setPendingCollaborators(collabProfiles.filter(p => pendingIds.includes(p.id)));
+        }
+      } else {
+        setCollaborators([]);
+        setPendingCollaborators([]);
+      }
+
       setTitle(projectData.title);
       setDescription(projectData.description || "");
       setVille(projectData.ville || "");
@@ -206,6 +269,10 @@ export default function ProjectSettings() {
       setEndDate(
         projectData.end_date ? projectData.end_date.split("T")[0] : "",
       );
+      setProductionType(projectData.production_type || "recherche");
+      setProductionCompany(projectData.production_company || "");
+
+      setHasUnsavedChanges(false);
 
       // Fetch all participants for this project
       const { data: partsData, error: partsError } = await supabase
@@ -246,6 +313,7 @@ export default function ProjectSettings() {
   async function handleUpdateInfo() {
     try {
       setSaving(true);
+      setHasUnsavedChanges(false);
 
       let lat = latitude;
       let lon = longitude;
@@ -284,10 +352,46 @@ export default function ProjectSettings() {
           image_url: imageUrl,
           start_date: startDate || null,
           end_date: endDate || null,
+          production_type: productionType,
+          production_company: productionCompany,
+          collaborators: collaborators.map(c => c.id).length > 0 ? collaborators.map(c => c.id) : null,
+          pending_collaborators: pendingCollaborators.map(c => c.id).length > 0 ? pendingCollaborators.map(c => c.id) : null,
         })
         .eq("id", projectId);
 
       if (error) throw error;
+
+      // Update local project state to keep track of new IDs for next save
+      setProject({
+          ...project,
+          collaborators: collaborators.map(c => c.id),
+          pending_collaborators: pendingCollaborators.map(c => c.id)
+      });
+
+      // Handle newly added pending collaborators notifications
+      const existingPendingIds = project?.pending_collaborators || [];
+      const newPendingProfiles = pendingCollaborators.filter(p => !existingPendingIds.includes(p.id));
+      
+      const allNewInvites = selectedProduction ? [...newPendingProfiles, selectedProduction] : newPendingProfiles;
+
+      if (allNewInvites.length > 0) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("full_name, username")
+          .eq("id", currentUserId)
+          .single();
+        
+        const inviterName = profile?.full_name || profile?.username || "Le collaborateur";
+        
+        allNewInvites.forEach(collab => {
+          NotificationService.sendCollaboratorInvitationNotification({
+            receiverId: collab.id,
+            projectTitle: title.trim(),
+            projectId: projectId,
+            inviterName: inviterName,
+          });
+        });
+      }
 
       let successMsg = "Informations mises à jour !";
       if (address.trim() && (!lat || !lon)) {
@@ -300,11 +404,112 @@ export default function ProjectSettings() {
       } else {
         Alert.alert("Succès", successMsg);
       }
+      setHasUnsavedChanges(false);
       fetchData();
     } catch (error) {
       Alert.alert("Erreur", (error as Error).message);
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function searchProfiles(query: string) {
+    if (!query.trim()) {
+      setSearchResults([]);
+      return;
+    }
+
+    try {
+      setIsSearching(true);
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id, full_name, username, avatar_url")
+        .or(`full_name.ilike.%${query}%,username.ilike.%${query}%`)
+        .limit(10);
+
+      if (error) throw error;
+
+      // Filter out existing collaborators and pending
+      const filtered = (data || []).filter(
+        (p) => 
+          !collaborators.find((c: any) => c.id === p.id) && 
+          !pendingCollaborators.find((c: any) => c.id === p.id) &&
+          p.id !== currentUserId &&
+          p.id !== project?.owner_id
+      );
+
+      setSearchResults(filtered);
+    } catch (error) {
+      console.error("Search profiles error:", error);
+    } finally {
+      setIsSearching(false);
+    }
+  }
+
+  function addCollaborator(profile: any) {
+    // When adding post-creation, it goes to pending
+    setPendingCollaborators([...pendingCollaborators, profile]);
+    setHasUnsavedChanges(true);
+    setSearchQuery("");
+    setSearchResults([]);
+  }
+
+  function removeCollaborator(id: string, isPending: boolean) {
+    if (isPending) {
+      setPendingCollaborators(pendingCollaborators.filter((c: any) => c.id !== id));
+      setHasUnsavedChanges(true);
+    } else {
+      setModalConfig({
+        visible: true,
+        title: "Supprimer le collaborateur",
+        message: "Voulez-vous vraiment retirer les droits de collaborateur à cette personne ?",
+        isDestructive: true,
+        confirmLabel: "Supprimer",
+        onConfirm: () => {
+          setCollaborators(collaborators.filter((c: any) => c.id !== id));
+          setHasUnsavedChanges(true);
+          hideModal();
+        }
+      });
+    }
+  }
+
+  async function searchProductions(text: string) {
+    setSearchProductionQuery(text);
+    if (text.length < 3) {
+      setProductionSuggestions([]);
+      return;
+    }
+
+    try {
+      setSearchingProduction(true);
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id, full_name, username, avatar_url")
+        .eq("user_role", "societe_production")
+        .or(`full_name.ilike.%${text}%,username.ilike.%${text}%`)
+        .limit(5);
+
+      if (error) throw error;
+      setProductionSuggestions(data || []);
+    } catch (e) {
+      console.log("Search production error:", e);
+    } finally {
+      setSearchingProduction(false);
+    }
+  }
+
+  function selectProduction(profile: any) {
+    setSelectedProduction(profile);
+    setProductionCompany(profile.full_name || profile.username || "");
+    setProductionType("professionnelle");
+    setHasUnsavedChanges(true);
+    setSearchProductionQuery("");
+    setProductionSuggestions([]);
+    
+    // Auto-add to pending collaborators if not already there
+    if (!pendingCollaborators.find(p => p.id === profile.id) && !collaborators.find(p => p.id === profile.id)) {
+      setPendingCollaborators(prev => [...prev, profile]);
     }
   }
 
@@ -318,51 +523,66 @@ export default function ProjectSettings() {
       if (error) throw error;
       fetchData();
     } catch (e) {
-      Alert.alert("Erreur", "Impossible de modifier la visibilité.");
+      setModalConfig({
+        visible: true,
+        title: "Erreur",
+        message: "Impossible de modifier la visibilité.",
+        isDestructive: false,
+        confirmLabel: "OK",
+        onConfirm: hideModal
+      });
     }
   }
 
   async function handleQuitProject(roleId: string) {
-    Alert.alert(
-      "Quitter le projet",
-      "Êtes-vous sûr de vouloir quitter ce projet ? Votre rôle sera à nouveau vacant.",
-      [
-        { text: "Annuler", style: "cancel" },
-        {
-          text: "Quitter",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              setSaving(true);
-              // Remove accepted application
-              await supabase
-                .from("applications")
-                .delete()
-                .eq("role_id", roleId)
-                .eq("status", "accepted");
+    setModalConfig({
+      visible: true,
+      title: "Quitter le projet",
+      message: "Êtes-vous sûr de vouloir quitter ce projet ? Votre rôle sera à nouveau vacant.",
+      isDestructive: true,
+      confirmLabel: "Quitter",
+      onConfirm: async () => {
+        hideModal();
+        try {
+          setSaving(true);
+          // Remove application (both accepted and invitation_pending)
+          await supabase
+            .from("applications")
+            .delete()
+            .eq("role_id", roleId)
+            .in("status", ["accepted", "invitation_pending"]);
 
-              const { error } = await supabase
-                .from("project_roles")
-                .update({ assigned_profile_id: null, status: "open" })
-                .eq("id", roleId);
+          const { error } = await supabase
+            .from("project_roles")
+            .update({ 
+              assigned_profile_id: null, 
+              status: "published", 
+              updated_at: new Date().toISOString() 
+            })
+            .eq("id", roleId);
 
-              if (error) throw error;
-              
-              // If last role, maybe go back
-              if (userRoles.length <= 1) {
-                router.replace("/(tabs)/my-projects");
-              } else {
-                fetchData();
-              }
-            } catch (error) {
-              Alert.alert("Erreur", (error as Error).message);
-            } finally {
-              setSaving(false);
-            }
-          },
-        },
-      ],
-    );
+          if (error) throw error;
+          
+          // If last role, maybe go back
+          if (userRoles.length <= 1) {
+            router.replace("/(tabs)/my-projects");
+          } else {
+            fetchData();
+          }
+        } catch (error) {
+          setModalConfig({
+            visible: true,
+            title: "Erreur",
+            message: (error as Error).message,
+            isDestructive: false,
+            confirmLabel: "OK",
+            onConfirm: hideModal
+          });
+        } finally {
+          setSaving(false);
+        }
+      }
+    });
   }
 
   async function handleDeleteProject() {
@@ -417,82 +637,76 @@ export default function ProjectSettings() {
 
         router.replace("/(tabs)/my-projects");
       } catch (error) {
-        Alert.alert("Erreur", (error as Error).message);
+        setModalConfig({
+          visible: true,
+          title: "Erreur",
+          message: (error as Error).message,
+          isDestructive: false,
+          confirmLabel: "OK",
+          onConfirm: hideModal
+        });
       } finally {
         setSaving(false);
       }
     };
 
-    if (Platform.OS === "web") {
-      const confirmed = window.confirm(
-        "Supprimer le projet\n\nÊtes-vous sûr de vouloir supprimer ce projet ? Cette action est irréversible."
-      );
-      if (confirmed) {
+    setModalConfig({
+      visible: true,
+      title: "Supprimer le projet",
+      message: "Êtes-vous sûr de vouloir supprimer ce projet ? Cette action est irréversible.",
+      isDestructive: true,
+      confirmLabel: "Supprimer",
+      onConfirm: () => {
+        hideModal();
         performDelete();
       }
-      return;
-    }
-
-    Alert.alert(
-      "Supprimer le projet",
-      "Êtes-vous sûr de vouloir supprimer ce projet ? Cette action est irréversible.",
-      [
-        { text: "Annuler", style: "cancel" },
-        {
-          text: "Supprimer",
-          style: "destructive",
-          onPress: performDelete,
-        },
-      ],
-    );
+    });
   }
 
   async function handleRemoveParticipant(roleId: string) {
     const performRemove = async () => {
       try {
-        // Remove accepted application to allow re-apply
+        // Remove application (both accepted and invitation_pending)
         await supabase
           .from("applications")
           .delete()
           .eq("role_id", roleId)
-          .eq("status", "accepted");
+          .in("status", ["accepted", "invitation_pending"]);
 
         const { error } = await supabase
           .from("project_roles")
-          .update({ assigned_profile_id: null, status: "open" })
+          .update({ 
+            assigned_profile_id: null, 
+            status: "published",
+            updated_at: new Date().toISOString() 
+          })
           .eq("id", roleId);
 
         if (error) throw error;
         fetchData();
       } catch (error) {
-        if (Platform.OS === "web") {
-          window.alert("Erreur: " + (error as Error).message);
-        } else {
-          Alert.alert("Erreur", (error as Error).message);
-        }
+        setModalConfig({
+          visible: true,
+          title: "Erreur",
+          message: (error as Error).message,
+          isDestructive: false,
+          confirmLabel: "OK",
+          onConfirm: hideModal
+        });
       }
     };
 
-    if (Platform.OS === "web") {
-      const confirmed = window.confirm("Retirer le participant\n\nVoulez-vous retirer ce participant du projet ?");
-      if (confirmed) {
+    setModalConfig({
+      visible: true,
+      title: "Retirer le participant",
+      message: "Voulez-vous retirer ce participant du projet ?",
+      isDestructive: true,
+      confirmLabel: "Retirer",
+      onConfirm: () => {
+        hideModal();
         performRemove();
       }
-      return;
-    }
-
-    Alert.alert(
-      "Retirer le participant",
-      "Voulez-vous retirer ce participant du projet ?",
-      [
-        { text: "Annuler", style: "cancel" },
-        {
-          text: "Retirer",
-          style: "destructive",
-          onPress: performRemove,
-        },
-      ],
-    );
+    });
   }
 
   if (loading)
@@ -535,7 +749,24 @@ export default function ProjectSettings() {
       >
         {(Platform.OS !== "web" || mode !== "studio") && (
           <TouchableOpacity
-            onPress={() => router.back()}
+            onPress={() => {
+              const navigateBack = () => router.push(`/project/${projectId}` as any);
+              
+              if (hasUnsavedChanges) {
+                showAlert({
+                  title: "Modifications non enregistrées",
+                  message: "Voulez-vous enregistrer avant de quitter ?",
+                  confirmLabel: "Quitter",
+                  onConfirm: navigateBack,
+                  onSave: () => {
+                    handleUpdateInfo();
+                    navigateBack();
+                  }
+                });
+              } else {
+                navigateBack();
+              }
+            }}
             style={{ marginRight: 10 }}
           >
             <Ionicons name="arrow-back" size={24} color={colors.text} />
@@ -605,7 +836,10 @@ export default function ProjectSettings() {
               <TextInput
                 style={styles.formInput}
                 value={title}
-                onChangeText={setTitle}
+                onChangeText={(val) => {
+                  setTitle(val);
+                  setHasUnsavedChanges(true);
+                }}
                 placeholderTextColor={colors.textSecondary + "80"}
               />
 
@@ -614,7 +848,10 @@ export default function ProjectSettings() {
                 {PROJECT_TYPES.map((t) => (
                   <TouchableOpacity
                     key={t.value}
-                    onPress={() => setType(t.value)}
+                    onPress={() => {
+                      setType(t.value);
+                      setHasUnsavedChanges(true);
+                    }}
                     style={[
                       styles.typeButton,
                       type === t.value && styles.typeButtonSelected,
@@ -637,17 +874,155 @@ export default function ProjectSettings() {
               <TextInput
                 style={[styles.formInput, styles.textArea]}
                 value={description}
-                onChangeText={setDescription}
+                onChangeText={(val) => {
+                  setDescription(val);
+                  setHasUnsavedChanges(true);
+                }}
                 multiline
                 placeholderTextColor={colors.textSecondary + "80"}
               />
+
+              <Text style={[styles.fieldLabel, { marginTop: 15 }]}>Avez-vous une société de production ?</Text>
+              <View style={[styles.row, { flexWrap: "wrap", marginBottom: 15 }]}>
+                {PRODUCTION_TYPES.map((t) => (
+                  <TouchableOpacity
+                    key={t.value}
+                    onPress={() => {
+                      setProductionType(t.value);
+                      setHasUnsavedChanges(true);
+                      if (t.value !== "societe") {
+                        setProductionCompany("");
+                        setSelectedProduction(null);
+                      }
+                    }}
+                    style={[
+                      styles.typeButton,
+                      productionType === t.value && styles.typeButtonSelected,
+                      t.value === "recherche" && productionType === "recherche" && { backgroundColor: colors.primary, borderColor: colors.primary }
+                    ]}
+                  >
+                    <Text
+                      style={{
+                        color: productionType === t.value ? "white" : colors.text,
+                        fontWeight: t.value === "recherche" ? "700" : "600",
+                        fontSize: 13,
+                      }}
+                    >
+                      {t.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              {productionType === "societe" && (
+                <View style={{ marginBottom: 15 }}>
+                  <Text style={styles.fieldLabel}>Société de Production</Text>
+                  {selectedProduction || (productionCompany && !productionSuggestions.length) ? (
+                    <View style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      backgroundColor: colors.background,
+                      padding: 10,
+                      borderRadius: 8,
+                      borderWidth: 1,
+                      borderColor: colors.primary,
+                      marginBottom: 10
+                    }}>
+                      <Ionicons name="business-outline" size={24} color={colors.primary} />
+                      <View style={{ flex: 1, marginLeft: 10 }}>
+                        <Text style={{ color: colors.text, fontWeight: "600" }}>{productionCompany}</Text>
+                        <Text style={{ color: colors.textSecondary, fontSize: 12 }}>
+                          {selectedProduction ? "Société invitée" : "Saisie manuelle"}
+                        </Text>
+                      </View>
+                      <TouchableOpacity onPress={() => {
+                        setSelectedProduction(null);
+                        setProductionCompany("");
+                        setHasUnsavedChanges(true);
+                      }}>
+                        <Ionicons name="close-circle" size={24} color={colors.textSecondary} />
+                      </TouchableOpacity>
+                    </View>
+                  ) : (
+                    <View style={{ position: "relative", zIndex: 3000 }}>
+                      <TextInput
+                        placeholder="Rechercher une société existante..."
+                        style={styles.formInput}
+                        value={searchProductionQuery}
+                        onChangeText={searchProductions}
+                        placeholderTextColor={colors.textSecondary + "80"}
+                      />
+                      {searchingProduction && (
+                        <ActivityIndicator 
+                          size="small" 
+                          color={colors.primary} 
+                          style={{ position: "absolute", right: 10, top: 12 }} 
+                        />
+                      )}
+                      
+                      {productionSuggestions.length > 0 && (
+                        <View style={{
+                          position: "absolute",
+                          top: 48,
+                          left: 0,
+                          right: 0,
+                          backgroundColor: colors.backgroundSecondary,
+                          borderRadius: 8,
+                          borderWidth: 1,
+                          borderColor: colors.border,
+                          zIndex: 3001,
+                          elevation: 5
+                        }}>
+                          {productionSuggestions.map((p) => (
+                            <TouchableOpacity
+                              key={p.id}
+                              style={{
+                                flexDirection: "row",
+                                alignItems: "center",
+                                padding: 10,
+                                borderBottomWidth: 1,
+                                borderBottomColor: colors.border
+                              }}
+                              onPress={() => selectProduction(p)}
+                            >
+                              <Image
+                                source={p.avatar_url ? { uri: p.avatar_url } : {}}
+                                style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: colors.border }}
+                              />
+                              <Text style={{ marginLeft: 10, color: colors.text }}>{p.full_name || p.username}</Text>
+                            </TouchableOpacity>
+                          ))}
+                        </View>
+                      )}
+                      
+                      <Text style={{ fontSize: 11, color: colors.textSecondary, marginTop: 4, fontStyle: "italic" }}>
+                        Ou renseignez le nom manuellement :
+                      </Text>
+                      <TextInput
+                        placeholder="Nom de la société..."
+                        style={[styles.formInput, { marginTop: 4 }]}
+                        value={productionCompany}
+                        onChangeText={(t) => {
+                          setProductionCompany(t);
+                          setHasUnsavedChanges(true);
+                          if (selectedProduction) setSelectedProduction(null);
+                        }}
+                        placeholderTextColor={colors.textSecondary + "80"}
+                      />
+                    </View>
+                  )}
+                </View>
+              )}
 
               <View style={[styles.row, { marginTop: 15 }]}>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.fieldLabel}>Ville</Text>
                   <CityPicker
                     currentValue={ville}
-                    onSelect={setVille}
+                    onSelect={(val) => {
+                      setVille(val);
+                      setHasUnsavedChanges(true);
+                    }}
                     placeholder="Ex: Paris"
                   />
                 </View>
@@ -655,7 +1030,10 @@ export default function ProjectSettings() {
                   <Text style={styles.fieldLabel}>Pays</Text>
                   <CountryPicker
                     currentValue={pays}
-                    onSelect={setPays}
+                    onSelect={(val) => {
+                      setPays(val);
+                      setHasUnsavedChanges(true);
+                    }}
                     placeholder="Ex: France"
                   />
                 </View>
@@ -668,6 +1046,7 @@ export default function ProjectSettings() {
                   setAddress(addr);
                   setLatitude(lat || null);
                   setLongitude(lon || null);
+                  setHasUnsavedChanges(true);
                 }}
                 placeholder="Rechercher une adresse..."
               />
@@ -684,7 +1063,13 @@ export default function ProjectSettings() {
                 <View style={{ flex: 1 }}>
                   <Text style={styles.fieldLabel}>Date de début</Text>
                   {Platform.OS === "web" ? (
-                    <WebDatePicker value={startDate} onChange={setStartDate} />
+                    <WebDatePicker 
+                      value={startDate} 
+                      onChange={(val) => {
+                        setStartDate(val);
+                        setHasUnsavedChanges(true);
+                      }} 
+                    />
                   ) : (
                     <>
                       <TouchableOpacity
@@ -702,7 +1087,10 @@ export default function ProjectSettings() {
                           display="default"
                           onChange={(event, date) => {
                             if (Platform.OS === "android") setShowStartPicker(false);
-                            if (date) setStartDate(date.toISOString().split("T")[0]);
+                            if (date) {
+                              setStartDate(date.toISOString().split("T")[0]);
+                              setHasUnsavedChanges(true);
+                            }
                           }}
                         />
                       )}
@@ -720,7 +1108,13 @@ export default function ProjectSettings() {
                 <View style={{ flex: 1 }}>
                   <Text style={styles.fieldLabel}>Date de fin</Text>
                   {Platform.OS === "web" ? (
-                    <WebDatePicker value={endDate} onChange={setEndDate} />
+                    <WebDatePicker 
+                      value={endDate} 
+                      onChange={(val) => {
+                        setEndDate(val);
+                        setHasUnsavedChanges(true);
+                      }} 
+                    />
                   ) : (
                     <>
                       <TouchableOpacity
@@ -738,7 +1132,10 @@ export default function ProjectSettings() {
                           display="default"
                           onChange={(event, date) => {
                             if (Platform.OS === "android") setShowEndPicker(false);
-                            if (date) setEndDate(date.toISOString().split("T")[0]);
+                            if (date) {
+                              setEndDate(date.toISOString().split("T")[0]);
+                              setHasUnsavedChanges(true);
+                            }
                           }}
                         />
                       )}
@@ -773,7 +1170,10 @@ export default function ProjectSettings() {
                   </Text>
                 </View>
                 <TouchableOpacity
-                  onPress={() => setIsPublic(!isPublic)}
+                  onPress={() => {
+                    setIsPublic(!isPublic);
+                    setHasUnsavedChanges(true);
+                  }}
                   style={{
                     backgroundColor: isPublic ? colors.success : colors.border,
                     width: 48,
@@ -789,18 +1189,7 @@ export default function ProjectSettings() {
               </View>
             </View>
 
-            {/* SAVE BUTTON */}
-            <TouchableOpacity
-              style={[ {backgroundColor: colors.primary, marginBottom: 25, borderRadius: 12, paddingVertical: 14, alignItems: "center" } ]}
-              onPress={handleUpdateInfo}
-              disabled={saving}
-            >
-              {saving ? (
-                <ClapLoading color="white" size={24} />
-              ) : (
-                <Text style={GlobalStyles.buttonText}>Enregistrer les modifications</Text>
-              )}
-            </TouchableOpacity>
+            
 
             {/* SECTION 5: PARTICIPANTS */}
             <View style={styles.formSection}>
@@ -839,7 +1228,175 @@ export default function ProjectSettings() {
               )}
             </View>
 
-            {/* SECTION 6: DANGER ZONE */}
+            {/* SECTION 6: COLLABORATEURS */}
+            {isTrueOwner && (
+              <View style={styles.formSection}>
+                <View style={styles.formSectionHeader}>
+                  <Ionicons name="people-outline" size={18} color={colors.primary} />
+                  <Text style={styles.formSectionTitle}>Collaborateurs</Text>
+                </View>
+                
+                <Text style={{ fontSize: 13, color: colors.textSecondary, marginBottom: 15 }}>
+                  Les collaborateurs peuvent modifier les informations du projet et gérer l'équipe.
+                </Text>
+
+                {/* Liste des collaborateurs actuels */}
+                <View style={{ marginBottom: 15 }}>
+                  <Text style={styles.fieldLabel}>Collaborateurs actifs</Text>
+                  {collaborators.length === 0 ? (
+                    <Text style={{ fontSize: 13, color: colors.textSecondary + "90", fontStyle: "italic", marginVertical: 8 }}>
+                      Aucun collaborateur supplémentaire.
+                    </Text>
+                  ) : (
+                    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
+                      {collaborators.map((c) => (
+                        <View key={c.id} style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          backgroundColor: colors.backgroundSecondary,
+                          borderRadius: 20,
+                          paddingLeft: 4,
+                          paddingRight: 10,
+                          paddingVertical: 4,
+                          borderWidth: 1,
+                          borderColor: colors.border,
+                        }}>
+                          <Image
+                            source={c.avatar_url ? { uri: c.avatar_url } : {}}
+                            style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: colors.border }}
+                          />
+                          <Text style={{ marginLeft: 8, marginRight: 4, fontSize: 12, color: colors.text, fontWeight: "600" }}>
+                            {c.full_name || c.username}
+                          </Text>
+                          <TouchableOpacity onPress={() => removeCollaborator(c.id, false)}>
+                            <Ionicons name="close-circle" size={18} color={colors.textSecondary} />
+                          </TouchableOpacity>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+                </View>
+
+                {/* Liste des invitations en attente */}
+                <View style={{ marginBottom: 20 }}>
+                  <Text style={styles.fieldLabel}>Invitations en attente</Text>
+                  {pendingCollaborators.length === 0 ? (
+                    <Text style={{ fontSize: 13, color: colors.textSecondary + "90", fontStyle: "italic", marginVertical: 8 }}>
+                      Aucune invitation en attente.
+                    </Text>
+                  ) : (
+                    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
+                      {pendingCollaborators.map((c) => (
+                        <View key={c.id} style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          backgroundColor: colors.primary + "10",
+                          borderRadius: 20,
+                          paddingLeft: 4,
+                          paddingRight: 10,
+                          paddingVertical: 4,
+                          borderWidth: 1,
+                          borderColor: colors.primary + "30",
+                        }}>
+                          <Image
+                            source={c.avatar_url ? { uri: c.avatar_url } : {}}
+                            style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: colors.border }}
+                          />
+                          <Text style={{ marginLeft: 8, marginRight: 4, fontSize: 12, color: colors.primary, fontWeight: "600" }}>
+                            {c.full_name || c.username}
+                          </Text>
+                          <TouchableOpacity onPress={() => removeCollaborator(c.id, true)}>
+                            <Ionicons name="close-circle" size={18} color={colors.primary} />
+                          </TouchableOpacity>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+                </View>
+
+                {/* Recherche pour ajouter */}
+                <View style={{ position: "relative", zIndex: 100 }}>
+                  <Text style={styles.fieldLabel}>Ajouter un collaborateur</Text>
+                  <View style={[styles.formInput, { flexDirection: "row", alignItems: "center", paddingRight: 10 }]}>
+                    <TextInput
+                      style={{ flex: 1, color: colors.text, height: "100%" }}
+                      value={searchQuery}
+                      onChangeText={(val) => {
+                        setSearchQuery(val);
+                        searchProfiles(val);
+                      }}
+                      placeholder="Nom ou pseudo..."
+                      placeholderTextColor={colors.textSecondary + "80"}
+                    />
+                    {isSearching ? (
+                      <ActivityIndicator size="small" color={colors.primary} />
+                    ) : (
+                      <Ionicons name="search" size={20} color={colors.textSecondary} />
+                    )}
+                  </View>
+
+                  {searchResults.length > 0 && (
+                    <View style={{
+                      position: "absolute",
+                      top: 75,
+                      left: 0,
+                      right: 0,
+                      backgroundColor: colors.background,
+                      borderRadius: 12,
+                      borderWidth: 1,
+                      borderColor: colors.border,
+                      maxHeight: 200,
+                      overflow: "hidden",
+                      shadowColor: "#000",
+                      shadowOffset: { width: 0, height: 4 },
+                      shadowOpacity: 0.1,
+                      shadowRadius: 8,
+                      elevation: 5,
+                      zIndex: 1001,
+                    }}>
+                      <ScrollView>
+                        {searchResults.map((p) => (
+                          <TouchableOpacity
+                            key={p.id}
+                            onPress={() => addCollaborator(p)}
+                            style={{
+                              flexDirection: "row",
+                              alignItems: "center",
+                              padding: 12,
+                              borderBottomWidth: 1,
+                              borderBottomColor: colors.border,
+                            }}
+                          >
+                            <Image
+                              source={p.avatar_url ? { uri: p.avatar_url } : {}}
+                              style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: colors.border }}
+                            />
+                            <View style={{ marginLeft: 12 }}>
+                              <Text style={{ color: colors.text, fontWeight: "600" }}>{p.full_name || "Sans nom"}</Text>
+                              <Text style={{ color: colors.textSecondary, fontSize: 12 }}>@{p.username}</Text>
+                            </View>
+                            <Ionicons name="add-circle-outline" size={24} color={colors.primary} style={{ marginLeft: "auto" }} />
+                          </TouchableOpacity>
+                        ))}
+                      </ScrollView>
+                    </View>
+                  )}
+                </View>
+              </View>
+            )}
+            {/* SAVE BUTTON */}
+            <TouchableOpacity
+              style={[ {backgroundColor: colors.primary, marginBottom: 25, borderRadius: 12, paddingVertical: 14, alignItems: "center" } ]}
+              onPress={handleUpdateInfo}
+              disabled={saving}
+            >
+              {saving ? (
+                <ClapLoading color="white" size={24} />
+              ) : (
+                <Text style={GlobalStyles.buttonText}>Enregistrer les modifications</Text>
+              )}
+            </TouchableOpacity>
+            {/* SECTION 7: DANGER ZONE */}
             {isTrueOwner && (
               <View style={[styles.formSection, { borderColor: colors.danger + "40", backgroundColor: isDark ? 'transparent' : '#fff9f9' }]}>
                 <View style={styles.formSectionHeader}>
@@ -927,6 +1484,16 @@ export default function ProjectSettings() {
           </View>
         )}
       </ScrollView>
+
+      <ConfirmationModal
+        visible={modalConfig.visible}
+        title={modalConfig.title}
+        message={modalConfig.message}
+        onConfirm={modalConfig.onConfirm}
+        onCancel={hideModal}
+        confirmLabel={modalConfig.confirmLabel}
+        isDestructive={modalConfig.isDestructive}
+      />
     </View>
   );
 }

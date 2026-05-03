@@ -43,6 +43,14 @@ export function useFilmingLocations() {
     setError(null);
 
     try {
+      console.log('useFilmingLocations: Fetching with filters:', {
+        selectedCategory,
+        selectedCity,
+        maxPrice,
+        distanceRange,
+        userLocation
+      });
+
       let query = supabase
         .from('filming_locations')
         .select(`
@@ -69,7 +77,12 @@ export function useFilmingLocations() {
 
       const { data, error: fetchError } = await query;
 
-      if (fetchError) throw fetchError;
+      if (fetchError) {
+        console.error('useFilmingLocations: Supabase error:', fetchError);
+        throw fetchError;
+      }
+
+      console.log(`useFilmingLocations: Fetched ${data?.length || 0} items from Supabase`);
 
       let processedData = data || [];
 
@@ -85,6 +98,7 @@ export function useFilmingLocations() {
           );
           return dist <= distanceRange;
         });
+        console.log(`useFilmingLocations: After distance filtering (${distanceRange}km): ${processedData.length} items`);
       }
 
       setLocations(processedData);

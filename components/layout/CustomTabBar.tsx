@@ -3,11 +3,11 @@ import { useTheme } from "@/providers/ThemeProvider";
 import { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import React from "react";
 import {
-  Platform,
-  StyleSheet,
-  Text,
-  useWindowDimensions,
-  View,
+    Platform,
+    StyleSheet,
+    Text,
+    useWindowDimensions,
+    View,
 } from "react-native";
 
 export default function CustomTabBar({
@@ -25,13 +25,20 @@ export default function CustomTabBar({
   }
 
   const visibleRoutes = state.routes.filter((route) => {
-    const { options } = descriptors[route.key];
+    const descriptor = descriptors[route.key];
+    const { options } = descriptor;
 
-    // Explicitly hide if href is null or if tabBarButton is set to return null
+    // Explicitly hide if href is null
     if ((options as any).href === null) return false;
 
     // Safety check for display: none if we use it
     if ((options as any).display === "none") return false;
+
+    // If there's an explicit tabBarButton returning null, hide it
+    if (options.tabBarButton && typeof options.tabBarButton === 'function') {
+      const button = options.tabBarButton({ children: null });
+      if (button === null) return false;
+    }
 
     return true;
   });

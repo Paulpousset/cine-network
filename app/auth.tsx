@@ -2,6 +2,7 @@ import { Hoverable } from "@/components/common/Hoverable";
 import ClapLoading from "@/components/ui/ClapLoading";
 import DynamicLogo from "@/components/ui/DynamicLogo";
 import { supabase } from "@/lib/supabase";
+import { useAlert } from "@/providers/ModalProvider";
 import { useTheme } from "@/providers/ThemeProvider";
 import { Ionicons } from "@expo/vector-icons";
 import * as AppleAuthentication from "expo-apple-authentication";
@@ -13,7 +14,6 @@ import { useRouter } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
 import React, { useEffect, useRef, useState } from "react";
 import {
-    Alert,
     Animated,
     Platform,
     ScrollView,
@@ -30,6 +30,7 @@ const ROLES = [
   "realisateur",
   "acteur",
   "production",
+  "societe_production",
   "technique_image",
   "technique_son",
   "maquillage",
@@ -48,6 +49,7 @@ const DB_ROLE_MAPPING: Record<string, string> = {
   realisateur: "realisateur",
   acteur: "acteur",
   production: "production",
+  societe_production: "societe_production",
   technique_image: "image",
   technique_son: "son",
   maquillage: "hmc",
@@ -64,6 +66,7 @@ const DB_ROLE_MAPPING: Record<string, string> = {
 
 export default function AuthScreen() {
   const { colors, isDark } = useTheme();
+  const { showAlert } = useAlert();
   const styles = createStyles(colors, isDark);
   const router = useRouter();
   const [isLogin, setIsLogin] = useState(true);
@@ -132,22 +135,28 @@ export default function AuthScreen() {
     setLoading(false);
 
     if (error) {
-      Alert.alert(
-        "Erreur",
-        "Impossible de renvoyer l'email : " + error.message,
-      );
+      showAlert({
+        title: "Erreur",
+        message: "Impossible de renvoyer l'email : " + error.message,
+        onConfirm: () => {},
+      });
     } else {
-      Alert.alert(
-        "Email renvoyé",
-        "Un nouvel email de confirmation a été envoyé. Pensez à vérifier vos spams !",
-      );
+      showAlert({
+        title: "Email renvoyé",
+        message: "Un nouvel email de confirmation a été envoyé. Pensez à vérifier vos spams !",
+        onConfirm: () => {},
+      });
     }
   }
 
   async function resetPassword() {
     const cleanEmail = email.trim();
     if (!cleanEmail) {
-      Alert.alert("Erreur", "Veuillez entrer votre email.");
+      showAlert({
+        title: "Erreur",
+        message: "Veuillez entrer votre email.",
+        onConfirm: () => {},
+      });
       return;
     }
 
@@ -169,9 +178,12 @@ export default function AuthScreen() {
     // Si vous voulez qu'il vous ramène dans votre simulateur local, démentez la ligne ci-dessous :
     // if (__DEV__ && Platform.OS !== 'web') redirectTo = Linking.createURL("update-password");
 
-    console.log("!!! SENDING PASSWORD RESET WITH REDIRECT:", redirectTo);
-    // Supprimons toute ambiguïté avec une alerte de confirmation
-    Alert.alert("Debug Reset", "Lien envoyé : " + redirectTo);
+    // Supplemental: display confirmation alert
+    showAlert({
+      title: "Debug Reset",
+      message: "Lien envoyé : " + redirectTo,
+      onConfirm: () => {},
+    });
 
     const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
       redirectTo,
@@ -181,11 +193,19 @@ export default function AuthScreen() {
 
     if (error) {
       setFormError(error.message);
-      Alert.alert("Erreur", error.message);
+      showAlert({
+        title: "Erreur",
+        message: error.message,
+        onConfirm: () => {},
+      });
     } else {
       const msg = "Un email de réinitialisation a été envoyé.";
       setSuccessMessage(msg);
-      Alert.alert("Succès", msg);
+      showAlert({
+        title: "Succès",
+        message: msg,
+        onConfirm: () => {},
+      });
       // Optional: switch back to login after success
       // setIsReset(false);
       // setIsLogin(true);
@@ -198,8 +218,13 @@ export default function AuthScreen() {
     setFormError("");
     const cleanEmail = email.trim();
     if (!cleanEmail) {
-      setFormError("Veuillez entrer votre email.");
-      Alert.alert("Erreur", "Veuillez entrer votre email.");
+      const msg = "Veuillez entrer votre email.";
+      setFormError(msg);
+      showAlert({
+        title: "Erreur",
+        message: msg,
+        onConfirm: () => {},
+      });
       setLoading(false);
       return;
     }
@@ -208,32 +233,32 @@ export default function AuthScreen() {
       password,
     });
     if (error) {
-      // On logue l'erreur pour le debug, mais on utilise console.log pour éviter les toasts intrusifs
+      // Log the error for debug, use console.log to avoid intrusive toasts
       console.log("Sign In Error handled:", error);
 
       if (error.message.includes("Email not confirmed")) {
         setFormError("Email non confirmé. Vérifiez vos spams.");
-        Alert.alert(
-          "Email non confirmé",
-          "Veuillez vérifier votre boîte de réception (et vos spams).",
-          [
-            { text: "Annuler", style: "cancel" },
-            { text: "Renvoyer l'email", onPress: resendConfirmation },
-          ],
-        );
+        showAlert({
+          title: "Email non confirmé",
+          message: "Veuillez vérifier votre boîte de réception (et vos spams).",
+          confirmLabel: "Renvoyer l'email",
+          onConfirm: resendConfirmation,
+        });
       } else if (error.message.includes("Invalid login credentials")) {
         setFormError("Identifiants incorrects ou email non validé.");
-        Alert.alert(
-          "Problème de connexion",
-          "Identifiants incorrects ou email non validé.\n\nSi vous venez de créer votre compte, vérifiez vos emails pour le valider.",
-          [
-            { text: "Ok", style: "cancel" },
-            { text: "Renvoyer l'email", onPress: resendConfirmation },
-          ],
-        );
+        showAlert({
+          title: "Problème de connexion",
+          message: "Identifiants incorrects ou email non validé.\n\nSi vous venez de créer votre compte, vérifiez vos emails pour le valider.",
+          confirmLabel: "Renvoyer l'email",
+          onConfirm: resendConfirmation,
+        });
       } else {
         setFormError(error.message);
-        Alert.alert("Erreur de connexion", error.message);
+        showAlert({
+          title: "Erreur de connexion",
+          message: error.message,
+          onConfirm: () => {},
+        });
       }
     }
     setLoading(false);
@@ -244,21 +269,30 @@ export default function AuthScreen() {
     setSuccessMessage("");
 
     if (!email || !password || !fullName) {
-      Alert.alert("Erreur", "Veuillez remplir tous les champs.");
+      showAlert({
+        title: "Erreur",
+        message: "Veuillez remplir tous les champs.",
+        onConfirm: () => {},
+      });
       return;
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email.trim())) {
-      Alert.alert("Erreur", "Veuillez entrer une adresse email valide.");
+      showAlert({
+        title: "Erreur",
+        message: "Veuillez entrer une adresse email valide.",
+        onConfirm: () => {},
+      });
       return;
     }
 
     if (password.length < 6) {
-      Alert.alert(
-        "Erreur",
-        "Le mot de passe doit contenir au moins 6 caractères.",
-      );
+      showAlert({
+        title: "Erreur",
+        message: "Le mot de passe doit contenir au moins 6 caractères.",
+        onConfirm: () => {},
+      });
       return;
     }
 
@@ -291,42 +325,51 @@ export default function AuthScreen() {
       if (error) {
         console.log("Signup Error handled:", error);
         if (error.message.includes("rate limit")) {
-          Alert.alert(
-            "Trop de tentatives",
-            "Veuillez patienter un moment avant de réessayer (limite de sécurité atteinte).",
-          );
+          showAlert({
+            title: "Trop de tentatives",
+            message: "Veuillez patienter un moment avant de réessayer (limite de sécurité atteinte).",
+            onConfirm: () => {},
+          });
         } else if (
           error.message.includes("User already registered") ||
           error.message.includes("already registered")
         ) {
-          Alert.alert(
-            "Compte existant",
-            "Cette adresse email est déjà liée à un compte.\nVeuillez vous connecter.",
-            [
-              {
-                text: "Se connecter",
-                onPress: () => setIsLogin(true),
-              },
-            ],
-          );
+          showAlert({
+            title: "Compte existant",
+            message: "Cette adresse email est déjà liée à un compte.\nVeuillez vous connecter.",
+            confirmLabel: "Se connecter",
+            onConfirm: () => setIsLogin(true),
+          });
         } else {
-          Alert.alert("Erreur Inscription", error.message);
+          showAlert({
+            title: "Erreur Inscription",
+            message: error.message,
+            onConfirm: () => {},
+          });
         }
       } else if (!session && user) {
         const msg =
           "Un email de validation vous a été envoyé. Veuillez vérifier votre boîte mail (et vos spams) pour confirmer votre compte.";
-        Alert.alert("Inscription réussie !", msg);
+        showAlert({
+          title: "Inscription réussie !",
+          message: msg,
+          onConfirm: () => setIsLogin(true),
+        });
         setSuccessMessage(msg);
-        setIsLogin(true); // Switch back to login
       } else if (session) {
-        Alert.alert("Bienvenue !", `Compte créé en tant que ${role}`);
+        showAlert({
+          title: "Bienvenue !",
+          message: `Compte créé en tant que ${role}`,
+          onConfirm: () => {},
+        });
       }
     } catch (err: any) {
       console.log("Unexpected Signup Error handled:", err);
-      Alert.alert(
-        "Erreur Inattendue",
-        err.message || "Une erreur technique est survenue",
-      );
+      showAlert({
+        title: "Erreur Inattendue",
+        message: "Une erreur est survenue lors de l'inscription.",
+        onConfirm: () => {},
+      });
     } finally {
       setLoading(false);
     }

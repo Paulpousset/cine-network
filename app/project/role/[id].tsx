@@ -49,10 +49,10 @@ export default function RoleDetails() {
     if (effectiveUserId) {
       checkApplicationStatus(effectiveUserId);
 
-      // Fetch profile for notification
+      // Fetch profile for notification and role checks
       supabase
         .from("profiles")
-        .select("full_name, username")
+        .select("full_name, username, role")
         .eq("id", effectiveUserId)
         .single()
         .then(({ data }) => {
@@ -301,6 +301,7 @@ export default function RoleDetails() {
   const isAssignedToMe =
     role && effectiveUserId && role.assigned_profile_id === effectiveUserId;
   const isInvitation = isAssignedToMe && role.status === "invitation_pending";
+  const isCompany = currentUserProfile?.role === "societe_production";
 
   return (
     <View style={styles.container}>
@@ -486,7 +487,11 @@ export default function RoleDetails() {
 
       {/* FOOTER ACTION */}
       <View style={styles.footer}>
-        {isInvitation ? (
+        {isCompany ? (
+          <View style={[GlobalStyles.primaryButton, { backgroundColor: colors.backgroundSecondary, borderColor: colors.border, borderWidth: 1 }]}>
+            <Text style={[GlobalStyles.buttonText, { color: colors.text, opacity: 0.6 }]}>Les sociétés ne peuvent pas postuler</Text>
+          </View>
+        ) : isInvitation ? (
           <View style={{ flexDirection: "row", gap: 12 }}>
             <TouchableOpacity
               style={[

@@ -41,7 +41,6 @@ type Project = {
 
 export default function MyProjects() {
   const { colors, isDark } = useTheme();
-  const { isGuest } = useUser();
   const styles = createStyles(colors, isDark);
   const router = useRouter(); // <--- Hook de navigation
   const { width } = useWindowDimensions();
@@ -56,7 +55,7 @@ export default function MyProjects() {
   const isWebLarge = Platform.OS === "web" && isMd;
   const isWebWide = Platform.OS === "web" && isLg;
   const { hasCompletedTutorial } = useTutorial();
-  const { user } = useUser();
+  const { user, profile, isGuest } = useUser();
   
   const {
     ownedProjects,
@@ -73,10 +72,26 @@ export default function MyProjects() {
   const [isHistoryVisible, setIsHistoryVisible] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   
-  const sections = useMemo(() => [
-    { title: "Mes Créations", data: ownedProjects },
-    { title: "Mes Participations", data: participatingProjects },
-  ], [ownedProjects, participatingProjects]);
+  const isProductionCompany = profile?.role === "societe_production";
+
+  const sections = useMemo(() => {
+    if (isProductionCompany) {
+      // Pour les sociétés de production, on groupe tout
+      const allProjects = [...ownedProjects, ...participatingProjects];
+      // On retire les doublons si nécessaire (normalement pas le cas si Supabase query est propre)
+      const uniqueProjects = Array.from(new Set(allProjects.map(p => p.id)))
+        .map(id => allProjects.find(p => p.id === id))
+        .filter((p): p is Project => !!p);
+      
+      return [
+        { title: "Tous mes projets", data: uniqueProjects },
+      ];
+    }
+    return [
+      { title: "Mes Créations", data: ownedProjects },
+      { title: "Mes Participations", data: participatingProjects },
+    ];
+  }, [ownedProjects, participatingProjects, isProductionCompany]);
 
   const onRefresh = useCallback(async () => {
     setIsRefreshing(true);
@@ -342,7 +357,9 @@ export default function MyProjects() {
           <View style={[styles.webHeader, { marginBottom: 0, paddingBottom: 10 }]}>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 20 }}>
               <DynamicLogo />
-              <Text style={styles.webHeaderTitle}>Mes Projets</Text>
+              <Text style={styles.webHeaderTitle}>
+                {isProductionCompany ? "Projets de la société" : "Mes Projets"}
+              </Text>
             </View>
             {!isGuest && (
               <TouchableOpacity
@@ -378,38 +395,44 @@ export default function MyProjects() {
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={[styles.webStatValue, { fontSize: isLg ? 24 : 18 }]}>
-                        {sections[0]?.data.length || 0}
+                        {isProductionCompany 
+                          ? sections[0]?.data.length || 0
+                          : (ownedProjects.length + participatingProjects.length)}
                       </Text>
-                      <Text style={[styles.webStatLabel, { fontSize: isLg ? 12 : 10 }]} numberOfLines={1}>Mes Créations</Text>
+                      <Text style={[styles.webStatLabel, { fontSize: isLg ? 12 : 10 }]} numberOfLines={1}>
+                        {isProductionCompany ? "Tous mes projets" : "Total Projets"}
+                      </Text>
                     </View>
                   </View>
 
-                  <View style={[styles.webStatCard, { 
-                    flex: 1,
-                    flexBasis: "45%",
-                    minWidth: 120,
-                    padding: isLg ? 20 : 15,
-                    minHeight: isLg ? 100 : 80 
-                  }]}>
-                    <View
-                      style={[
-                        styles.webStatIconContainer,
-                        { backgroundColor: "#4CAF5015", width: isLg ? 44 : 36, height: isLg ? 44 : 36 },
-                      ]}
-                    >
-                      <Ionicons name="people" size={isLg ? 22 : 18} color="#4CAF50" />
+                  {!isProductionCompany && (
+                    <View style={[styles.webStatCard, { 
+                      flex: 1,
+                      flexBasis: "45%",
+                      minWidth: 120,
+                      padding: isLg ? 20 : 15,
+                      minHeight: isLg ? 100 : 80 
+                    }]}>
+                      <View
+                        style={[
+                          styles.webStatIconContainer,
+                          { backgroundColor: "#4CAF5015", width: isLg ? 44 : 36, height: isLg ? 44 : 36 },
+                        ]}
+                      >
+                        <Ionicons name="people" size={isLg ? 22 : 18} color="#4CAF50" />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.webStatValue, { fontSize: isLg ? 24 : 18 }]}>
+                          {participatingProjects.length || 0}
+                        </Text>
+                        <Text style={[styles.webStatLabel, { fontSize: isLg ? 12 : 10 }]} numberOfLines={1}>Participations</Text>
+                      </View>
                     </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={[styles.webStatValue, { fontSize: isLg ? 24 : 18 }]}>
-                        {sections[1]?.data.length || 0}
-                      </Text>
-                      <Text style={[styles.webStatLabel, { fontSize: isLg ? 12 : 10 }]} numberOfLines={1}>Participations</Text>
-                    </View>
-                  </View>
+                  )}
 
                   <View style={[styles.webStatCard, { 
                     flex: 1,
-                    flexBasis: "45%",
+                    flexBasis: isProductionCompany ? "22%" : "45%",
                     minWidth: 120,
                     padding: isLg ? 20 : 15,
                     minHeight: isLg ? 100 : 80 
@@ -437,7 +460,7 @@ export default function MyProjects() {
 
                   <View style={[styles.webStatCard, { 
                     flex: 1,
-                    flexBasis: "45%",
+                    flexBasis: isProductionCompany ? "22%" : "45%",
                     minWidth: 120,
                     padding: isLg ? 20 : 15,
                     minHeight: isLg ? 100 : 80 

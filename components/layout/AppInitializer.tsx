@@ -1,13 +1,13 @@
-import { useEffect, useCallback, useState } from "react";
-import { Platform } from "react-native";
-import * as Linking from "expo-linking";
-import { useRouter, usePathname, useSegments } from "expo-router";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
+import { appEvents, EVENTS } from "@/lib/events";
 import { supabase } from "@/lib/supabase";
 import { useUser } from "@/providers/UserProvider";
-import { appEvents, EVENTS } from "@/lib/events";
-import { usePushNotifications } from "@/hooks/usePushNotifications";
 import analytics from "@react-native-firebase/analytics";
 import crashlytics from "@react-native-firebase/crashlytics";
+import * as Linking from "expo-linking";
+import { usePathname, useRouter, useSegments } from "expo-router";
+import { useEffect } from "react";
+import { Platform } from "react-native";
 
 export function AppInitializer({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -101,9 +101,13 @@ export function AppInitializer({ children }: { children: React.ReactNode }) {
     if (!session && !isPublicPage) {
       router.replace("/");
     } else if (session) {
-      if (isProfileComplete === false && !isGuest && pathname !== "/complete-profile" && !pathname.startsWith("/update-password")) {
+      const isCompletingProfile = pathname === "/complete-profile";
+      const isInPasswordFlow = pathname.startsWith("/update-password");
+
+      if (isProfileComplete === false && !isGuest && !isCompletingProfile && !isInPasswordFlow) {
+        console.log("AppInitializer: Redirecting to complete-profile (Profile incomplete)");
         router.replace("/complete-profile");
-      } else if ((isProfileComplete === true || isGuest) && (pathname === "/auth" || pathname === "/" || (pathname === "/complete-profile" && isGuest))) {
+      } else if ((isProfileComplete === true || isGuest) && (pathname === "/auth" || pathname === "/" || (isCompletingProfile && isGuest))) {
         router.replace("/my-projects");
       }
     }

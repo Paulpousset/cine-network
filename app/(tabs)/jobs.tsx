@@ -5,6 +5,7 @@ import { useJobs } from "@/hooks/useJobs";
 import { useUserMode } from "@/hooks/useUserMode";
 import { supabase } from "@/lib/supabase";
 import { useTheme } from "@/providers/ThemeProvider";
+import { useUser } from "@/providers/UserProvider";
 import { JOB_TITLES } from "@/utils/roles";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -55,6 +56,9 @@ export default function Discover() {
   const { width } = useWindowDimensions();
   const isWebLarge = Platform.OS === "web" && width >= 768;
   const { effectiveUserId } = useUserMode();
+  const { profile } = useUser();
+  const isProdCompany = profile?.role === "societe_production";
+  const [showSeekingProdOnly, setShowSeekingProdOnly] = useState(false);
 
   const {
     roles,
@@ -72,8 +76,20 @@ export default function Discover() {
     setHideMyParticipations,
   } = useJobs();
 
+  // Filter projects by seeking production if enabled
+  const filteredProjects = showSeekingProdOnly 
+    ? projects.filter(p => p.production_type === "recherche")
+    : projects;
+
   // View Content Type: 'roles' (Jobs) or 'projects' (Tournages)
-  const [contentType, setContentType] = useState<"roles" | "projects">("roles");
+  const [contentType, setContentType] = useState<"roles" | "projects">(isProdCompany ? "projects" : "roles");
+
+  // Force content type to projects for production companies
+  useEffect(() => {
+    if (isProdCompany) {
+      setContentType("projects");
+    }
+  }, [isProdCompany]);
   // View Mode: 'list' or 'map'
   const [viewMode, setViewMode] = useState<"list" | "map">("list");
 
@@ -379,73 +395,110 @@ export default function Discover() {
         </View>
 
         {/* Row 2: Tabs Offres/Tournages */}
-        <View style={styles.segmentedControl}>
-          <TouchableOpacity
-            onPress={() => {
-              setContentType("roles");
-              setShowAll(false);
-            }}
-            style={[
-              styles.segmentedButton,
-              contentType === "roles" && styles.segmentedButtonActive,
-            ]}
-          >
-            <Text
+        {!isProdCompany && (
+          <View style={styles.segmentedControl}>
+            <TouchableOpacity
+              onPress={() => {
+                setContentType("roles");
+                setShowAll(false);
+              }}
               style={[
-                styles.segmentedText,
-                contentType === "roles" && styles.segmentedTextActive,
+                styles.segmentedButton,
+                contentType === "roles" && styles.segmentedButtonActive,
               ]}
             >
-              Offres
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => {
-              setContentType("projects");
-              setShowAll(false);
-            }}
-            style={[
-              styles.segmentedButton,
-              contentType === "projects" && styles.segmentedButtonActive,
-            ]}
-          >
-            <Text
+              <Text
+                style={[
+                  styles.segmentedText,
+                  contentType === "roles" && styles.segmentedTextActive,
+                ]}
+              >
+                Offres
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => {
+                setContentType("projects");
+                setShowAll(false);
+              }}
               style={[
-                styles.segmentedText,
-                contentType === "projects" && styles.segmentedTextActive,
+                styles.segmentedButton,
+                contentType === "projects" && styles.segmentedButtonActive,
               ]}
             >
-              Tournages
-            </Text>
-          </TouchableOpacity>
-        </View>
+              <Text
+                style={[
+                  styles.segmentedText,
+                  contentType === "projects" && styles.segmentedTextActive,
+                ]}
+              >
+                Tournages
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* Filtrer les participations */}
         <View style={{
           flexDirection: 'row',
           alignItems: 'center',
-          justifyContent: 'flex-end',
+          justifyContent: 'space-between',
           marginBottom: 12,
-          gap: 10,
-          paddingRight: 4
+          paddingHorizontal: 4
         }}>
-          <Text style={{
-            fontSize: 13,
-            fontWeight: "500",
-            color: isDark ? "#A0A0A0" : "#666",
+          {isProdCompany && contentType === "projects" ? (
+            <TouchableOpacity 
+              onPress={() => setShowSeekingProdOnly(!showSeekingProdOnly)}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                backgroundColor: showSeekingProdOnly ? colors.primary + "20" : colors.backgroundSecondary,
+                paddingHorizontal: 12,
+                paddingVertical: 6,
+                borderRadius: 20,
+                borderWidth: 1,
+                borderColor: showSeekingProdOnly ? colors.primary : colors.border,
+                gap: 6
+              }}
+            >
+              <Ionicons 
+                name={showSeekingProdOnly ? "radio-button-on" : "radio-button-off"} 
+                size={16} 
+                color={showSeekingProdOnly ? colors.primary : colors.textSecondary} 
+              />
+              <Text style={{
+                fontSize: 13,
+                fontWeight: "600",
+                color: showSeekingProdOnly ? colors.primary : colors.textSecondary,
+              }}>
+                En recherche de prod
+              </Text>
+            </TouchableOpacity>
+          ) : <View />}
+
+          <View style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 10,
           }}>
-            Cacher mes participations
-          </Text>
-          <Switch
-            value={hideMyParticipations}
-            onValueChange={setHideMyParticipations}
-            trackColor={{ false: "#767577", true: colors.primary }}
-            thumbColor={hideMyParticipations ? "#fff" : (isDark ? "#374151" : "#f4f3f4")}
-            ios_backgroundColor="#3e3e3e"
-            style={{ 
-              transform: Platform.OS === 'ios' ? [{ scaleX: 0.8 }, { scaleY: 0.8 }] : [],
-            }}
-          />
+            <Text style={{
+              fontSize: 13,
+              fontWeight: "500",
+              color: isDark ? "#A0A0A0" : "#666",
+            }}>
+              Cacher mes participations
+            </Text>
+            <Switch
+              value={hideMyParticipations}
+              onValueChange={setHideMyParticipations}
+              trackColor={{ false: "#767577", true: colors.primary }}
+              thumbColor={hideMyParticipations ? "#fff" : (isDark ? "#374151" : "#f4f3f4")}
+              ios_backgroundColor="#3e3e3e"
+              style={{ 
+                transform: Platform.OS === 'ios' ? [{ scaleX: 0.8 }, { scaleY: 0.8 }] : [],
+              }}
+            />
+          </View>
         </View>
 
         {/* Row 3: Filtres */}
@@ -512,7 +565,7 @@ export default function Discover() {
                   }}
                 >
                   {/* ... markers logic ... */}
-                  {projects.map((proj: any) => {
+                  {filteredProjects.map((proj: any) => {
                     const lat = parseFloat(String(proj.latitude));
                     const lon = parseFloat(String(proj.longitude));
                     if (isNaN(lat) || isNaN(lon)) return null;
@@ -621,7 +674,7 @@ export default function Discover() {
               </ScrollView>
             ) : (
               <FlashList
-                data={(showSavedOnly ? savedRolesToDisplay : (contentType === "roles" ? roles : projects)) as any}
+                data={(showSavedOnly ? savedRolesToDisplay : (contentType === "roles" ? roles : filteredProjects)) as any}
                 keyExtractor={(item: any) => item.id}
                 renderItem={({ item }: { item: any }) =>
                   contentType === "roles" || showSavedOnly ? (

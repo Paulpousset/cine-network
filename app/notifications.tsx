@@ -4,19 +4,21 @@ import { useTheme } from "@/providers/ThemeProvider";
 import { useUser } from "@/providers/UserProvider";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { formatDistanceToNow } from "date-fns";
+import { fr } from "date-fns/locale";
 import { Stack, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-  Alert,
-  AppState,
-  Image,
-  Platform,
-  RefreshControl,
-  SectionList,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    Alert,
+    AppState,
+    Image,
+    Platform,
+    RefreshControl,
+    SectionList,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
 
 export default function NotificationsScreen() {
@@ -24,12 +26,12 @@ export default function NotificationsScreen() {
   const styles = createStyles(colors, isDark);
   const router = useRouter();
   const { user } = useUser();
+  const currentUserId = user?.id;
+
   const [loading, setLoading] = useState(true);
   const [sections, setSections] = useState<any[]>([]);
-  const SEEN_ACCEPTED_KEY = "seen_accepted_connections"; // Key for local storage
-  const SEEN_POST_ACTIVITY_KEY = "seen_post_activity";
-
-  const currentUserId = user?.id;
+  const SEEN_ACCEPTED_KEY = `seen_accepted_connections_${currentUserId}`; // Case-specific key
+  const SEEN_POST_ACTIVITY_KEY = `seen_post_activity_${currentUserId}`;
 
   useEffect(() => {
     if (currentUserId) {
@@ -92,7 +94,7 @@ export default function NotificationsScreen() {
       // 3. Fetch Project Assignments
       const { data: assignments, error: errorAssignments } = await supabase
         .from("project_roles")
-        .select("*, tournage:tournages(id, title, image_url)")
+        .select("*, tournage:tournages(id, title, image_url, created_at)")
         .eq("assigned_profile_id", currentUserId)
         .order("created_at", { ascending: false })
         .limit(20);
@@ -581,7 +583,7 @@ export default function NotificationsScreen() {
       const project = isApp ? item.role?.tournage : item.tournage;
       const roleTitle = isApp ? item.role?.title : item.title;
 
-      // Robust invitation check:
+      // robust invitation check:
       // - For direct assignments: if status is not 'assigned'
       // - For applications: if the underlying role status is not 'assigned'
       const isInvitation = isApp
@@ -589,6 +591,9 @@ export default function NotificationsScreen() {
         : item.status !== "assigned" || section.type === "project_invitation";
 
       const targetId = isApp ? item.role?.id : item.id;
+      // Use updated_at for direct assignments/invitations if available (handle case where column might not exist yet)
+      const colDate = (item as any).updated_at || item.created_at;
+      const interactionDate = isApp ? item.created_at : colDate;
 
       return (
         <TouchableOpacity
@@ -632,6 +637,14 @@ export default function NotificationsScreen() {
                     ? `Proposition de rôle : "${roleTitle}"`
                     : `Vous avez été ajouté au projet : "${roleTitle}"`}
               </Text>
+              {interactionDate && (
+                <Text style={styles.date}>
+                  {formatDistanceToNow(new Date(interactionDate), {
+                    addSuffix: true,
+                    locale: fr,
+                  })}
+                </Text>
+              )}
             </View>
           </View>
 
@@ -703,6 +716,14 @@ export default function NotificationsScreen() {
                   ? "a aimé votre publication"
                   : `a commenté : "${item.content}"`}
               </Text>
+              {item.created_at && (
+                <Text style={styles.date}>
+                  {formatDistanceToNow(new Date(item.created_at), {
+                    addSuffix: true,
+                    locale: fr,
+                  })}
+                </Text>
+              )}
             </View>
           </View>
           <TouchableOpacity
@@ -769,6 +790,14 @@ export default function NotificationsScreen() {
                     ? "Souhaite gérer votre profil"
                     : "A accepté votre demande"}
             </Text>
+            {item.created_at && (
+              <Text style={styles.date}>
+                {formatDistanceToNow(new Date(item.created_at), {
+                  addSuffix: true,
+                  locale: fr,
+                })}
+              </Text>
+            )}
             {profile.role && <Text style={styles.role}>{profile.role}</Text>}
           </View>
         </View>
@@ -947,11 +976,20 @@ const createStyles = (colors: any, isDark: boolean) =>
       fontWeight: "bold",
       fontSize: 16,
       color: colors.text,
+      flexShrink: 1,
     },
     subtitle: {
       color: colors.text + "99",
       fontSize: 12,
       marginTop: 2,
+      flexShrink: 1,
+    },
+    date: {
+      color: colors.text + "60",
+      fontSize: 10,
+      marginTop: 2,
+      flexShrink: 1,
+      minHeight: 14, // Force visibility on web
     },
     role: {
       color: colors.primary,

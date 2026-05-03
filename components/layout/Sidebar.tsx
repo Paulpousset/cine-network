@@ -34,13 +34,28 @@ const SafeIcon = ({ isIonicons, ...props }: any) => {
   return <Comp {...props} />;
 };
 
-const NAVIGATION_ITEMS = [
+const NAVIGATION_ITEMS = (isCompany: boolean) => [
   { name: "Mes Projets", icon: "film", href: "/my-projects", id: "projects" },
 
   { name: "Fil d'actu", icon: "newspaper-o", href: "/feed" },
-  { name: "Casting & Jobs", icon: "briefcase", href: "/jobs" },
+  { 
+    name: isCompany ? "Trouver des tournages" : "Casting & Jobs", 
+    icon: "search", 
+    href: "/jobs" 
+  },
+  { 
+    name: "Chercher Talents", 
+    icon: "users", 
+    href: "/find-profiles",
+    hidden: !isCompany
+  },
 
-  { name: "Réseau", icon: "user", href: "/talents" },
+  { 
+    name: "Réseau", 
+    icon: "user", 
+    href: "/talents",
+    hidden: isCompany
+  },
   { name: "Hall of Fame", icon: "trophy", href: "/hall-of-fame" },
   { name: "Notifications", icon: "bell", href: "/notifications" },
   
@@ -422,6 +437,8 @@ export default function Sidebar() {
     }
   }, [isStudio]);
 
+  const isCompany = realRole === "societe_production";
+
   const studioItems = [
     {
       name: "Projets",
@@ -429,7 +446,17 @@ export default function Sidebar() {
       href: "/my-projects",
       id: "projects",
     },
-    { name: "Casting & Jobs", icon: "briefcase", href: "/jobs" },
+    { 
+      name: isCompany ? "Trouver des tournages" : "Casting & Jobs", 
+      icon: "search", 
+      href: "/jobs" 
+    },
+    { 
+      name: "Chercher Talents", 
+      icon: "users", 
+      href: "/find-profiles",
+      hidden: !isCompany
+    },
   ];
 
   const currentItems =
@@ -445,12 +472,15 @@ export default function Sidebar() {
         ? PROJECT_ITEMS
         : isStudio
           ? studioItems
-          : NAVIGATION_ITEMS.filter((item) => {
+          : NAVIGATION_ITEMS(isCompany).filter((item) => {
               if (isGuest) {
                 // Masquer les notifications et messages pour les invités
                 if (item.href === "/notifications" || item.href === "/direct-messages") {
                   return false;
                 }
+              }
+              if ((item as any).hidden) {
+                return false;
               }
               return true;
             });

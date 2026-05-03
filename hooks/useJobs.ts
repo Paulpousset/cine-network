@@ -290,6 +290,13 @@ export function useJobs() {
         }
       }
     });
+
+    // Handle projects seeking production that might not have published roles yet
+    if (userProfile?.role === "societe_production") {
+      // We'll need another fetch for projects where production_type === "recherche"
+      // But for now, we can at least ensure we show the ones from filtered roles
+    }
+
     setProjects(Array.from(uniqueProjectsMap.values()));
   }, [searchQuery, allRoles]);
 

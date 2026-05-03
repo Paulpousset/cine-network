@@ -52,10 +52,6 @@ export default function TabLayout() {
     return <Redirect href="/auth" />;
   }
 
-  if (isProfileComplete === false && !isGuest) {
-    return <Redirect href="/complete-profile" />;
-  }
-
   const avatarUrl = profile?.avatar_url;
   const userRole = profile?.role;
 
@@ -78,7 +74,7 @@ export default function TabLayout() {
     }
     return (
       <FontAwesome
-        name="user-circle"
+        name={userRole === "societe_production" ? "building" : "user-circle"}
         size={25}
         color={colors.text}
         style={{ marginLeft: 15, opacity: pressed ? 0.5 : 1 }}
@@ -212,9 +208,40 @@ export default function TabLayout() {
       <Tabs.Screen
         name="jobs"
         options={{
-          title: "Castings",
+          href: "/jobs",
+          title: userRole === "societe_production" ? "Trouver des tournages" : "Jobs",
           tabBarIcon: ({ color }) => (
-            <TabBarIcon name="briefcase" color={color} />
+            <TabBarIcon name="search" color={color} />
+          ),
+          headerLeft:
+            Platform.OS === "web"
+              ? undefined
+              : () => (
+                  <Link href={myProfilePath as any} asChild>
+                    <Pressable>
+                      {({ pressed }) => <ProfileIcon pressed={pressed} />}
+                    </Pressable>
+                  </Link>
+                ),
+          headerRight:
+            Platform.OS === "web"
+              ? undefined
+              : () => (
+                  <View style={{ flexDirection: "row", alignItems: "center" }}>
+                    {!isGuest && <NotificationIconWithBadge />}
+                    {!isGuest && <ChatIconWithBadge />}
+                  </View>
+                ),
+        }}
+      />
+
+      <Tabs.Screen
+        name="find-profiles"
+        options={{
+          href: userRole === "societe_production" ? "/find-profiles" : null,
+          title: "Chercher Talents",
+          tabBarIcon: ({ color }) => (
+            <TabBarIcon name="users" color={color} />
           ),
           headerLeft:
             Platform.OS === "web"
@@ -241,6 +268,9 @@ export default function TabLayout() {
       <Tabs.Screen
         name="talents"
         options={{
+          href: userRole === "societe_production" ? null : "/talents",
+          // @ts-ignore
+          display: userRole === "societe_production" ? "none" : "flex",
           title: "Réseau",
           tabBarIcon: ({ color }) => <TabBarIcon name="user" color={color} />,
           headerLeft:

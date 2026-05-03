@@ -1,4 +1,5 @@
 import ErrorBoundary from "@/app/components/ErrorBoundary";
+import { ModalProvider } from "@/providers/ModalProvider";
 import { ThemeProvider } from "@/providers/ThemeProvider";
 import { TutorialProvider } from "@/providers/TutorialProvider";
 import { UserModeProvider } from "@/providers/UserModeProvider";
@@ -21,13 +22,15 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
       <SafeAreaProvider>
         <ErrorBoundary>
           <ThemeProvider>
-            <UserProvider>
-              <UserModeProvider>
-                <TutorialProvider>
-                  {children}
-                </TutorialProvider>
-              </UserModeProvider>
-            </UserProvider>
+            <ModalProvider>
+              <UserProvider>
+                <UserModeProvider>
+                  <TutorialProvider>
+                    {children}
+                  </TutorialProvider>
+                </UserModeProvider>
+              </UserProvider>
+            </ModalProvider>
           </ThemeProvider>
         </ErrorBoundary>
       </SafeAreaProvider>

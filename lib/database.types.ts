@@ -1036,6 +1036,7 @@ export type Database = {
           status: string | null
           title: string
           tournage_id: string
+          updated_at: string | null
         }
         Insert: {
           age_max?: number | null
@@ -1060,6 +1061,7 @@ export type Database = {
           status?: string | null
           title: string
           tournage_id: string
+          updated_at?: string | null
         }
         Update: {
           age_max?: number | null
@@ -1084,6 +1086,7 @@ export type Database = {
           status?: string | null
           title?: string
           tournage_id?: string
+          updated_at?: string | null
         }
         Relationships: [
           {
@@ -1420,10 +1423,13 @@ export type Database = {
       }
       tournages: {
         Row: {
+          active_native_spaces: string[] | null
           address: string | null
+          collaborators: string[] | null
           created_at: string
           description: string | null
           end_date: string | null
+          estimated_duration: string | null
           final_result_url: string | null
           id: string
           image_url: string | null
@@ -1434,25 +1440,26 @@ export type Database = {
           longitude: number | null
           owner_id: string
           pays: string | null
+          production_company: string | null
+          production_type: string | null
+          scenario_url: string | null
+          scenario_visibility: string | null
+          school_name: string | null
+          shooting_cities: string[] | null
           start_date: string | null
           status: string | null
           title: string
           type: Database["public"]["Enums"]["project_type"] | null
           ville: string | null
-          production_company: string | null
-          estimated_duration: string | null
-          production_type: "recherche" | "associative" | "professionnelle" | null
-          school_name: string | null
-          shooting_cities: string[] | null
-          scenario_url: string | null
-          scenario_visibility: "public" | "invitation" | "productions" | "network" | null
-          collaborators: string[] | null
         }
         Insert: {
+          active_native_spaces?: string[] | null
           address?: string | null
+          collaborators?: string[] | null
           created_at?: string
           description?: string | null
           end_date?: string | null
+          estimated_duration?: string | null
           final_result_url?: string | null
           id?: string
           image_url?: string | null
@@ -1463,25 +1470,26 @@ export type Database = {
           longitude?: number | null
           owner_id: string
           pays?: string | null
+          production_company?: string | null
+          production_type?: string | null
+          scenario_url?: string | null
+          scenario_visibility?: string | null
+          school_name?: string | null
+          shooting_cities?: string[] | null
           start_date?: string | null
           status?: string | null
           title: string
           type?: Database["public"]["Enums"]["project_type"] | null
           ville?: string | null
-          production_company?: string | null
-          estimated_duration?: string | null
-          production_type?: "recherche" | "associative" | "professionnelle" | null
-          school_name?: string | null
-          shooting_cities?: string[] | null
-          scenario_url?: string | null
-          scenario_visibility?: "public" | "invitation" | "productions" | "network" | null
-          collaborators?: string[] | null
         }
         Update: {
+          active_native_spaces?: string[] | null
           address?: string | null
+          collaborators?: string[] | null
           created_at?: string
           description?: string | null
           end_date?: string | null
+          estimated_duration?: string | null
           final_result_url?: string | null
           id?: string
           image_url?: string | null
@@ -1492,19 +1500,17 @@ export type Database = {
           longitude?: number | null
           owner_id?: string
           pays?: string | null
+          production_company?: string | null
+          production_type?: string | null
+          scenario_url?: string | null
+          scenario_visibility?: string | null
+          school_name?: string | null
+          shooting_cities?: string[] | null
           start_date?: string | null
           status?: string | null
           title?: string
           type?: Database["public"]["Enums"]["project_type"] | null
           ville?: string | null
-          production_company?: string | null
-          estimated_duration?: string | null
-          production_type?: "recherche" | "associative" | "professionnelle" | null
-          school_name?: string | null
-          shooting_cities?: string[] | null
-          scenario_url?: string | null
-          scenario_visibility?: "public" | "invitation" | "productions" | "network" | null
-          collaborators?: string[] | null
         }
         Relationships: [
           {
@@ -1611,6 +1617,29 @@ export type Database = {
               score_details: string
             }[]
           }
+        | {
+            Args: {
+              filter_mode?: string
+              limit_param?: number
+              offset_param?: number
+              user_id_param: string
+            }
+            Returns: {
+              author_avatar_url: string
+              author_full_name: string
+              comments_total: number
+              likes_total: number
+              p_content: string
+              p_created_at: string
+              p_id: string
+              p_image_url: string
+              p_project_id: string
+              p_user_id: string
+              p_visibility: string
+              recommendation_score: number
+              score_details: string
+            }[]
+          }
       get_recommended_tournages: {
         Args: { user_id_param: string }
         Returns: {
@@ -1618,6 +1647,7 @@ export type Database = {
           recommendation_score: number
           t_created_at: string
           t_description: string
+          t_final_result_url: string
           t_id: string
           t_image_url: string
           t_owner_id: string
@@ -1625,6 +1655,12 @@ export type Database = {
           t_title: string
           t_type: string
           t_ville: string
+        }[]
+      }
+      get_unique_cities: {
+        Args: never
+        Returns: {
+          ville: string
         }[]
       }
       mark_messages_read: {
