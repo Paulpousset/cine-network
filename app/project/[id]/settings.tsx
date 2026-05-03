@@ -545,16 +545,20 @@ export default function ProjectSettings() {
         hideModal();
         try {
           setSaving(true);
-          // Remove accepted application
+          // Remove application (both accepted and invitation_pending)
           await supabase
             .from("applications")
             .delete()
             .eq("role_id", roleId)
-            .eq("status", "accepted");
+            .in("status", ["accepted", "invitation_pending"]);
 
           const { error } = await supabase
             .from("project_roles")
-            .update({ assigned_profile_id: null, status: "open" })
+            .update({ 
+              assigned_profile_id: null, 
+              status: "published", 
+              updated_at: new Date().toISOString() 
+            })
             .eq("id", roleId);
 
           if (error) throw error;
@@ -662,16 +666,20 @@ export default function ProjectSettings() {
   async function handleRemoveParticipant(roleId: string) {
     const performRemove = async () => {
       try {
-        // Remove accepted application to allow re-apply
+        // Remove application (both accepted and invitation_pending)
         await supabase
           .from("applications")
           .delete()
           .eq("role_id", roleId)
-          .eq("status", "accepted");
+          .in("status", ["accepted", "invitation_pending"]);
 
         const { error } = await supabase
           .from("project_roles")
-          .update({ assigned_profile_id: null, status: "open" })
+          .update({ 
+            assigned_profile_id: null, 
+            status: "published",
+            updated_at: new Date().toISOString() 
+          })
           .eq("id", roleId);
 
         if (error) throw error;

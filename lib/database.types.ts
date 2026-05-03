@@ -1036,6 +1036,7 @@ export type Database = {
           status: string | null
           title: string
           tournage_id: string
+          updated_at: string | null
         }
         Insert: {
           age_max?: number | null
@@ -1060,6 +1061,7 @@ export type Database = {
           status?: string | null
           title: string
           tournage_id: string
+          updated_at?: string | null
         }
         Update: {
           age_max?: number | null
@@ -1084,6 +1086,7 @@ export type Database = {
           status?: string | null
           title?: string
           tournage_id?: string
+          updated_at?: string | null
         }
         Relationships: [
           {
