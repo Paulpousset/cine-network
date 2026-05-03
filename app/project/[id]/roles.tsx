@@ -184,6 +184,7 @@ function createStyles(colors: any, isDark: boolean) {
       backgroundColor: colors.background,
       borderRadius: 12,
       padding: 20,
+      paddingTop: 25,
       maxHeight: "80%",
     },
     modalTitle: { fontSize: 18, fontWeight: "bold", color: colors.text },
@@ -199,11 +200,13 @@ function createStyles(colors: any, isDark: boolean) {
     },
     userRow: {
       paddingVertical: 12,
+      paddingHorizontal: 10,
       borderBottomWidth: 1,
       borderColor: colors.border,
       flexDirection: "row",
       justifyContent: "space-between",
       alignItems: "center",
+      minHeight: 60,
     },
     label: {
       fontSize: 16,
@@ -654,6 +657,7 @@ export default function ManageRoles() {
         // data: editingRole.data,
         assigned_profile_id: editingRole.assignee?.id ?? null,
         status: resolvedStatus,
+        updated_at: new Date().toISOString(),
       };
 
       if (editingRole.id) {
@@ -1067,6 +1071,7 @@ export default function ManageRoles() {
         .update({
           assigned_profile_id: profile.id,
           status: "invitation_pending",
+          updated_at: new Date().toISOString(),
         })
         .in("id", ids);
 
@@ -2091,10 +2096,17 @@ export default function ManageRoles() {
                 style={{ maxHeight: 300 }}
                 renderItem={({ item }) => (
                   <TouchableOpacity
-                    style={styles.userRow}
-                    onPress={() => assignUser(item)}
+                    style={[
+                      styles.userRow,
+                      { cursor: "pointer", position: "relative" } as any,
+                    ]}
+                    onPress={() => {
+                      console.log("Assigning user:", item.id);
+                      assignUser(item);
+                    }}
+                    activeOpacity={0.7}
                   >
-                    <View>
+                    <View style={{ flex: 1, paddingRight: 40 }}>
                       <Text style={{ fontWeight: "600", fontSize: 16 }}>
                         {item.full_name || item.username}
                       </Text>
@@ -2117,17 +2129,29 @@ export default function ManageRoles() {
                           </Text>
                         )}
                         {item.ville ? (
-                          <Text style={{ fontSize: 12, color: colors.text + "80" }}>
+                          <Text
+                            style={{ fontSize: 12, color: colors.text + "80" }}
+                          >
                             {item.role ? `• ${item.ville}` : item.ville}
                           </Text>
                         ) : null}
                       </View>
                     </View>
-                    <Ionicons
-                      name="add-circle-outline"
-                      size={24}
-                      color={colors.primary}
-                    />
+                    <View
+                      style={{
+                        position: "absolute",
+                        right: 15,
+                        height: "100%",
+                        justifyContent: "center",
+                        alignItems: "center",
+                      }}
+                    >
+                      <Ionicons
+                        name="add-circle-outline"
+                        size={28}
+                        color={colors.primary}
+                      />
+                    </View>
                   </TouchableOpacity>
                 )}
                 ListEmptyComponent={

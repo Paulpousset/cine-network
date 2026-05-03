@@ -2,6 +2,7 @@ import { useUserMode } from "@/hooks/useUserMode";
 import { Database } from "@/lib/database.types";
 import { supabase } from "@/lib/supabase";
 import { useTheme } from "@/providers/ThemeProvider";
+import { fuzzySearch } from "@/utils/search";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
@@ -209,14 +210,8 @@ export default function CastingScreen() {
     }
 
     setSearching(true);
-    // Filter local projectActors list
-    const lowerQuery = query.toLowerCase();
-    const filtered = projectActors.filter(
-      (actor) =>
-        (actor.full_name &&
-          actor.full_name.toLowerCase().includes(lowerQuery)) ||
-        (actor.username && actor.username.toLowerCase().includes(lowerQuery)),
-    );
+    // Filter local projectActors list using fuzzy search for better flexibility
+    const filtered = fuzzySearch(projectActors, ["full_name", "username"], query, 0.4);
 
     setSearchResults(filtered);
     setSearching(false);
