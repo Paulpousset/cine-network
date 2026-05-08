@@ -20,6 +20,7 @@ import {
     Alert,
     Image,
     Platform,
+    Pressable,
     ScrollView,
     StyleSheet,
     Text,
@@ -535,6 +536,7 @@ export default function ProjectSettings() {
   }
 
   async function handleQuitProject(roleId: string) {
+    console.log("DEBUG: handleQuitProject ENTERED for roleId:", roleId);
     setModalConfig({
       visible: true,
       title: "Quitter le projet",
@@ -1456,13 +1458,19 @@ export default function ProjectSettings() {
                     </TouchableOpacity>
                   </View>
 
-                  <TouchableOpacity
-                    style={styles.quitButton}
-                    onPress={() => handleQuitProject(role.id)}
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.quitButton,
+                      { cursor: 'pointer', zIndex: 9999, opacity: pressed ? 0.7 : 1 }
+                    ]}
+                    onPress={() => {
+                      console.log("DEBUG: Pressable onPress detected for", role.id);
+                      handleQuitProject(role.id);
+                    }}
                   >
                     <Ionicons name="exit-outline" size={20} color={colors.danger} />
                     <Text style={styles.quitButtonText}>Quitter ce poste</Text>
-                  </TouchableOpacity>
+                  </Pressable>
                 </View>
               ))}
             </View>

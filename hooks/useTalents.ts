@@ -83,7 +83,7 @@ export function useTalents() {
           .select("receiver_id, requester_id, status")
           .or(`receiver_id.eq.${uid},requester_id.eq.${uid}`),
         supabase
-          .from("blocks")
+          .from("user_blocks")
           .select("blocked_id")
           .eq("blocker_id", uid)
       ]);
